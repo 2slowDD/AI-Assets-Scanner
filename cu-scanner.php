@@ -1,0 +1,41 @@
+<?php
+/**
+ * Plugin Name: CU Scanner
+ * Description: CSS/JS asset scanner for Code Unloader.
+ * Version:     1.0.0
+ * Requires PHP: 8.0
+ * Requires at least: 6.2
+ * Text Domain: cu-scanner
+ */
+
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+define( 'CU_SCANNER_VERSION', '1.0.0' );
+define( 'CU_SCANNER_DIR', plugin_dir_path( __FILE__ ) );
+define( 'CU_SCANNER_URL', plugin_dir_url( __FILE__ ) );
+define( 'CU_SCANNER_WPSERVICE_URL', 'https://wpservice.pro/wp-json' );
+
+spl_autoload_register( function ( string $class ): void {
+    $map = [
+        'CUScanner\\Plugin'           => 'includes/class-plugin.php',
+        'CUScanner\\Settings'         => 'includes/class-settings.php',
+        'CUScanner\\ScanHistory'      => 'includes/class-scan-history.php',
+        'CUScanner\\Api\\WpserviceClient' => 'includes/api/class-wpservice-client.php',
+        'CUScanner\\Api\\RailwayClient'   => 'includes/api/class-railway-client.php',
+        'CUScanner\\Scanner\\PageDiscovery'   => 'includes/scanner/class-page-discovery.php',
+        'CUScanner\\Scanner\\PluginDetector'  => 'includes/scanner/class-plugin-detector.php',
+        'CUScanner\\Scanner\\BypassManager'   => 'includes/scanner/class-bypass-manager.php',
+        'CUScanner\\Scanner\\CuJsonBuilder'   => 'includes/scanner/class-cu-json-builder.php',
+        'CUScanner\\Scanner\\RulePusher'      => 'includes/scanner/class-rule-pusher.php',
+        'CUScanner\\Admin\\AdminPages'        => 'admin/class-admin-pages.php',
+        'CUScanner\\Admin\\SettingsAjax'      => 'admin/class-settings-ajax.php',
+        'CUScanner\\Admin\\ScannerAjax'       => 'admin/class-scanner-ajax.php',
+    ];
+    if ( isset( $map[ $class ] ) ) {
+        require CU_SCANNER_DIR . $map[ $class ];
+    }
+} );
+
+add_action( 'plugins_loaded', function (): void {
+    ( new CUScanner\Plugin() )->init();
+} );
