@@ -1,0 +1,7 @@
+.cu-step { padding: 16px 0; }
+#cu-scanner-app h2 { border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+#cu-progress-bar-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+#cu-progress-bar { flex: 1; height: 20px; }
+#cu-pages-table td:nth-child(3), #cu-pages-table td:nth-child(4) { width: 80px; text-align: center; }
+#cu-plugin-warnings .notice { margin: 4px 0; }
+#cu-credit-preview { font-weight: 600; color: #1d2327; }
