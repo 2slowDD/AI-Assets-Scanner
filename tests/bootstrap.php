@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../vendor/autoload.php';
 
 define( 'ABSPATH', '/fake/wp/' );
+define( 'WP_PLUGIN_DIR', '/fake/wp/wp-content/plugins' );
 define( 'CU_SCANNER_DIR', dirname( __DIR__ ) . '/' );
 define( 'CU_SCANNER_VERSION', '1.0.0' );
 

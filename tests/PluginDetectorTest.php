@@ -1,0 +1,87 @@
+<?php
+// tests/PluginDetectorTest.php
+namespace CUScanner\Tests;
+
+use CUScanner\Scanner\PluginDetector;
+use WP_Mock;
+use WP_Mock\Tools\TestCase;
+
+class PluginDetectorTest extends TestCase {
+    public function setUp(): void { parent::setUp(); WP_Mock::setUp(); }
+    public function tearDown(): void { WP_Mock::tearDown(); parent::tearDown(); }
+
+    public function test_detects_wp_rocket_as_auto_bypass(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'wp-rocket/wp-rocket.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'wp-rocket', $result['auto_bypass'] );
+        $this->assertContains( 'nowprocket', $result['auto_bypass']['wp-rocket'] );
+    }
+
+    public function test_detects_autoptimize_as_auto_bypass(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'autoptimize/autoptimize.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'autoptimize', $result['auto_bypass'] );
+    }
+
+    public function test_detects_nitropack_as_soft_block(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'nitropack/nitropack.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'NitroPack', $result['soft_block'] );
+    }
+
+    public function test_detects_flying_scripts_as_soft_block(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'flying-scripts/flying-scripts.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'Flying Scripts', $result['soft_block'] );
+    }
+
+    public function test_detects_perfmatters_as_soft_warn(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'perfmatters/perfmatters.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'Perfmatters', $result['soft_warn'] );
+    }
+
+    public function test_detects_code_unloader_version(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'code-unloader/code-unloader.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+        WP_Mock::userFunction( 'get_plugin_data' )->andReturn( [ 'Version' => '1.2.0' ] );
+
+        $result = ( new PluginDetector() )->detect();
+        // Old version → soft block
+        $this->assertArrayHasKey( 'Code Unloader', $result['soft_block'] );
+    }
+
+    public function test_code_unloader_139_is_auto_bypassed(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'code-unloader/code-unloader.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+        WP_Mock::userFunction( 'get_plugin_data' )->andReturn( [ 'Version' => '1.3.9' ] );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'code-unloader', $result['auto_bypass'] );
+    }
+
+    public function test_no_plugins_returns_empty_result(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+        $result = ( new PluginDetector() )->detect();
+        $this->assertSame( [], $result['auto_bypass'] );
+        $this->assertSame( [], $result['soft_block'] );
+        $this->assertSame( [], $result['soft_warn'] );
+    }
+}
