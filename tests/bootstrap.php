@@ -5,6 +5,14 @@ define( 'ABSPATH', '/fake/wp/' );
 define( 'CU_SCANNER_DIR', dirname( __DIR__ ) . '/' );
 define( 'CU_SCANNER_VERSION', '1.0.0' );
 
+if ( ! class_exists( 'WP_Error' ) ) {
+    class WP_Error {
+        public function __construct( private string $code = '', private string $message = '' ) {}
+        public function get_error_message(): string { return $this->message; }
+        public function get_error_code(): string { return $this->code; }
+    }
+}
+
 spl_autoload_register( function ( string $class ): void {
     $map = [
         'CUScanner\\Plugin'                   => 'includes/class-plugin.php',
