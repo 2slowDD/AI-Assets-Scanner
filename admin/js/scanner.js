@@ -37,6 +37,12 @@
         return fetch(ajax, { method: 'POST', body: form }).then(r => r.json());
     }
 
+    function esc(s) {
+        const d = document.createElement('div');
+        d.textContent = String(s);
+        return d.innerHTML;
+    }
+
     function showStep(n) {
         document.querySelectorAll('.cu-step').forEach(el => el.style.display = 'none');
         const el = document.getElementById('step-' + n);
@@ -71,14 +77,14 @@
             Object.entries(d.soft_block || {}).forEach(([name, reason]) => {
                 const id = 'override-' + name.replace(/\s+/g, '-');
                 html += `<div class="notice notice-error">
-                    <p><strong>${name}:</strong> ${reason}</p>
-                    <label><input type="checkbox" class="cu-soft-block-override" data-plugin="${name}" id="${id}" />
-                    I have disabled ${name} \u2014 proceed anyway</label></div>`;
+                    <p><strong>${esc(name)}:</strong> ${esc(reason)}</p>
+                    <label><input type="checkbox" class="cu-soft-block-override" data-plugin="${esc(name)}" id="${esc(id)}" />
+                    I have disabled ${esc(name)} \u2014 proceed anyway</label></div>`;
             });
 
             // Soft-warn: full WP notice (informational)
             Object.entries(d.soft_warn || {}).forEach(([name, reason]) => {
-                html += `<div class="notice notice-warning"><p><strong>${name}:</strong> ${reason}</p></div>`;
+                html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(reason)}</p></div>`;
             });
 
             // Auto-bypass: compact single-line banner
@@ -91,7 +97,7 @@
                         <line x1="12" y1="8" x2="12" y2="12" stroke="#2271b1" stroke-width="2" stroke-linecap="round"/>
                         <circle cx="12" cy="16" r="1" fill="#2271b1"/>
                     </svg>
-                    <strong>${label}</strong> \u2014 temporary bypass applied.
+                    <strong>${esc(label)}</strong> \u2014 temporary bypass applied.
                 </div>`;
             });
 
@@ -203,8 +209,8 @@
                 row.className = 'cu-url-row';
                 row.dataset.url = url;
                 row.dataset.type = type;
-                row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${url}" data-type="${type}" checked>
-                    <span class="cu-url-text">${url}</span>`;
+                row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${esc(url)}" data-type="${type}" checked>
+                    <span class="cu-url-text">${esc(url)}</span>`;
                 row.style.display = idx < 20 ? '' : 'none';
                 groupDiv.appendChild(row);
             });
@@ -474,7 +480,7 @@
     }
 
     function rowHtml(url, status, safe, agg) {
-        return `<td>${url}</td><td>${status}</td><td>${safe}</td><td>${agg}</td>`;
+        return `<td>${esc(url)}</td><td>${esc(status)}</td><td>${esc(safe)}</td><td>${esc(agg)}</td>`;
     }
 
     function buildResult() {
@@ -509,9 +515,9 @@
         post('cu_scanner_push_to_cu', { job_id: scanJobId }).then(res => {
             const el = document.getElementById('cu-push-result');
             if (res.success) {
-                el.innerHTML = `<div class="notice notice-success"><p>Rules added to Code Unloader: ${res.data.safe_count} safe, ${res.data.aggressive_count} aggressive.</p></div>`;
+                el.innerHTML = `<div class="notice notice-success"><p>Rules added to Code Unloader: ${esc(res.data.safe_count)} safe, ${esc(res.data.aggressive_count)} aggressive.</p></div>`;
             } else {
-                el.innerHTML = `<div class="notice notice-error"><p>Error: ${res.data}</p></div>`;
+                el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
                 this.disabled = false;
             }
         });
