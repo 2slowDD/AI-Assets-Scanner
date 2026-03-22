@@ -58,7 +58,39 @@ class ScannerAjax {
         $discovery->set_manual_urls( $urls );
         $discovery->set_excluded_urls( $excluded );
         $final = $discovery->get_urls();
-        wp_send_json_success( [ 'urls' => $final, 'count' => count( $final ) ] );
+
+        // Build post-type groups via WP_Query.
+        // Normalise both map keys and lookup values so sitemap URLs
+        // (which may differ in scheme or trailing slash) match get_permalink() output.
+        $normalise = fn( string $u ): string => trailingslashit( set_url_scheme( $u, 'https' ) );
+
+        $q = new \WP_Query( [
+            'post_type'      => get_post_types( [ 'public' => true ] ),
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+        ] );
+        $id_to_type = [];
+        foreach ( $q->posts as $id ) {
+            $permalink = get_permalink( $id );
+            if ( $permalink ) {
+                $id_to_type[ $normalise( $permalink ) ] = get_post_type( $id );
+            }
+        }
+
+        $groups = [ 'page' => [], 'post' => [], 'other' => [] ];
+        foreach ( $final as $url ) {
+            $type = $id_to_type[ $normalise( $url ) ] ?? 'other';
+            if ( $type === 'page' )       $groups['page'][]  = $url;
+            elseif ( $type === 'post' )   $groups['post'][]  = $url;
+            else                          $groups['other'][] = $url;
+        }
+
+        wp_send_json_success( [
+            'urls'   => $final,
+            'groups' => $groups,
+            'count'  => count( $final ),
+        ] );
     }
 
     public function reserve_job(): void {
