@@ -1,34 +1,94 @@
 <?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
 <div class="wrap" id="cu-scanner-app">
-    <h1>CU Scanner</h1>
+<div class="cu-wrap">
+
+    <!-- Header (step label updated by JS via data-step-label) -->
+    <div class="cu-header">
+        <svg class="cu-header-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+            <circle cx="10" cy="10" r="8.5"  stroke="#72aee6" stroke-width="1.2" opacity="0.3"/>
+            <circle cx="10" cy="10" r="5.5"  stroke="#72aee6" stroke-width="1.2" opacity="0.55"/>
+            <circle cx="10" cy="10" r="2.8"  stroke="#72aee6" stroke-width="1.2" opacity="0.85"/>
+            <circle cx="10" cy="10" r="1"    fill="#72aee6"/>
+            <line x1="10" y1="10" x2="16.5" y2="3.5" stroke="#72aee6" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        <div class="cu-header-text">
+            <h2>CU Scanner</h2>
+            <span class="cu-step-label" id="cu-step-label">Step 1 &mdash; Discover Pages</span>
+        </div>
+        <div class="cu-step-pips" id="cu-step-pips">
+            <div class="cu-pip is-active" id="cu-pip-1"></div>
+            <div class="cu-pip" id="cu-pip-2"></div>
+            <div class="cu-pip" id="cu-pip-3"></div>
+            <div class="cu-pip" id="cu-pip-4"></div>
+        </div>
+    </div>
 
     <!-- Step 1: Discovery & Filtering -->
-    <div id="step-1" class="cu-step cu-step--active">
-        <h2>Step 1 — Discover Pages</h2>
+    <div id="step-1" class="cu-step cu-step--active cu-body">
         <div id="cu-plugin-warnings"></div>
-        <div id="cu-discovered-urls">
-            <p><em>Click Discover to find all pages on this site.</em></p>
+
+        <!-- Sonar animation (shown while AJAX is in-flight) -->
+        <div class="cu-sonar-anim" id="cu-sonar-anim" style="display:none">
+            <svg class="cu-sonar-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                <rect width="120" height="120" rx="8" fill="#1a2744"/>
+                <circle class="cu-ring cu-ring-1" cx="60" cy="60" r="44" stroke="#72aee6" stroke-width="1.5" fill="none"/>
+                <circle class="cu-ring cu-ring-2" cx="60" cy="60" r="30" stroke="#72aee6" stroke-width="1.5" fill="none"/>
+                <circle class="cu-ring cu-ring-3" cx="60" cy="60" r="16" stroke="#72aee6" stroke-width="1.5" fill="none"/>
+                <path class="cu-sweep-wedge" d="M60 60 L60 16 A44 44 0 0 1 91 29 Z" fill="#72aee6" opacity="0.12"/>
+                <g class="cu-sweep-arm">
+                    <line x1="60" y1="60" x2="60" y2="16" stroke="#72aee6" stroke-width="1.5" stroke-linecap="round"/>
+                </g>
+                <circle cx="60" cy="60" r="3" fill="#72aee6"/>
+            </svg>
+            <p class="cu-sonar-label">Discovering pages&hellip;</p>
         </div>
+
+        <!-- URL list area (hidden until discovery completes) -->
+        <div id="cu-url-list-area" style="display:none">
+            <!-- Filter bar (counts populated by JS) -->
+            <div class="cu-filter-bar" id="cu-filter-bar">
+                <span class="cu-filter-pill is-active" data-filter="all"   id="cu-pill-all">All</span>
+                <span class="cu-filter-pill"           data-filter="page"  id="cu-pill-page" style="display:none">Pages</span>
+                <span class="cu-filter-pill"           data-filter="post"  id="cu-pill-post" style="display:none">Posts</span>
+                <span class="cu-filter-pill"           data-filter="other" id="cu-pill-other" style="display:none">Other</span>
+                <span class="cu-filter-divider">|</span>
+                <span class="cu-filter-pill cu-filter-action" id="cu-btn-select-all">&#9745; Select all</span>
+                <span class="cu-filter-pill cu-filter-action" id="cu-btn-deselect-all">&#9744; Deselect all</span>
+            </div>
+
+            <!-- Grouped URL list (populated by JS) -->
+            <div class="cu-url-list" id="cu-url-list"></div>
+        </div>
+
+        <!-- Exclusion textarea -->
         <div id="cu-exclusions">
             <label>Exclude URLs (one per line):<br>
                 <textarea id="cu-excluded-urls" rows="4" style="width:100%"></textarea>
             </label>
+            <p class="description" style="margin-top:4px">Tip: deselecting URLs above is simpler for most cases.</p>
         </div>
-        <p id="cu-credit-preview"></p>
-        <button id="cu-btn-discover" class="button">Discover Pages</button>
-        <button id="cu-btn-next-1" class="button button-primary" style="display:none">Start Scan &rarr;</button>
+
+        <!-- Credit badge + actions -->
+        <div class="cu-action-row" id="cu-action-row-1">
+            <div class="cu-credit-badge" id="cu-credit-badge" style="display:none">
+                <span class="cu-credit-num" id="cu-credit-num">0</span>
+                credits for this scan
+                <span class="cu-credit-deselected" id="cu-credit-deselected" style="display:none"></span>
+            </div>
+            <div class="cu-spacer"></div>
+            <button id="cu-btn-discover" class="button">Discover Pages</button>
+            <button id="cu-btn-next-1" class="button button-primary" style="display:none">Start Scan &rarr;</button>
+        </div>
     </div>
 
-    <!-- Step 2: Reservation (shows spinner then auto-advances to step 3) -->
-    <div id="step-2" class="cu-step" style="display:none">
-        <h2>Step 2 — Reserving Credits&hellip;</h2>
+    <!-- Step 2: Reservation -->
+    <div id="step-2" class="cu-step cu-body" style="display:none">
         <p>Checking your balance and reserving credits for this scan.</p>
         <span class="spinner is-active"></span>
     </div>
 
     <!-- Step 3: Live Progress -->
-    <div id="step-3" class="cu-step" style="display:none">
-        <h2>Step 3 — Scanning</h2>
+    <div id="step-3" class="cu-step cu-body" style="display:none">
         <div id="cu-progress-bar-wrap">
             <progress id="cu-progress-bar" value="0" max="100" style="width:100%"></progress>
             <span id="cu-progress-text">0 / 0</span>
@@ -37,12 +97,11 @@
             <thead><tr><th>URL</th><th>Status</th><th>Safe</th><th>Aggressive</th></tr></thead>
             <tbody id="cu-pages-tbody"></tbody>
         </table>
-        <button id="cu-btn-cancel" class="button button-secondary">Cancel Scan</button>
+        <button id="cu-btn-cancel" class="button button-secondary" style="margin-top:12px">Cancel Scan</button>
     </div>
 
     <!-- Step 4: Output -->
-    <div id="step-4" class="cu-step" style="display:none">
-        <h2>Step 4 — Done</h2>
+    <div id="step-4" class="cu-step cu-body" style="display:none">
         <p id="cu-result-summary"></p>
         <div style="display:flex; gap:16px; margin-top:16px">
             <a id="cu-btn-download" class="button button-primary" href="#">Download CU Import File</a>
@@ -51,4 +110,6 @@
         <div id="cu-push-result" style="margin-top:12px"></div>
         <p style="margin-top:16px"><a href="?page=cu-scanner">Run Another Scan</a></p>
     </div>
+
+</div>
 </div>
