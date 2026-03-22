@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CU Scanner — Concept B Full Detail</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f0f0f1;
+  color: #1d2327;
+  padding: 24px;
+}
+
+h1 { font-size: 16px; margin-bottom: 4px; }
+.page-subtitle { color: #646970; font-size: 12px; margin-bottom: 24px; }
+
+/* --- Simulated WP sidebar (just for context) --- */
+.wp-layout { display: flex; gap: 20px; max-width: 1280px; }
+.wp-sidebar {
+  width: 140px;
+  flex-shrink: 0;
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 12px 0;
+  font-size: 11px;
+}
+.wp-sidebar-item {
+  padding: 7px 14px;
+  color: #c3c4c7;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wp-sidebar-item.active {
+  background: #2271b1;
+  color: #fff;
+}
+.wp-sidebar-item svg { flex-shrink: 0; }
+
+/* --- Main content area --- */
+.wp-content { flex: 1; min-width: 0; }
+
+/* --- Plugin card (constrained, left-aligned) --- */
+.cu-card {
+  max-width: 920px;
+  background: #fff;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Dark accent header */
+.cu-header {
+  background: linear-gradient(135deg, #1a2744 0%, #1e3a5f 100%);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.cu-header-text h2 {
+  font-size: 17px;
+  font-weight: 700;
+  color: #e8f4fd;
+  letter-spacing: -0.01em;
+}
+.cu-header-text .step-label {
+  font-size: 10px;
+  color: #72aee6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+/* Step progress bar in header */
+.step-progress {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.step-pip {
+  width: 28px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.2);
+}
+.step-pip.active { background: #72aee6; }
+.step-pip.done { background: #40c98a; }
+
+/* Body */
+.cu-body { padding: 20px; }
+
+/* Auto-bypass notice */
+.bypass-notice {
+  background: #eaf4fb;
+  border: 1px solid #c3d9ee;
+  border-left: 3px solid #2271b1;
+  border-radius: 0 4px 4px 0;
+  padding: 7px 12px;
+  font-size: 11px;
+  color: #1d4f7c;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* Filter pills */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.filter-pill {
+  border: 1px solid #dcdcde;
+  border-radius: 20px;
+  padding: 3px 11px;
+  font-size: 11px;
+  cursor: pointer;
+  background: #fff;
+  color: #50575e;
+  user-select: none;
+  transition: all 0.1s;
+}
+.filter-pill.active { background: #2271b1; color: #fff; border-color: #2271b1; }
+.filter-pill.danger { border-color: #c3c4c7; color: #787c82; }
+.divider-pill { color: #c3c4c7; font-size: 12px; }
+
+/* URL list */
+.url-list { border: 1px solid #dcdcde; border-radius: 5px; overflow: hidden; margin-bottom: 14px; }
+
+.url-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: #1e3a5f;
+  color: #e8f4fd;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.url-group-header label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  color: #e8f4fd;
+}
+.url-group-header .group-count {
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 10px;
+  color: #cfe2f3;
+}
+.url-group-header .select-all-link {
+  font-size: 10px;
+  color: #72aee6;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.url-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 12px;
+  font-size: 11px;
+  border-top: 1px solid #f0f0f1;
+}
+.url-row:nth-child(odd) { background: #f9f9f9; }
+.url-row:nth-child(even) { background: #fff; }
+.url-row.deselected { opacity: 0.45; text-decoration: line-through; color: #999; }
+.url-row input[type=checkbox] { flex-shrink: 0; }
+.url-link { color: #2271b1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.url-more {
+  padding: 6px 12px;
+  font-size: 10px;
+  color: #787c82;
+  font-style: italic;
+  background: #f6f7f7;
+  border-top: 1px solid #f0f0f1;
+}
+
+/* Second group (posts) */
+.url-group-header.posts { background: #2d4a6e; }
+
+/* Exclusion row below list */
+.exclusion-section {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+.exclusion-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #50575e;
+  margin-bottom: 4px;
+}
+.exclusion-textarea {
+  width: 100%;
+  font-size: 11px;
+  border: 1px solid #dcdcde;
+  border-radius: 3px;
+  padding: 6px 8px;
+  resize: vertical;
+  color: #787c82;
+  font-family: monospace;
+  background: #fcfcfc;
+  height: 52px;
+}
+.exclusion-hint {
+  font-size: 10px;
+  color: #aaa;
+  margin-top: 3px;
+}
+
+/* Credit badge + actions */
+.bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid #f0f0f1;
+}
+.credit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #fff8e5;
+  border: 1px solid #f0c040;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #614f00;
+}
+.credit-badge .num { color: #1d2327; font-size: 14px; }
+.spacer { flex: 1; }
+.btn { padding: 7px 16px; border-radius: 3px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+.btn-primary { background: #2271b1; color: #fff; border-color: #2271b1; }
+.btn-secondary { background: #fff; border-color: #c3c4c7; color: #50575e; }
+
+/* --- Sonar icon SVG --- */
+.sonar-icon { width: 36px; height: 36px; }
+
+/* --- Annotation badges --- */
+.annotations { margin-top: 24px; max-width: 920px; }
+.annotation { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; font-size: 12px; }
+.ann-num { background: #2271b1; color: #fff; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.ann-text { color: #50575e; line-height: 1.5; }
+.ann-text strong { color: #1d2327; }
+</style>
+</head>
+<body>
+
+<h1>CU Scanner — Concept B Full Mockup</h1>
+<p class="page-subtitle">Scroll down for design notes. This is a static mockup showing final layout and structure.</p>
+
+<div class="wp-layout">
+
+  <!-- Simulated WP sidebar -->
+  <div class="wp-sidebar">
+    <div class="wp-sidebar-item">📊 Dashboard</div>
+    <div class="wp-sidebar-item">📄 Pages</div>
+    <div class="wp-sidebar-item">✏️ Posts</div>
+    <div class="wp-sidebar-item">🔌 Plugins</div>
+    <div class="wp-sidebar-item active">
+      <!-- Static sonar icon in menu -->
+      <svg class="sonar-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:16px;height:16px;">
+        <circle cx="18" cy="18" r="15" stroke="#72aee6" stroke-width="2" stroke-opacity="0.3"/>
+        <circle cx="18" cy="18" r="10" stroke="#72aee6" stroke-width="2" stroke-opacity="0.55"/>
+        <circle cx="18" cy="18" r="5" stroke="#72aee6" stroke-width="2" stroke-opacity="0.85"/>
+        <circle cx="18" cy="18" r="2" fill="#72aee6"/>
+        <line x1="18" y1="18" x2="28" y2="8" stroke="#72aee6" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/>
+      </svg>
+      CU Scanner
+    </div>
+    <div class="wp-sidebar-item">⚙️ Settings</div>
+  </div>
+
+  <!-- Main content -->
+  <div class="wp-content">
+    <div class="cu-card">
+
+      <!-- Dark header -->
+      <div class="cu-header">
+        <svg class="sonar-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="15" stroke="#72aee6" stroke-width="1.8" stroke-opacity="0.25"/>
+          <circle cx="18" cy="18" r="10.5" stroke="#72aee6" stroke-width="1.8" stroke-opacity="0.5"/>
+          <circle cx="18" cy="18" r="5.5" stroke="#72aee6" stroke-width="1.8" stroke-opacity="0.8"/>
+          <circle cx="18" cy="18" r="2" fill="#72aee6"/>
+          <line x1="18" y1="18" x2="28.5" y2="7.5" stroke="#72aee6" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div class="cu-header-text">
+          <h2>CU Scanner</h2>
+          <div class="step-label">Step 1 — Discover Pages</div>
+        </div>
+        <div class="step-progress">
+          <div class="step-pip active" title="Step 1"></div>
+          <div class="step-pip" title="Step 2"></div>
+          <div class="step-pip" title="Step 3"></div>
+          <div class="step-pip" title="Step 4"></div>
+        </div>
+      </div>
+
+      <div class="cu-body">
+
+        <!-- Auto-bypass notices (compact) -->
+        <div class="bypass-notice">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2271b1" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="#2271b1" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#2271b1"/></svg>
+          <strong>WP Rocket</strong> — temporary bypass applied.
+        </div>
+        <div class="bypass-notice" style="margin-bottom:14px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#2271b1" stroke-width="2"/><line x1="12" y1="8" x2="12" y2="12" stroke="#2271b1" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#2271b1"/></svg>
+          <strong>Code Unloader</strong> — temporary bypass applied.
+        </div>
+
+        <!-- Filter + select controls -->
+        <div class="filter-row">
+          <span class="filter-pill active">All <strong>43</strong></span>
+          <span class="filter-pill">Pages <strong>28</strong></span>
+          <span class="filter-pill">Posts <strong>12</strong></span>
+          <span class="filter-pill">Other <strong>3</strong></span>
+          <span class="divider-pill">|</span>
+          <span class="filter-pill danger">☑ Select all</span>
+          <span class="filter-pill danger">☐ Deselect all</span>
+        </div>
+
+        <!-- URL list with groups -->
+        <div class="url-list">
+
+          <!-- Pages group -->
+          <div class="url-group-header">
+            <label>
+              <input type="checkbox" checked style="accent-color:#72aee6;">
+              Pages
+              <span class="group-count">28</span>
+            </label>
+            <span class="select-all-link">deselect all pages</span>
+          </div>
+          <div class="url-row"><input type="checkbox" checked><span class="url-link">https://example.com/</span></div>
+          <div class="url-row"><input type="checkbox" checked><span class="url-link">https://example.com/about/</span></div>
+          <div class="url-row"><input type="checkbox" checked><span class="url-link">https://example.com/contact/</span></div>
+          <div class="url-row deselected"><input type="checkbox"><span class="url-link">https://example.com/privacy-policy/</span></div>
+          <div class="url-row"><input type="checkbox" checked><span class="url-link">https://example.com/services/</span></div>
+          <div class="url-more">… and 23 more pages</div>
+
+          <!-- Posts group -->
+          <div class="url-group-header posts">
+            <label>
+              <input type="checkbox" checked style="accent-color:#72aee6;">
+              Posts
+              <span class="group-count">12</span>
+            </label>
+            <span class="select-all-link">deselect all posts</span>
+          </div>
+          <div class="url-row"><input type="checkbox" checked><span class="url-link">https://example.com/blog/post-one/</span></div>
+          <div class="url-row"><input type="checkbox" checked><span class="url-link">https://example.com/blog/getting-started-guide/</span></div>
+          <div class="url-row"><input type="checkbox" checked><span class="url-link">https://example.com/blog/performance-tips/</span></div>
+          <div class="url-more">… and 9 more posts</div>
+
+        </div>
+
+        <!-- Exclusion textarea (kept, below the list) -->
+        <div style="margin-bottom:14px;">
+          <div class="exclusion-label">Additional URL exclusions (one per line):</div>
+          <textarea class="exclusion-textarea" readonly placeholder="https://example.com/admin/&#10;https://example.com/staging/"></textarea>
+          <div class="exclusion-hint">Tip: you can also deselect URLs above instead of typing them here.</div>
+        </div>
+
+        <!-- Bottom bar -->
+        <div class="bottom-row">
+          <div class="credit-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="#614f00"/></svg>
+            <span class="num">40</span> credits for this scan
+            <span style="font-size:10px;color:#999;font-weight:400;">(3 deselected)</span>
+          </div>
+          <div class="spacer"></div>
+          <button class="btn btn-secondary">Re-discover</button>
+          <button class="btn btn-primary">Start Scan →</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Annotations -->
+<div class="annotations">
+  <h3 style="font-size:13px;font-weight:700;margin-bottom:12px;color:#1d2327;">Design notes</h3>
+
+  <div class="annotation">
+    <div class="ann-num">1</div>
+    <div class="ann-text"><strong>Constrained width:</strong> The card is max 920px wide and left-aligned — on 1440px+ screens it won't stretch to fill the frame.</div>
+  </div>
+  <div class="annotation">
+    <div class="ann-num">2</div>
+    <div class="ann-text"><strong>Sonar icon:</strong> Static SVG radar in admin menu sidebar and in the card header. Animated (rotating sweep + pulsing rings) shown only during discovery loading.</div>
+  </div>
+  <div class="annotation">
+    <div class="ann-num">3</div>
+    <div class="ann-text"><strong>Plugin notices:</strong> Auto-bypass notices are compact — single line with icon instead of full WP notice blocks. Less visual noise.</div>
+  </div>
+  <div class="annotation">
+    <div class="ann-num">4</div>
+    <div class="ann-text"><strong>URL groups:</strong> Pages / Posts / Other (custom post types). Each group has a header checkbox (select/deselect all in that group) + individual checkboxes per row. Zebra stripes alternate light/white.</div>
+  </div>
+  <div class="annotation">
+    <div class="ann-num">5</div>
+    <div class="ann-text"><strong>Filter pills:</strong> All / Pages / Posts / Other — toggles which group is visible. "Select all" / "Deselect all" operate on the currently filtered set (or all if "All" filter active).</div>
+  </div>
+  <div class="annotation">
+    <div class="ann-num">6</div>
+    <div class="ann-text"><strong>Exclusion textarea:</strong> Kept as a secondary method. A hint line explains that deselecting above is the simpler alternative.</div>
+  </div>
+  <div class="annotation">
+    <div class="ann-num">7</div>
+    <div class="ann-text"><strong>Credit badge:</strong> Updates live as you deselect URLs — shows count of deselected in grey parenthetical.</div>
+  </div>
+  <div class="annotation">
+    <div class="ann-num">8</div>
+    <div class="ann-text"><strong>Step progress:</strong> Four dots in the header, colour-coded: blue = current, green = done, grey = upcoming.</div>
+  </div>
+</div>
+
+</body>
+</html>
