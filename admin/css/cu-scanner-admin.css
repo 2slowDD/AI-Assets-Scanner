@@ -127,3 +127,189 @@
     margin-top: 14px;
 }
 .cu-action-row .cu-spacer { flex: 1; }
+
+/* --- Filter pill bar --- */
+.cu-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.cu-filter-pill {
+    border: 1px solid #dcdcde;
+    border-radius: 20px;
+    padding: 3px 11px;
+    font-size: 11px;
+    cursor: pointer;
+    background: #fff;
+    color: #50575e;
+    user-select: none;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    line-height: 1.6;
+}
+.cu-filter-pill.is-active {
+    background: #2271b1;
+    color: #fff;
+    border-color: #2271b1;
+}
+.cu-filter-pill.cu-filter-action {
+    border-color: #c3c4c7;
+    color: #787c82;
+}
+.cu-filter-divider {
+    color: #c3c4c7;
+    font-size: 13px;
+    line-height: 1;
+}
+
+/* --- Grouped URL list --- */
+.cu-url-list {
+    border: 1px solid #dcdcde;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 14px;
+}
+
+/* Group header row */
+.cu-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    color: #e8f4fd;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.cu-group-header--page  { background: #1e3a5f; }
+.cu-group-header--post  { background: #2d4a6e; }
+.cu-group-header--other { background: #3a4a6e; }
+
+.cu-group-header label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    color: #e8f4fd;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.cu-group-count {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 10px;
+    color: #cfe2f3;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.cu-group-toggle-link {
+    font-size: 10px;
+    color: #72aee6;
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+    font-weight: 400;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+.cu-group-toggle-link:hover { color: #b4d8f7; }
+
+/* Individual URL rows */
+.cu-url-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 5px 12px;
+    font-size: 11px;
+    border-top: 1px solid #f0f0f1;
+    transition: opacity 0.15s;
+}
+.cu-url-row:nth-child(odd)  { background: #f9f9f9; }
+.cu-url-row:nth-child(even) { background: #fff; }
+.cu-url-row.is-deselected {
+    opacity: 0.4;
+    text-decoration: line-through;
+    color: #999;
+}
+.cu-url-row input[type="checkbox"] {
+    flex-shrink: 0;
+    margin: 0;
+    cursor: pointer;
+}
+.cu-url-text {
+    color: #2271b1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+.cu-url-more {
+    padding: 6px 12px;
+    font-size: 10px;
+    color: #787c82;
+    background: #f6f7f7;
+    border-top: 1px solid #f0f0f1;
+    cursor: pointer;
+}
+.cu-url-more:hover { background: #f0f0f1; }
+
+/* --- Sonar discovery animation --- */
+.cu-sonar-anim {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 0 20px;
+    animation: cu-fadein 0.2s ease-out;
+}
+@keyframes cu-fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.cu-sonar-svg {
+    width: 120px;
+    height: 120px;
+    display: block;
+}
+.cu-sonar-label {
+    font-size: 12px;
+    color: #72aee6;
+    font-style: italic;
+    letter-spacing: 0.04em;
+    margin: 0;
+}
+
+/* Rotating sweep arm and wedge */
+.cu-sweep-arm,
+.cu-sweep-wedge {
+    animation: cu-rotate 3s linear infinite;
+    transform-origin: 60px 60px;
+}
+@keyframes cu-rotate {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+/* Pulsing rings — staggered */
+.cu-ring {
+    animation: cu-pulse 2s ease-out infinite;
+    transform-origin: 60px 60px;
+}
+.cu-ring-1 { animation-delay: 0s; }
+.cu-ring-2 { animation-delay: 0.66s; }
+.cu-ring-3 { animation-delay: 1.33s; }
+@keyframes cu-pulse {
+    0%   { transform: scale(0.6); opacity: 0.8; }
+    100% { transform: scale(1.0); opacity: 0; }
+}
