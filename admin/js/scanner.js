@@ -4,7 +4,11 @@
     const ajax  = cuScanner.ajaxUrl;
     const nonce = cuScanner.nonce;
 
-    let discoveredUrls = [];
+    // --- State ---
+    let discoveredUrls = [];   // full set returned by server
+    let selectedUrls   = [];   // checked subset — used for reserve + submit
+    let groupedUrls    = {};   // { page: [...], post: [...], other: [...] }
+    let activeFilter   = 'all';
     let scanJobId      = null;
     let scanJobToken   = null;
     let railwayUrl     = null;
@@ -12,6 +16,15 @@
     let lastPageIndex  = 0;
     let totalPages     = 0;
     let hasSoftBlocks  = false;
+
+    const STEP_LABELS = {
+        1: 'Step 1 \u2014 Discover Pages',
+        2: 'Step 2 \u2014 Reserving Credits\u2026',
+        3: 'Step 3 \u2014 Scanning',
+        4: 'Step 4 \u2014 Done',
+    };
+
+    // --- Utilities ---
 
     function post(action, data) {
         const form = new FormData();
@@ -28,9 +41,22 @@
         document.querySelectorAll('.cu-step').forEach(el => el.style.display = 'none');
         const el = document.getElementById('step-' + n);
         if (el) el.style.display = 'block';
+
+        // Update step label in header
+        const label = document.getElementById('cu-step-label');
+        if (label) label.innerHTML = STEP_LABELS[n] || '';
+
+        // Update pips
+        for (let i = 1; i <= 4; i++) {
+            const pip = document.getElementById('cu-pip-' + i);
+            if (!pip) continue;
+            pip.className = 'cu-pip';
+            if (i < n)      pip.classList.add('is-done');
+            else if (i === n) pip.classList.add('is-active');
+        }
     }
 
-    // --- Step 1: Detect plugins + Discover ---
+    // --- Step 1: Plugin detection ---
 
     function detectPlugins() {
         post('cu_scanner_detect_plugins').then(res => {
@@ -40,6 +66,8 @@
             let html = '';
 
             hasSoftBlocks = Object.keys(d.soft_block || {}).length > 0;
+
+            // Soft-block: full WP notice (user must acknowledge)
             Object.entries(d.soft_block || {}).forEach(([name, reason]) => {
                 const id = 'override-' + name.replace(/\s+/g, '-');
                 html += `<div class="notice notice-error">
@@ -47,12 +75,26 @@
                     <label><input type="checkbox" class="cu-soft-block-override" data-plugin="${name}" id="${id}" />
                     I have disabled ${name} \u2014 proceed anyway</label></div>`;
             });
+
+            // Soft-warn: full WP notice (informational)
             Object.entries(d.soft_warn || {}).forEach(([name, reason]) => {
                 html += `<div class="notice notice-warning"><p><strong>${name}:</strong> ${reason}</p></div>`;
             });
+
+            // Auto-bypass: compact single-line banner
             Object.keys(d.auto_bypass || {}).forEach(slug => {
-                html += `<div class="notice notice-info"><p><strong>${slug}</strong> detected \u2014 bypass applied automatically.</p></div>`;
+                // Derive a readable label from the slug (wp-rocket → WP Rocket, code-unloader → Code Unloader)
+                const label = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                html += `<div class="cu-bypass-notice">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="10" stroke="#2271b1" stroke-width="2"/>
+                        <line x1="12" y1="8" x2="12" y2="12" stroke="#2271b1" stroke-width="2" stroke-linecap="round"/>
+                        <circle cx="12" cy="16" r="1" fill="#2271b1"/>
+                    </svg>
+                    <strong>${label}</strong> \u2014 temporary bypass applied.
+                </div>`;
             });
+
             warnings.innerHTML = html;
 
             if (hasSoftBlocks) {
@@ -69,35 +111,296 @@
         if (btn) btn.disabled = !allChecked;
     }
 
+    // --- Step 1: Discovery ---
+
     document.getElementById('cu-btn-discover').addEventListener('click', function () {
-        this.disabled = true;
-        this.textContent = 'Discovering\u2026';
+        // Capture button ref — `this` is not available inside .then() in strict mode
+        const discoverBtn = this;
+
+        // Show sonar animation, hide button row
+        discoverBtn.style.display = 'none';
+        document.getElementById('cu-btn-next-1').style.display = 'none';
+        document.getElementById('cu-url-list-area').style.display = 'none';
+        document.getElementById('cu-sonar-anim').style.display = 'flex';
+
         post('cu_scanner_discover_pages', {
             excluded_urls: document.getElementById('cu-excluded-urls').value.split('\n').filter(Boolean),
         }).then(res => {
-            this.disabled = false;
-            this.textContent = 'Re-discover';
+            // Hide sonar anim
+            document.getElementById('cu-sonar-anim').style.display = 'none';
+            // Restore discover button (now labelled Re-discover)
+            discoverBtn.style.display = '';
+            discoverBtn.textContent = 'Re-discover';
+
             if (!res.success) { alert('Discovery failed: ' + res.data); return; }
+
+            // Initialise state from response — selectedUrls reset here, before any render
             discoveredUrls = res.data.urls;
-            totalPages = discoveredUrls.length;
-            document.getElementById('cu-credit-preview').textContent =
-                `This scan will use ${totalPages} credit${totalPages !== 1 ? 's' : ''}.`;
-            const container = document.getElementById('cu-discovered-urls');
-            container.innerHTML = `<p>${totalPages} pages found.</p>` +
-                discoveredUrls.slice(0, 20).map(u => `<div>${u}</div>`).join('') +
-                (totalPages > 20 ? `<div>\u2026 and ${totalPages - 20} more</div>` : '');
+            groupedUrls    = res.data.groups || { page: [], post: [], other: [] };
+            selectedUrls   = discoveredUrls.slice(); // copy — all selected by default
+            totalPages     = discoveredUrls.length;
+            activeFilter   = 'all';
+
+            renderUrlList();
+            updateCreditBadge();
+
+            document.getElementById('cu-url-list-area').style.display = 'block';
             document.getElementById('cu-btn-next-1').style.display = '';
         });
     });
+
+    // --- URL list rendering ---
+
+    const GROUP_META = {
+        page:  { label: 'Pages',  cls: 'cu-group-header--page',  more: 'pages' },
+        post:  { label: 'Posts',  cls: 'cu-group-header--post',  more: 'posts' },
+        other: { label: 'Other',  cls: 'cu-group-header--other', more: '' },
+    };
+
+    function renderUrlList() {
+        const list = document.getElementById('cu-url-list');
+        list.innerHTML = '';
+
+        // Update filter pill counts and visibility
+        ['page', 'post', 'other'].forEach(type => {
+            const pill = document.getElementById('cu-pill-' + type);
+            const count = (groupedUrls[type] || []).length;
+            if (pill) {
+                pill.style.display = count > 0 ? '' : 'none';
+                pill.textContent = GROUP_META[type].label + ' ' + count;
+            }
+        });
+        const allPill = document.getElementById('cu-pill-all');
+        if (allPill) allPill.textContent = 'All ' + totalPages;
+
+        // Render each group
+        ['page', 'post', 'other'].forEach(type => {
+            const urls = groupedUrls[type] || [];
+            if (urls.length === 0) return;
+
+            const meta = GROUP_META[type];
+            const visible = (activeFilter === 'all' || activeFilter === type);
+
+            const groupDiv = document.createElement('div');
+            groupDiv.dataset.groupType = type;
+            groupDiv.style.display = visible ? '' : 'none';
+
+            // Group header
+            const header = document.createElement('div');
+            header.className = 'cu-group-header ' + meta.cls;
+            header.innerHTML = `
+                <label>
+                    <input type="checkbox" class="cu-group-cb" data-type="${type}" checked>
+                    ${meta.label} <span class="cu-group-count">${urls.length}</span>
+                </label>
+                <button class="cu-group-toggle-link" data-type="${type}">deselect all ${meta.label.toLowerCase()}</button>
+            `;
+            groupDiv.appendChild(header);
+
+            // URL rows (first 20 visible, rest hidden)
+            urls.forEach((url, idx) => {
+                const row = document.createElement('div');
+                row.className = 'cu-url-row';
+                row.dataset.url = url;
+                row.dataset.type = type;
+                row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${url}" data-type="${type}" checked>
+                    <span class="cu-url-text">${url}</span>`;
+                row.style.display = idx < 20 ? '' : 'none';
+                groupDiv.appendChild(row);
+            });
+
+            // Overflow expand link
+            if (urls.length > 20) {
+                const more = document.createElement('div');
+                more.className = 'cu-url-more';
+                const label = meta.more ? `more ${meta.more}` : 'more';
+                more.textContent = `\u2026 and ${urls.length - 20} ${label}`;
+                more.addEventListener('click', function () {
+                    groupDiv.querySelectorAll('.cu-url-row').forEach(r => r.style.display = '');
+                    this.remove();
+                });
+                groupDiv.appendChild(more);
+            }
+
+            list.appendChild(groupDiv);
+        });
+
+        // Bind group header events
+        list.querySelectorAll('.cu-group-cb').forEach(cb => {
+            cb.addEventListener('change', onGroupCheckboxChange);
+        });
+        list.querySelectorAll('.cu-group-toggle-link').forEach(btn => {
+            btn.addEventListener('click', onGroupToggleLinkClick);
+        });
+        list.querySelectorAll('.cu-row-cb').forEach(cb => {
+            cb.addEventListener('change', onRowCheckboxChange);
+        });
+    }
+
+    // --- Checkbox logic ---
+
+    function onGroupCheckboxChange(e) {
+        const type    = e.target.dataset.type;
+        const checked = e.target.checked;
+        const urls    = groupedUrls[type] || [];
+
+        // Check/uncheck all rows in this group
+        document.querySelectorAll(`.cu-row-cb[data-type="${type}"]`).forEach(cb => {
+            cb.checked = checked;
+            cb.closest('.cu-url-row').classList.toggle('is-deselected', !checked);
+        });
+
+        // Rebuild selectedUrls for this group
+        selectedUrls = selectedUrls.filter(u => !urls.includes(u));
+        if (checked) selectedUrls = selectedUrls.concat(urls);
+
+        updateGroupToggleLink(type);
+        updateCreditBadge();
+    }
+
+    function onGroupToggleLinkClick(e) {
+        const type = e.target.dataset.type;
+        const urls  = groupedUrls[type] || [];
+        const anyChecked = urls.some(u => selectedUrls.includes(u));
+        const willCheck  = !anyChecked; // if any are checked → deselect all; if none → select all
+
+        document.querySelectorAll(`.cu-row-cb[data-type="${type}"]`).forEach(cb => {
+            cb.checked = willCheck;
+            cb.closest('.cu-url-row').classList.toggle('is-deselected', !willCheck);
+        });
+
+        selectedUrls = selectedUrls.filter(u => !urls.includes(u));
+        if (willCheck) selectedUrls = selectedUrls.concat(urls);
+
+        updateGroupCheckbox(type);
+        updateGroupToggleLink(type);
+        updateCreditBadge();
+    }
+
+    function onRowCheckboxChange(e) {
+        const url     = e.target.dataset.url;
+        const checked = e.target.checked;
+        e.target.closest('.cu-url-row').classList.toggle('is-deselected', !checked);
+
+        if (checked) {
+            if (!selectedUrls.includes(url)) selectedUrls.push(url);
+        } else {
+            selectedUrls = selectedUrls.filter(u => u !== url);
+        }
+
+        updateGroupCheckbox(e.target.dataset.type);
+        updateGroupToggleLink(e.target.dataset.type);
+        updateCreditBadge();
+    }
+
+    function updateGroupCheckbox(type) {
+        const urls    = groupedUrls[type] || [];
+        const cb      = document.querySelector(`.cu-group-cb[data-type="${type}"]`);
+        if (!cb) return;
+        const selectedInGroup = urls.filter(u => selectedUrls.includes(u)).length;
+        if (selectedInGroup === 0) {
+            cb.checked = false;
+            cb.indeterminate = false;
+        } else if (selectedInGroup === urls.length) {
+            cb.checked = true;
+            cb.indeterminate = false;
+        } else {
+            cb.checked = false;
+            cb.indeterminate = true;
+        }
+    }
+
+    function updateGroupToggleLink(type) {
+        const btn = document.querySelector(`.cu-group-toggle-link[data-type="${type}"]`);
+        if (!btn) return;
+        const urls = groupedUrls[type] || [];
+        const label = GROUP_META[type].label.toLowerCase();
+        const anySelected = urls.some(u => selectedUrls.includes(u));
+        btn.textContent = anySelected ? `deselect all ${label}` : `select all ${label}`;
+    }
+
+    // --- Filter pills ---
+
+    document.getElementById('cu-filter-bar').addEventListener('click', function (e) {
+        const pill = e.target.closest('.cu-filter-pill');
+        if (!pill) return;
+
+        if (pill.id === 'cu-btn-select-all') {
+            setAllInFilter(true);
+            return;
+        }
+        if (pill.id === 'cu-btn-deselect-all') {
+            setAllInFilter(false);
+            return;
+        }
+
+        const filter = pill.dataset.filter;
+        if (!filter) return;
+        activeFilter = filter;
+
+        // Update pill active state
+        document.querySelectorAll('.cu-filter-pill[data-filter]').forEach(p => {
+            p.classList.toggle('is-active', p.dataset.filter === activeFilter);
+        });
+
+        // Show/hide groups
+        document.querySelectorAll('#cu-url-list [data-group-type]').forEach(g => {
+            const t = g.dataset.groupType;
+            g.style.display = (activeFilter === 'all' || activeFilter === t) ? '' : 'none';
+        });
+    });
+
+    function setAllInFilter(checked) {
+        // Operate on currently visible groups
+        const types = activeFilter === 'all'
+            ? ['page', 'post', 'other']
+            : [activeFilter];
+
+        types.forEach(type => {
+            const urls = groupedUrls[type] || [];
+            document.querySelectorAll(`.cu-row-cb[data-type="${type}"]`).forEach(cb => {
+                cb.checked = checked;
+                cb.closest('.cu-url-row').classList.toggle('is-deselected', !checked);
+            });
+            selectedUrls = selectedUrls.filter(u => !urls.includes(u));
+            if (checked) selectedUrls = selectedUrls.concat(urls);
+            updateGroupCheckbox(type);
+            updateGroupToggleLink(type);
+        });
+        updateCreditBadge();
+    }
+
+    // --- Credit badge ---
+
+    function updateCreditBadge() {
+        const badge      = document.getElementById('cu-credit-badge');
+        const numEl      = document.getElementById('cu-credit-num');
+        const desEl      = document.getElementById('cu-credit-deselected');
+        const selected   = selectedUrls.length;
+        const deselected = discoveredUrls.length - selected;
+
+        if (!badge) return;
+        badge.style.display = '';
+        numEl.textContent = selected;
+
+        if (deselected > 0) {
+            desEl.textContent = `(${deselected} deselected)`;
+            desEl.style.display = '';
+        } else {
+            desEl.style.display = 'none';
+        }
+    }
 
     // --- Step 2: Reserve + Submit ---
 
     document.getElementById('cu-btn-next-1').addEventListener('click', function () {
         showStep(2);
-        post('cu_scanner_reserve_job', { page_count: totalPages }).then(res => {
+        // Use selectedUrls.length — only charge for URLs that will actually be scanned
+        post('cu_scanner_reserve_job', { page_count: selectedUrls.length }).then(res => {
             if (!res.success) { showStep(1); alert('Error: ' + res.data); return; }
             const job_token = res.data.job_token;
-            post('cu_scanner_submit_job', { urls: discoveredUrls, job_token }).then(res2 => {
+            // Send only the selected URLs to Railway
+            post('cu_scanner_submit_job', { urls: selectedUrls, job_token }).then(res2 => {
                 if (!res2.success) { showStep(1); alert('Error: ' + res2.data); return; }
                 scanJobId     = res2.data.job_id;
                 scanJobToken  = res2.data.job_token;
@@ -125,7 +428,6 @@
             .then(r => r.json())
             .then(data => { handleStatusUpdate(data); })
             .catch(() => {
-                // Fallback to WordPress proxy
                 post('cu_scanner_poll_status', { job_id: scanJobId, job_token: scanJobToken, from: lastPageIndex })
                     .then(res => { if (res.success) handleStatusUpdate(res.data); });
             });
