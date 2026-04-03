@@ -8,25 +8,32 @@ class WpserviceClient {
     ) {}
 
     public function authenticate(): array {
-        return $this->post( '/cu-scanner/v1/auth', [] );
+        return $this->post( '/cu-scanner/v1/auth', [ 'domain' => $this->domain() ] );
     }
 
     public function get_credits(): array {
-        return $this->get( '/cu-scanner/v1/credits' );
+        return $this->get( '/cu-scanner/v1/credits', [ 'domain' => $this->domain() ] );
     }
 
     /**
      * @throws \RuntimeException with message 'Insufficient credits' on 402
      */
-    public function reserve_job( int $page_count, string $domain = '' ): array {
+    public function reserve_job( int $page_count ): array {
         return $this->post( '/cu-scanner/v1/jobs/reserve', [
             'page_count' => $page_count,
-            'domain'     => $domain,
+            'domain'     => $this->domain(),
         ] );
     }
 
     public function release_credits( string $job_token ): void {
-        $this->post( '/cu-scanner/v1/credits/release', [ 'job_token' => $job_token ] );
+        $this->post( '/cu-scanner/v1/credits/release', [
+            'job_token' => $job_token,
+            'domain'    => $this->domain(),
+        ] );
+    }
+
+    private function domain(): string {
+        return wp_parse_url( get_home_url(), PHP_URL_HOST ) ?: '';
     }
 
     private function post( string $path, array $body ): array {
@@ -41,8 +48,12 @@ class WpserviceClient {
         return $this->parse( $response );
     }
 
-    private function get( string $path ): array {
-        $response = wp_remote_get( $this->base_url . $path, [
+    private function get( string $path, array $query = [] ): array {
+        $url = $this->base_url . $path;
+        if ( $query ) {
+            $url .= '?' . http_build_query( $query );
+        }
+        $response = wp_remote_get( $url, [
             'headers' => [ 'Authorization' => 'Bearer ' . $this->api_key ],
             'timeout' => 15,
         ] );
