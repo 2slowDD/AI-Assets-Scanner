@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use CUScanner\Settings;
 use CUScanner\ScanHistory;
 use CUScanner\Api\WpserviceClient;
@@ -54,7 +56,7 @@ class ScannerAjax {
         if ( empty( $urls ) ) {
             $urls = $discovery->discover_from_wpquery();
         }
-        $excluded = array_map( 'sanitize_url', (array) ( $_POST['excluded_urls'] ?? [] ) );
+        $excluded = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['excluded_urls'] ?? [] ) ) );
         $discovery->set_manual_urls( $urls );
         $discovery->set_excluded_urls( $excluded );
         $final = $discovery->get_urls();
@@ -113,8 +115,8 @@ class ScannerAjax {
         $settings    = $this->settings();
         $railway_url = $settings->get_railway_url();
         $api_key     = $settings->get_api_key();
-        $job_token   = sanitize_text_field( $_POST['job_token'] ?? '' );
-        $urls_raw    = (array) ( $_POST['urls'] ?? [] );
+        $job_token   = sanitize_text_field( wp_unslash( $_POST['job_token'] ?? '' ) );
+        $urls_raw    = wp_unslash( (array) ( $_POST['urls'] ?? [] ) );
 
         if ( ! $railway_url || ! $job_token || empty( $urls_raw ) ) {
             wp_send_json_error( 'Missing required fields' ); return;
@@ -176,8 +178,8 @@ class ScannerAjax {
 
     public function poll_status(): void {
         $this->check();
-        $job_id    = sanitize_text_field( $_POST['job_id'] ?? '' );
-        $job_token = sanitize_text_field( $_POST['job_token'] ?? '' );
+        $job_id    = sanitize_text_field( wp_unslash( $_POST['job_id'] ?? '' ) );
+        $job_token = sanitize_text_field( wp_unslash( $_POST['job_token'] ?? '' ) );
         $from      = absint( $_POST['from'] ?? 0 );
         $settings  = $this->settings();
         try {
@@ -214,8 +216,8 @@ class ScannerAjax {
 
     public function build_result(): void {
         $this->check();
-        $job_id    = sanitize_text_field( $_POST['job_id'] ?? '' );
-        $job_token = sanitize_text_field( $_POST['job_token'] ?? '' );
+        $job_id    = sanitize_text_field( wp_unslash( $_POST['job_id'] ?? '' ) );
+        $job_token = sanitize_text_field( wp_unslash( $_POST['job_token'] ?? '' ) );
 
         if ( ! $job_id || ! $job_token ) {
             wp_send_json_error( 'Missing job_id or job_token' ); return;
@@ -281,7 +283,7 @@ class ScannerAjax {
     public function download_json(): void {
         check_ajax_referer( 'cu_scanner_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Forbidden' );
-        $job_id = sanitize_text_field( $_GET['job_id'] ?? '' );
+        $job_id = sanitize_text_field( wp_unslash( $_GET['job_id'] ?? '' ) );
         $json   = ( new ScanHistory() )->get_json( $job_id );
         if ( ! $json ) { wp_die( 'Not found' ); }
         header( 'Content-Type: application/json' );
@@ -292,7 +294,7 @@ class ScannerAjax {
 
     public function push_to_cu(): void {
         $this->check();
-        $job_id = sanitize_text_field( $_POST['job_id'] ?? '' );
+        $job_id = sanitize_text_field( wp_unslash( $_POST['job_id'] ?? '' ) );
         $json   = ( new ScanHistory() )->get_json( $job_id );
         if ( ! $json ) { wp_send_json_error( 'Scan data not found' ); return; }
         $pusher = new RulePusher();

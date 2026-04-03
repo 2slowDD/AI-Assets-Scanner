@@ -12,6 +12,8 @@ class WpserviceClientTest extends TestCase {
     public function setUp(): void {
         parent::setUp();
         WP_Mock::setUp();
+        WP_Mock::userFunction( 'get_home_url', [ 'return' => 'https://example.com' ] );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $url, $component = -1 ) => parse_url( $url, $component ) );
         $this->client = new WpserviceClient( 'https://wpservice.pro/wp-json', 'sk-test' );
     }
     public function tearDown(): void {

@@ -7,7 +7,11 @@ use WP_Mock;
 use WP_Mock\Tools\TestCase;
 
 class CuJsonBuilderTest extends TestCase {
-    public function setUp(): void { parent::setUp(); WP_Mock::setUp(); }
+    public function setUp(): void {
+        parent::setUp();
+        WP_Mock::setUp();
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $url, $component = -1 ) => parse_url( $url, $component ) );
+    }
     public function tearDown(): void { WP_Mock::tearDown(); parent::tearDown(); }
 
     private function make_asset( string $handle, string $type, bool $loaded_desktop, float $cov_desktop, bool $loaded_mobile, float $cov_mobile ): array {

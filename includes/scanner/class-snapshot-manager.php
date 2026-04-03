@@ -52,7 +52,7 @@ class SnapshotManager {
         }
 
         // Create the snapshot group (created enabled by default)
-        $group_name = 'Previously active rules ' . date( 'F j Y' );
+        $group_name = 'Previously active rules ' . gmdate( 'F j Y' );
         $group_id   = $repo::create_group( $group_name, '' );
         if ( \is_wp_error( $group_id ) ) {
             $this->groups_to_disable = []; // reset — nothing was written
