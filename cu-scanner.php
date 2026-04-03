@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CU Scanner
  * Description: CSS/JS asset scanner for Code Unloader.
- * Version:     1.0.0
+ * Version:     1.0.1
  * Requires PHP: 8.0
  * Requires at least: 6.2
  * Text Domain: cu-scanner
