@@ -4,6 +4,29 @@ All notable changes to CU Scanner are documented here.
 
 ---
 
+## [1.0.2] — 2026-04-03
+
+### New features
+
+- **Domain locking (client side)** — `WpserviceClient` now computes the site's hostname via `wp_parse_url(get_home_url(), PHP_URL_HOST)` and sends it as `domain` on every request to wpservice.pro (`/auth`, `/jobs/reserve`, `/credits`, `/credits/release`). No call sites change — domain extraction is centralised in a private `domain()` helper.
+
+### Other
+
+- **Version display** — Plugin version (`vX.X.X`) shown in the header of all admin pages (Scanner, Settings, Scan History).
+- **Version constant fix** — `CU_SCANNER_VERSION` constant kept in sync with plugin header.
+
+---
+
+## [1.0.1] — 2026-04-03
+
+### Bug fixes
+
+- **API key placeholder** — Settings page placeholder corrected from `sk-...` to `cusk_...` to match the actual key format.
+- **Credit balance display** — Fixed `auth['credits']` key mismatch (server returns `balance`); balance now shows immediately after saving settings without a page refresh.
+- **Reserve endpoint contract** — Updated `reserve_job()` to send `page_count` and receive the server-generated `job_token`; removed the client-side job token parameter that no longer exists.
+
+---
+
 ## [1.1.0] — 2026-03-22
 
 ### Dashboard redesign

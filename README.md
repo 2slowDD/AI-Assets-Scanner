@@ -6,7 +6,7 @@ WordPress admin plugin that scans your site's pages for CSS/JS assets and genera
 
 1. **Discovers** all public URLs on your site (via sitemap or WP_Query fallback)
 2. **Groups** URLs by post type (Pages, Posts, Other) so you can selectively include or exclude them
-3. **Submits** the selected URLs to the wpservice.pro scanning API
+3. **Submits** the selected URLs to the wpservice.pro scanning API, including your site's domain for key binding
 4. **Polls** for results and displays per-page safe/aggressive rule counts
 5. **Exports** a `.json` rule file you can download or push directly to Code Unloader
 
