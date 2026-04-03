@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use CUScanner\Settings;
 use CUScanner\Api\WpserviceClient;
 
@@ -15,11 +17,11 @@ class SettingsAjax {
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Forbidden', 403 );
 
         $settings = new Settings();
-        $api_key  = sanitize_text_field( $_POST['api_key'] ?? '' );
+        $api_key  = sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) );
         $settings->set_api_key( $api_key );
 
-        $http_user = sanitize_text_field( $_POST['http_user'] ?? '' );
-        $http_pass = sanitize_text_field( $_POST['http_pass'] ?? '' );
+        $http_user = sanitize_text_field( wp_unslash( $_POST['http_user'] ?? '' ) );
+        $http_pass = sanitize_text_field( wp_unslash( $_POST['http_pass'] ?? '' ) );
         if ( $http_user && $http_pass ) {
             $settings->set_http_auth( $http_user, $http_pass );
         } elseif ( isset( $_POST['clear_http_auth'] ) ) {

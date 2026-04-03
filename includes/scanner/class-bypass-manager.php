@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Scanner;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 class BypassManager {
     private const TRANSIENT_PREFIX  = 'cu_scan_token_';
     private const TOKEN_LIST_OPTION = 'cu_scanner_active_tokens';
@@ -45,7 +47,7 @@ class BypassManager {
      */
     public function handle_wp_loaded(): void {
         if ( empty( $_GET['cu_scan_token'] ) ) return;
-        $token = sanitize_text_field( $_GET['cu_scan_token'] );
+        $token = sanitize_text_field( wp_unslash( $_GET['cu_scan_token'] ) );
         if ( ! $this->is_valid_token( $token ) ) return;
         add_filter( 'post_password_required', '__return_false' );
     }

@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 class AdminPages {
     public function register(): void {
         add_action( 'admin_menu', [ $this, 'add_menus' ] );

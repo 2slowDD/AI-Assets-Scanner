@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use CUScanner\Scanner\BypassManager;
 use CUScanner\Admin\AdminPages;
 use CUScanner\Admin\SettingsAjax;

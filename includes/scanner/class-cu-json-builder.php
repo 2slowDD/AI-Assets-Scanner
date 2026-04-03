@@ -70,7 +70,7 @@ class CuJsonBuilder {
     }
 
     private function url_to_pattern( string $url ): string {
-        $parsed = parse_url( $url );
+        $parsed = wp_parse_url( $url );
         return ( $parsed['path'] ?? '/' ) . ( isset( $parsed['query'] ) ? '?' . $parsed['query'] : '' );
     }
 }
