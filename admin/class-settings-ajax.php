@@ -31,7 +31,7 @@ class SettingsAjax {
             $client = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key );
             $auth   = $client->authenticate();
             $settings->set_railway_url( $auth['railway_url'] );
-            wp_send_json_success( [ 'credits' => $auth['credits'], 'railway_url' => $auth['railway_url'] ] );
+            wp_send_json_success( [ 'credits' => $auth['balance'], 'railway_url' => $auth['railway_url'] ] );
         } catch ( \RuntimeException $e ) {
             wp_send_json_error( $e->getMessage() );
         }
