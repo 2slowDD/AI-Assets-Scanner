@@ -11,7 +11,7 @@
             <line x1="10" y1="10" x2="16.5" y2="3.5" stroke="#72aee6" stroke-width="1.2" stroke-linecap="round"/>
         </svg>
         <div class="cu-header-text">
-            <h2>CU Scanner</h2>
+            <h2>CU Scanner <small style="font-size:11px;font-weight:normal;color:#a7aaad;vertical-align:middle;">v<?php echo esc_html( CU_SCANNER_VERSION ); ?></small></h2>
             <span class="cu-step-label">Scan History</span>
         </div>
     </div>

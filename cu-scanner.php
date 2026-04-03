@@ -10,7 +10,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'CU_SCANNER_VERSION', '1.0.0' );
+define( 'CU_SCANNER_VERSION', '1.0.1' );
 define( 'CU_SCANNER_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CU_SCANNER_URL', plugin_dir_url( __FILE__ ) );
 define( 'CU_SCANNER_WPSERVICE_URL', 'https://wpservice.pro/wp-json' );
