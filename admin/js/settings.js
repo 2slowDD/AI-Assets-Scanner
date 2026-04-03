@@ -21,7 +21,7 @@
                 .then(r => r.json())
                 .then(res => {
                     if (res.success) {
-                        showMsg('Settings saved. Credits: ' + res.data.credits, 'success');
+                        showMsg('Settings saved. Credit balance: ' + res.data.credits, 'success');
                         balance.textContent = res.data.credits;
                     } else {
                         showMsg('Error: ' + res.data, 'error');
