@@ -99,8 +99,9 @@ class ScannerAjax {
         $page_count = absint( $_POST['page_count'] ?? 0 );
         if ( $page_count < 1 ) { wp_send_json_error( 'Invalid page count' ); return; }
         try {
+            $domain = wp_parse_url( get_home_url(), PHP_URL_HOST ) ?: '';
             $client = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $settings->get_api_key() );
-            $result = $client->reserve_job( $page_count );
+            $result = $client->reserve_job( $page_count, $domain );
             set_transient( 'cu_scanner_pending_token_' . get_current_user_id(), $result['job_token'], 3600 );
             wp_send_json_success( [ 'reserved' => true, 'job_token' => $result['job_token'] ] );
         } catch ( \RuntimeException $e ) {
