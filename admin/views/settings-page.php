@@ -29,7 +29,7 @@
                     <td>
                         <input type="text" id="cu_api_key" name="api_key"
                                value="<?php echo esc_attr( $api_key ); ?>"
-                               class="regular-text" placeholder="sk-..." />
+                               class="regular-text" placeholder="cusk_..." />
                         <p class="description">Get your API key from <a href="https://wpservice.pro" target="_blank">wpservice.pro</a></p>
                     </td>
                 </tr>
