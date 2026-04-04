@@ -54,7 +54,7 @@
                                 </svg>
                                 Refresh
                             </button>
-                            <a href="https://wpservice.pro/buy-credits" target="_blank" class="button button-primary cu-balance-btn">+ Buy Credits</a>
+                            <a href="https://wpservice.pro/shop/?orderby=date" target="_blank" class="button button-primary cu-balance-btn">+ Buy Credits</a>
                         </div>
                     </td>
                 </tr>
