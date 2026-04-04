@@ -90,6 +90,17 @@ class RulePusher {
         foreach ( $cu_json['groups'] as $group_def ) {
             $existing = $this->find_group_by_name( $repo, $group_def['name'] );
             if ( $existing !== null ) {
+                // Clear old rules from this group before inserting the new set.
+                // The rules are already preserved in the snapshot group at this point,
+                // and the UNIQUE constraint on (url_pattern, asset_handle, ..., group_id)
+                // would block re-inserting identical rules into the same group.
+                $stale_ids = array_map(
+                    fn( $r ) => (int) $r->id,
+                    array_filter( $repo::get_all_rules(), fn( $r ) => (int) $r->group_id === $existing )
+                );
+                if ( ! empty( $stale_ids ) ) {
+                    $repo::delete_rules( $stale_ids );
+                }
                 $group_ids[ $group_def['id'] ] = $existing;
             } else {
                 $result = $repo::create_group( $group_def['name'], $group_def['description'] ?? '' );
