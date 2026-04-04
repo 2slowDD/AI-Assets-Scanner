@@ -503,16 +503,24 @@
             .then(res => {
                 if (!res.success) { alert('Error building result: ' + res.data); return; }
                 const d = res.data;
-                document.getElementById('cu-result-summary').textContent =
-                    `Scan complete. ${d.safe_count} safe rules, ${d.aggressive_count} aggressive rules generated.`;
-                const dlBtn = document.getElementById('cu-btn-download');
-                dlBtn.href = ajax + '?action=cu_scanner_download_json&job_id=' + scanJobId + '&nonce=' + nonce;
-                dlBtn.setAttribute('download', 'cu-scanner-' + scanJobId + '.json');
-                if (d.can_push) {
-                    document.getElementById('cu-btn-push').style.display = '';
-                }
-                showStep(4);
+                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push );
+                localStorage.setItem( 'cu_scanner_result', JSON.stringify({
+                    job_id:     scanJobId,
+                    safe_count: d.safe_count,
+                    agg_count:  d.aggressive_count,
+                    can_push:   d.can_push,
+                }) );
             });
+    }
+
+    function restoreStep4( jobId, safeCount, aggCount, canPush ) {
+        document.getElementById('cu-result-summary').textContent =
+            `Scan complete. ${safeCount} safe rules, ${aggCount} aggressive rules generated.`;
+        const dlBtn = document.getElementById('cu-btn-download');
+        dlBtn.href = ajax + '?action=cu_scanner_download_json&job_id=' + jobId + '&nonce=' + nonce;
+        dlBtn.setAttribute('download', 'cu-scanner-' + jobId + '.json');
+        if (canPush) document.getElementById('cu-btn-push').style.display = '';
+        showStep(4);
     }
 
     // --- Cancel ---
@@ -538,6 +546,23 @@
         });
     });
 
-    // --- Init ---
+    // --- "Run Another Scan" clears stored result ---
+    document.querySelector('#step-4 a[href="?page=cu-scanner"]').addEventListener('click', () => {
+        localStorage.removeItem('cu_scanner_result');
+    });
+
+    // --- Init: restore Step 4 if a completed result is stored ---
+    (function () {
+        const stored = localStorage.getItem('cu_scanner_result');
+        if (!stored) return;
+        try {
+            const d = JSON.parse(stored);
+            scanJobId = d.job_id;
+            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push );
+        } catch (_e) {
+            localStorage.removeItem('cu_scanner_result');
+        }
+    }());
+
     detectPlugins();
 }());
