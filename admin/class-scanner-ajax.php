@@ -323,7 +323,7 @@ class ScannerAjax {
         try {
             $summary = $pusher->push( json_decode( $json, true ) );
             wp_send_json_success( $summary );
-        } catch ( \RuntimeException $e ) {
+        } catch ( \Throwable $e ) {
             wp_send_json_error( $e->getMessage() );
         }
     }

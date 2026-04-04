@@ -89,6 +89,20 @@
 
     <!-- Step 3: Live Progress -->
     <div id="step-3" class="cu-step cu-body" style="display:none">
+        <div class="cu-sonar-anim" id="cu-sonar-anim-3" style="display:flex">
+            <svg class="cu-sonar-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                <rect width="120" height="120" rx="8" fill="#1a2744"/>
+                <circle class="cu-ring cu-ring-1" cx="60" cy="60" r="44" stroke="#72aee6" stroke-width="1.5" fill="none"/>
+                <circle class="cu-ring cu-ring-2" cx="60" cy="60" r="30" stroke="#72aee6" stroke-width="1.5" fill="none"/>
+                <circle class="cu-ring cu-ring-3" cx="60" cy="60" r="16" stroke="#72aee6" stroke-width="1.5" fill="none"/>
+                <path class="cu-sweep-wedge" d="M60 60 L60 16 A44 44 0 0 1 91 29 Z" fill="#72aee6" opacity="0.12"/>
+                <g class="cu-sweep-arm">
+                    <line x1="60" y1="60" x2="60" y2="16" stroke="#72aee6" stroke-width="1.5" stroke-linecap="round"/>
+                </g>
+                <circle cx="60" cy="60" r="3" fill="#72aee6"/>
+            </svg>
+            <p class="cu-sonar-label">Scanning&hellip;</p>
+        </div>
         <div id="cu-progress-bar-wrap">
             <progress id="cu-progress-bar" value="0" max="100" style="width:100%"></progress>
             <span id="cu-progress-text">0 / 0</span>
