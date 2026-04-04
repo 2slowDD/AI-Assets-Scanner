@@ -4,6 +4,30 @@ All notable changes to CU Scanner are documented here.
 
 ---
 
+## [1.0.4] — 2026-04-04
+
+### Bug fixes
+
+- **Railway payload format** — `submit_job()` now sends `pages` as an array of `{url, bypass_token}` objects instead of a flat `urls` string array, matching what the Railway worker expects.
+- **Railway base URL** — Plugin was sending `https://wpservice.pro/wp-json` as the `wpservice_url` field; Railway then appended `/wp-json/...` creating a double path. Added `CU_SCANNER_WPSERVICE_BASE` constant (bare `https://wpservice.pro`) used exclusively for the Railway callback field.
+- **Credits lost on job submission failure** — When `submit_job()` failed before writing job state, `handle_failure()` had no transient to read so it exited early without releasing reserved credits. `handle_failure()` now falls back to the `cu_scanner_pending_token_` transient as a safety net.
+- **Credits lost on PHP fatal** — Added `release_credits()` call directly in the `submit_job()` catch block so credits are always released if the submission throws before the job store is written.
+- **Uncaught fetch rejections** — Added `.catch()` handlers to the `reserve_job` and `submit_job` fetch chains in `scanner.js` so network failures trigger the failure flow instead of an unhandled promise rejection.
+- **Step 4 state lost on navigation** — After completing a scan, navigating away from the CU Scanner page and returning reset the UI to Step 1. Step 4 result data (job ID, safe/aggressive counts, push eligibility) is now saved to `localStorage` on completion and restored on next page load. Clicking "Run Another Scan" clears the saved state.
+
+### Improvements
+
+- **CuJsonBuilder exports Code Unloader-compatible format** — The downloaded JSON and Push to CU button previously created rules that never fired. Three root causes fixed:
+  1. Field renamed `handle` → `asset_handle` (Code Unloader's DB column name)
+  2. Asset type mapped at build time: `style` → `css`, `script` → `js` (DB ENUM only accepts `css`/`js`)
+  3. URL patterns are now full normalized URLs (`https://site.com/blog`) matching Code Unloader's `PatternMatcher::normalize_url()` output — path-only patterns (`/blog/`) never matched
+  - `match_type: exact` and `source_label: CU Scanner` added to every rule
+  - RulePusher updated to pass fields through directly (no more local translation)
+- **Credit balance widget** — Settings page credit balance redesigned with a styled gold card, large bold number, `credits` label, low-balance red state (< 10 credits), and a loading indicator during refresh.
+- **CuJsonBuilder format version** bumped to `1.4.1` to match the targeted Code Unloader version.
+
+---
+
 ## [1.0.3] — 2026-04-03
 
 ### Security
