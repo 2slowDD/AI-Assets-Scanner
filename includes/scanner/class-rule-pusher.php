@@ -124,12 +124,12 @@ class RulePusher {
 
             $result = $repo::create_rule( [
                 'url_pattern'  => $rule['url_pattern'],
-                'match_type'   => $rule['match_type']                    ?? 'exact',
+                'match_type'   => $rule['match_type']                      ?? 'exact',
                 'asset_handle' => $rule['asset_handle'] ?? $rule['handle'] ?? '',
-                'asset_type'   => $rule['asset_type'],
+                'asset_type'   => $this->normalize_asset_type( $rule['asset_type'] ?? '' ),
                 'device_type'  => $rule['device_type'],
                 'group_id'     => $cu_group_id,
-                'source_label' => $rule['source_label']                  ?? 'CU Scanner',
+                'source_label' => $rule['source_label']                    ?? 'CU Scanner',
             ] );
 
             if ( \is_wp_error( $result ) ) {
@@ -156,6 +156,15 @@ class RulePusher {
             'aggressive_count' => $aggressive_count,
             'error_count'      => $error_count,
         ];
+    }
+
+    /** Map Railway/old-format asset types to CU DB enum values. */
+    private function normalize_asset_type( string $type ): string {
+        return match ( $type ) {
+            'style'  => 'css',
+            'script' => 'js',
+            default  => $type,
+        };
     }
 
     /** Find an existing CU group by name. Returns DB group ID or null. */
