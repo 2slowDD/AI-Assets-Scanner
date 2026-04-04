@@ -114,6 +114,7 @@ class RulePusher {
         $safe_count        = 0;
         $aggressive_count  = 0;
         $error_count       = 0;
+        $first_error       = '';
         $inserted_rule_ids = []; // track for cleanup on partial failure
 
         $safe_group_id       = $group_ids[1] ?? null;
@@ -133,6 +134,9 @@ class RulePusher {
             ] );
 
             if ( \is_wp_error( $result ) ) {
+                if ( ! $first_error ) {
+                    $first_error = $result->get_error_message();
+                }
                 $error_count++;
             } else {
                 $inserted_rule_ids[] = (int) $result;
@@ -155,6 +159,7 @@ class RulePusher {
             'safe_count'       => $safe_count,
             'aggressive_count' => $aggressive_count,
             'error_count'      => $error_count,
+            'error_message'    => $first_error,
         ];
     }
 
