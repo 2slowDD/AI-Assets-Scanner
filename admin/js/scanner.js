@@ -539,7 +539,10 @@
         post('cu_scanner_push_to_cu', { job_id: scanJobId }).then(res => {
             const el = document.getElementById('cu-push-result');
             if (res.success) {
-                el.innerHTML = `<div class="notice notice-success"><p>Rules added to Code Unloader: ${esc(res.data.safe_count)} safe, ${esc(res.data.aggressive_count)} aggressive.</p></div>`;
+                const errNote = res.data.error_count
+                    ? ` (${esc(res.data.error_count)} errors — first: ${esc(res.data.error_message)})`
+                    : '';
+                el.innerHTML = `<div class="notice notice-success"><p>Rules added to Code Unloader: ${esc(res.data.safe_count)} safe, ${esc(res.data.aggressive_count)} aggressive.${errNote}</p></div>`;
             } else {
                 el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
                 btn.disabled = false;
