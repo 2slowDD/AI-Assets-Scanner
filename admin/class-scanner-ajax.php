@@ -134,13 +134,16 @@ class ScannerAjax {
             }
         }
 
-        $urls = array_map(
-            fn( $u ) => $bypass->build_url( sanitize_url( $u ), $token, $bypass_params ),
+        $pages = array_map(
+            fn( $u ) => [
+                'url'          => add_query_arg( $bypass_params, sanitize_url( $u ) ),
+                'bypass_token' => $token,
+            ],
             $urls_raw
         );
 
         $payload = [
-            'urls'          => $urls,
+            'pages'         => $pages,
             'job_token'     => $job_token,
             'api_key'       => $api_key,
             'wpservice_url' => CU_SCANNER_WPSERVICE_URL,
