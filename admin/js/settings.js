@@ -13,6 +13,15 @@
             msg.style.display = 'block';
         }
 
+        function setBalance(val) {
+            const card = document.getElementById('cu-balance-card');
+            balance.textContent = val;
+            if (card) {
+                const n = parseInt(val, 10);
+                card.classList.toggle('cu-balance-low', !isNaN(n) && n < 10);
+            }
+        }
+
         form.addEventListener('submit', function (e) {
             e.preventDefault();
             const data = new FormData(form);
@@ -22,7 +31,7 @@
                 .then(res => {
                     if (res.success) {
                         showMsg('Settings saved. Credit balance: ' + res.data.credits, 'success');
-                        balance.textContent = res.data.credits;
+                        setBalance(res.data.credits);
                     } else {
                         showMsg('Error: ' + res.data, 'error');
                     }
@@ -30,13 +39,14 @@
         });
 
         refresh.addEventListener('click', function () {
+            balance.textContent = '…';
             const data = new FormData();
             data.append('action', 'cu_scanner_fetch_balance');
             data.append('nonce', cuScannerSettings.nonce);
             fetch(cuScannerSettings.ajaxUrl, { method: 'POST', body: data })
                 .then(r => r.json())
                 .then(res => {
-                    balance.textContent = res.success ? res.data.balance : '(error)';
+                    setBalance(res.success ? res.data.balance : '—');
                 });
         });
 

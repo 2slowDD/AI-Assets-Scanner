@@ -10,6 +10,9 @@ namespace CUScanner\Scanner;
  *   RuleRepository::create_rule( array $data ): int|\WP_Error
  *     $data keys: url_pattern, match_type, asset_handle, asset_type,
  *                 device_type, group_id, source_label
+ *
+ * Note: CuJsonBuilder already outputs rules in CU format (asset_handle, css/js types,
+ * exact match_type, full URL pattern). RulePusher passes them through directly.
  */
 class RulePusher {
     private const CU_PLUGIN = 'code-unloader/code-unloader.php';
@@ -110,12 +113,12 @@ class RulePusher {
 
             $result = $repo::create_rule( [
                 'url_pattern'  => $rule['url_pattern'],
-                'match_type'   => 'exact',
-                'asset_handle' => $rule['handle'],
-                'asset_type'   => $this->map_asset_type( $rule['asset_type'] ),
+                'match_type'   => $rule['match_type']   ?? 'exact',
+                'asset_handle' => $rule['asset_handle'],
+                'asset_type'   => $rule['asset_type'],
                 'device_type'  => $rule['device_type'],
                 'group_id'     => $cu_group_id,
-                'source_label' => 'CU Scanner',
+                'source_label' => $rule['source_label'] ?? 'CU Scanner',
             ] );
 
             if ( \is_wp_error( $result ) ) {
@@ -142,15 +145,6 @@ class RulePusher {
             'aggressive_count' => $aggressive_count,
             'error_count'      => $error_count,
         ];
-    }
-
-    /** Map CuJsonBuilder asset type ('style'/'script') to CU asset type ('css'/'js'). */
-    private function map_asset_type( string $type ): string {
-        return match ( $type ) {
-            'style'  => 'css',
-            'script' => 'js',
-            default  => $type,
-        };
     }
 
     /** Find an existing CU group by name. Returns DB group ID or null. */

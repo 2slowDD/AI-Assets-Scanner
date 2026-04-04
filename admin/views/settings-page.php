@@ -36,9 +36,26 @@
                 <tr>
                     <th>Credit Balance</th>
                     <td>
-                        <span id="cu-credit-balance">—</span>
-                        <button type="button" id="cu-refresh-balance" class="button">Refresh</button>
-                        <a href="https://wpservice.pro/buy-credits" target="_blank" class="button">Buy Credits</a>
+                        <div class="cu-balance-widget">
+                            <div class="cu-balance-card" id="cu-balance-card">
+                                <svg class="cu-balance-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+                                    <circle cx="10" cy="10" r="9" stroke="#c8a000" stroke-width="1.4"/>
+                                    <text x="10" y="14.5" text-anchor="middle" fill="#c8a000" font-size="11" font-weight="700" font-family="sans-serif">C</text>
+                                </svg>
+                                <div class="cu-balance-info">
+                                    <span class="cu-balance-num" id="cu-credit-balance">—</span>
+                                    <span class="cu-balance-label">credits</span>
+                                </div>
+                            </div>
+                            <button type="button" id="cu-refresh-balance" class="button cu-balance-btn" title="Refresh balance">
+                                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-2px">
+                                    <path d="M3 10a7 7 0 1 1 1.6 4.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                    <polyline points="3,14.4 3,10 7.4,10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                                Refresh
+                            </button>
+                            <a href="https://wpservice.pro/buy-credits" target="_blank" class="button button-primary cu-balance-btn">+ Buy Credits</a>
+                        </div>
                     </td>
                 </tr>
                 <tr>
