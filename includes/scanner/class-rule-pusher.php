@@ -113,12 +113,12 @@ class RulePusher {
 
             $result = $repo::create_rule( [
                 'url_pattern'  => $rule['url_pattern'],
-                'match_type'   => $rule['match_type']   ?? 'exact',
-                'asset_handle' => $rule['asset_handle'],
+                'match_type'   => $rule['match_type']                    ?? 'exact',
+                'asset_handle' => $rule['asset_handle'] ?? $rule['handle'] ?? '',
                 'asset_type'   => $rule['asset_type'],
                 'device_type'  => $rule['device_type'],
                 'group_id'     => $cu_group_id,
-                'source_label' => $rule['source_label'] ?? 'CU Scanner',
+                'source_label' => $rule['source_label']                  ?? 'CU Scanner',
             ] );
 
             if ( \is_wp_error( $result ) ) {
