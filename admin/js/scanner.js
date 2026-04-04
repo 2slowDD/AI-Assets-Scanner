@@ -402,20 +402,35 @@
     document.getElementById('cu-btn-next-1').addEventListener('click', function () {
         showStep(2);
         // Use selectedUrls.length — only charge for URLs that will actually be scanned
-        post('cu_scanner_reserve_job', { page_count: selectedUrls.length }).then(res => {
-            if (!res.success) { showStep(1); alert('Error: ' + res.data); return; }
-            const job_token = res.data.job_token;
-            // Send only the selected URLs to Railway
-            post('cu_scanner_submit_job', { urls: selectedUrls, job_token }).then(res2 => {
-                if (!res2.success) { showStep(1); alert('Error: ' + res2.data); return; }
-                scanJobId     = res2.data.job_id;
-                scanJobToken  = res2.data.job_token;
-                railwayUrl    = res2.data.railway_url;
-                lastPageIndex = 0;
-                showStep(3);
-                startPolling();
+        post('cu_scanner_reserve_job', { page_count: selectedUrls.length })
+            .then(res => {
+                if (!res.success) { showStep(1); alert('Error: ' + res.data); return; }
+                const job_token = res.data.job_token;
+                post('cu_scanner_submit_job', { urls: selectedUrls, job_token })
+                    .then(res2 => {
+                        if (!res2.success) {
+                            post('cu_scanner_handle_failure');
+                            showStep(1);
+                            alert('Error: ' + res2.data);
+                            return;
+                        }
+                        scanJobId     = res2.data.job_id;
+                        scanJobToken  = res2.data.job_token;
+                        railwayUrl    = res2.data.railway_url;
+                        lastPageIndex = 0;
+                        showStep(3);
+                        startPolling();
+                    })
+                    .catch(() => {
+                        post('cu_scanner_handle_failure');
+                        showStep(1);
+                        alert('Error: Scan submission failed. Please try again.');
+                    });
+            })
+            .catch(() => {
+                showStep(1);
+                alert('Error: Could not connect to server. Please try again.');
             });
-        });
     });
 
     // --- Step 3: Polling + Progress ---
