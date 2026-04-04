@@ -28,6 +28,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\BypassManager'   => 'includes/scanner/class-bypass-manager.php',
         'CUScanner\\Scanner\\CuJsonBuilder'   => 'includes/scanner/class-cu-json-builder.php',
         'CUScanner\\Scanner\\RulePusher'      => 'includes/scanner/class-rule-pusher.php',
+        'CUScanner\\Scanner\\SnapshotManager' => 'includes/scanner/class-snapshot-manager.php',
         'CUScanner\\Admin\\AdminPages'        => 'admin/class-admin-pages.php',
         'CUScanner\\Admin\\SettingsAjax'      => 'admin/class-settings-ajax.php',
         'CUScanner\\Admin\\ScannerAjax'       => 'admin/class-scanner-ajax.php',
