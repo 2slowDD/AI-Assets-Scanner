@@ -264,6 +264,60 @@
 }
 .cu-url-more:hover { background: #f0f0f1; }
 
+/* --- Settings credit balance widget --- */
+.cu-balance-widget {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.cu-balance-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #fffbe6 0%, #fff8d0 100%);
+    border: 1.5px solid #e8c440;
+    border-radius: 8px;
+    padding: 8px 16px 8px 12px;
+    box-shadow: 0 1px 4px rgba(200,160,0,0.12);
+}
+.cu-balance-icon {
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+.cu-balance-info {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+.cu-balance-num {
+    font-size: 22px;
+    font-weight: 800;
+    color: #3d2f00;
+    line-height: 1;
+    letter-spacing: -0.5px;
+}
+.cu-balance-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #7a6200;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.cu-balance-card.cu-balance-low {
+    background: linear-gradient(135deg, #fff0f0 0%, #ffe5e5 100%);
+    border-color: #d46060;
+}
+.cu-balance-card.cu-balance-low .cu-balance-num { color: #8b1a1a; }
+.cu-balance-card.cu-balance-low .cu-balance-icon circle { stroke: #c04040; }
+.cu-balance-card.cu-balance-low .cu-balance-icon text { fill: #c04040; }
+.cu-balance-card.cu-balance-low .cu-balance-label { color: #8b1a1a; }
+.cu-balance-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
 /* --- Sonar discovery animation --- */
 .cu-sonar-anim {
     display: flex;

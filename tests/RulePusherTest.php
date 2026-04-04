@@ -101,7 +101,7 @@ class RulePusherTest extends TestCase {
                 [ 'id' => 2, 'name' => 'CU Scanner — Aggressive', 'description' => '' ],
             ],
             'rules' => [
-                [ 'url_pattern' => '/home/', 'handle' => 'my-js', 'asset_type' => 'script', 'device_type' => 'all', 'group_id' => 1 ],
+                [ 'url_pattern' => 'https://example.com/home', 'match_type' => 'exact', 'asset_handle' => 'my-js', 'asset_type' => 'js', 'device_type' => 'all', 'group_id' => 1, 'source_label' => 'CU Scanner' ],
             ],
         ];
     }

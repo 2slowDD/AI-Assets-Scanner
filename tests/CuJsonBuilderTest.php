@@ -28,7 +28,7 @@ class CuJsonBuilderTest extends TestCase {
     }
 
     public function test_safe_safe_produces_one_rule_device_all(): void {
-        $pages  = [ $this->make_page( '/about/', [
+        $pages  = [ $this->make_page( 'https://site.com/about/', [
             $this->make_asset( 'plugin-style', 'style', false, 0.0, false, 0.0 ),
         ] ) ];
         $output = ( new CuJsonBuilder() )->build( $pages );
@@ -39,7 +39,7 @@ class CuJsonBuilderTest extends TestCase {
     }
 
     public function test_aggressive_aggressive_produces_one_rule_device_all(): void {
-        $pages = [ $this->make_page( '/shop/', [
+        $pages = [ $this->make_page( 'https://site.com/shop/', [
             $this->make_asset( 'slider-js', 'script', true, 0.0, true, 0.0 ),
         ] ) ];
         $output = ( new CuJsonBuilder() )->build( $pages );
@@ -50,7 +50,7 @@ class CuJsonBuilderTest extends TestCase {
     }
 
     public function test_safe_aggressive_produces_two_rules(): void {
-        $pages = [ $this->make_page( '/home/', [
+        $pages = [ $this->make_page( 'https://site.com/home/', [
             $this->make_asset( 'plugin-css', 'style', false, 0.0, true, 0.0 ),
         ] ) ];
         $output = ( new CuJsonBuilder() )->build( $pages );
@@ -62,7 +62,7 @@ class CuJsonBuilderTest extends TestCase {
     }
 
     public function test_needed_needed_produces_no_rule(): void {
-        $pages = [ $this->make_page( '/page/', [
+        $pages = [ $this->make_page( 'https://site.com/page/', [
             $this->make_asset( 'theme-style', 'style', true, 0.8, true, 0.7 ),
         ] ) ];
         $output = ( new CuJsonBuilder() )->build( $pages );
@@ -71,7 +71,7 @@ class CuJsonBuilderTest extends TestCase {
 
     public function test_errored_pages_are_skipped(): void {
         $pages = [
-            [ 'url' => '/about/', 'status' => 'error', 'assets' => [] ],
+            [ 'url' => 'https://site.com/about/', 'status' => 'error', 'assets' => [] ],
         ];
         $output = ( new CuJsonBuilder() )->build( $pages );
         $this->assertCount( 0, $output['rules'] );
@@ -86,14 +86,45 @@ class CuJsonBuilderTest extends TestCase {
 
     public function test_output_version_field_is_correct(): void {
         $output = ( new CuJsonBuilder() )->build( [] );
-        $this->assertSame( '1.3.6', $output['version'] );
+        $this->assertSame( '1.4.1', $output['version'] );
     }
 
-    public function test_url_pattern_strips_domain(): void {
-        $pages = [ $this->make_page( 'https://site.com/about/', [
+    public function test_url_pattern_is_full_normalized_url_without_query_or_trailing_slash(): void {
+        $pages = [ $this->make_page( 'https://site.com/about/?nowprocket&nowpcu', [
             $this->make_asset( 'p-style', 'style', false, 0.0, false, 0.0 ),
         ] ) ];
         $output = ( new CuJsonBuilder() )->build( $pages );
-        $this->assertSame( '/about/', $output['rules'][0]['url_pattern'] );
+        $this->assertSame( 'https://site.com/about', $output['rules'][0]['url_pattern'] );
+    }
+
+    public function test_url_pattern_root_keeps_trailing_slash(): void {
+        $pages = [ $this->make_page( 'https://site.com/?nowprocket&nowpcu', [
+            $this->make_asset( 'p-style', 'style', false, 0.0, false, 0.0 ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertSame( 'https://site.com/', $output['rules'][0]['url_pattern'] );
+    }
+
+    public function test_rule_fields_match_code_unloader_format(): void {
+        $pages = [ $this->make_page( 'https://site.com/blog/', [
+            $this->make_asset( 'my-style', 'style', false, 0.0, false, 0.0 ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $rule   = $output['rules'][0];
+        $this->assertArrayHasKey( 'asset_handle', $rule );
+        $this->assertArrayHasKey( 'match_type',   $rule );
+        $this->assertArrayHasKey( 'source_label', $rule );
+        $this->assertArrayNotHasKey( 'handle', $rule );
+        $this->assertSame( 'my-style', $rule['asset_handle'] );
+        $this->assertSame( 'exact',    $rule['match_type'] );
+        $this->assertSame( 'css',      $rule['asset_type'] ); // 'style' → 'css'
+    }
+
+    public function test_script_asset_type_maps_to_js(): void {
+        $pages = [ $this->make_page( 'https://site.com/blog/', [
+            $this->make_asset( 'my-js', 'script', true, 0.0, true, 0.0 ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertSame( 'js', $output['rules'][0]['asset_type'] );
     }
 }

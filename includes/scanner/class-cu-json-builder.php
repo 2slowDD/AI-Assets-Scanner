@@ -2,7 +2,7 @@
 namespace CUScanner\Scanner;
 
 class CuJsonBuilder {
-    private const VERSION         = '1.3.6'; // Code Unloader import format version
+    private const VERSION         = '1.4.1'; // Code Unloader import format version
     private const GROUP_SAFE      = 1;
     private const GROUP_AGGRESSIVE = 2;
 
@@ -59,18 +59,43 @@ class CuJsonBuilder {
         $rules   = [];
         foreach ( $outputs as [ $device_type, $group_id ] ) {
             $rules[] = [
-                'url_pattern' => $pattern,
-                'handle'      => $handle,
-                'asset_type'  => $type,
-                'device_type' => $device_type,
-                'group_id'    => $group_id,
+                'url_pattern'  => $pattern,
+                'match_type'   => 'exact',
+                'asset_handle' => $handle,
+                'asset_type'   => $this->map_type( $type ),
+                'device_type'  => $device_type,
+                'group_id'     => $group_id,
+                'source_label' => 'CU Scanner',
             ];
         }
         return $rules;
     }
 
+    /**
+     * Map Railway asset type to Code Unloader asset type.
+     * Railway returns 'style'/'script'; CU DB enum is 'css'/'js'.
+     */
+    private function map_type( string $type ): string {
+        return match ( $type ) {
+            'style'  => 'css',
+            'script' => 'js',
+            default  => $type,
+        };
+    }
+
+    /**
+     * Convert scanned URL to Code Unloader url_pattern.
+     * Strips query params (bypass tokens) and trailing slash (except root),
+     * matching the format produced by PatternMatcher::normalize_url().
+     */
     private function url_to_pattern( string $url ): string {
         $parsed = wp_parse_url( $url );
-        return ( $parsed['path'] ?? '/' ) . ( isset( $parsed['query'] ) ? '?' . $parsed['query'] : '' );
+        $scheme = strtolower( $parsed['scheme'] ?? 'https' );
+        $host   = strtolower( $parsed['host']   ?? '' );
+        $path   = $parsed['path'] ?? '/';
+        if ( '/' !== $path ) {
+            $path = rtrim( $path, '/' );
+        }
+        return $scheme . '://' . $host . $path;
     }
 }
