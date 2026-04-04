@@ -46,7 +46,7 @@ class RailwayClient {
             throw new \RuntimeException( 'Job data expired. Re-download from Scan History or run a new scan.' );
         }
         if ( $code < 200 || $code >= 300 ) {
-            throw new \RuntimeException( "Railway HTTP {$code}: " . ( $body['message'] ?? 'error' ) );
+            throw new \RuntimeException( "Railway HTTP {$code}: " . ( $body['message'] ?? $body['error'] ?? 'error' ) );
         }
         return $body;
     }

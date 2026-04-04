@@ -26,7 +26,7 @@ class RailwayClientTest extends TestCase {
         WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( json_encode( [ 'job_id' => 'job-xyz' ] ) );
 
         $result = $this->client->submit_job( [
-            'urls'          => [ 'https://site.com/' ],
+            'pages'         => [ [ 'url' => 'https://site.com/', 'bypass_token' => 'tok-xyz' ] ],
             'job_token'     => 'tok-abc',
             'api_key'       => 'api-key-123',
             'wpservice_url' => 'https://wpservice.pro/wp-json',
