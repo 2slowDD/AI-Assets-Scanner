@@ -175,6 +175,9 @@ class ScannerAjax {
             ] );
         } catch ( \RuntimeException $e ) {
             $bypass->delete_all_tokens();
+            try {
+                ( new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key ) )->release_credits( $job_token );
+            } catch ( \RuntimeException ) {}
             wp_send_json_error( $e->getMessage() );
         }
     }
