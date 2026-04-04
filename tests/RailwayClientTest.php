@@ -29,7 +29,7 @@ class RailwayClientTest extends TestCase {
             'pages'         => [ [ 'url' => 'https://site.com/', 'bypass_token' => 'tok-xyz' ] ],
             'job_token'     => 'tok-abc',
             'api_key'       => 'api-key-123',
-            'wpservice_url' => 'https://wpservice.pro/wp-json',
+            'wpservice_url' => 'https://wpservice.pro',
         ] );
         $this->assertSame( 'job-xyz', $result['job_id'] );
     }
