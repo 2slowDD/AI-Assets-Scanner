@@ -270,9 +270,24 @@ class ScannerAjax {
 
     public function handle_failure(): void {
         $this->check();
-        $user_id = get_current_user_id();
-        $state   = get_transient( 'cu_scanner_job_' . $user_id );
-        if ( ! $state ) { wp_send_json_success(); return; }
+        $user_id  = get_current_user_id();
+        $state    = get_transient( 'cu_scanner_job_' . $user_id );
+
+        // submit_job never ran (e.g. PHP fatal) — release using the pending token from reserve_job.
+        if ( ! $state ) {
+            $pending = get_transient( 'cu_scanner_pending_token_' . $user_id );
+            if ( $pending ) {
+                try {
+                    $settings = $this->settings();
+                    ( new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $settings->get_api_key() ) )
+                        ->release_credits( $pending );
+                } catch ( \RuntimeException ) {}
+                delete_transient( 'cu_scanner_pending_token_' . $user_id );
+            }
+            ( new BypassManager() )->delete_all_tokens();
+            wp_send_json_success();
+            return;
+        }
 
         try {
             $settings = $this->settings();
