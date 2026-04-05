@@ -140,8 +140,15 @@ class RulePusher {
             ] );
 
             if ( \is_wp_error( $result ) ) {
+                $msg = $result->get_error_message();
+                // Duplicate-key violations are skipped silently — can occur when the
+                // same rule appears multiple times in the scan JSON, or when the DB
+                // UNIQUE constraint spans across groups. Not fatal; first unique copy wins.
+                if ( str_contains( $msg, 'Duplicate entry' ) || str_contains( $msg, 'uniq_rule' ) ) {
+                    continue;
+                }
                 if ( ! $first_error ) {
-                    $first_error = $result->get_error_message();
+                    $first_error = $msg;
                 }
                 $error_count++;
             } else {
