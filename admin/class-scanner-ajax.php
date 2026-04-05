@@ -321,7 +321,8 @@ class ScannerAjax {
         $pusher = new RulePusher();
         if ( ! $pusher->can_push() ) { wp_send_json_error( 'Code Unloader not active' ); return; }
         try {
-            $summary = $pusher->push( json_decode( $json, true ) );
+            $decoded = json_decode( $json, true );
+            $summary = $pusher->push( $decoded );
             wp_send_json_success( $summary );
         } catch ( \Throwable $e ) {
             wp_send_json_error( $e->getMessage() );
