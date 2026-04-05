@@ -7,12 +7,15 @@ namespace CUScanner\Scanner;
  *
  * CU API (v1.4.0):
  *   RuleRepository::create_group( string $name, string $description ): int|\WP_Error
+ *   RuleRepository::update_group( int $id, array $data ): bool
  *   RuleRepository::create_rule( array $data ): int|\WP_Error
- *     $data keys: url_pattern, match_type, asset_handle, asset_type,
- *                 device_type, group_id, source_label
+ *   RuleRepository::delete_rule( int $id ): bool
  *
- * Note: CuJsonBuilder already outputs rules in CU format (asset_handle, css/js types,
- * exact match_type, full URL pattern). RulePusher passes them through directly.
+ * Push sequence:
+ *   1. snapshot()            – backup ALL active rules to "Previously active [date]"
+ *   2. bump_scanner_groups() – rename+disable old "CU Scanner — Safe/Aggressive"
+ *   3. do_push()             – create fresh Safe (enabled) + Aggressive (disabled)
+ *   4. commit()              – disable groups that were active before step 1
  */
 class RulePusher {
     private const CU_PLUGIN = 'code-unloader/code-unloader.php';
@@ -24,15 +27,15 @@ class RulePusher {
 
     public function can_push(): bool {
         if ( ! is_plugin_active( self::CU_PLUGIN ) ) return false;
-        return class_exists( $this->repo ); // use injected repo so FakeRuleRepository works in tests
+        return class_exists( $this->repo );
     }
 
     /**
-     * Snapshot active rules, push scanner groups/rules, then commit or rollback.
+     * Snapshot → version-bump → push → commit (or rollback on failure).
      *
-     * @param  array $cu_json Output of CuJsonBuilder::build()
-     * @return array { safe_count: int, aggressive_count: int, error_count: int }
-     * @throws \RuntimeException if Code Unloader is not active or RuleRepository not found
+     * @param  array $cu_json  Output of CuJsonBuilder::build()
+     * @return array { safe_count: int, aggressive_count: int, error_count: int, error_message: string }
+     * @throws \RuntimeException if Code Unloader is not active.
      */
     public function push( array $cu_json ): array {
         if ( ! $this->can_push() ) {
@@ -41,19 +44,37 @@ class RulePusher {
 
         $repo    = $this->repo;
         $snapmgr = new SnapshotManager( $repo );
+        $vermgr  = new GroupVersionManager( $repo );
 
         // --- Phase 1: snapshot active rules (nothing disabled yet) ---
         $snapshot_attempted = false;
         if ( $snapmgr->has_active_rules() ) {
             $snapshot_attempted = true;
-            $result = $snapmgr->snapshot();
-            if ( \is_wp_error( $result ) ) {
+            $snap_result = $snapmgr->snapshot();
+            if ( \is_wp_error( $snap_result ) ) {
                 $snapmgr->rollback();
-                return [ 'safe_count' => 0, 'aggressive_count' => 0, 'error_count' => 1 ];
+                return [
+                    'safe_count'       => 0,
+                    'aggressive_count' => 0,
+                    'error_count'      => 1,
+                    'error_message'    => 'Snapshot failed: ' . $snap_result->get_error_message(),
+                ];
             }
         }
 
-        // --- Phase 2: push scanner groups and rules ---
+        // --- Phase 2: rename+disable old scanner groups ---
+        $bump_result = $vermgr->bump_scanner_groups();
+        if ( \is_wp_error( $bump_result ) ) {
+            if ( $snapshot_attempted ) { $snapmgr->rollback(); }
+            return [
+                'safe_count'       => 0,
+                'aggressive_count' => 0,
+                'error_count'      => 1,
+                'error_message'    => 'Version bump failed: ' . $bump_result->get_error_message(),
+            ];
+        }
+
+        // --- Phase 3: push fresh scanner groups and rules ---
         try {
             $stats = $this->do_push( $cu_json, $repo );
         } catch ( \Throwable $e ) {
@@ -62,13 +83,11 @@ class RulePusher {
         }
 
         if ( $stats['error_count'] > 0 ) {
-            // Any rule failure = roll back to preserve the invariant: old rules stay active
-            // until a complete new set is successfully written (per spec).
             if ( $snapshot_attempted ) { $snapmgr->rollback(); }
             return $stats;
         }
 
-        // --- Phase 3: commit (disable old groups) only on success ---
+        // --- Phase 4: commit (disable pre-push active groups) ---
         if ( $snapshot_attempted ) {
             $snapmgr->commit();
         }
@@ -81,41 +100,26 @@ class RulePusher {
     // -------------------------------------------------------------------------
 
     /**
-     * Core push logic — create groups and insert rules. Extracted so push() can
-     * wrap it cleanly in try/catch for rollback on exception.
+     * Create fresh scanner groups and insert rules.
+     * Old groups were already renamed by GroupVersionManager — always create new.
+     * On success, disables the Aggressive group (Safe stays enabled by default).
      */
     private function do_push( array $cu_json, string $repo ): array {
-        // Create or find the two scanner groups
+        // Create fresh groups — old ones were renamed, so these always succeed as new.
         $group_ids = [];
         foreach ( $cu_json['groups'] as $group_def ) {
-            $existing = $this->find_group_by_name( $repo, $group_def['name'] );
-            if ( $existing !== null ) {
-                // Clear old rules from this group before inserting the new set.
-                // The rules are already preserved in the snapshot group at this point,
-                // and the UNIQUE constraint on (url_pattern, asset_handle, ..., group_id)
-                // would block re-inserting identical rules into the same group.
-                $stale_ids = array_map(
-                    fn( $r ) => (int) $r->id,
-                    array_filter( $repo::get_all_rules(), fn( $r ) => (int) $r->group_id === $existing )
-                );
-                if ( ! empty( $stale_ids ) ) {
-                    $repo::delete_rules( $stale_ids );
-                }
-                $group_ids[ $group_def['id'] ] = $existing;
-            } else {
-                $result = $repo::create_group( $group_def['name'], $group_def['description'] ?? '' );
-                if ( \is_wp_error( $result ) ) {
-                    throw new \RuntimeException( 'Failed to create group: ' . $result->get_error_message() );
-                }
-                $group_ids[ $group_def['id'] ] = $result;
+            $result = $repo::create_group( $group_def['name'], $group_def['description'] ?? '' );
+            if ( \is_wp_error( $result ) ) {
+                throw new \RuntimeException( 'Failed to create group: ' . $result->get_error_message() );
             }
+            $group_ids[ $group_def['id'] ] = $result;
         }
 
         $safe_count        = 0;
         $aggressive_count  = 0;
         $error_count       = 0;
         $first_error       = '';
-        $inserted_rule_ids = []; // track for cleanup on partial failure
+        $inserted_rule_ids = [];
 
         $safe_group_id       = $group_ids[1] ?? null;
         $aggressive_group_id = $group_ids[2] ?? null;
@@ -148,10 +152,16 @@ class RulePusher {
             }
         }
 
-        // Clean up partial Phase 2 writes if any rules failed
         if ( $error_count > 0 ) {
+            // Clean up partial writes — caller will also rollback the snapshot.
             foreach ( $inserted_rule_ids as $id ) {
                 $repo::delete_rule( $id );
+            }
+        } else {
+            // Safe group stays enabled (CU default on group creation).
+            // Aggressive group is saved-but-disabled — user enables when ready.
+            if ( $aggressive_group_id !== null ) {
+                $repo::update_group( $aggressive_group_id, [ 'enabled' => 0 ] );
             }
         }
 
@@ -170,16 +180,5 @@ class RulePusher {
             'script' => 'js',
             default  => $type,
         };
-    }
-
-    /** Find an existing CU group by name. Returns DB group ID or null. */
-    private function find_group_by_name( string $repo, string $name ): ?int {
-        $groups = $repo::get_all_groups();
-        foreach ( $groups as $group ) {
-            if ( $group->name === $name ) {
-                return (int) $group->id;
-            }
-        }
-        return null;
     }
 }
