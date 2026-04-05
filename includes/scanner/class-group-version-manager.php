@@ -70,19 +70,12 @@ class GroupVersionManager {
 		$next     = $this->next_version( $all_groups, $base_name );
 		$new_name = $base_name . ' v' . $next;
 
-		// Rename
-		if ( $repo::update_group( (int) $base->id, [ 'name' => $new_name ] ) === false ) {
+		// Rename and disable in one call — avoids a partial-failure window where the
+		// group could be renamed but left enabled if the second call failed.
+		if ( $repo::update_group( (int) $base->id, [ 'name' => $new_name, 'enabled' => 0 ] ) === false ) {
 			return new \WP_Error(
-				'cu_scanner_rename_failed',
-				sprintf( 'Failed to rename group "%s" to "%s"', $base_name, $new_name )
-			);
-		}
-
-		// Disable
-		if ( $repo::update_group( (int) $base->id, [ 'enabled' => 0 ] ) === false ) {
-			return new \WP_Error(
-				'cu_scanner_disable_failed',
-				sprintf( 'Failed to disable group "%s"', $new_name )
+				'cu_scanner_version_failed',
+				sprintf( 'Failed to rename and disable group "%s"', $base_name )
 			);
 		}
 
