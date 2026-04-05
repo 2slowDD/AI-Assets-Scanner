@@ -60,7 +60,8 @@ class GroupVersionManagerTest extends TestCase {
             [ 'id' => 5,  'name' => 'CU Scanner — Safe v1', 'enabled' => 0 ],
             [ 'id' => 10, 'name' => 'CU Scanner — Safe',    'enabled' => 1 ],
         ];
-        $this->make_manager()->bump_scanner_groups();
+        $result = $this->make_manager()->bump_scanner_groups();
+        $this->assertTrue( $result );
         $base = null;
         foreach ( FakeRuleRepository::$groups as $g ) {
             if ( $g['id'] === 10 ) { $base = $g; break; }
@@ -108,6 +109,13 @@ class GroupVersionManagerTest extends TestCase {
         $names = array_column( FakeRuleRepository::$groups, 'name' );
         $this->assertContains( 'CU Scanner — Safe v2',       $names );
         $this->assertContains( 'CU Scanner — Aggressive v1', $names );
+        // Pre-existing v1 group must be unchanged
+        $v1_group = null;
+        foreach ( FakeRuleRepository::$groups as $g ) {
+            if ( $g['id'] === 5 ) { $v1_group = $g; break; }
+        }
+        $this->assertSame( 'CU Scanner — Safe v1', $v1_group['name'], 'Pre-existing v1 group must not be renamed' );
+        $this->assertSame( 0, $v1_group['enabled'], 'Pre-existing v1 group enabled state must be unchanged' );
     }
 
     // --- Non-scanner groups are not touched ---
@@ -116,12 +124,14 @@ class GroupVersionManagerTest extends TestCase {
         FakeRuleRepository::$groups = [
             [ 'id' => 1, 'name' => 'CU Scanner — Safe Rules', 'enabled' => 1 ],  // not a match
             [ 'id' => 2, 'name' => 'My CU Scanner — Safe',    'enabled' => 1 ],  // not a match
+            [ 'id' => 3, 'name' => 'CU Scanner — Safe v1', 'enabled' => 0 ],  // already versioned — must not be double-versioned
         ];
         $this->make_manager()->bump_scanner_groups();
         // Neither group should be renamed — exact name match only
         $names = array_column( FakeRuleRepository::$groups, 'name' );
         $this->assertNotContains( 'CU Scanner — Safe Rules v1', $names );
         $this->assertNotContains( 'My CU Scanner — Safe v1',    $names );
+        $this->assertNotContains( 'CU Scanner — Safe v1 v2', $names );
     }
 
     // --- DB failure ---
