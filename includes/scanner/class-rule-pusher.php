@@ -78,11 +78,13 @@ class RulePusher {
         try {
             $stats = $this->do_push( $cu_json, $repo );
         } catch ( \Throwable $e ) {
+            $vermgr->rollback();
             if ( $snapshot_attempted ) { $snapmgr->rollback(); }
             throw $e;
         }
 
         if ( $stats['error_count'] > 0 ) {
+            $vermgr->rollback();
             if ( $snapshot_attempted ) { $snapmgr->rollback(); }
             return $stats;
         }

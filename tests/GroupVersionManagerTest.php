@@ -149,4 +149,31 @@ class GroupVersionManagerTest extends TestCase {
         $result  = $manager->bump_scanner_groups();
         $this->assertInstanceOf( \WP_Error::class, $result );
     }
+
+    // --- Rollback functionality ---
+
+    public function test_rollback_restores_renamed_group_to_original_name_and_enables_it(): void {
+        FakeRuleRepository::$groups = [
+            [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 1 ],
+        ];
+        $manager = $this->make_manager();
+        $manager->bump_scanner_groups();
+
+        // After bump: group should be renamed to v1 and disabled
+        $g = FakeRuleRepository::$groups[0];
+        $this->assertSame( 'CU Scanner — Safe v1', $g['name'] );
+
+        // After rollback: group should be restored to original name and enabled
+        $manager->rollback();
+        $g = FakeRuleRepository::$groups[0];
+        $this->assertSame( 'CU Scanner — Safe', $g['name'] );
+        $this->assertSame( 1, $g['enabled'] );
+    }
+
+    public function test_rollback_is_safe_when_nothing_was_bumped(): void {
+        FakeRuleRepository::$groups = [];
+        $manager = $this->make_manager();
+        $manager->rollback(); // must not throw
+        $this->assertEmpty( FakeRuleRepository::$groups );
+    }
 }
