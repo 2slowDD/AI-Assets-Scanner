@@ -323,4 +323,38 @@ class SnapshotManagerTest extends TestCase {
         // Group 30 was NOT enabled at snapshot time — must not appear in updates
         $this->assertArrayNotHasKey( 30, FakeRuleRepository::$updated_groups );
     }
+
+    public function test_snapshot_skips_duplicate_rules_instead_of_failing(): void {
+        // Simulate dirty DB state from previous buggy pushes:
+        // same rule (same url_pattern+handle+type+device) exists in two active groups.
+        // When both get copied into the same snapshot group, the second hits the UNIQUE key.
+        $dup_repo = new class extends FakeRuleRepository {
+            private static int $rule_create_count = 0;
+            public static function create_rule( array $data ): int|\WP_Error {
+                self::$rule_create_count++;
+                if ( self::$rule_create_count === 2 ) {
+                    // Simulate the DB UNIQUE constraint violation
+                    return new \WP_Error( 'db_error', "Duplicate entry 'https://example.com/-exact-my-script-200-js-all' for key 'uniq_rule'" );
+                }
+                return parent::create_rule( $data );
+            }
+            public static function reset_count(): void { self::$rule_create_count = 0; }
+        };
+        $dup_repo::reset();
+        $dup_repo::reset_count();
+        $dup_repo::$groups = [
+            [ 'id' => 1, 'name' => 'CU Scanner — Safe',       'enabled' => 1 ],
+            [ 'id' => 2, 'name' => 'CU Scanner — Aggressive', 'enabled' => 1 ],
+        ];
+        $dup_repo::$rules = [
+            [ 'id' => 10, 'group_id' => 1, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-script', 'asset_type' => 'js', 'device_type' => 'all', 'label' => null, 'source_label' => 'CU Scanner', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+            [ 'id' => 11, 'group_id' => 2, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-script', 'asset_type' => 'js', 'device_type' => 'all', 'label' => null, 'source_label' => 'CU Scanner', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+        ];
+
+        $manager = new \CUScanner\Scanner\SnapshotManager( $dup_repo::class );
+        $result  = $manager->snapshot();
+
+        // Must succeed (true), not return a WP_Error
+        $this->assertTrue( $result, 'snapshot() must return true even when a duplicate rule is encountered' );
+    }
 }

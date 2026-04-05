@@ -80,6 +80,13 @@ class SnapshotManager {
             ] );
 
             if ( \is_wp_error( $result ) ) {
+                $msg = $result->get_error_message();
+                // Skip duplicate-key violations silently — happens when the same rule
+                // exists in multiple active groups due to a previous buggy push.
+                // The snapshot still captures all other rules; no data is lost.
+                if ( str_contains( $msg, 'Duplicate entry' ) || str_contains( $msg, 'uniq_rule' ) ) {
+                    continue;
+                }
                 return $result; // caller must call rollback()
             }
 
