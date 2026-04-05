@@ -20,6 +20,9 @@ class GroupVersionManager {
 		private string $repo = 'CodeUnloader\\Core\\RuleRepository'
 	) {}
 
+	/** Tracks groups renamed by bump_single() for rollback: [ id => original_base_name ] */
+	private array $renamed = [];
+
 	// -------------------------------------------------------------------------
 	// Public API
 	// -------------------------------------------------------------------------
@@ -46,6 +49,18 @@ class GroupVersionManager {
 		return true;
 	}
 
+	/**
+	 * Restore renamed groups to their original base names and re-enable them.
+	 * Safe to call even if bump_scanner_groups() was never called or found nothing.
+	 */
+	public function rollback(): void {
+		$repo = $this->repo;
+		foreach ( $this->renamed as $id => $original_name ) {
+			$repo::update_group( $id, [ 'name' => $original_name, 'enabled' => 1 ] );
+		}
+		$this->renamed = [];
+	}
+
 	// -------------------------------------------------------------------------
 	// Private helpers
 	// -------------------------------------------------------------------------
@@ -69,6 +84,9 @@ class GroupVersionManager {
 
 		$next     = $this->next_version( $all_groups, $base_name );
 		$new_name = $base_name . ' v' . $next;
+
+		// Record the rename BEFORE calling update_group (for rollback tracking)
+		$this->renamed[ (int) $base->id ] = $base_name;
 
 		// Rename and disable in one call — avoids a partial-failure window where the
 		// group could be renamed but left enabled if the second call failed.
