@@ -122,11 +122,41 @@ class GroupVersionManager {
 		// Track for rollback AFTER the rename succeeded.
 		$this->renamed[ (int) $base->id ] = $base_name;
 
-		// Clear rules from this group. The UNIQUE constraint on wp_cu_rules is
-		// table-wide (no group_id), so old rules must be removed before the same
-		// rules can be inserted into the fresh group. Rules are stored for rollback.
+		// Clear rules from this group AND all its versioned copies. The UNIQUE
+		// constraint on wp_cu_rules is table-wide (no group_id component), so
+		// any copy of a rule — even inside an old disabled versioned group —
+		// blocks re-inserting that rule into the fresh group.
+		// Only the base group's rules are stored for rollback; versioned copies
+		// were already cleared on previous bumps and need not be restored.
+		$all_rules = array_values( (array) $repo::get_all_rules() );
+
+		// Collect IDs of all versioned copies of this base group.
+		$prefix        = $base_name . ' v';
+		$versioned_ids = [];
+		foreach ( $all_groups as $g ) {
+			if ( ! str_starts_with( $g->name, $prefix ) ) {
+				continue;
+			}
+			$suffix = substr( $g->name, strlen( $prefix ) );
+			if ( preg_match( '/^\d+$/', $suffix ) === 1 ) {
+				$versioned_ids[] = (int) $g->id;
+			}
+		}
+
+		// Delete rules from versioned groups (not tracked for rollback).
+		if ( ! empty( $versioned_ids ) ) {
+			$versioned_rule_ids = array_map(
+				fn( $r ) => (int) $r->id,
+				array_filter( $all_rules, fn( $r ) => in_array( (int) $r->group_id, $versioned_ids, true ) )
+			);
+			if ( ! empty( $versioned_rule_ids ) ) {
+				$repo::delete_rules( array_values( $versioned_rule_ids ) );
+			}
+		}
+
+		// Delete rules from the base group; store for rollback.
 		$group_rules = array_values( array_filter(
-			(array) $repo::get_all_rules(),
+			$all_rules,
 			fn( $r ) => (int) $r->group_id === (int) $base->id
 		) );
 

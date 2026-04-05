@@ -211,6 +211,44 @@ class GroupVersionManagerTest extends TestCase {
         $this->assertNotContains( 201, $remaining_ids, 'Scanner group rule must be deleted' );
     }
 
+    public function test_bump_clears_rules_from_versioned_groups_too(): void {
+        // Safe v1 and Safe v2 exist with rules — the UNIQUE constraint is table-wide,
+        // so those rules would block re-insertion into the fresh group after the bump.
+        FakeRuleRepository::$groups = [
+            [ 'id' => 5,  'name' => 'CU Scanner — Safe v1', 'enabled' => 0 ],
+            [ 'id' => 6,  'name' => 'CU Scanner — Safe v2', 'enabled' => 0 ],
+            [ 'id' => 10, 'name' => 'CU Scanner — Safe',    'enabled' => 1 ],
+        ];
+        FakeRuleRepository::$rules = [
+            [ 'id' => 101, 'group_id' => 5,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+            [ 'id' => 102, 'group_id' => 6,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-js',  'asset_type' => 'js',  'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'other',  'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+        ];
+
+        $this->make_manager()->bump_scanner_groups();
+
+        // All scanner rules (base + versioned) must be cleared
+        $this->assertEmpty( FakeRuleRepository::$rules, 'Rules in versioned groups must also be cleared' );
+    }
+
+    public function test_bump_does_not_clear_rules_from_non_scanner_versioned_groups(): void {
+        // A versioned group with a non-scanner base name must not be touched
+        FakeRuleRepository::$groups = [
+            [ 'id' => 3,  'name' => 'Manual Group v1',    'enabled' => 0 ],
+            [ 'id' => 10, 'name' => 'CU Scanner — Safe',  'enabled' => 1 ],
+        ];
+        FakeRuleRepository::$rules = [
+            [ 'id' => 50,  'group_id' => 3,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'manual', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'manual' ],
+            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+        ];
+
+        $this->make_manager()->bump_scanner_groups();
+
+        $remaining_ids = array_column( FakeRuleRepository::$rules, 'id' );
+        $this->assertContains( 50, $remaining_ids, 'Non-scanner versioned group rule must not be deleted' );
+        $this->assertNotContains( 201, $remaining_ids, 'Scanner group rule must be deleted' );
+    }
+
     public function test_rollback_re_inserts_cleared_rules(): void {
         FakeRuleRepository::$groups = [
             [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
