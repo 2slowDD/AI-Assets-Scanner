@@ -356,5 +356,12 @@ class SnapshotManagerTest extends TestCase {
 
         // Must succeed (true), not return a WP_Error
         $this->assertTrue( $result, 'snapshot() must return true even when a duplicate rule is encountered' );
+
+        // Verify that the non-duplicate rule was still copied into the snapshot
+        $snapshot_rules = array_filter(
+            $dup_repo::$rules,
+            fn( $r ) => ( $r['source_label'] ?? '' ) === 'CU Scanner Snapshot'
+        );
+        $this->assertCount( 1, $snapshot_rules, 'Exactly one rule should be in the snapshot (second is a duplicate, skipped)' );
     }
 }
