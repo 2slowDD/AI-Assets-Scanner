@@ -5,8 +5,13 @@ namespace CUScanner\Scanner;
  * Renames and disables existing CU Scanner groups before a new push,
  * creating a versioned history ("CU Scanner — Safe v1", "v2", …).
  *
- * Only touches groups whose name matches exactly one of the two base
- * scanner group names. All string comparisons use strict equality.
+ * Rules are REMOVED from old groups during bump — the UNIQUE constraint on
+ * wp_cu_rules is table-wide (no group_id component), so keeping rules in
+ * versioned groups would block re-inserting the same rules into new groups.
+ * Cleared rules are stored internally and re-inserted if rollback() is called.
+ *
+ * Only touches groups whose name matches exactly one of the two base scanner
+ * group names. All string comparisons use strict equality.
  */
 class GroupVersionManager {
 
@@ -23,17 +28,19 @@ class GroupVersionManager {
 	/** Tracks groups renamed by bump_single() for rollback: [ id => original_base_name ] */
 	private array $renamed = [];
 
+	/** Rules cleared from bumped groups, stored for rollback: [ group_id => [ rule_obj, ... ] ] */
+	private array $cleared_rules = [];
+
 	// -------------------------------------------------------------------------
 	// Public API
 	// -------------------------------------------------------------------------
 
 	/**
 	 * Rename each existing base scanner group to "Base Name vN" (N = highest
-	 * existing version + 1) and disable it. Groups that do not exist are
-	 * silently skipped.
+	 * existing version + 1), disable it, and clear its rules. Groups that do
+	 * not exist are silently skipped.
 	 *
-	 * @return true|\WP_Error  WP_Error on any DB failure; no partial state is
-	 *                          cleaned up — caller must treat this as fatal.
+	 * @return true|\WP_Error  WP_Error on any DB failure.
 	 */
 	public function bump_scanner_groups(): true|\WP_Error {
 		$repo       = $this->repo;
@@ -50,15 +57,34 @@ class GroupVersionManager {
 	}
 
 	/**
-	 * Restore renamed groups to their original base names and re-enable them.
+	 * Restore renamed groups to their original base names, re-enable them,
+	 * and re-insert any rules that were cleared during bump.
 	 * Safe to call even if bump_scanner_groups() was never called or found nothing.
 	 */
 	public function rollback(): void {
 		$repo = $this->repo;
 		foreach ( $this->renamed as $id => $original_name ) {
 			$repo::update_group( $id, [ 'name' => $original_name, 'enabled' => 1 ] );
+
+			// Re-insert rules that were cleared during bump
+			foreach ( $this->cleared_rules[ $id ] ?? [] as $rule ) {
+				$repo::create_rule( [
+					'url_pattern'     => $rule->url_pattern,
+					'match_type'      => $rule->match_type,
+					'asset_handle'    => $rule->asset_handle,
+					'asset_type'      => $rule->asset_type,
+					'device_type'     => $rule->device_type,
+					'condition_type'  => $rule->condition_type   ?? null,
+					'condition_value' => $rule->condition_value  ?? null,
+					'condition_invert'=> $rule->condition_invert ?? 0,
+					'label'           => $rule->label            ?? null,
+					'source_label'    => $rule->source_label     ?? '',
+					'group_id'        => $id,
+				] );
+			}
 		}
-		$this->renamed = [];
+		$this->renamed       = [];
+		$this->cleared_rules = [];
 	}
 
 	// -------------------------------------------------------------------------
@@ -85,16 +111,29 @@ class GroupVersionManager {
 		$next     = $this->next_version( $all_groups, $base_name );
 		$new_name = $base_name . ' v' . $next;
 
-		// Record the rename BEFORE calling update_group (for rollback tracking)
-		$this->renamed[ (int) $base->id ] = $base_name;
-
-		// Rename and disable in one call — avoids a partial-failure window where the
-		// group could be renamed but left enabled if the second call failed.
+		// Rename and disable in one call — avoids a partial-failure window.
 		if ( $repo::update_group( (int) $base->id, [ 'name' => $new_name, 'enabled' => 0 ] ) === false ) {
 			return new \WP_Error(
 				'cu_scanner_version_failed',
 				sprintf( 'Failed to rename and disable group "%s"', $base_name )
 			);
+		}
+
+		// Track for rollback AFTER the rename succeeded.
+		$this->renamed[ (int) $base->id ] = $base_name;
+
+		// Clear rules from this group. The UNIQUE constraint on wp_cu_rules is
+		// table-wide (no group_id), so old rules must be removed before the same
+		// rules can be inserted into the fresh group. Rules are stored for rollback.
+		$group_rules = array_values( array_filter(
+			(array) $repo::get_all_rules(),
+			fn( $r ) => (int) $r->group_id === (int) $base->id
+		) );
+
+		if ( ! empty( $group_rules ) ) {
+			$rule_ids = array_map( fn( $r ) => (int) $r->id, $group_rules );
+			$repo::delete_rules( $rule_ids );
+			$this->cleared_rules[ (int) $base->id ] = $group_rules;
 		}
 
 		return true;
