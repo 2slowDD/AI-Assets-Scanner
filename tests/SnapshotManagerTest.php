@@ -59,6 +59,13 @@ class FakeRuleRepository {
         return true;
     }
 
+    public static function delete_rules( array $ids ): bool {
+        foreach ( $ids as $id ) {
+            static::delete_rule( (int) $id );
+        }
+        return true;
+    }
+
     public static function delete_group( int $id ): bool {
         self::$deleted_group_ids[] = $id;
         self::$groups = array_values( array_filter( self::$groups, fn( $g ) => $g['id'] !== $id ) );

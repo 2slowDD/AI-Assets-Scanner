@@ -176,4 +176,59 @@ class GroupVersionManagerTest extends TestCase {
         $manager->rollback(); // must not throw
         $this->assertEmpty( FakeRuleRepository::$groups );
     }
+
+    // --- Rule clearing (table-wide UNIQUE constraint) ---
+
+    public function test_bump_clears_rules_from_old_scanner_group(): void {
+        FakeRuleRepository::$groups = [
+            [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
+        ];
+        FakeRuleRepository::$rules = [
+            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+            [ 'id' => 202, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-js',  'asset_type' => 'js',  'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+        ];
+
+        $this->make_manager()->bump_scanner_groups();
+
+        // All rules from the old group must be deleted
+        $this->assertEmpty( FakeRuleRepository::$rules, 'Rules must be cleared from the bumped group' );
+    }
+
+    public function test_bump_only_clears_rules_from_scanner_groups_not_others(): void {
+        FakeRuleRepository::$groups = [
+            [ 'id' => 5,  'name' => 'Manual Group',     'enabled' => 1 ],
+            [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
+        ];
+        FakeRuleRepository::$rules = [
+            [ 'id' => 100, 'group_id' => 5,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'manual', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'manual' ],
+            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+        ];
+
+        $this->make_manager()->bump_scanner_groups();
+
+        $remaining_ids = array_column( FakeRuleRepository::$rules, 'id' );
+        $this->assertContains( 100, $remaining_ids, 'Manual group rule must not be deleted' );
+        $this->assertNotContains( 201, $remaining_ids, 'Scanner group rule must be deleted' );
+    }
+
+    public function test_rollback_re_inserts_cleared_rules(): void {
+        FakeRuleRepository::$groups = [
+            [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
+        ];
+        FakeRuleRepository::$rules = [
+            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner', 'label' => null, 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+        ];
+
+        $manager = $this->make_manager();
+        $manager->bump_scanner_groups();
+
+        // Rules cleared after bump
+        $this->assertEmpty( FakeRuleRepository::$rules );
+
+        // After rollback: group name restored AND rule re-inserted
+        $manager->rollback();
+        $this->assertSame( 'CU Scanner — Safe', FakeRuleRepository::$groups[0]['name'] );
+        $rules_in_group = array_filter( FakeRuleRepository::$rules, fn( $r ) => $r['group_id'] === 10 );
+        $this->assertCount( 1, $rules_in_group, 'Cleared rule must be re-inserted on rollback' );
+    }
 }
