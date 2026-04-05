@@ -92,6 +92,83 @@ class RulePusherTest extends TestCase {
         $this->assertSame( 0, $stats['error_count'] );
     }
 
+    public function test_push_renames_existing_scanner_groups_before_creating_new_ones(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+
+        FakeRuleRepository::$groups = [
+            [ 'id' => 5, 'name' => 'CU Scanner — Safe',       'enabled' => 0 ],
+            [ 'id' => 6, 'name' => 'CU Scanner — Aggressive', 'enabled' => 0 ],
+        ];
+        FakeRuleRepository::$rules = [];
+
+        ( new RulePusher( FakeRuleRepository::class ) )->push( $this->full_cu_json() );
+
+        $names = array_column( FakeRuleRepository::$groups, 'name' );
+        $this->assertContains( 'CU Scanner — Safe v1',       $names, 'Old Safe group must be versioned' );
+        $this->assertContains( 'CU Scanner — Aggressive v1', $names, 'Old Aggressive group must be versioned' );
+        $this->assertContains( 'CU Scanner — Safe',          $names, 'Fresh Safe group must be created' );
+        $this->assertContains( 'CU Scanner — Aggressive',    $names, 'Fresh Aggressive group must be created' );
+    }
+
+    public function test_push_creates_safe_group_enabled_and_aggressive_group_disabled(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+
+        FakeRuleRepository::$groups = [];
+        FakeRuleRepository::$rules  = [];
+
+        $stats = ( new RulePusher( FakeRuleRepository::class ) )->push( $this->full_cu_json() );
+
+        $this->assertSame( 0, $stats['error_count'] );
+
+        $safe_group = null;
+        $agg_group  = null;
+        foreach ( FakeRuleRepository::$groups as $g ) {
+            if ( $g['name'] === 'CU Scanner — Safe' )       { $safe_group = $g; }
+            if ( $g['name'] === 'CU Scanner — Aggressive' ) { $agg_group  = $g; }
+        }
+
+        $this->assertNotNull( $safe_group, 'Safe group must exist after push' );
+        $this->assertNotNull( $agg_group,  'Aggressive group must exist after push' );
+        $this->assertSame( 1, $safe_group['enabled'],  'Safe group must be enabled' );
+        $this->assertSame( 0, $agg_group['enabled'],   'Aggressive group must be disabled' );
+    }
+
+    public function test_push_rolls_back_snapshot_when_version_bump_fails(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+
+        // Repo where update_group always fails (makes bump_scanner_groups return WP_Error)
+        $failing_repo = new class extends FakeRuleRepository {
+            public static function update_group( int $id, array $data ): bool {
+                return false;
+            }
+        };
+        $failing_repo::reset();
+        $failing_repo::$groups = [
+            [ 'id' => 10, 'name' => 'Active Manual', 'enabled' => 1 ],
+            [ 'id' => 11, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
+        ];
+        $failing_repo::$rules = [
+            [ 'id' => 99, 'group_id' => 10, 'url_pattern' => '/home/', 'match_type' => 'exact', 'asset_handle' => 'theme', 'asset_type' => 'css', 'device_type' => 'all', 'label' => null, 'source_label' => 'manual', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+        ];
+
+        $pusher = new RulePusher( $failing_repo::class );
+        $stats  = $pusher->push( $this->full_cu_json() );
+
+        // Push must report an error
+        $this->assertSame( 1, $stats['error_count'] );
+        $this->assertSame( 0, $stats['safe_count'] );
+
+        // Snapshot group created by snapshot() must have been deleted by rollback()
+        $snapshot_groups = array_filter(
+            $failing_repo::$groups,
+            fn( $g ) => str_starts_with( $g['name'], 'Previously active rules' )
+        );
+        $this->assertEmpty( $snapshot_groups, 'Snapshot group must be rolled back on bump failure' );
+    }
+
     // -------------------------------------------------------------------------
 
     private function minimal_cu_json(): array {
@@ -102,6 +179,19 @@ class RulePusherTest extends TestCase {
             ],
             'rules' => [
                 [ 'url_pattern' => 'https://example.com/home', 'match_type' => 'exact', 'asset_handle' => 'my-js', 'asset_type' => 'js', 'device_type' => 'all', 'group_id' => 1, 'source_label' => 'CU Scanner' ],
+            ],
+        ];
+    }
+
+    private function full_cu_json(): array {
+        return [
+            'groups' => [
+                [ 'id' => 1, 'name' => 'CU Scanner — Safe',       'description' => '' ],
+                [ 'id' => 2, 'name' => 'CU Scanner — Aggressive', 'description' => '' ],
+            ],
+            'rules' => [
+                [ 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'group_id' => 1, 'source_label' => 'CU Scanner' ],
+                [ 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-js',  'asset_type' => 'js',  'device_type' => 'all', 'group_id' => 2, 'source_label' => 'CU Scanner' ],
             ],
         ];
     }
