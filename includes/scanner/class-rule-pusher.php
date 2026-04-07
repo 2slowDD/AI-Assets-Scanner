@@ -141,9 +141,9 @@ class RulePusher {
 
             if ( \is_wp_error( $result ) ) {
                 $msg = $result->get_error_message();
-                // Duplicate-key violations are skipped silently — can occur when the
-                // same rule appears multiple times in the scan JSON, or when the DB
-                // UNIQUE constraint spans across groups. Not fatal; first unique copy wins.
+                // Skip duplicate-key violations — occurs when the scan JSON contains
+                // the same rule more than once for the same group.
+                // First copy wins; subsequent copies are silently dropped.
                 if ( str_contains( $msg, 'Duplicate entry' ) || str_contains( $msg, 'uniq_rule' ) ) {
                     continue;
                 }
