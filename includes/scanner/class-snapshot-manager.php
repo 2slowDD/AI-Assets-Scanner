@@ -138,12 +138,12 @@ class SnapshotManager {
     // Helpers
     // -------------------------------------------------------------------------
 
-    /** Returns all rules whose group is currently enabled. */
+    /** Returns all rules whose group is currently enabled, plus ungrouped rules (always active). */
     private function get_active_rules(): array {
         $repo = $this->repo;
         return array_filter(
             (array) $repo::get_all_rules(),
-            fn( $rule ) => ! empty( $rule->group_enabled )
+            fn( $rule ) => ! empty( $rule->group_enabled ) || empty( $rule->group_id )
         );
     }
 }
