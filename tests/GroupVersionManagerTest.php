@@ -177,11 +177,11 @@ class GroupVersionManagerTest extends TestCase {
         $this->assertEmpty( FakeRuleRepository::$groups );
     }
 
-    // --- Rule clearing (table-wide UNIQUE constraint) ---
+    // --- Rule retention (group_id is now part of UNIQUE key) ---
 
-    public function test_bump_clears_rules_from_old_scanner_group(): void {
+    public function test_bump_retains_rules_in_renamed_group(): void {
         FakeRuleRepository::$groups = [
-            [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
+            [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 1 ],
         ];
         FakeRuleRepository::$rules = [
             [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
@@ -190,83 +190,38 @@ class GroupVersionManagerTest extends TestCase {
 
         $this->make_manager()->bump_scanner_groups();
 
-        // All rules from the old group must be deleted
-        $this->assertEmpty( FakeRuleRepository::$rules, 'Rules must be cleared from the bumped group' );
-    }
+        // Group must be renamed and disabled
+        $g = FakeRuleRepository::$groups[0];
+        $this->assertSame( 'CU Scanner — Safe v1', $g['name'] );
+        $this->assertSame( 0, $g['enabled'] );
 
-    public function test_bump_only_clears_rules_from_scanner_groups_not_others(): void {
-        FakeRuleRepository::$groups = [
-            [ 'id' => 5,  'name' => 'Manual Group',     'enabled' => 1 ],
-            [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
-        ];
-        FakeRuleRepository::$rules = [
-            [ 'id' => 100, 'group_id' => 5,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'manual', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'manual' ],
-            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
-        ];
-
-        $this->make_manager()->bump_scanner_groups();
-
+        // Rules must still be in the group — NOT deleted
         $remaining_ids = array_column( FakeRuleRepository::$rules, 'id' );
-        $this->assertContains( 100, $remaining_ids, 'Manual group rule must not be deleted' );
-        $this->assertNotContains( 201, $remaining_ids, 'Scanner group rule must be deleted' );
+        $this->assertContains( 201, $remaining_ids, 'Rule 201 must be retained in renamed group' );
+        $this->assertContains( 202, $remaining_ids, 'Rule 202 must be retained in renamed group' );
     }
 
-    public function test_bump_clears_rules_from_versioned_groups_too(): void {
-        // Safe v1 and Safe v2 exist with rules — the UNIQUE constraint is table-wide,
-        // so those rules would block re-insertion into the fresh group after the bump.
+    public function test_bump_retains_rules_in_versioned_groups(): void {
+        // v1 and v2 already have rules; base group also has rules.
+        // After bump all three must retain their rules.
         FakeRuleRepository::$groups = [
             [ 'id' => 5,  'name' => 'CU Scanner — Safe v1', 'enabled' => 0 ],
             [ 'id' => 6,  'name' => 'CU Scanner — Safe v2', 'enabled' => 0 ],
             [ 'id' => 10, 'name' => 'CU Scanner — Safe',    'enabled' => 1 ],
         ];
         FakeRuleRepository::$rules = [
-            [ 'id' => 101, 'group_id' => 5,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
-            [ 'id' => 102, 'group_id' => 6,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-js',  'asset_type' => 'js',  'device_type' => 'all', 'source_label' => 'CU Scanner' ],
-            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'other',  'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+            [ 'id' => 101, 'group_id' => 5,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'css-v1', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+            [ 'id' => 102, 'group_id' => 6,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'css-v2', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
+            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'css-base', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
         ];
 
         $this->make_manager()->bump_scanner_groups();
 
-        // All scanner rules (base + versioned) must be cleared
-        $this->assertEmpty( FakeRuleRepository::$rules, 'Rules in versioned groups must also be cleared' );
-    }
-
-    public function test_bump_does_not_clear_rules_from_non_scanner_versioned_groups(): void {
-        // A versioned group with a non-scanner base name must not be touched
-        FakeRuleRepository::$groups = [
-            [ 'id' => 3,  'name' => 'Manual Group v1',    'enabled' => 0 ],
-            [ 'id' => 10, 'name' => 'CU Scanner — Safe',  'enabled' => 1 ],
-        ];
-        FakeRuleRepository::$rules = [
-            [ 'id' => 50,  'group_id' => 3,  'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'manual', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'manual' ],
-            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner' ],
-        ];
-
-        $this->make_manager()->bump_scanner_groups();
-
+        // All rules must still exist
         $remaining_ids = array_column( FakeRuleRepository::$rules, 'id' );
-        $this->assertContains( 50, $remaining_ids, 'Non-scanner versioned group rule must not be deleted' );
-        $this->assertNotContains( 201, $remaining_ids, 'Scanner group rule must be deleted' );
+        $this->assertContains( 101, $remaining_ids, 'v1 rule must be retained' );
+        $this->assertContains( 102, $remaining_ids, 'v2 rule must be retained' );
+        $this->assertContains( 201, $remaining_ids, 'base group rule must be retained' );
     }
 
-    public function test_rollback_re_inserts_cleared_rules(): void {
-        FakeRuleRepository::$groups = [
-            [ 'id' => 10, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
-        ];
-        FakeRuleRepository::$rules = [
-            [ 'id' => 201, 'group_id' => 10, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'source_label' => 'CU Scanner', 'label' => null, 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
-        ];
-
-        $manager = $this->make_manager();
-        $manager->bump_scanner_groups();
-
-        // Rules cleared after bump
-        $this->assertEmpty( FakeRuleRepository::$rules );
-
-        // After rollback: group name restored AND rule re-inserted
-        $manager->rollback();
-        $this->assertSame( 'CU Scanner — Safe', FakeRuleRepository::$groups[0]['name'] );
-        $rules_in_group = array_filter( FakeRuleRepository::$rules, fn( $r ) => $r['group_id'] === 10 );
-        $this->assertCount( 1, $rules_in_group, 'Cleared rule must be re-inserted on rollback' );
-    }
 }
