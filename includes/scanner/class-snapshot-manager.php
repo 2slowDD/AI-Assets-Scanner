@@ -8,8 +8,8 @@ namespace CUScanner\Scanner;
  * Two-phase commit:
  *   1. snapshot()  — copy active rules to disabled dated group
  *   2. push scanner rules (caller's responsibility)
- *   3. commit()    — disable old groups  (call on push success)
- *      rollback()  — delete snapshot     (call on push failure)
+ *   3. commit()    — disable old groups, delete ungrouped rules  (call on push success)
+ *      rollback()  — delete snapshot                           (call on push failure)
  *
  * @param string $repo RuleRepository class name (injectable for testing)
  */
@@ -18,6 +18,7 @@ class SnapshotManager {
     private ?int   $snapshot_group_id  = null;
     private array  $inserted_rule_ids  = [];
     private array  $groups_to_disable  = [];
+    private array  $ungrouped_rule_ids = [];
 
     public function __construct(
         private string $repo = 'CodeUnloader\\Core\\RuleRepository'
@@ -65,6 +66,11 @@ class SnapshotManager {
 
         // Copy each active rule into the snapshot group
         foreach ( $active_rules as $rule ) {
+            // Track ungrouped rules — they have no group to disable, so commit() deletes them.
+            if ( empty( $rule->group_id ) ) {
+                $this->ungrouped_rule_ids[] = (int) $rule->id;
+            }
+
             $result = $repo::create_rule( [
                 'url_pattern'     => $rule->url_pattern,
                 'match_type'      => $rule->match_type,
@@ -97,7 +103,8 @@ class SnapshotManager {
     }
 
     /**
-     * Phase 3 (success path) — Disable all groups that were enabled at snapshot time.
+     * Phase 3 (success path) — Disable all groups that were enabled at snapshot time,
+     * and delete ungrouped rules (they have no group to disable; already in snapshot).
      * Call only after scanner rules have been successfully written.
      */
     public function commit(): void {
@@ -105,7 +112,11 @@ class SnapshotManager {
         foreach ( $this->groups_to_disable as $group_id ) {
             $repo::update_group( $group_id, [ 'enabled' => 0 ] );
         }
-        $this->groups_to_disable = [];
+        foreach ( $this->ungrouped_rule_ids as $rule_id ) {
+            $repo::delete_rule( $rule_id );
+        }
+        $this->groups_to_disable  = [];
+        $this->ungrouped_rule_ids = [];
     }
 
     /**
@@ -129,9 +140,10 @@ class SnapshotManager {
         $repo::delete_group( $this->snapshot_group_id );
 
         // Reset internal state
-        $this->snapshot_group_id = null;
-        $this->inserted_rule_ids = [];
-        $this->groups_to_disable = [];
+        $this->snapshot_group_id  = null;
+        $this->inserted_rule_ids  = [];
+        $this->groups_to_disable  = [];
+        $this->ungrouped_rule_ids = [];
     }
 
     // -------------------------------------------------------------------------
