@@ -355,10 +355,12 @@ class SnapshotManagerTest extends TestCase {
         $this->assertArrayNotHasKey( 30, FakeRuleRepository::$updated_groups );
     }
 
-    public function test_snapshot_skips_duplicate_rules_instead_of_failing(): void {
-        // Simulate dirty DB state from previous buggy pushes:
-        // same rule (same url_pattern+handle+type+device) exists in two active groups.
-        // When both get copied into the same snapshot group, the second hits the UNIQUE key.
+    public function test_snapshot_deduplicates_same_rule_from_multiple_active_groups(): void {
+        // Same rule (same url_pattern+handle+type+device) exists in two different active groups.
+        // When both get copied into the single snapshot group, the second copy hits the UNIQUE key
+        // (url_pattern, match_type, asset_handle, asset_type, device_type, group_id) — group_id
+        // is the snapshot group for both, so it conflicts. The duplicate is silently skipped;
+        // one copy is retained in the snapshot.
         $dup_repo = new class extends FakeRuleRepository {
             private static int $rule_create_count = 0;
             public static function create_rule( array $data ): int|\WP_Error {
@@ -393,6 +395,6 @@ class SnapshotManagerTest extends TestCase {
             $dup_repo::$rules,
             fn( $r ) => ( $r['source_label'] ?? '' ) === 'CU Scanner Snapshot'
         );
-        $this->assertCount( 1, $snapshot_rules, 'Exactly one rule should be in the snapshot (second is a duplicate, skipped)' );
+        $this->assertCount( 1, $snapshot_rules, 'Exactly one copy of the rule should be in the snapshot — second copy from the other active group is a duplicate within the snapshot group and is skipped' );
     }
 }
