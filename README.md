@@ -9,6 +9,7 @@ WordPress admin plugin that scans your site's pages for CSS/JS assets and genera
 3. **Submits** the selected URLs to the wpservice.pro scanning API, which queues the job on the Railway analysis service
 4. **Polls** for results and displays a per-page progress table with safe/aggressive rule counts
 5. **Exports** a `.json` rule file you can download and import into Code Unloader, or push directly with one click
+6. **Preserves history** — each push snapshots all currently active rules (including ungrouped ones) to a dated "Previously active rules" group, renames old scanner groups to versioned copies ("CU Scanner — Safe v1", "v2", …), and deactivates all previous rules so only the new scan results are active
 
 ## How it works
 
