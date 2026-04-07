@@ -154,6 +154,30 @@ class SnapshotManagerTest extends TestCase {
         $this->assertSame( 'CU Scanner Snapshot', $copied_rule['source_label'] );
     }
 
+    public function test_snapshot_includes_ungrouped_rules(): void {
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        // An ungrouped rule has group_id = null — no enable/disable, always active.
+        FakeRuleRepository::$groups = [ [ 'id' => 1, 'name' => 'G', 'enabled' => 1 ] ];
+        FakeRuleRepository::$rules  = [
+            [ 'id' => 201, 'group_id' => 1,    'url_pattern' => '/grouped/', 'match_type' => 'exact', 'asset_handle' => 'h1', 'asset_type' => 'js',  'device_type' => 'all', 'label' => null, 'source_label' => '', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+            [ 'id' => 202, 'group_id' => null, 'url_pattern' => '/ungrouped/', 'match_type' => 'exact', 'asset_handle' => 'h2', 'asset_type' => 'css', 'device_type' => 'all', 'label' => null, 'source_label' => '', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+        ];
+
+        $result = $this->make_manager()->snapshot();
+        $this->assertTrue( $result );
+
+        // Snapshot group is the last group created
+        $snapshot_group_id = end( FakeRuleRepository::$groups )['id'];
+
+        $copied_patterns = array_column(
+            array_filter( FakeRuleRepository::$rules, fn( $r ) => $r['group_id'] === $snapshot_group_id ),
+            'url_pattern'
+        );
+
+        $this->assertContains( '/grouped/',   $copied_patterns, 'Grouped rule must be in snapshot' );
+        $this->assertContains( '/ungrouped/', $copied_patterns, 'Ungrouped rule must be in snapshot' );
+    }
+
     public function test_snapshot_returns_wp_error_when_create_group_fails(): void {
         \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
         FakeRuleRepository::$groups = [ [ 'id' => 1, 'name' => 'G', 'enabled' => 1 ] ];
