@@ -355,6 +355,42 @@ class SnapshotManagerTest extends TestCase {
         $this->assertArrayNotHasKey( 30, FakeRuleRepository::$updated_groups );
     }
 
+    public function test_commit_deletes_ungrouped_rules(): void {
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        // Ungrouped rules have no group to disable — commit() must delete them directly.
+        FakeRuleRepository::$groups = [ [ 'id' => 1, 'name' => 'G', 'enabled' => 1 ] ];
+        FakeRuleRepository::$rules  = [
+            [ 'id' => 10, 'group_id' => 1,    'url_pattern' => '/grouped/',   'match_type' => 'exact', 'asset_handle' => 'h1', 'asset_type' => 'js',  'device_type' => 'all', 'label' => null, 'source_label' => '', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+            [ 'id' => 11, 'group_id' => null, 'url_pattern' => '/ungrouped/', 'match_type' => 'exact', 'asset_handle' => 'h2', 'asset_type' => 'css', 'device_type' => 'all', 'label' => null, 'source_label' => '', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+        ];
+
+        $manager = $this->make_manager();
+        $manager->snapshot();
+        $manager->commit();
+
+        // Grouped rule's group must be disabled
+        $this->assertSame( 0, FakeRuleRepository::$updated_groups[1]['enabled'] ?? 1 );
+        // Original ungrouped rule (id 11) must be deleted
+        $this->assertContains( 11, FakeRuleRepository::$deleted_rule_ids, 'Original ungrouped rule must be deleted on commit' );
+        // Grouped rule (id 10) must NOT be deleted
+        $this->assertNotContains( 10, FakeRuleRepository::$deleted_rule_ids, 'Grouped rule must not be deleted' );
+    }
+
+    public function test_rollback_does_not_delete_ungrouped_rules(): void {
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        FakeRuleRepository::$groups = [ [ 'id' => 1, 'name' => 'G', 'enabled' => 1 ] ];
+        FakeRuleRepository::$rules  = [
+            [ 'id' => 11, 'group_id' => null, 'url_pattern' => '/ungrouped/', 'match_type' => 'exact', 'asset_handle' => 'h', 'asset_type' => 'css', 'device_type' => 'all', 'label' => null, 'source_label' => '', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+        ];
+
+        $manager = $this->make_manager();
+        $manager->snapshot();
+        $manager->rollback();
+
+        // Original ungrouped rule must NOT be deleted — rollback restores pre-snapshot state
+        $this->assertNotContains( 11, FakeRuleRepository::$deleted_rule_ids, 'Ungrouped rule must not be deleted on rollback' );
+    }
+
     public function test_snapshot_deduplicates_same_rule_from_multiple_active_groups(): void {
         // Same rule (same url_pattern+handle+type+device) exists in two different active groups.
         // When both get copied into the single snapshot group, the second copy hits the UNIQUE key
