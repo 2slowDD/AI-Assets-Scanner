@@ -12,7 +12,7 @@ class AdminPages {
     public function add_menus(): void {
         $icon = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSI+PGNpcmNsZSBjeD0iMTAiIGN5PSIxMCIgcj0iOC41IiBzdHJva2U9IiM3MmFlZTYiIHN0cm9rZS13aWR0aD0iMS4yIiBvcGFjaXR5PSIwLjMiLz48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSI1LjUiIHN0cm9rZT0iIzcyYWVlNiIgc3Ryb2tlLXdpZHRoPSIxLjIiIG9wYWNpdHk9IjAuNTUiLz48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSIyLjgiIHN0cm9rZT0iIzcyYWVlNiIgc3Ryb2tlLXdpZHRoPSIxLjIiIG9wYWNpdHk9IjAuODUiLz48Y2lyY2xlIGN4PSIxMCIgY3k9IjEwIiByPSIxIiBmaWxsPSIjNzJhZWU2Ii8+PGxpbmUgeDE9IjEwIiB5MT0iMTAiIHgyPSIxNi41IiB5Mj0iMy41IiBzdHJva2U9IiM3MmFlZTYiIHN0cm9rZS13aWR0aD0iMS4yIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=';
         add_menu_page(
-            'CU Scanner', 'CU Scanner', 'manage_options',
+            'AI Assets Scanner', 'AI Assets Scanner', 'manage_options',
             'cu-scanner', [ $this, 'render_scanner' ],
             $icon, 80
         );
