@@ -210,11 +210,12 @@
             totalPages     = discoveredUrls.length;
             activeFilter   = 'all';
 
+            syncIncludedUrls();
             renderUrlList();
             updateCreditBadge();
 
             document.getElementById('cu-url-list-area').style.display = 'block';
-            document.getElementById('cu-btn-next-1').style.display = '';
+            updateStartScanVisibility();
         });
     });
 
