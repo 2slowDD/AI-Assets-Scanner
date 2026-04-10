@@ -147,8 +147,14 @@
         const raw = getIncludedUrls();
         const discoveredSet = new Set(discoveredUrls.map(normaliseUrl));
 
-        // URLs in the include list that are NOT already discovered
-        const newIncluded = raw.filter(u => !discoveredSet.has(normaliseUrl(u)));
+        // URLs in the include list that are NOT already discovered (deduped within list too)
+        const seen = new Set();
+        const newIncluded = raw.filter(u => {
+            const n = normaliseUrl(u);
+            if (seen.has(n) || discoveredSet.has(n)) return false;
+            seen.add(n);
+            return true;
+        });
 
         // Remove previously-tracked included URLs from selectedUrls
         const oldSet = new Set(includedUrls.map(normaliseUrl));
@@ -162,6 +168,19 @@
     }
 
     // --- Step 1: Discovery ---
+
+    document.getElementById('cu-included-urls').addEventListener('input', function () {
+        if (discoveredUrls.length === 0) {
+            selectedUrls = getIncludedUrls();
+            totalPages   = selectedUrls.length;
+            updateCreditBadge();
+        } else {
+            syncIncludedUrls();
+            renderUrlList();
+            updateCreditBadge();
+        }
+        updateStartScanVisibility();
+    });
 
     document.getElementById('cu-btn-discover').addEventListener('click', function () {
         // Capture button ref — `this` is not available inside .then() in strict mode
