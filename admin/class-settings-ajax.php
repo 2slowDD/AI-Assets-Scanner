@@ -25,6 +25,10 @@ class SettingsAjax {
             $settings->set_api_key( $api_key );
         }
 
+        if ( '' === $api_key ) {
+            wp_send_json_error( 'No API key is saved. Please enter your API key.' );
+        }
+
         $http_user = sanitize_text_field( wp_unslash( $_POST['http_user'] ?? '' ) );
         $http_pass = sanitize_text_field( wp_unslash( $_POST['http_pass'] ?? '' ) );
         if ( $http_user && $http_pass ) {
