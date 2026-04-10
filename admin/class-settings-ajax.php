@@ -17,8 +17,13 @@ class SettingsAjax {
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Forbidden', 403 );
 
         $settings = new Settings();
-        $api_key  = sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) );
-        $settings->set_api_key( $api_key );
+        $keep    = ! empty( $_POST['keep_api_key'] );
+        if ( $keep ) {
+            $api_key = $settings->get_api_key();
+        } else {
+            $api_key = sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) );
+            $settings->set_api_key( $api_key );
+        }
 
         $http_user = sanitize_text_field( wp_unslash( $_POST['http_user'] ?? '' ) );
         $http_pass = sanitize_text_field( wp_unslash( $_POST['http_pass'] ?? '' ) );
