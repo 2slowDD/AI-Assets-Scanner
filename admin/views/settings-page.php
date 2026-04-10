@@ -38,7 +38,8 @@
                     <td>
                         <input type="text" id="cu_api_key" name="api_key"
                                value="<?php echo esc_attr( $masked ); ?>"
-                               <?php if ( $is_masked ) echo 'data-masked="1"'; ?>
+                               <?php if ( $is_masked ) : ?>data-masked="1"<?php endif; ?>
+                               autocomplete="off"
                                class="regular-text" placeholder="cusk_..." />
                         <p class="description">Get your API key from <a href="https://wpservice.pro" target="_blank">wpservice.pro</a></p>
                     </td>
