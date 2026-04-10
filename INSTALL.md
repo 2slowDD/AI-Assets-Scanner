@@ -5,20 +5,21 @@
 - WordPress 6.2 or later
 - PHP 8.0 or later
 - An API key from [wpservice.pro](https://wpservice.pro)
+- [Code Unloader](https://wpservice.pro) plugin (required for Push to Code Unloader feature)
 
 ## Steps
 
 ### 1. Upload the plugin
 
-Upload the `cu-scanner` folder to your `/wp-content/plugins/` directory, or install it via the WordPress admin by uploading the plugin zip.
+Upload the `ai-assets-scanner` folder to your `/wp-content/plugins/` directory, or install it via the WordPress admin by uploading the plugin zip.
 
 ### 2. Activate
 
-Go to **Plugins → Installed Plugins** and activate **CU Scanner**.
+Go to **Plugins → Installed Plugins** and activate **AI Assets Scanner**.
 
 ### 3. Enter your API key
 
-Go to **CU Scanner → Settings** and paste your wpservice.pro API key into the **API Key** field. Click **Save Settings**.
+Go to **AI Assets Scanner → Settings** and paste your wpservice.pro API key into the **API Key** field. Click **Save Settings**.
 
 Click **Refresh** next to Credit Balance to confirm your key is valid and your credit balance is shown correctly.
 
@@ -28,7 +29,7 @@ If your site is protected by server-level HTTP authentication (e.g. a staging en
 
 ### 5. Run a scan
 
-Go to **CU Scanner** (the main scanner page).
+Go to **AI Assets Scanner** (the main scanner page).
 
 1. Optionally add URLs to the exclusion textarea (one per line) — these are removed before discovery.
 2. Click **Discover Pages**. The scanner will find all public URLs on your site and group them by post type.

@@ -1,44 +1,56 @@
-# CU Scanner
+# AI Assets Scanner
 
-WordPress admin plugin that scans your site's pages for CSS/JS assets and generates optimised unload rules for the [Code Unloader](https://wpservice.pro) plugin.
+AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
-## What it does
+AI Assets Scanner discovers all public URLs on your WordPress site, submits them to an AI analysis service, and returns per-page lists of safe and aggressive asset-unloading rules. Results can be downloaded as a `.json` file or pushed directly into [Code Unloader](https://wpservice.pro).
 
-1. **Discovers** all public URLs on your site (via sitemap or WP_Query fallback)
-2. **Groups** URLs by post type (Pages, Posts, Other) so you can selectively include or exclude them
-3. **Submits** the selected URLs to the wpservice.pro scanning API, which queues the job on the Railway analysis service
-4. **Polls** for results and displays a per-page progress table with safe/aggressive rule counts
-5. **Exports** a `.json` rule file you can download and import into Code Unloader, or push directly with one click
-6. **Preserves history** — each push snapshots all currently active rules (including ungrouped ones) to a dated "Previously active rules" group, renames old scanner groups to versioned copies ("CU Scanner — Safe v1", "v2", …), and deactivates all previous rules so only the new scan results are active
+## Features
+
+- **Automated page discovery** — finds all Pages, Posts, and custom post types via sitemap or WP_Query fallback
+- **AI-powered analysis** — each URL is rendered headlessly and its CSS/JS assets are profiled
+- **Safe + aggressive rules** — two tiers: safe (assets unused on the page) and aggressive (assets that may be needed conditionally)
+- **Push to Code Unloader** — one-click rule push with snapshot backup and versioned group history
+- **Credit system** — pay per scan via wpservice.pro credits
+- **Optimization plugin auto-bypass** — automatically bypasses WP Rocket, Autoptimize, and Code Unloader caches during scanning
+- **HTTP Basic Auth support** — scan password-protected staging environments
+- **Scan history** — browse past scan results and re-download rule files at any time
 
 ## How it works
 
 The plugin is part of a three-component system:
 
 ```
-CU Scanner plugin  ──→  wpservice.pro SaaS  ──→  Railway analysis service
-(this repo)              (credit & auth API)       (Playwright crawler)
+AI Assets Scanner plugin  ──→  wpservice.pro SaaS  ──→  Railway analysis service
+(this repo)                     (credit & auth API)       (Playwright crawler)
 ```
 
 - **Credits** are validated at reservation time and deducted only after a successful scan completes
 - **One active scan per user** — starting a second scan while one is in progress returns HTTP 409
-- **Exported JSON** uses Code Unloader's native import format (`asset_handle`, `css`/`js` types, full normalized URL patterns with `exact` match) so both manual import and Push to CU work correctly
+- **Exported JSON** uses Code Unloader's native import format (`asset_handle`, `css`/`js` types, full normalized URL patterns with `exact` match) so both manual import and Push to Code Unloader work correctly
+- **Rule versioning** — each push snapshots currently active rules, renames old scanner groups to versioned copies (e.g. "AI Assets Scanner — Safe v1"), and deactivates all previous rules so only the new scan results are active
 
 ## Requirements
 
 - WordPress 6.2+
 - PHP 8.0+
 - An API key from [wpservice.pro](https://wpservice.pro)
-- Code Unloader v1.4.0+ (for Push to CU and JSON import)
+- Code Unloader v1.4.0+ (for Push to Code Unloader and JSON import)
 
 ## Installation
 
-See [INSTALL.md](INSTALL.md).
+See [INSTALL.md](INSTALL.md) for full installation and setup instructions.
+
+## Quick start
+
+1. Install and activate the plugin
+2. Go to **AI Assets Scanner → Settings**, enter your wpservice.pro API key, and save
+3. Go to **AI Assets Scanner**, click **Discover Pages**, select the URLs to scan, and click **Start Scan →**
+4. Once complete, review results and click **Push to Code Unloader** or download the `.json` rule file
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md).
+See [CHANGELOG.md](CHANGELOG.md) for a full version history.
 
-## Private repo
+## License
 
-This is a private repository. Do not distribute.
+Proprietary — all rights reserved. Requires a valid wpservice.pro API key to function.
