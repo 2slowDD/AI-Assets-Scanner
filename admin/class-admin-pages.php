@@ -27,7 +27,7 @@ class AdminPages {
     }
 
     public function enqueue_assets( string $hook ): void {
-        $pages = [ 'toplevel_page_cu-scanner', 'cu-scanner_page_cu-scanner-settings', 'cu-scanner_page_cu-scanner-history' ];
+        $pages = [ 'toplevel_page_cu-scanner', 'ai-assets-scanner_page_cu-scanner-settings', 'ai-assets-scanner_page_cu-scanner-history' ];
         if ( ! in_array( $hook, $pages, true ) ) return;
         wp_enqueue_style( 'cu-scanner-admin', CU_SCANNER_URL . 'admin/css/ai-assets-scanner-admin.css', [], CU_SCANNER_VERSION );
         if ( $hook === 'toplevel_page_cu-scanner' ) {
@@ -37,7 +37,7 @@ class AdminPages {
                 'nonce'   => wp_create_nonce( 'cu_scanner_nonce' ),
             ] );
         }
-        if ( $hook === 'cu-scanner_page_cu-scanner-settings' ) {
+        if ( $hook === 'ai-assets-scanner_page_cu-scanner-settings' ) {
             wp_enqueue_script( 'cu-scanner-settings', CU_SCANNER_URL . 'admin/js/settings.js', [], CU_SCANNER_VERSION, true );
             wp_localize_script( 'cu-scanner-settings', 'cuScannerSettings', [
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
