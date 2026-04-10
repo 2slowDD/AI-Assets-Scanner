@@ -19,19 +19,45 @@
 /* --- Dark accent card header --- */
 .cu-header {
     background: linear-gradient(135deg, #1a2744 0%, #1e3a5f 100%);
-    padding: 16px 20px;
+    padding: 0 20px 0 0;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 14px;
     margin-bottom: 0;
+}
+.cu-header-logo {
+    width: 84px;
+    height: 84px;
+    flex-shrink: 0;
+    object-fit: contain;
+    display: block;
 }
 .cu-header-icon {
     flex-shrink: 0;
     width: 36px;
     height: 36px;
+    align-self: center;
 }
 .cu-header-text {
     flex: 1;
+    align-self: center;
+}
+.cu-header-by {
+    font-size: 10px;
+    color: #72aee6;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    align-self: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.cu-header-by a {
+    color: #72aee6;
+    text-decoration: none;
+}
+.cu-header-by a:hover {
+    color: #b4d8f7;
+    text-decoration: underline;
 }
 .cu-header-text h2 {
     font-size: 17px;
