@@ -8,9 +8,11 @@
         const refresh = document.getElementById('cu-refresh-balance');
 
         const apiKeyInput = document.getElementById('cu_api_key');
-        apiKeyInput.addEventListener('input', function () {
-            this.removeAttribute('data-masked');
-        });
+        if (apiKeyInput) {
+            apiKeyInput.addEventListener('input', function () {
+                this.removeAttribute('data-masked');
+            });
+        }
 
         function showMsg(text, type) {
             msg.textContent = text;
@@ -31,7 +33,7 @@
             e.preventDefault();
             const data = new FormData(form);
             data.append('action', 'cu_scanner_save_settings');
-            if (apiKeyInput.dataset.masked) {
+            if (apiKeyInput && apiKeyInput.dataset.masked) {
                 data.delete('api_key');
                 data.append('keep_api_key', '1');
             }
