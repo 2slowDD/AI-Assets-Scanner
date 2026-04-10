@@ -393,3 +393,33 @@
     0%   { transform: scale(0.6); opacity: 0.8; }
     100% { transform: scale(1.0); opacity: 0; }
 }
+
+/* --- Include URLs feature (2026-04-10) --- */
+
+/* Discover row: button + hint text, top of Step 1 */
+.cu-discover-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.cu-discover-row .description {
+    margin: 0;
+}
+
+/* Spacing between Include and Exclude inputs */
+#cu-url-inputs {
+    margin-bottom: 14px;
+}
+
+/* Included group header (teal, distinct from page/post/other) */
+.cu-group-header--included { background: #1a5f4a; }
+
+/* [included] badge on URL rows */
+.cu-included-badge {
+    font-size: 10px;
+    color: #2271b1;
+    font-weight: 600;
+    margin-left: 6px;
+    white-space: nowrap;
+}
