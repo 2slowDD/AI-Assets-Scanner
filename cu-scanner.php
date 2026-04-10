@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: CU Scanner
- * Description: CSS/JS asset scanner for Code Unloader.
+ * Plugin Name: AI Assets Scanner
+ * Description: AI-powered CSS/JS asset scanner by WPservice.pro.
  * Version:     1.0.6
  * Requires PHP: 8.0
  * Requires at least: 6.2
