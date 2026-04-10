@@ -449,7 +449,8 @@
         const numEl      = document.getElementById('cu-credit-num');
         const desEl      = document.getElementById('cu-credit-deselected');
         const selected   = selectedUrls.length;
-        const deselected = discoveredUrls.length - selected;
+        const total      = discoveredUrls.length + includedUrls.length;
+        const deselected = total - selected;
 
         if (!badge) return;
         badge.style.display = '';
@@ -466,6 +467,15 @@
     // --- Step 2: Reserve + Submit ---
 
     document.getElementById('cu-btn-next-1').addEventListener('click', function () {
+        // Include-only path: no discovery ran, populate state from textarea
+        if (discoveredUrls.length === 0) {
+            const includeList = getIncludedUrls();
+            if (includeList.length === 0) return; // nothing to scan
+            selectedUrls     = includeList;
+            discoveredUrls   = includeList;
+            groupedUrls      = { page: [], post: [], other: [], included: includeList };
+            totalPages       = includeList.length;
+        }
         showStep(2);
         // Use selectedUrls.length — only charge for URLs that will actually be scanned
         post('cu_scanner_reserve_job', { page_count: selectedUrls.length })
