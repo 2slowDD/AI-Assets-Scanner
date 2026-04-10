@@ -24,6 +24,11 @@
         <?php
         $settings  = new CUScanner\Settings();
         $api_key   = $settings->get_api_key();
+        $len       = mb_strlen( $api_key );
+        $masked    = ( $len > 12 )
+            ? mb_substr( $api_key, 0, 6 ) . str_repeat( '•', $len - 12 ) . mb_substr( $api_key, -6 )
+            : $api_key;
+        $is_masked = ( $len > 12 );
         $http_auth = $settings->get_http_auth();
         ?>
         <form id="cu-scanner-settings-form">
@@ -32,7 +37,8 @@
                     <th><label for="cu_api_key">API Key</label></th>
                     <td>
                         <input type="text" id="cu_api_key" name="api_key"
-                               value="<?php echo esc_attr( $api_key ); ?>"
+                               value="<?php echo esc_attr( $masked ); ?>"
+                               <?php if ( $is_masked ) echo 'data-masked="1"'; ?>
                                class="regular-text" placeholder="cusk_..." />
                         <p class="description">Get your API key from <a href="https://wpservice.pro" target="_blank">wpservice.pro</a></p>
                     </td>
