@@ -1,6 +1,29 @@
 # Changelog
 
-All notable changes to CU Scanner are documented here.
+All notable changes to AI Assets Scanner are documented here.
+
+---
+
+## [1.0.7] — 2026-04-10
+
+### Rebrand
+
+- **Plugin renamed to AI Assets Scanner** — Plugin name, menu title, admin page headers, and all banner HTML updated from "CU Scanner" to "AI Assets Scanner"
+- **Main file renamed** — `cu-scanner.php` → `ai-assets-scanner.php`; admin CSS renamed from `cu-scanner-admin.css` → `ai-assets-scanner-admin.css`; all enqueue references updated
+- **AI Assets Scanner logo** — New logo image added to all admin page headers; attribution banner updated
+- **Buy Credits URL updated** — Link now points to the correct shop anchor on wpservice.pro
+- **Admin hook names updated** — WordPress admin hooks updated to match the rebranded plugin slug
+
+### Security
+
+- **API key masking** — The API key field in Settings now displays a masked value (`••••••••`) after saving instead of the raw key, preventing accidental exposure in screenshots or screen shares
+- **Keep-key sentinel** — A `keep_api_key` sentinel is sent when submitting the settings form with the masked placeholder, preventing the stored key from being overwritten with the mask string
+- **Null guard on API key input** — Added null guard in `settings.js` to prevent a JS error when the API key input is not present on the page
+
+### Documentation
+
+- **README rewritten** — Full rebrand and expansion with feature list, architecture diagram, quick-start guide, and requirements
+- **INSTALL.md updated** — Folder name, menu references, and plugin name corrected to match rebrand
 
 ---
 
