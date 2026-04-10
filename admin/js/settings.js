@@ -7,6 +7,11 @@
         const balance = document.getElementById('cu-credit-balance');
         const refresh = document.getElementById('cu-refresh-balance');
 
+        const apiKeyInput = document.getElementById('cu_api_key');
+        apiKeyInput.addEventListener('input', function () {
+            this.removeAttribute('data-masked');
+        });
+
         function showMsg(text, type) {
             msg.textContent = text;
             msg.className   = 'notice notice-' + type + ' is-dismissible';
@@ -26,6 +31,10 @@
             e.preventDefault();
             const data = new FormData(form);
             data.append('action', 'cu_scanner_save_settings');
+            if (apiKeyInput.dataset.masked) {
+                data.delete('api_key');
+                data.append('keep_api_key', '1');
+            }
             fetch(cuScannerSettings.ajaxUrl, { method: 'POST', body: data })
                 .then(r => r.json())
                 .then(res => {
