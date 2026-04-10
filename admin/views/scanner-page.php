@@ -47,6 +47,12 @@
             <p class="cu-sonar-label">Discovering pages&hellip;</p>
         </div>
 
+        <!-- Discover row (top, normal-width button) -->
+        <div class="cu-discover-row">
+            <button id="cu-btn-discover" class="button">Discover Pages</button>
+            <span class="description">or fill Include URLs below to scan specific pages</span>
+        </div>
+
         <!-- URL list area (hidden until discovery completes) -->
         <div id="cu-url-list-area" style="display:none">
             <!-- Filter bar (counts populated by JS) -->
@@ -55,6 +61,7 @@
                 <span class="cu-filter-pill"           data-filter="page"  id="cu-pill-page" style="display:none">Pages</span>
                 <span class="cu-filter-pill"           data-filter="post"  id="cu-pill-post" style="display:none">Posts</span>
                 <span class="cu-filter-pill"           data-filter="other" id="cu-pill-other" style="display:none">Other</span>
+                <span class="cu-filter-pill"           data-filter="included" id="cu-pill-included" style="display:none">Included</span>
                 <span class="cu-filter-divider">|</span>
                 <span class="cu-filter-pill cu-filter-action" id="cu-btn-select-all">&#9745; Select all</span>
                 <span class="cu-filter-pill cu-filter-action" id="cu-btn-deselect-all">&#9744; Deselect all</span>
@@ -64,12 +71,20 @@
             <div class="cu-url-list" id="cu-url-list"></div>
         </div>
 
-        <!-- Exclusion textarea -->
-        <div id="cu-exclusions">
-            <label>Exclude URLs (one per line):<br>
-                <textarea id="cu-excluded-urls" rows="4" style="width:100%"></textarea>
-            </label>
-            <p class="description" style="margin-top:4px">Tip: deselecting URLs above is simpler for most cases.</p>
+        <!-- URL inputs: Include + Exclude -->
+        <div id="cu-url-inputs">
+            <div style="margin-bottom:8px">
+                <label>Include URLs (one per line):<br>
+                    <textarea id="cu-included-urls" rows="4" style="width:100%"></textarea>
+                </label>
+                <p class="description" style="margin-top:4px">Scan these URLs directly without running Discover Pages.</p>
+            </div>
+            <div>
+                <label>Exclude URLs (one per line):<br>
+                    <textarea id="cu-excluded-urls" rows="4" style="width:100%"></textarea>
+                </label>
+                <p class="description" style="margin-top:4px">Tip: deselecting URLs above is simpler for most cases.</p>
+            </div>
         </div>
 
         <!-- Credit badge + actions -->
@@ -80,7 +95,6 @@
                 <span class="cu-credit-deselected" id="cu-credit-deselected" style="display:none"></span>
             </div>
             <div class="cu-spacer"></div>
-            <button id="cu-btn-discover" class="button">Discover Pages</button>
             <button id="cu-btn-next-1" class="button button-primary" style="display:none">Start Scan &rarr;</button>
         </div>
     </div>
