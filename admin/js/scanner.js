@@ -16,6 +16,7 @@
     let lastPageIndex  = 0;
     let totalPages     = 0;
     let hasSoftBlocks  = false;
+    let includedUrls   = [];   // include URLs not duplicated in discoveredUrls
 
     const STEP_LABELS = {
         1: 'Step 1 \u2014 Discover Pages',
@@ -115,6 +116,49 @@
         const allChecked = Array.from(overrides).every(cb => cb.checked);
         const btn = document.getElementById('cu-btn-next-1');
         if (btn) btn.disabled = !allChecked;
+    }
+
+    // --- Include URLs helpers ---
+
+    function getIncludedUrls() {
+        const el = document.getElementById('cu-included-urls');
+        if (!el) return [];
+        return el.value.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+    }
+
+    function normaliseUrl(u) {
+        // Strip trailing slashes and lowercase for dedup comparison
+        return u.replace(/\/+$/, '').toLowerCase();
+    }
+
+    function updateStartScanVisibility() {
+        const btn = document.getElementById('cu-btn-next-1');
+        if (!btn) return;
+        const hasIncluded   = getIncludedUrls().length > 0;
+        const hasDiscovered = discoveredUrls.length > 0;
+        btn.style.display = (hasIncluded || hasDiscovered) ? '' : 'none';
+    }
+
+    function syncIncludedUrls() {
+        // Only merges when discovery has already run. Include-only path is
+        // handled directly in the Start Scan click handler.
+        if (discoveredUrls.length === 0) return;
+
+        const raw = getIncludedUrls();
+        const discoveredSet = new Set(discoveredUrls.map(normaliseUrl));
+
+        // URLs in the include list that are NOT already discovered
+        const newIncluded = raw.filter(u => !discoveredSet.has(normaliseUrl(u)));
+
+        // Remove previously-tracked included URLs from selectedUrls
+        const oldSet = new Set(includedUrls.map(normaliseUrl));
+        selectedUrls = selectedUrls.filter(u => !oldSet.has(normaliseUrl(u)));
+
+        // Add newly-included URLs to selectedUrls
+        selectedUrls = [...selectedUrls, ...newIncluded];
+
+        includedUrls         = newIncluded;
+        groupedUrls.included = newIncluded;
     }
 
     // --- Step 1: Discovery ---
