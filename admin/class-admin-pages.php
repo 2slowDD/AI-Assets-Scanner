@@ -29,7 +29,7 @@ class AdminPages {
     public function enqueue_assets( string $hook ): void {
         $pages = [ 'toplevel_page_cu-scanner', 'cu-scanner_page_cu-scanner-settings', 'cu-scanner_page_cu-scanner-history' ];
         if ( ! in_array( $hook, $pages, true ) ) return;
-        wp_enqueue_style( 'cu-scanner-admin', CU_SCANNER_URL . 'admin/css/cu-scanner-admin.css', [], CU_SCANNER_VERSION );
+        wp_enqueue_style( 'cu-scanner-admin', CU_SCANNER_URL . 'admin/css/ai-assets-scanner-admin.css', [], CU_SCANNER_VERSION );
         if ( $hook === 'toplevel_page_cu-scanner' ) {
             wp_enqueue_script( 'cu-scanner-scanner', CU_SCANNER_URL . 'admin/js/scanner.js', [], CU_SCANNER_VERSION, true );
             wp_localize_script( 'cu-scanner-scanner', 'cuScanner', [
