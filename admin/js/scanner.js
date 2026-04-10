@@ -222,9 +222,10 @@
     // --- URL list rendering ---
 
     const GROUP_META = {
-        page:  { label: 'Pages',  cls: 'cu-group-header--page',  more: 'pages' },
-        post:  { label: 'Posts',  cls: 'cu-group-header--post',  more: 'posts' },
-        other: { label: 'Other',  cls: 'cu-group-header--other', more: '' },
+        page:     { label: 'Pages',    cls: 'cu-group-header--page',     more: 'pages' },
+        post:     { label: 'Posts',    cls: 'cu-group-header--post',     more: 'posts' },
+        other:    { label: 'Other',    cls: 'cu-group-header--other',    more: '' },
+        included: { label: 'Included', cls: 'cu-group-header--included', more: 'included' },
     };
 
     function renderUrlList() {
@@ -232,7 +233,7 @@
         list.innerHTML = '';
 
         // Update filter pill counts and visibility
-        ['page', 'post', 'other'].forEach(type => {
+        ['page', 'post', 'other', 'included'].forEach(type => {
             const pill = document.getElementById('cu-pill-' + type);
             const count = (groupedUrls[type] || []).length;
             if (pill) {
@@ -244,7 +245,7 @@
         if (allPill) allPill.textContent = 'All ' + totalPages;
 
         // Render each group
-        ['page', 'post', 'other'].forEach(type => {
+        ['page', 'post', 'other', 'included'].forEach(type => {
             const urls = groupedUrls[type] || [];
             if (urls.length === 0) return;
 
@@ -273,8 +274,9 @@
                 row.className = 'cu-url-row';
                 row.dataset.url = url;
                 row.dataset.type = type;
+                const badge = type === 'included' ? ' <span class="cu-included-badge">[included]</span>' : '';
                 row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${esc(url)}" data-type="${type}" checked>
-                    <span class="cu-url-text">${esc(url)}</span>`;
+                    <span class="cu-url-text">${esc(url)}</span>${badge}`;
                 row.style.display = idx < 20 ? '' : 'none';
                 groupDiv.appendChild(row);
             });
@@ -423,7 +425,7 @@
     function setAllInFilter(checked) {
         // Operate on currently visible groups
         const types = activeFilter === 'all'
-            ? ['page', 'post', 'other']
+            ? ['page', 'post', 'other', 'included']
             : [activeFilter];
 
         types.forEach(type => {
