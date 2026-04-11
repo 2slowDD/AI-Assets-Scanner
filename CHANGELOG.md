@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.1.2] — 2026-04-11
+
+### Bug fixes
+
+- **Duplicate rows on repeated polls** — `handleStatusUpdate` used `lastPageIndex + idx` to assign row IDs and incremented `lastPageIndex` by `pages.length` after each poll. Because Railway always returns all pages (index 0 to total−1), subsequent polls rendered pages at wrong offsets (rows `total`, `total+1`, ...) instead of updating the existing rows in-place. Fixed by using `idx` directly as the row ID and removing the stale increment.
+
+---
+
 ## [1.0.9] — 2026-04-11
 
 ### New features
