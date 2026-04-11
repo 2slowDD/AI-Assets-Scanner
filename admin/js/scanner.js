@@ -635,7 +635,9 @@
 
         const tbody = document.getElementById('cu-pages-tbody');
         pages.forEach((page, idx) => {
-            const globalIdx   = lastPageIndex + idx;
+            // Railway always returns all pages in order from index 0.
+            // Use idx directly — lastPageIndex offset caused duplicate rows after first poll.
+            const globalIdx   = idx;
             const existing    = document.getElementById('cu-row-' + globalIdx);
             const statusLabel = page.status === 'done' ? '\u2713 Done' : page.status === 'error' ? '\u2717 Error' : '\u2026';
             if (existing) {
@@ -647,8 +649,6 @@
                 tbody.appendChild(tr);
             }
         });
-
-        lastPageIndex += pages.length;
 
         if (data.status === 'complete' || data.status === 'failed') {
             stopPolling();
