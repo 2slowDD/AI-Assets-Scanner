@@ -22,6 +22,7 @@ if ( ! function_exists( 'is_wp_error' ) ) {
 
 spl_autoload_register( function ( string $class ): void {
     $map = [
+        'CUScanner\\Admin\\ScannerAjax'        => 'admin/class-scanner-ajax.php',
         'CUScanner\\Plugin'                   => 'includes/class-plugin.php',
         'CUScanner\\Settings'                 => 'includes/class-settings.php',
         'CUScanner\\ScanHistory'              => 'includes/class-scan-history.php',

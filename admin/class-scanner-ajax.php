@@ -26,6 +26,7 @@ class ScannerAjax {
             'cu_scanner_build_result',
             'cu_scanner_download_json',
             'cu_scanner_push_to_cu',
+            'cu_scanner_check_job',
         ];
         foreach ( $actions as $action ) {
             add_action( 'wp_ajax_' . $action, [ $this, str_replace( 'cu_scanner_', '', $action ) ] );
@@ -182,6 +183,19 @@ class ScannerAjax {
             error_log( '[AI Assets Scanner] submit_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
             wp_send_json_error( 'Could not submit scan job. Check server error logs.' );
         }
+    }
+
+    public function check_job(): void {
+        $this->check();
+        $state = get_transient( 'cu_scanner_job_' . get_current_user_id() );
+        if ( ! $state ) {
+            wp_send_json_error( 'No active job' ); return;
+        }
+        wp_send_json_success( [
+            'job_id'      => $state['job_id'],
+            'job_token'   => $state['job_token'],
+            'railway_url' => $state['railway_url'],
+        ] );
     }
 
     public function poll_status(): void {
