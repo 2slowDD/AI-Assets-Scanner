@@ -125,6 +125,10 @@
             <progress id="cu-progress-bar" value="0" max="100" style="width:100%"></progress>
             <span id="cu-progress-text">0 / 0</span>
         </div>
+        <div class="notice notice-info inline" style="margin:12px 0">
+            <p><strong>You can safely close this tab</strong> &mdash; the scan runs in the background. Results will be waiting when you return.</p>
+            <p>Do not edit the content of pages being scanned while the scan is active.</p>
+        </div>
         <table id="cu-pages-table" class="wp-list-table widefat striped">
             <thead><tr><th>URL</th><th>Status</th></tr></thead>
             <tbody id="cu-pages-tbody"></tbody>
