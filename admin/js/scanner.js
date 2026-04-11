@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.5';
+    const SCANNER_JS_VERSION = '1.0.10.6';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -13,12 +13,13 @@
     let selectedUrls   = [];   // checked subset — used for reserve + submit
     let groupedUrls    = {};   // { page: [...], post: [...], other: [...] }
     let activeFilter   = 'all';
-    let scanJobId      = null;
-    let scanJobToken   = null;
-    let railwayUrl     = null;
-    let pollTimer      = null;
-    let lastPageIndex  = 0;
-    let totalPages     = 0;
+    let scanJobId        = null;
+    let scanJobToken     = null;
+    let railwayUrl       = null;
+    let pollTimer        = null;
+    let lastPageIndex    = 0;
+    let totalPages       = 0;
+    let lastKnownStatus  = null;
     let hasSoftBlocks  = false;
     let includedUrls   = [];   // include URLs not duplicated in discoveredUrls
 
@@ -548,11 +549,52 @@
     // --- Step 3: Polling + Progress ---
 
     function startPolling() {
-        pollTimer = setInterval(pollProgress, 2000);
+        pollProgress(); // poll immediately, then self-schedule
     }
 
     function stopPolling() {
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+    }
+
+    function scheduleNextPoll() {
+        // 10s while queued (no active scan work), 2s once in_progress
+        const interval = lastKnownStatus === 'queued' ? 10000 : 2000;
+        pollTimer = setTimeout(pollProgress, interval);
+    }
+
+    function showQueueBanner(position, total, message) {
+        let banner = document.getElementById('cu-queue-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'cu-queue-banner';
+            banner.className = 'notice notice-info';
+            banner.style.marginTop = '10px';
+            const progressBar = document.getElementById('cu-progress-bar');
+            if (progressBar && progressBar.parentNode) {
+                progressBar.parentNode.insertBefore(banner, progressBar);
+            }
+        }
+        if (message) {
+            banner.innerHTML = '<p>' + esc(message) + '</p>';
+        } else if (position !== null && position !== undefined) {
+            banner.innerHTML = '<p>Your scan is queued \u2014 position #' + esc(String(position)) + ' of ' + esc(String(total)) + '. It will start automatically.</p>';
+        } else {
+            banner.innerHTML = '<p>Your scan is queued. It will start automatically.</p>';
+        }
+        banner.style.display = '';
+        const pb = document.getElementById('cu-progress-bar');
+        if (pb) pb.style.display = 'none';
+        const pt = document.getElementById('cu-progress-text');
+        if (pt) pt.style.display = 'none';
+    }
+
+    function hideQueueBanner() {
+        const banner = document.getElementById('cu-queue-banner');
+        if (banner) banner.style.display = 'none';
+        const pb = document.getElementById('cu-progress-bar');
+        if (pb) pb.style.display = '';
+        const pt = document.getElementById('cu-progress-text');
+        if (pt) pt.style.display = '';
     }
 
     function pollProgress() {
@@ -567,6 +609,23 @@
     }
 
     function handleStatusUpdate(data) {
+        lastKnownStatus = data.status;
+
+        if (data.status === 'queued') {
+            showQueueBanner(data.queue_position, data.total_queued, null);
+            scheduleNextPoll();
+            return;
+        }
+
+        if (data.status === 'cancelled_timeout') {
+            stopPolling();
+            sessionStorage.removeItem('cu_scanner_active_job');
+            showQueueBanner(null, null, data.message || 'Your scan was cancelled after waiting 3 hours in queue. Credits have been returned. Please try again later.');
+            return;
+        }
+
+        hideQueueBanner(); // clears banner if transitioning from queued → in_progress
+
         const pages     = data.pages || [];
         const completed = data.completed || 0;
         const total     = data.total || totalPages;
@@ -602,6 +661,8 @@
                     alert('Scan failed. Credits have been released. You may retry the scan.');
                 });
             }
+        } else {
+            scheduleNextPoll();
         }
     }
 
