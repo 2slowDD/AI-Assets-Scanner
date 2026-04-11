@@ -126,7 +126,7 @@
             <span id="cu-progress-text">0 / 0</span>
         </div>
         <table id="cu-pages-table" class="wp-list-table widefat striped">
-            <thead><tr><th>URL</th><th>Status</th><th>Safe</th><th>Aggressive</th></tr></thead>
+            <thead><tr><th>URL</th><th>Status</th></tr></thead>
             <tbody id="cu-pages-tbody"></tbody>
         </table>
         <button id="cu-btn-cancel" class="button button-secondary" style="margin-top:12px">Cancel Scan</button>

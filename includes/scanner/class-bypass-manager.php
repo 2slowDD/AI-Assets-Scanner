@@ -46,8 +46,8 @@ class BypassManager {
      * Register in Plugin::init() on the frontend only.
      */
     public function handle_wp_loaded(): void {
-        if ( empty( $_GET['cu_scan_token'] ) ) return;
-        $token = sanitize_text_field( wp_unslash( $_GET['cu_scan_token'] ) );
+        if ( empty( $_GET['cu_scan_token'] ) ) return; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Token-based auth used intentionally; nonces are incompatible with headless browser scanner requests.
+        $token = sanitize_text_field( wp_unslash( $_GET['cu_scan_token'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- See above.
         if ( ! $this->is_valid_token( $token ) ) return;
         add_filter( 'post_password_required', '__return_false' );
     }

@@ -6,6 +6,11 @@
  * Requires PHP: 8.0
  * Requires at least: 6.2
  * Text Domain: cu-scanner
+ * License:     Proprietary
+ */
+/*
+ * Copyright (C) 2026 WPservice.pro. All rights reserved.
+ * Modification or redistribution without written permission is prohibited.
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

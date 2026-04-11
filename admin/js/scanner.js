@@ -542,15 +542,13 @@
         pages.forEach((page, idx) => {
             const globalIdx   = lastPageIndex + idx;
             const existing    = document.getElementById('cu-row-' + globalIdx);
-            const safe        = (page.safe_count ?? 0);
-            const agg         = (page.aggressive_count ?? 0);
             const statusLabel = page.status === 'done' ? '\u2713 Done' : page.status === 'error' ? '\u2717 Error' : '\u2026';
             if (existing) {
-                existing.innerHTML = rowHtml(page.url, statusLabel, safe, agg);
+                existing.innerHTML = rowHtml(page.url, statusLabel);
             } else {
                 const tr = document.createElement('tr');
                 tr.id = 'cu-row-' + globalIdx;
-                tr.innerHTML = rowHtml(page.url, statusLabel, safe, agg);
+                tr.innerHTML = rowHtml(page.url, statusLabel);
                 tbody.appendChild(tr);
             }
         });
@@ -570,8 +568,8 @@
         }
     }
 
-    function rowHtml(url, status, safe, agg) {
-        return `<td>${esc(url)}</td><td>${esc(status)}</td><td>${esc(safe)}</td><td>${esc(agg)}</td>`;
+    function rowHtml(url, status) {
+        return `<td>${esc(url)}</td><td>${esc(status)}</td>`;
     }
 
     function buildResult() {
