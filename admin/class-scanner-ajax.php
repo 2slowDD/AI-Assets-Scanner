@@ -161,7 +161,7 @@ class ScannerAjax {
             $job_id = $result['job_id'];
 
             $domain = wp_parse_url( get_home_url(), PHP_URL_HOST );
-            ( new ScanHistory() )->create_record( $job_id, $domain, count( $urls_raw ), 'in_progress' );
+            ( new ScanHistory() )->create_record( $job_id, $domain, count( $urls_raw ), 'queued' );
 
             set_transient( 'cu_scanner_job_' . get_current_user_id(), [
                 'job_id'       => $job_id,
