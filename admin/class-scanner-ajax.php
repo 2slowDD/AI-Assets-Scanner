@@ -106,7 +106,8 @@ class ScannerAjax {
             set_transient( 'cu_scanner_pending_token_' . get_current_user_id(), $result['job_token'], 3600 );
             wp_send_json_success( [ 'reserved' => true, 'job_token' => $result['job_token'] ] );
         } catch ( \RuntimeException $e ) {
-            wp_send_json_error( $e->getMessage() );
+            error_log( '[AI Assets Scanner] reserve_job: ' . $e->getMessage() );
+            wp_send_json_error( 'Could not reserve credits. Check server error logs.' );
         }
     }
 
@@ -178,7 +179,8 @@ class ScannerAjax {
             try {
                 ( new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key ) )->release_credits( $job_token );
             } catch ( \RuntimeException ) {}
-            wp_send_json_error( $e->getMessage() );
+            error_log( '[AI Assets Scanner] submit_job: ' . $e->getMessage() );
+            wp_send_json_error( 'Could not submit scan job. Check server error logs.' );
         }
     }
 
@@ -193,7 +195,8 @@ class ScannerAjax {
             $status = $client->get_status( $job_id, $job_token, $from );
             wp_send_json_success( $status );
         } catch ( \RuntimeException $e ) {
-            wp_send_json_error( $e->getMessage() );
+            error_log( '[AI Assets Scanner] poll_status: ' . $e->getMessage() );
+            wp_send_json_error( 'Could not retrieve scan status. Check server error logs.' );
         }
     }
 
@@ -235,7 +238,8 @@ class ScannerAjax {
             $client = new RailwayClient( $settings->get_railway_url(), $settings->get_api_key() );
             $status = $client->get_status( $job_id, $job_token, 0 );
         } catch ( \RuntimeException $e ) {
-            wp_send_json_error( 'Could not retrieve scan data: ' . $e->getMessage() ); return;
+            error_log( '[AI Assets Scanner] build_result: ' . $e->getMessage() );
+            wp_send_json_error( 'Could not retrieve scan data. Check server error logs.' ); return;
         }
 
         $pages_raw = $status['pages'] ?? [];
@@ -336,7 +340,8 @@ class ScannerAjax {
             $summary = $pusher->push( $decoded );
             wp_send_json_success( $summary );
         } catch ( \Throwable $e ) {
-            wp_send_json_error( $e->getMessage() );
+            error_log( '[AI Assets Scanner] push_to_cu: ' . $e->getMessage() );
+            wp_send_json_error( 'Push failed. Check server error logs.' );
         }
     }
 }
