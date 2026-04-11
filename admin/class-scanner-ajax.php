@@ -321,7 +321,18 @@ class ScannerAjax {
         $pusher = new RulePusher();
         if ( ! $pusher->can_push() ) { wp_send_json_error( 'Code Unloader not active' ); return; }
         try {
-            $decoded = json_decode( $json, true );
+            $decoded   = json_decode( $json, true );
+            $site_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( get_home_url(), PHP_URL_HOST ) ?? '' ) );
+            // Strip rules from external URLs — only push rules belonging to this site.
+            // www. prefix is stripped from both sides before comparing.
+            // Download (download_json) serves the full unfiltered JSON.
+            $decoded['rules'] = array_values( array_filter(
+                $decoded['rules'] ?? [],
+                function ( $rule ) use ( $site_host ) {
+                    $rule_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( $rule['url_pattern'] ?? '', PHP_URL_HOST ) ?? '' ) );
+                    return $rule_host === $site_host;
+                }
+            ) );
             $summary = $pusher->push( $decoded );
             wp_send_json_success( $summary );
         } catch ( \Throwable $e ) {
