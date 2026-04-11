@@ -1,8 +1,12 @@
 (function () {
     'use strict';
 
-    const ajax  = cuScanner.ajaxUrl;
-    const nonce = cuScanner.nonce;
+    const SCANNER_JS_VERSION = '1.0.10.4';
+    console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded | siteUrl: ' + ( cuScanner.siteUrl || '(not passed)' ) + ' | origin: ' + window.location.origin );
+
+    const ajax    = cuScanner.ajaxUrl;
+    const nonce   = cuScanner.nonce;
+    const siteUrl = cuScanner.siteUrl || window.location.origin;
 
     // --- State ---
     let discoveredUrls = [];   // full set returned by server
@@ -26,6 +30,24 @@
     };
 
     // --- Utilities ---
+
+    function isExternalUrl(url) {
+        try {
+            const normalised = /^https?:\/\//i.test(url) ? url : 'https://' + url;
+            const urlHost    = new URL(normalised).host.replace(/^www\./, '').toLowerCase();
+            const homeHost   = new URL(siteUrl).host.replace(/^www\./, '').toLowerCase();
+            console.log( '[AI Assets Scanner] isExternalUrl:', url, '→ urlHost:', urlHost, '| homeHost:', homeHost, '| external:', urlHost !== homeHost );
+            return urlHost !== homeHost;
+        } catch (err) {
+            console.log( '[AI Assets Scanner] isExternalUrl error:', url, err.message );
+            return false;
+        }
+    }
+
+    function allSelectedAreExternal() {
+        if (selectedUrls.length === 0) return false;
+        return selectedUrls.every(isExternalUrl);
+    }
 
     function post(action, data) {
         const form = new FormData();
@@ -274,8 +296,10 @@
                 row.className = 'cu-url-row';
                 row.dataset.url = url;
                 row.dataset.type = type;
+                const isChecked = selectedUrls.includes(url);
+                if (!isChecked) row.classList.add('is-deselected');
                 const badge = type === 'included' ? ' <span class="cu-included-badge">[included]</span>' : '';
-                row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${esc(url)}" data-type="${type}" checked>
+                row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${esc(url)}" data-type="${type}"${isChecked ? ' checked' : ''}>
                     <span class="cu-url-text">${esc(url)}</span>${badge}`;
                 row.style.display = idx < 20 ? '' : 'none';
                 groupDiv.appendChild(row);
@@ -476,6 +500,15 @@
             groupedUrls      = { page: [], post: [], other: [], included: includeList };
             totalPages       = includeList.length;
         }
+
+        // Warn before scanning external URLs
+        const externalCount = selectedUrls.filter(isExternalUrl).length;
+        if (externalCount > 0) {
+            const noun = externalCount === 1 ? 'URL is' : 'URLs are';
+            const msg  = `${externalCount} of the selected ${noun} from an external site.\n\nYou can scan them, but rules cannot be pushed directly to Code Unloader — you will only be able to download the import file.\n\nContinue?`;
+            if (!confirm(msg)) return;
+        }
+
         showStep(2);
         // Use selectedUrls.length — only charge for URLs that will actually be scanned
         post('cu_scanner_reserve_job', { page_count: selectedUrls.length })
@@ -573,27 +606,37 @@
     }
 
     function buildResult() {
+        const externalOnly = allSelectedAreExternal();
         post('cu_scanner_build_result', { job_id: scanJobId, job_token: scanJobToken })
             .then(res => {
                 if (!res.success) { alert('Error building result: ' + res.data); return; }
                 const d = res.data;
-                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push );
+                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly );
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
-                    job_id:     scanJobId,
-                    safe_count: d.safe_count,
-                    agg_count:  d.aggressive_count,
-                    can_push:   d.can_push,
+                    job_id:        scanJobId,
+                    safe_count:    d.safe_count,
+                    agg_count:     d.aggressive_count,
+                    can_push:      d.can_push,
+                    external_only: externalOnly,
                 }) );
             });
     }
 
-    function restoreStep4( jobId, safeCount, aggCount, canPush ) {
+    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly ) {
         document.getElementById('cu-result-summary').textContent =
             `Scan complete. ${safeCount} safe rules, ${aggCount} aggressive rules generated.`;
         const dlBtn = document.getElementById('cu-btn-download');
         dlBtn.href = ajax + '?action=cu_scanner_download_json&job_id=' + jobId + '&nonce=' + nonce;
         dlBtn.setAttribute('download', 'cu-scanner-' + jobId + '.json');
-        if (canPush) document.getElementById('cu-btn-push').style.display = '';
+
+        const pushBtn    = document.getElementById('cu-btn-push');
+        const pushResult = document.getElementById('cu-push-result');
+        if (externalOnly) {
+            pushBtn.style.display = 'none';
+            pushResult.innerHTML = '<div class="notice notice-info"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
+        } else if (canPush) {
+            pushBtn.style.display = '';
+        }
         showStep(4);
     }
 
@@ -640,7 +683,7 @@
         try {
             const d = JSON.parse(stored);
             scanJobId = d.job_id;
-            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push );
+            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only );
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');
         }

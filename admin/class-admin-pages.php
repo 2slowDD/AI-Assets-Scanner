@@ -35,6 +35,7 @@ class AdminPages {
             wp_localize_script( 'cu-scanner-scanner', 'cuScanner', [
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'cu_scanner_nonce' ),
+                'siteUrl' => get_home_url(),
             ] );
         }
         if ( $hook === 'ai-assets-scanner_page_cu-scanner-settings' ) {
