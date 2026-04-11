@@ -38,7 +38,7 @@ class RailwayClient {
 
     private function parse( mixed $response, bool $allow_410 = false ): array {
         if ( is_wp_error( $response ) ) {
-            throw new \RuntimeException( $response->get_error_message() );
+            throw new \RuntimeException( $response->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
         }
         $code = wp_remote_retrieve_response_code( $response );
         $body = json_decode( wp_remote_retrieve_body( $response ), true ) ?? [];
@@ -46,7 +46,7 @@ class RailwayClient {
             throw new \RuntimeException( 'Job data expired. Re-download from Scan History or run a new scan.' );
         }
         if ( $code < 200 || $code >= 300 ) {
-            throw new \RuntimeException( "Railway HTTP {$code}: " . ( $body['message'] ?? $body['error'] ?? 'error' ) );
+            throw new \RuntimeException( "Railway HTTP {$code}: " . ( $body['message'] ?? $body['error'] ?? 'error' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
         }
         return $body;
     }

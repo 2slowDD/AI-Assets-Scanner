@@ -112,7 +112,7 @@ class RulePusher {
         foreach ( $cu_json['groups'] as $group_def ) {
             $result = $repo::create_group( $group_def['name'], $group_def['description'] ?? '' );
             if ( \is_wp_error( $result ) ) {
-                throw new \RuntimeException( 'Failed to create group: ' . $result->get_error_message() );
+                throw new \RuntimeException( 'Failed to create group: ' . $result->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by caller's AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
             }
             $group_ids[ $group_def['id'] ] = $result;
         }

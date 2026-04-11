@@ -22,6 +22,7 @@
 
     <div class="cu-body">
         <?php
+        // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template file included within a class method; variables are local to method scope, not global.
         $history = ( new CUScanner\ScanHistory() )->get_all();
         if ( empty( $history ) ) : ?>
             <p>No scans yet. <a href="?page=cu-scanner">Run your first scan.</a></p>
@@ -54,7 +55,9 @@
                 <?php endforeach; ?>
                 </tbody>
             </table>
-        <?php endif; ?>
+        <?php
+        // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+        endif; ?>
     </div>
 
 </div>

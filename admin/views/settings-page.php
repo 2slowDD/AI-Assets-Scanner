@@ -22,6 +22,7 @@
 
     <div class="cu-body">
         <?php
+        // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template file included within a class method; variables are local to method scope, not global.
         $settings  = new CUScanner\Settings();
         $api_key   = $settings->get_api_key();
         $len       = mb_strlen( $api_key );
@@ -30,6 +31,7 @@
             : $api_key;
         $is_masked = ( $len > 12 );
         $http_auth = $settings->get_http_auth();
+        // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         ?>
         <form id="cu-scanner-settings-form">
             <table class="form-table">
