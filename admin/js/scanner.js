@@ -1,8 +1,8 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.4';
-    console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded | siteUrl: ' + ( cuScanner.siteUrl || '(not passed)' ) + ' | origin: ' + window.location.origin );
+    const SCANNER_JS_VERSION = '1.0.10.5';
+    console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
     const nonce   = cuScanner.nonce;
@@ -36,10 +36,8 @@
             const normalised = /^https?:\/\//i.test(url) ? url : 'https://' + url;
             const urlHost    = new URL(normalised).host.replace(/^www\./, '').toLowerCase();
             const homeHost   = new URL(siteUrl).host.replace(/^www\./, '').toLowerCase();
-            console.log( '[AI Assets Scanner] isExternalUrl:', url, '→ urlHost:', urlHost, '| homeHost:', homeHost, '| external:', urlHost !== homeHost );
             return urlHost !== homeHost;
-        } catch (err) {
-            console.log( '[AI Assets Scanner] isExternalUrl error:', url, err.message );
+        } catch (_) {
             return false;
         }
     }
@@ -527,6 +525,11 @@
                         scanJobToken  = res2.data.job_token;
                         railwayUrl    = res2.data.railway_url;
                         lastPageIndex = 0;
+                        sessionStorage.setItem( 'cu_scanner_active_job', JSON.stringify({
+                            job_id:      scanJobId,
+                            job_token:   scanJobToken,
+                            railway_url: railwayUrl,
+                        }) );
                         showStep(3);
                         startPolling();
                     })
@@ -590,6 +593,7 @@
 
         if (data.status === 'complete' || data.status === 'failed') {
             stopPolling();
+            sessionStorage.removeItem('cu_scanner_active_job');
             if (data.status === 'complete') {
                 buildResult();
             } else {
@@ -645,6 +649,7 @@
     document.getElementById('cu-btn-cancel').addEventListener('click', function () {
         if (!confirm('Cancel this scan? Credits will not be charged.')) return;
         stopPolling();
+        sessionStorage.removeItem('cu_scanner_active_job');
         post('cu_scanner_cancel_job').then(() => { showStep(1); });
     });
 
@@ -686,6 +691,29 @@
             restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only );
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');
+        }
+    }());
+
+    // --- Resume in-progress scan on page return ---
+    (function checkForActiveJob() {
+        const stored = sessionStorage.getItem('cu_scanner_active_job');
+        if (!stored) return;
+        try {
+            JSON.parse(stored); // validate JSON — corrupt entry falls to catch
+            post('cu_scanner_check_job').then(res => {
+                if (!res.success) {
+                    sessionStorage.removeItem('cu_scanner_active_job');
+                    return;
+                }
+                scanJobId     = res.data.job_id;
+                scanJobToken  = res.data.job_token;
+                railwayUrl    = res.data.railway_url;
+                lastPageIndex = 0;
+                showStep(3);
+                startPolling();
+            });
+        } catch (_) {
+            sessionStorage.removeItem('cu_scanner_active_job');
         }
     }());
 
