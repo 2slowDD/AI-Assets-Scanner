@@ -221,15 +221,11 @@ class ScannerAjax {
         if ( ! $state ) { wp_send_json_error( 'No active scan' ); return; }
 
         $settings = $this->settings();
+        // Railway's cancel route now owns credit release — no need to call release_credits here.
         try {
             $client = new RailwayClient( $state['railway_url'], $settings->get_api_key() );
             $client->cancel_job( $state['job_id'], $state['job_token'] );
         } catch ( \RuntimeException ) { /* Cancel best-effort */ }
-
-        try {
-            $wps = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $settings->get_api_key() );
-            $wps->release_credits( $state['job_token'] );
-        } catch ( \RuntimeException ) {}
 
         ( new BypassManager() )->delete_all_tokens();
         ( new ScanHistory() )->update_status( $state['job_id'], 'cancelled' );
