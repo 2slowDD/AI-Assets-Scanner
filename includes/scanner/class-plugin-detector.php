@@ -24,11 +24,29 @@ class PluginDetector {
         'flying-press/flying-press.php'           => [ 'Flying Press',       'May have dequeued assets. Scan results may be incomplete.' ],
     ];
 
+    private const SECURITY_WARN = [
+        'wordfence/wordfence.php' => [
+            'Wordfence',
+            'Rate limiting or WAF may block the scanner. Temporarily disable rate limiting before scanning.',
+            null,
+        ],
+        'wordfence-login-security/wordfence-login-security.php' => [
+            'Wordfence Login Security',
+            'Rate limiting may block the scanner. Temporarily disable before scanning.',
+            null,
+        ],
+        'cloudflare/cloudflare.php' => [
+            'Cloudflare',
+            'Bot Fight Mode or WAF rules may block the scanner. Set up a permanent bypass rule, or temporarily disable bot protection before scanning.',
+            'cu-cloudflare-waf-bypass',
+        ],
+    ];
+
     private const CU_PLUGIN      = 'code-unloader/code-unloader.php';
     private const CU_MIN_VERSION = '1.3.9';
 
     public function detect(): array {
-        $result = [ 'auto_bypass' => [], 'soft_block' => [], 'soft_warn' => [] ];
+        $result = [ 'auto_bypass' => [], 'soft_block' => [], 'soft_warn' => [], 'security_warn' => [] ];
 
         foreach ( self::AUTO_BYPASS as $file => [ $label, $params ] ) {
             if ( is_plugin_active( $file ) ) {
@@ -44,6 +62,16 @@ class PluginDetector {
         foreach ( self::SOFT_WARN as $file => [ $label, $reason ] ) {
             if ( is_plugin_active( $file ) ) {
                 $result['soft_warn'][ $label ] = $reason;
+            }
+        }
+
+        foreach ( self::SECURITY_WARN as $file => [ $label, $reason, $anchor ] ) {
+            if ( is_plugin_active( $file ) ) {
+                $base = admin_url( 'admin.php?page=cu-scanner-settings' );
+                $result['security_warn'][ $label ] = [
+                    'reason'       => $reason,
+                    'settings_url' => $anchor ? $base . '#' . $anchor : $base,
+                ];
             }
         }
 
