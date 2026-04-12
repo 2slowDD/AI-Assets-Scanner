@@ -423,3 +423,23 @@
     margin-left: 6px;
     white-space: nowrap;
 }
+
+/* --- Contact hint in discover row --- */
+.cu-contact-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #787c82;
+    white-space: nowrap;
+}
+
+/* --- Credit badge: low-balance modifier (red tint) --- */
+.cu-credit-badge--low {
+    background: #fff0f0;
+    border-color: #d46060;
+    color: #8b1a1a;
+}
+.cu-credit-badge--low .cu-credit-num {
+    color: #8b1a1a;
+}
