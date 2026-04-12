@@ -111,7 +111,8 @@
 
             // Security-warn: warning notice with Settings deep-link
             Object.entries(d.security_warn || {}).forEach(([name, data]) => {
-                html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(data.reason)} <a href="${esc(data.settings_url)}">See Settings &rarr;</a></p></div>`;
+                const safeUrl = /^https?:\/\//i.test(data.settings_url) ? data.settings_url : '#';
+                html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(data.reason)} <a href="${esc(safeUrl)}">See Settings &rarr;</a></p></div>`;
             });
 
             // Auto-bypass: compact single-line banner
