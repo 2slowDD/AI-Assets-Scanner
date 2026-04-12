@@ -89,6 +89,13 @@
 
         <!-- Credit badge + actions -->
         <div class="cu-action-row" id="cu-action-row-1">
+            <div class="notice notice-warning inline" id="cu-bot-notice" style="display:none">
+                <p><strong>Before you scan:</strong> If Cloudflare, WordFence, or another bot-protection
+                tool is active on this site, temporarily disable rate limiting and bot blocking &mdash;
+                otherwise the scanner may be blocked or return incomplete results.
+                Cloudflare users can set up a permanent WAF bypass rule instead &mdash;
+                see <a href="<?php echo esc_url( admin_url( 'admin.php?page=cu-scanner-settings' ) ); ?>">Settings</a> for instructions.</p>
+            </div>
             <div class="cu-credit-badge" id="cu-credit-badge" style="display:none">
                 <span class="cu-credit-num" id="cu-credit-num">0</span>
                 credits for this scan
