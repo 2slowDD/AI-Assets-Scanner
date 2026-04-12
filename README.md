@@ -14,6 +14,8 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **Optimization plugin auto-bypass** — automatically bypasses WP Rocket, Autoptimize, and Code Unloader caches during scanning
 - **HTTP Basic Auth support** — scan password-protected staging environments
 - **Scan history** — browse past scan results and re-download rule files at any time
+- **Bot-protection notice** — contextual warning before scanning reminds users to disable Cloudflare / WordFence bot blocking for accurate results
+- **Cloudflare WAF bypass** — auto-generated Scanner Secret can be used in a Cloudflare WAF Custom Rule so the scanner bypasses Bot Fight Mode without disabling site-wide protection
 
 ## How it works
 
