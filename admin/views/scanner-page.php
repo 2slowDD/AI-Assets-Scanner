@@ -49,8 +49,12 @@
 
         <!-- Discover row (top, normal-width button) -->
         <div class="cu-discover-row">
-            <button id="cu-btn-discover" class="button">Discover Pages</button>
+            <button id="cu-btn-discover" class="button button-primary">Discover Pages</button>
             <span class="description">or fill Include URLs below to scan specific pages</span>
+            <div class="cu-spacer"></div>
+            <span class="cu-contact-hint">Found a bug or want to get in touch?
+                <a href="https://wpservice.pro/contact/" target="_blank" rel="noopener" class="button button-secondary cu-contact-btn">Get in touch</a>
+            </span>
         </div>
 
         <!-- URL list area (hidden until discovery completes) -->
@@ -100,6 +104,10 @@
                 <span class="cu-credit-num" id="cu-credit-num">0</span>
                 credits for this scan
                 <span class="cu-credit-deselected" id="cu-credit-deselected" style="display:none"></span>
+            </div>
+            <div class="cu-credit-badge" id="cu-balance-badge" style="display:none">
+                <span class="cu-credit-num" id="cu-balance-num">—</span>
+                credits available
             </div>
             <div class="cu-spacer"></div>
             <button id="cu-btn-next-1" class="button button-primary" style="display:none">Start Scan &rarr;</button>
