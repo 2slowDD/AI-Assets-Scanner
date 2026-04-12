@@ -118,7 +118,7 @@ class ScannerAjax {
             wp_send_json_success( [ 'reserved' => true, 'job_token' => $result['job_token'] ] );
         } catch ( \RuntimeException $e ) {
             error_log( '[AI Assets Scanner] reserve_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
-            wp_send_json_error( 'Could not reserve credits. Check server error logs.' );
+            wp_send_json_error( 'Could not reserve credits. You may not have enough credits for the selected pages — buy more or reduce the number of pages to scan.' );
         }
     }
 
