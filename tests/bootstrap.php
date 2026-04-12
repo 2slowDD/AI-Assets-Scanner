@@ -5,6 +5,7 @@ define( 'ABSPATH', '/fake/wp/' );
 define( 'WP_PLUGIN_DIR', '/fake/wp/wp-content/plugins' );
 define( 'CU_SCANNER_DIR', dirname( __DIR__ ) . '/' );
 define( 'CU_SCANNER_VERSION', '1.0.0' );
+define( 'CU_SCANNER_WPSERVICE_URL', 'https://api.wpservice.pro' );
 
 if ( ! class_exists( 'WP_Error' ) ) {
     class WP_Error {
