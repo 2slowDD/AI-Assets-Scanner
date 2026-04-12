@@ -93,6 +93,11 @@
             const d = res.data;
             let html = '';
 
+            // Code Unloader missing: red error notice shown at top
+            if (d.cu_missing === true) {
+                html += `<div class="notice notice-error"><p><strong>The Code Unloader plugin was not found.</strong> AI Assets Scanner is designed to work with <a href="https://wordpress.org/plugins/code-unloader/" target="_blank" rel="noopener">Code Unloader</a>. Install and activate Code Unloader to be able to unload assets.</p></div>`;
+            }
+
             hasSoftBlocks = Object.keys(d.soft_block || {}).length > 0;
 
             // Soft-block: full WP notice (user must acknowledge)
@@ -109,10 +114,9 @@
                 html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(reason)}</p></div>`;
             });
 
-            // Security-warn: warning notice with Settings deep-link
+            // Security-warn: warning notice
             Object.entries(d.security_warn || {}).forEach(([name, data]) => {
-                const safeUrl = /^https?:\/\//i.test(data.settings_url) ? data.settings_url : '#';
-                html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(data.reason)} <a href="${esc(safeUrl)}">See Settings &rarr;</a></p></div>`;
+                html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(data.reason)}</p></div>`;
             });
 
             // Auto-bypass: compact single-line banner
