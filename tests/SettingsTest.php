@@ -59,6 +59,7 @@ class SettingsTest extends TestCase {
     public function test_get_scanner_secret_returns_stored_value(): void {
         WP_Mock::userFunction( 'get_option' )
             ->with( 'cu_scanner_secret', '' )
+            ->once()
             ->andReturn( 'existing-secret-abc' );
         $this->assertSame( 'existing-secret-abc', ( new Settings() )->get_scanner_secret() );
     }
@@ -66,12 +67,13 @@ class SettingsTest extends TestCase {
     public function test_get_scanner_secret_generates_and_stores_when_empty(): void {
         WP_Mock::userFunction( 'get_option' )
             ->with( 'cu_scanner_secret', '' )
+            ->once()
             ->andReturn( '' );
         WP_Mock::userFunction( 'wp_generate_uuid4' )
             ->once()
             ->andReturn( 'generated-uuid-1234' );
         WP_Mock::userFunction( 'update_option' )
-            ->with( 'cu_scanner_secret', 'generated-uuid-1234' )
+            ->with( 'cu_scanner_secret', 'generated-uuid-1234', false )
             ->once();
         $secret = ( new Settings() )->get_scanner_secret();
         $this->assertSame( 'generated-uuid-1234', $secret );

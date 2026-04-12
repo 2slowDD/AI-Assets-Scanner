@@ -44,7 +44,7 @@ class Settings {
         $secret = (string) get_option( 'cu_scanner_secret', '' );
         if ( ! $secret ) {
             $secret = wp_generate_uuid4();
-            update_option( 'cu_scanner_secret', $secret );
+            update_option( 'cu_scanner_secret', $secret, false );
         }
         return $secret;
     }
