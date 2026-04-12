@@ -469,6 +469,7 @@
 
     function updateCreditBadge() {
         const badge      = document.getElementById('cu-credit-badge');
+        const notice     = document.getElementById('cu-bot-notice');
         const numEl      = document.getElementById('cu-credit-num');
         const desEl      = document.getElementById('cu-credit-deselected');
         const selected   = selectedUrls.length;
@@ -477,6 +478,7 @@
 
         if (!badge) return;
         badge.style.display = '';
+        if (notice) notice.style.display = '';
         numEl.textContent = selected;
 
         if (deselected > 0) {
