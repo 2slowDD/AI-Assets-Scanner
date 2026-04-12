@@ -63,5 +63,18 @@
 
         // Auto-refresh balance on page load
         refresh.click();
+
+        const copyBtn = document.getElementById('cu-copy-secret');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', function () {
+                const secretInput = document.getElementById('cu-scanner-secret');
+                if (!secretInput) return;
+                navigator.clipboard.writeText(secretInput.value).then(function () {
+                    const orig = copyBtn.textContent;
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(function () { copyBtn.textContent = orig; }, 2000);
+                });
+            });
+        }
     });
 }());

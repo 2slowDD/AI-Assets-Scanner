@@ -31,6 +31,7 @@
             : $api_key;
         $is_masked = ( $len > 12 );
         $http_auth = $settings->get_http_auth();
+        $scanner_secret = $settings->get_scanner_secret();
         // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         ?>
         <form id="cu-scanner-settings-form">
@@ -83,6 +84,16 @@
                         <?php endif; ?>
                     </td>
                 </tr>
+                <tr>
+                    <th><label for="cu-scanner-secret">Scanner Secret</label></th>
+                    <td>
+                        <input type="text" id="cu-scanner-secret"
+                               value="<?php echo esc_attr( $scanner_secret ); ?>"
+                               readonly class="regular-text" style="font-family:monospace" />
+                        <button type="button" id="cu-copy-secret" class="button" style="margin-left:6px">Copy</button>
+                        <p class="description">Used to create a Cloudflare WAF bypass rule. Do not share this value publicly.</p>
+                    </td>
+                </tr>
             </table>
             <?php wp_nonce_field( 'cu_scanner_settings_nonce', 'nonce' ); ?>
             <p class="submit">
@@ -90,6 +101,25 @@
             </p>
         </form>
         <div id="cu-settings-message" style="display:none"></div>
+    </div>
+
+    <div class="cu-body" style="margin-top:24px">
+        <h3 style="margin-top:0">Cloudflare WAF Bypass <small style="font-weight:normal;font-size:12px;color:#a7aaad;">(Advanced)</small></h3>
+        <p>If your site uses Cloudflare Bot Fight Mode or Super Bot Fight Mode, create a custom WAF rule
+           so the scanner passes through automatically &mdash; no need to disable protection before each scan.</p>
+        <ol>
+            <li>Log in to <strong>Cloudflare Dashboard</strong> &rarr; select your domain &rarr; <strong>Security &rarr; WAF &rarr; Custom Rules</strong></li>
+            <li>Click <strong>Create rule</strong></li>
+            <li>Set the expression (use Edit expression / plain text):<br>
+                <code style="display:inline-block;margin-top:4px;padding:4px 8px;background:#f0f0f1;border-radius:3px">http.request.headers["x-cu-scanner"][0] eq "<?php echo esc_html( $scanner_secret ); ?>"</code>
+            </li>
+            <li>Set Action: <strong>Skip</strong> &rarr; check <em>All remaining custom rules</em> and <em>Skip Bot Fight Mode</em></li>
+            <li>Click <strong>Deploy</strong></li>
+        </ol>
+        <p>The scanner will bypass Cloudflare bot checks automatically on every scan.</p>
+        <p><strong>WordFence users:</strong> Go to <strong>WordFence &rarr; Firewall &rarr; Allowlisted IPs</strong> and add the
+           Railway server IP. Note: Railway IPs can change on redeploy &mdash; temporarily disabling rate limiting
+           before a scan is more reliable.</p>
     </div>
 
 </div>
