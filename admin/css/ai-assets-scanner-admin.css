@@ -444,3 +444,5 @@
 .cu-credit-badge--low .cu-credit-num {
     color: #8b1a1a;
 }
+
+.notice.notice-error { background: #d636383d; }
