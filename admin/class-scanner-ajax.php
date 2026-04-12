@@ -44,8 +44,18 @@ class ScannerAjax {
 
     public function detect_plugins(): void {
         $this->check();
-        $result = ( new PluginDetector() )->detect();
-        wp_send_json_success( $result );
+        $plugins = ( new PluginDetector() )->detect();
+
+        try {
+            $client  = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $this->settings()->get_api_key() );
+            $credits = $client->get_credits();
+            $balance = isset( $credits['balance'] ) ? (int) $credits['balance'] : null;
+        } catch ( \RuntimeException $e ) {
+            error_log( '[AI Assets Scanner] detect_plugins balance: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
+            $balance = null;
+        }
+
+        wp_send_json_success( array_merge( $plugins, [ 'balance' => $balance ] ) );
     }
 
     public function discover_pages(): void {
