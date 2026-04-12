@@ -77,11 +77,54 @@ class PluginDetectorTest extends TestCase {
         $this->assertArrayHasKey( 'code-unloader', $result['auto_bypass'] );
     }
 
+    public function test_detects_wordfence_as_security_warn(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'wordfence/wordfence.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+        WP_Mock::userFunction( 'admin_url' )
+            ->with( 'admin.php?page=cu-scanner-settings' )
+            ->andReturn( 'http://example.com/wp-admin/admin.php?page=cu-scanner-settings' );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'Wordfence', $result['security_warn'] );
+        $this->assertArrayHasKey( 'reason', $result['security_warn']['Wordfence'] );
+        $this->assertArrayHasKey( 'settings_url', $result['security_warn']['Wordfence'] );
+    }
+
+    public function test_detects_wordfence_login_security_as_security_warn(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'wordfence-login-security/wordfence-login-security.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+        WP_Mock::userFunction( 'admin_url' )
+            ->with( 'admin.php?page=cu-scanner-settings' )
+            ->andReturn( 'http://example.com/wp-admin/admin.php?page=cu-scanner-settings' );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'Wordfence Login Security', $result['security_warn'] );
+    }
+
+    public function test_detects_cloudflare_plugin_as_security_warn_with_anchor(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'cloudflare/cloudflare.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+        WP_Mock::userFunction( 'admin_url' )
+            ->with( 'admin.php?page=cu-scanner-settings' )
+            ->andReturn( 'http://example.com/wp-admin/admin.php?page=cu-scanner-settings' );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'Cloudflare', $result['security_warn'] );
+        $this->assertStringContainsString(
+            '#cu-cloudflare-waf-bypass',
+            $result['security_warn']['Cloudflare']['settings_url']
+        );
+    }
+
     public function test_no_plugins_returns_empty_result(): void {
         WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
         $result = ( new PluginDetector() )->detect();
         $this->assertSame( [], $result['auto_bypass'] );
         $this->assertSame( [], $result['soft_block'] );
         $this->assertSame( [], $result['soft_warn'] );
+        $this->assertSame( [], $result['security_warn'] );
     }
 }
