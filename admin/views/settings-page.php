@@ -117,12 +117,7 @@
             <li>Click <strong>Deploy</strong></li>
         </ol>
         <p>The scanner will bypass Cloudflare bot checks automatically on every scan.</p>
-        <p><strong>WordFence users:</strong> Go to <strong>WordFence &rarr; Firewall &rarr; Allowlisted IPs</strong> and add the
-           Railway server IP. To find it: copy your Railway URL from the API Key settings above (e.g.
-           <code>cu-scanner-railway-production.up.railway.app</code>), then run
-           <code>nslookup &lt;your-railway-hostname&gt;</code> in a terminal &mdash; the returned IP is what to allowlist.
-           Note: Railway IPs can change on redeploy, so you may need to update this after each Railway deployment.
-           Temporarily disabling WordFence rate limiting before a scan is simpler if you scan infrequently.</p>
+        <p><strong>WordFence users:</strong> Temporarily disabling WordFence rate limiting before a scan is the simplest approach.</p>
     </div>
 
 </div>
