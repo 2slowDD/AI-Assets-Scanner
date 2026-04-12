@@ -77,6 +77,25 @@ class PluginDetectorTest extends TestCase {
         $this->assertArrayHasKey( 'code-unloader', $result['auto_bypass'] );
     }
 
+    public function test_cu_missing_is_true_when_code_unloader_not_active(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'cu_missing', $result );
+        $this->assertTrue( $result['cu_missing'] );
+    }
+
+    public function test_cu_missing_is_false_when_code_unloader_active(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'code-unloader/code-unloader.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+        WP_Mock::userFunction( 'get_plugin_data' )->andReturn( [ 'Version' => '1.3.9' ] );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'cu_missing', $result );
+        $this->assertFalse( $result['cu_missing'] );
+    }
+
     public function test_detects_wordfence_as_security_warn(): void {
         WP_Mock::userFunction( 'is_plugin_active' )
             ->with( 'wordfence/wordfence.php' )->andReturn( true );
@@ -126,5 +145,6 @@ class PluginDetectorTest extends TestCase {
         $this->assertSame( [], $result['soft_block'] );
         $this->assertSame( [], $result['soft_warn'] );
         $this->assertSame( [], $result['security_warn'] );
+        $this->assertTrue( $result['cu_missing'] );   // add this line
     }
 }

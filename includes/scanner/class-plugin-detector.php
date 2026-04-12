@@ -46,7 +46,7 @@ class PluginDetector {
     private const CU_MIN_VERSION = '1.3.9';
 
     public function detect(): array {
-        $result = [ 'auto_bypass' => [], 'soft_block' => [], 'soft_warn' => [], 'security_warn' => [] ];
+        $result = [ 'auto_bypass' => [], 'soft_block' => [], 'soft_warn' => [], 'security_warn' => [], 'cu_missing' => false ];
 
         foreach ( self::AUTO_BYPASS as $file => [ $label, $params ] ) {
             if ( is_plugin_active( $file ) ) {
@@ -75,8 +75,10 @@ class PluginDetector {
             }
         }
 
-        // Code Unloader: auto-bypass if >= 1.3.9, soft-block if older
-        if ( is_plugin_active( self::CU_PLUGIN ) ) {
+        // Code Unloader: flag as missing, auto-bypass if >= 1.3.9, soft-block if older
+        if ( ! is_plugin_active( self::CU_PLUGIN ) ) {
+            $result['cu_missing'] = true;
+        } else {
             $data    = get_plugin_data( \WP_PLUGIN_DIR . '/' . self::CU_PLUGIN );
             $version = $data['Version'] ?? '0';
             if ( version_compare( $version, self::CU_MIN_VERSION, '>=' ) ) {
