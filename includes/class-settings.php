@@ -39,4 +39,13 @@ class Settings {
     public function clear_http_auth(): void {
         delete_option( 'cu_scanner_http_auth' );
     }
+
+    public function get_scanner_secret(): string {
+        $secret = (string) get_option( 'cu_scanner_secret', '' );
+        if ( ! $secret ) {
+            $secret = wp_generate_uuid4();
+            update_option( 'cu_scanner_secret', $secret );
+        }
+        return $secret;
+    }
 }
