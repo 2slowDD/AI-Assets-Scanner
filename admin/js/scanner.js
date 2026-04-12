@@ -22,6 +22,7 @@
     let lastKnownStatus  = null;
     let hasSoftBlocks  = false;
     let includedUrls   = [];   // include URLs not duplicated in discoveredUrls
+    let availableBalance = null; // credit balance fetched from detect_plugins response
 
     const STEP_LABELS = {
         1: 'Step 1 \u2014 Discover Pages',
@@ -91,6 +92,7 @@
             if (!res.success) return;
             const warnings = document.getElementById('cu-plugin-warnings');
             const d = res.data;
+            availableBalance = (typeof d.balance === 'number') ? d.balance : null;
             let html = '';
 
             // Code Unloader missing: red error notice shown at top
@@ -496,6 +498,23 @@
             desEl.style.display = '';
         } else {
             desEl.style.display = 'none';
+        }
+
+        const balBadge = document.getElementById('cu-balance-badge');
+        const balNumEl = document.getElementById('cu-balance-num');
+        if (balBadge && balNumEl) {
+            if (availableBalance !== null) {
+                balNumEl.textContent = availableBalance;
+                balBadge.style.display = '';
+                if (availableBalance < selected) {
+                    balBadge.classList.add('cu-credit-badge--low');
+                } else {
+                    balBadge.classList.remove('cu-credit-badge--low');
+                }
+            } else {
+                balBadge.style.display = 'none';
+                balBadge.classList.remove('cu-credit-badge--low');
+            }
         }
     }
 
