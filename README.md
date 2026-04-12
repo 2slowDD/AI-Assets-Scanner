@@ -15,7 +15,10 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **HTTP Basic Auth support** — scan password-protected staging environments
 - **Scan history** — browse past scan results and re-download rule files at any time
 - **Bot-protection notice** — contextual warning before scanning reminds users to disable Cloudflare / WordFence bot blocking for accurate results
-- **Security plugin detection** — detects Wordfence, Wordfence Login Security, and Cloudflare for WordPress in Step 1 and shows a contextual warning with a "See Settings →" deep-link to the relevant mitigation section
+- **Security plugin detection** — detects Wordfence, Wordfence Login Security, and Cloudflare for WordPress in Step 1 and shows a contextual warning
+- **Code Unloader missing warning** — red error notice in Step 1 when Code Unloader is not installed or active, with a direct link to install it
+- **Credit balance badge** — after discovering pages, shows available credits beside the scan-cost badge; turns red when balance is insufficient
+- **Contact button** — "Get in touch" link in the Step 1 toolbar, right-aligned, for support and bug reports
 - **Cloudflare WAF bypass** — auto-generated Scanner Secret can be used in a Cloudflare WAF Custom Rule so the scanner bypasses Bot Fight Mode without disabling site-wide protection
 
 ## How it works
