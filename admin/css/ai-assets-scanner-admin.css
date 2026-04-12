@@ -432,6 +432,7 @@
     font-size: 12px;
     color: #787c82;
     white-space: nowrap;
+    margin-left: auto;
 }
 
 /* --- Credit badge: low-balance modifier (red tint) --- */
