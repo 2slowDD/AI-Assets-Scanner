@@ -145,10 +145,11 @@ class ScannerAjax {
         );
 
         $payload = [
-            'pages'         => $pages,
-            'job_token'     => $job_token,
-            'api_key'       => $api_key,
-            'wpservice_url' => CU_SCANNER_WPSERVICE_BASE,
+            'pages'          => $pages,
+            'job_token'      => $job_token,
+            'api_key'        => $api_key,
+            'wpservice_url'  => CU_SCANNER_WPSERVICE_BASE,
+            'scanner_secret' => $settings->get_scanner_secret(),
         ];
         $http_auth = $settings->get_http_auth();
         if ( $http_auth ) {
