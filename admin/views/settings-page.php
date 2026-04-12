@@ -103,7 +103,7 @@
         <div id="cu-settings-message" style="display:none"></div>
     </div>
 
-    <div class="cu-body" style="margin-top:24px">
+    <div class="cu-body" id="cu-cloudflare-waf-bypass" style="margin-top:24px">
         <h3 style="margin-top:0">Cloudflare WAF Bypass <small style="font-weight:normal;font-size:12px;color:#a7aaad;">(Advanced)</small></h3>
         <p>If your site uses Cloudflare Bot Fight Mode or Super Bot Fight Mode, create a custom WAF rule
            so the scanner passes through automatically &mdash; no need to disable protection before each scan.</p>
