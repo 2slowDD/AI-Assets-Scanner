@@ -8,12 +8,16 @@ class RailwayClient {
     ) {}
 
     public function submit_job( array $payload ): array {
+        $job_token = isset( $payload['job_token'] ) ? (string) $payload['job_token'] : '';
+        if ( $job_token === '' ) {
+            throw new \RuntimeException( 'job_token required for Railway submit' );
+        }
         $response = wp_remote_post( $this->railway_url . '/jobs', [
             'headers' => [
                 'Content-Type'  => 'application/json',
-                'Authorization' => 'Bearer ' . $this->api_key,
+                'Authorization' => 'Bearer ' . $job_token,
             ],
-            'body'    => json_encode( $payload ),
+            'body'    => wp_json_encode( $payload ),
             'timeout' => 30,
         ] );
         return $this->parse( $response );
