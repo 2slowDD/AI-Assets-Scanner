@@ -738,8 +738,21 @@
 
     // --- Cancel ---
 
-    document.getElementById('cu-btn-cancel').addEventListener('click', function () {
-        if (!confirm('Cancel this scan? Credits will not be charged.')) return;
+    document.getElementById('cu-btn-cancel').addEventListener('click', async function () {
+        let msg;
+        try {
+            const res = await fetch(
+                railwayUrl + '/jobs/' + encodeURIComponent(scanJobId) + '/status',
+                { headers: { Authorization: 'Bearer ' + scanJobToken } }
+            );
+            if (!res.ok) throw new Error('status ' + res.status);
+            const progress = await res.json();
+            const pages = Number(progress.pages_completed) || 0;
+            msg = 'Cancelling now will charge you for ' + pages + ' page' + (pages === 1 ? '' : 's') + ' already scanned.\n\nContinue?';
+        } catch (_e) {
+            msg = 'Unable to fetch current progress. Cancel anyway? (You may still be charged for pages already scanned.)';
+        }
+        if (!confirm(msg)) return;
         stopPolling();
         sessionStorage.removeItem('cu_scanner_active_job');
         post('cu_scanner_cancel_job').then(() => { showStep(1); });
