@@ -4,6 +4,25 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.2.0] — 2026-04-20
+
+### BREAKING — mandatory update
+
+This version is required to keep working with wpservice.pro after the 2026-04-20 service deployment. Older plugin versions (1.1.5 and below) will see all scans fail with **401 Unauthorized** from the Railway scanner service — the scanner now requires a scoped, short-lived `job_token` per submission instead of the account `api_key`.
+
+**If you are on 1.1.5 or earlier, update immediately.**
+
+### Changed
+
+- **`RailwayClient::submit_job`** now sends `Bearer <job_token>` in the Authorization header (previously `Bearer <api_key>`). The `job_token` is short-lived (24 h), scoped to a single scan, and never exposes the account-level api_key to the Railway runtime. Throws `\RuntimeException('job_token required for Railway submit')` if called without a token.
+- **Cancel dialog** — when you click Cancel on an in-progress scan, the plugin now first fetches your current progress from the scanner and shows a confirmation dialog reading *"Cancelling now will charge you for N pages already scanned. Continue?"* You can still back out; confirming proceeds with the cancel and the partial charge.
+
+### Why this matters (security context)
+
+The scanner runtime previously held each active customer's account `api_key` in memory during a scan. A hypothetical compromise of that runtime would have exposed every in-flight key. With the 2026-04-20 service deployment the account `api_key` never leaves wpservice.pro / your plugin — the scanner runtime only ever sees per-scan `job_tokens`, which expire in 24 h and are scoped to a single job. This is a significant reduction in blast radius on the service side.
+
+---
+
 ## [1.1.5] — 2026-04-12
 
 ### New features
