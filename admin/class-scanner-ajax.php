@@ -117,8 +117,8 @@ class ScannerAjax {
             set_transient( 'cu_scanner_pending_token_' . get_current_user_id(), $result['job_token'], 3600 );
             wp_send_json_success( [ 'reserved' => true, 'job_token' => $result['job_token'] ] );
         } catch ( \RuntimeException $e ) {
-            error_log( '[AI Assets Scanner] reserve_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
-            wp_send_json_error( 'Could not reserve credits. You may not have enough credits for the selected pages — buy more or reduce the number of pages to scan.' );
+            error_log( '[AI Assets Scanner] reserve_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: full exception detail to server log; truncated user-visible detail via format_reserve_error_detail().
+            wp_send_json_error( self::format_reserve_error_detail( $e->getMessage() ) );
         }
     }
 
@@ -211,11 +211,37 @@ class ScannerAjax {
      * @return string Formatted user-visible detail, prefixed with "Scan submission failed: ".
      */
     public static function format_submit_error_detail( string $message ): string {
+        return 'Scan submission failed: ' . self::truncate_error_detail( $message );
+    }
+
+    /**
+     * Formats an exception message from reserve_job() failures for user-visible display.
+     *
+     * Same truncation contract as format_submit_error_detail() — kept as a separate
+     * method so callers explicitly pick the user-facing prefix appropriate for each
+     * AJAX handler. Underlying WpserviceClient throws "HTTP {code}: {body.message}"
+     * for rate-limited (429), insufficient-credits (402), scan-in-progress (409), etc.
+     * Surfacing the message lets admins distinguish these conditions.
+     *
+     * @param string $message Exception message (from $e->getMessage()).
+     * @return string Formatted user-visible detail, prefixed with "Could not reserve credits: ".
+     */
+    public static function format_reserve_error_detail( string $message ): string {
+        return 'Could not reserve credits: ' . self::truncate_error_detail( $message );
+    }
+
+    /**
+     * Core truncation: 80-char cap, ellipsis on overflow. Shared by submit + reserve formatters.
+     *
+     * @param string $message Raw exception message.
+     * @return string Truncated message, ellipsis appended if > 80 chars.
+     */
+    private static function truncate_error_detail( string $message ): string {
         $detail = mb_substr( $message, 0, 80 );
         if ( mb_strlen( $message ) > 80 ) {
             $detail .= '…';
         }
-        return 'Scan submission failed: ' . $detail;
+        return $detail;
     }
 
     public function check_job(): void {
