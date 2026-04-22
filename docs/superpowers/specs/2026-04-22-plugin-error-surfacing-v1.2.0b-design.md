@@ -261,3 +261,37 @@ The modified block IS the error handler. Its behavior:
 ---
 
 **End of design — ready for implementation via writing-plans.**
+
+---
+
+## Addendum — v1.2.0c (same-day extension, 2026-04-22)
+
+Shortly after v1.2.0b shipped + SFTP'd to production, the first real scan attempt exposed a SECOND instance of the same error-swallowing pattern — in `reserve_job` this time, not `submit_job`. The error "Could not reserve credits. You may not have enough credits for the selected pages — buy more or reduce the number of pages to scan." hid an actual `HTTP 429: rate limited` response (the SaaS rate limit — see Sub-spec A rollout lessons §D.3).
+
+### Changes in v1.2.0c (commit `4da51cd`)
+
+- **`admin/class-scanner-ajax.php:121`** — same pattern as v1.2.0b applied to the `reserve_job` catch block. `wp_send_json_error()` now receives the truncated exception detail instead of the hardcoded generic message.
+- **Refactor:** extracted the core truncation logic (`mb_substr(..., 80)` + ellipsis) into a private `ScannerAjax::truncate_error_detail()` helper. Two public wrappers now exist:
+  - `format_submit_error_detail( string $message ): string` — returns `"Scan submission failed: {truncated}"`
+  - `format_reserve_error_detail( string $message ): string` — returns `"Could not reserve credits: {truncated}"`
+- **3 new PHPUnit tests** for `format_reserve_error_detail` parallel to v1.2.0b's three `format_submit_error_detail` tests: short-message passthrough, long-message truncation + ellipsis, exactly-80-char boundary.
+- **Version bump:** `1.2.0b` → `1.2.0c` in the plugin header, `CU_SCANNER_VERSION` constant, and CHANGELOG.
+
+### Why not fold into v1.2.0b
+
+The hook guardrail blocked reusing the `1.2.0b` marker for different code — correctly, since a released version marker should never change its code. Operators who deployed 1.2.0b before the reserve fix vs. after would otherwise both claim "1.2.0b" with different behavior, making support impossible.
+
+### Out of scope in both v1.2.0b and v1.2.0c
+
+- Surfacing errors in OTHER AJAX handlers (`check_job`, `cancel_job`, etc.) — pattern not observed there in production yet; extend only if operators report needing it.
+- Structured error codes (machine-readable) — current UX is a plain-text admin-visible message, which is sufficient for operator diagnosis. A future version could add an `error_code` field to the JSON response.
+
+### Release
+
+- Commit `4da51cd` on `main`
+- Tag `v1.2.0c` on `2slowDD/AI-Assets-Scanner`
+- CHANGELOG entry under `## [1.2.0c] — 2026-04-22`
+
+### Follow-up acceptance criterion
+
+**AC-6 (new) — Reserve errors surface actual SaaS status code.** Operator can distinguish rate-limited (429), insufficient-credits (402), scan-in-progress (409), and domain-validation-failed (403) from the scanner UI without SSH access. Verified manually during rollout.
