@@ -93,4 +93,28 @@ class ScannerAjaxTest extends TestCase {
         $this->assertArrayHasKey( 'balance', $captured );
         $this->assertSame( 42, $captured['balance'] );
     }
+
+    public function test_format_submit_error_detail_short_message_is_untruncated(): void {
+        $result = ScannerAjax::format_submit_error_detail( 'Railway HTTP 401: no such token' );
+        $this->assertSame( 'Scan submission failed: Railway HTTP 401: no such token', $result );
+    }
+
+    public function test_format_submit_error_detail_truncates_at_80_chars_with_ellipsis(): void {
+        $long   = str_repeat( 'x', 200 );
+        $result = ScannerAjax::format_submit_error_detail( $long );
+
+        // Prefix is fixed literal text
+        $this->assertStringStartsWith( 'Scan submission failed: ', $result );
+
+        // Detail portion = first 80 chars of input + ellipsis
+        $detail = mb_substr( $result, mb_strlen( 'Scan submission failed: ' ) );
+        $this->assertSame( str_repeat( 'x', 80 ) . '…', $detail );
+    }
+
+    public function test_format_submit_error_detail_at_exactly_80_chars_no_ellipsis(): void {
+        $exact  = str_repeat( 'x', 80 );
+        $result = ScannerAjax::format_submit_error_detail( $exact );
+        $this->assertSame( 'Scan submission failed: ' . $exact, $result );
+        $this->assertStringEndsNotWith( '…', $result );
+    }
 }

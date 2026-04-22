@@ -191,9 +191,31 @@ class ScannerAjax {
             try {
                 ( new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key ) )->release_credits( $job_token );
             } catch ( \RuntimeException ) {}
-            error_log( '[AI Assets Scanner] submit_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
-            wp_send_json_error( 'Could not submit scan job. Check server error logs.' );
+            error_log( '[AI Assets Scanner] submit_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: full exception detail to server log; truncated user-visible detail via format_submit_error_detail().
+            wp_send_json_error( self::format_submit_error_detail( $e->getMessage() ) );
         }
+    }
+
+    /**
+     * Formats an exception message from submit_job() failures for user-visible display.
+     *
+     * The underlying RailwayClient::parse() throws "Railway HTTP {code}: {body.message}".
+     * We surface that to the browser (was previously swallowed into a generic message)
+     * but truncate to 80 chars to bound what a malformed response could echo.
+     *
+     * Sub-spec B rollout surfaced that "Could not submit scan job. Check server error
+     * logs." is operationally useless — admins need the HTTP status and body extract
+     * to diagnose without SSH + tail.
+     *
+     * @param string $message Exception message (from $e->getMessage()).
+     * @return string Formatted user-visible detail, prefixed with "Scan submission failed: ".
+     */
+    public static function format_submit_error_detail( string $message ): string {
+        $detail = mb_substr( $message, 0, 80 );
+        if ( mb_strlen( $message ) > 80 ) {
+            $detail .= '…';
+        }
+        return 'Scan submission failed: ' . $detail;
     }
 
     public function check_job(): void {
