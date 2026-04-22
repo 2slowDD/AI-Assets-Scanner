@@ -117,4 +117,26 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( 'Scan submission failed: ' . $exact, $result );
         $this->assertStringEndsNotWith( '…', $result );
     }
+
+    public function test_format_reserve_error_detail_short_message_is_untruncated(): void {
+        $result = ScannerAjax::format_reserve_error_detail( 'HTTP 429: rate limited' );
+        $this->assertSame( 'Could not reserve credits: HTTP 429: rate limited', $result );
+    }
+
+    public function test_format_reserve_error_detail_truncates_at_80_chars_with_ellipsis(): void {
+        $long   = str_repeat( 'y', 200 );
+        $result = ScannerAjax::format_reserve_error_detail( $long );
+
+        $this->assertStringStartsWith( 'Could not reserve credits: ', $result );
+
+        $detail = mb_substr( $result, mb_strlen( 'Could not reserve credits: ' ) );
+        $this->assertSame( str_repeat( 'y', 80 ) . '…', $detail );
+    }
+
+    public function test_format_reserve_error_detail_at_exactly_80_chars_no_ellipsis(): void {
+        $exact  = str_repeat( 'y', 80 );
+        $result = ScannerAjax::format_reserve_error_detail( $exact );
+        $this->assertSame( 'Could not reserve credits: ' . $exact, $result );
+        $this->assertStringEndsNotWith( '…', $result );
+    }
 }

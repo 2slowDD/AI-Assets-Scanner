@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.2.0c] — 2026-04-22
+
+### Changed
+
+- Reserve-credits errors now surface the HTTP status code and a 80-char response snippet (e.g. `Could not reserve credits: HTTP 429: rate limited`) instead of the generic "may not have enough credits" message — same pattern as v1.2.0b's submit-job fix. Server `error_log` still receives the untruncated exception detail. Refactored `format_submit_error_detail()` + new `format_reserve_error_detail()` to share a private `truncate_error_detail()` helper.
+
+---
+
 ## [1.2.0b] — 2026-04-22
 
 ### Fixed
