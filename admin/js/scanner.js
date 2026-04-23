@@ -655,6 +655,19 @@
             return;
         }
 
+        if (data.status === 'killed') {
+            stopPolling();
+            sessionStorage.removeItem('cu_scanner_active_job');
+            var completedCount = Number(data.completed) || 0;
+            var totalCount     = Number(data.total) || totalPages || 0;
+            showQueueBanner(
+                null,
+                null,
+                'Your scan was cancelled. ' + completedCount + ' of ' + totalCount + ' pages were scanned before the kill.'
+            );
+            return;
+        }
+
         hideQueueBanner(); // clears banner if transitioning from queued → in_progress
 
         const pages     = data.pages || [];
