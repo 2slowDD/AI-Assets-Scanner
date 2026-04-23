@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.6';
+    const SCANNER_JS_VERSION = '1.0.10.7';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -760,7 +760,10 @@
             );
             if (!res.ok) throw new Error('status ' + res.status);
             const progress = await res.json();
-            const pages = Number(progress.pages_completed) || 0;
+            // Railway's /jobs/:id/status returns { status, completed, total, pages: [...] }.
+            // The field is 'completed' (not 'pages_completed') — earlier code read the wrong key,
+            // so the confirm dialog always said "0 pages already scanned" regardless of progress.
+            const pages = Number(progress.completed) || 0;
             msg = 'Cancelling now will charge you for ' + pages + ' page' + (pages === 1 ? '' : 's') + ' already scanned.\n\nContinue?';
         } catch (_e) {
             msg = 'Unable to fetch current progress. Cancel anyway? (You may still be charged for pages already scanned.)';
