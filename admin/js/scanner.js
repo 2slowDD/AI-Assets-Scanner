@@ -540,6 +540,9 @@
         }
 
         showStep(2);
+        // Scroll to the top so the operator sees the scanning progress UI
+        // instead of being stuck at the bottom of the long URL selection list.
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         // Use selectedUrls.length — only charge for URLs that will actually be scanned
         post('cu_scanner_reserve_job', { page_count: selectedUrls.length })
             .then(res => {
