@@ -281,13 +281,20 @@ class ScannerAjax {
 
         $settings = $this->settings();
         // Railway's cancel route now owns credit release — no need to call release_credits here.
+        // Capture the response so we can record the actual credits charged in our local
+        // scan history. Railway returns pages_completed = the count at cancel-click time,
+        // which equals the credits charged by the SaaS (user_cancel is a charging source).
+        $pages_completed = 0;
         try {
             $client = new RailwayClient( $state['railway_url'], $settings->get_api_key() );
-            $client->cancel_job( $state['job_id'], $state['job_token'] );
-        } catch ( \RuntimeException ) { /* Cancel best-effort */ }
+            $resp   = $client->cancel_job( $state['job_id'], $state['job_token'] );
+            $pages_completed = (int) ( $resp['pages_completed'] ?? 0 );
+        } catch ( \RuntimeException ) { /* Cancel best-effort — keep pages_completed=0 as fallback */ }
 
         ( new BypassManager() )->delete_all_tokens();
-        ( new ScanHistory() )->update_status( $state['job_id'], 'cancelled' );
+        ( new ScanHistory() )->update_status( $state['job_id'], 'cancelled', [
+            'credits_used' => $pages_completed,
+        ] );
         delete_transient( 'cu_scanner_job_' . $user_id );
         wp_send_json_success();
     }

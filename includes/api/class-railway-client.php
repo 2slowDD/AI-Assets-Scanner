@@ -32,12 +32,15 @@ class RailwayClient {
         return $this->parse( $response, allow_410: true );
     }
 
-    public function cancel_job( string $job_id, string $job_token ): void {
+    public function cancel_job( string $job_id, string $job_token ): array {
         $response = wp_remote_post( $this->railway_url . "/jobs/{$job_id}/cancel", [
             'headers' => [ 'Authorization' => 'Bearer ' . $job_token ],
             'timeout' => 15,
         ] );
-        $this->parse( $response );
+        // Railway returns { ok: true, pages_completed: N } — callers use pages_completed
+        // to record the actual billable count on the local scan history (user_cancel
+        // is a charging source; charge amount = pages_completed at cancel-click time).
+        return $this->parse( $response );
     }
 
     private function parse( mixed $response, bool $allow_410 = false ): array {
