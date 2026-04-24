@@ -465,6 +465,32 @@ class ScannerAjax {
         }
     }
 
+    protected function zip_available(): bool {
+        return class_exists( 'ZipArchive' );
+    }
+
+    protected function terminate(): void {
+        exit;
+    }
+
+    /**
+     * Emits Content-Type and Content-Disposition headers.
+     * Seam point for test override (to avoid header() errors after output has started).
+     */
+    protected function emit_csv_headers( string $filename ): void {
+        header( 'Content-Type: text/csv; charset=utf-8' );
+        header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+    }
+
+    private function stream_csv_response( array $records ): void {
+        $filename = 'ai-assets-scanner-history-' . gmdate( 'Y-m-d-His' ) . '.csv';
+        $this->emit_csv_headers( $filename );
+        $fh = fopen( 'php://output', 'w' );
+        $this->write_csv( $fh, $records );
+        fclose( $fh );
+        $this->terminate();
+    }
+
     public function export_history(): void {
         check_ajax_referer( 'cu_scanner_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) {
@@ -474,6 +500,10 @@ class ScannerAjax {
         if ( empty( $records ) ) {
             wp_die( 'No history to export', '', [ 'response' => 200 ] );
         }
-        // Subsequent tasks fill in the body below this line.
+        if ( ! $this->zip_available() ) {
+            $this->stream_csv_response( $records );
+            return; // unreachable in prod; reachable under test seam
+        }
+        // Task 7 fills in the ZIP primary path here.
     }
 }
