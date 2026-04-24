@@ -91,4 +91,38 @@ class ExportHistoryAjaxTest extends TestCase {
         // Formula-injection defuse on domain cell
         $this->assertStringContainsString( "'=EVIL", $out );
     }
+
+    public function test_export_history_streams_csv_when_zip_unavailable(): void {
+        WP_Mock::userFunction( 'check_ajax_referer' )
+            ->with( 'cu_scanner_nonce', 'nonce' )->andReturn( 1 );
+        WP_Mock::userFunction( 'current_user_can' )
+            ->with( 'manage_options' )->andReturn( true );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [ [
+                'job_id' => 'job-a', 'domain' => 'example.com',
+                'page_count' => 1, 'credits_used' => 0,
+                'safe_count' => 0, 'aggressive_count' => 0,
+                'status' => 'complete', 'created_at' => '2026-04-24T10:00:00+00:00',
+            ] ] );
+
+        ob_start();
+        try {
+            ( new ForcedCsvScannerAjax() )->export_history();
+            $this->fail( 'Expected terminate() to throw' );
+        } catch ( \RuntimeException $e ) {
+            $this->assertSame( 'terminated', $e->getMessage() );
+        }
+        $out = ob_get_clean();
+
+        $this->assertStringContainsString( "\xEF\xBB\xBF", $out );
+        $this->assertStringContainsString( 'example.com', $out );
+        $this->assertConditionsMet();
+    }
+}
+
+class ForcedCsvScannerAjax extends \CUScanner\Admin\ScannerAjax {
+    protected function zip_available(): bool { return false; }
+    protected function terminate(): void { throw new \RuntimeException( 'terminated' ); }
+    protected function emit_csv_headers( string $filename ): void {} // no-op in test
 }
