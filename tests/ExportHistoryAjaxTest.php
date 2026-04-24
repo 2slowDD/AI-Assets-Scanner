@@ -212,6 +212,7 @@ class ExportHistoryAjaxTest extends TestCase {
         $fake_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cu-fake-dir-' . uniqid();
         mkdir( $fake_dir );
         WP_Mock::userFunction( 'wp_tempnam' )->andReturn( $fake_dir );
+        WP_Mock::userFunction( 'wp_delete_file' )->andReturnUsing( function ( $p ) { @unlink( $p ); } );
 
         $subject = new class extends \CUScanner\Admin\ScannerAjax {
             public bool $zip_stream_called = false;

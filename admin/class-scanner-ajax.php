@@ -450,6 +450,7 @@ class ScannerAjax {
      * Uses fputcsv for RFC 4180 quoting. Defuses every cell via csv_cell().
      */
     private function write_csv( $resource, array $records ): void {
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- $resource is a caller-supplied stream handle (php://memory or php://output), not a filesystem path; WP_Filesystem does not operate on stream wrappers.
         fwrite( $resource, "\xEF\xBB\xBF" );
         fputcsv( $resource, [ 'Date', 'Domain', 'Pages', 'Credits', 'Safe Rules', 'Aggressive Rules', 'Status', 'Job ID' ] );
         foreach ( $records as $r ) {
@@ -487,8 +488,10 @@ class ScannerAjax {
     private function stream_csv_response( array $records ): void {
         $filename = 'ai-assets-scanner-history-' . gmdate( 'Y-m-d-His' ) . '.csv';
         $this->emit_csv_headers( $filename );
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- php://output is the HTTP response body stream, not a filesystem file; WP_Filesystem cannot target it.
         $fh = fopen( 'php://output', 'w' );
         $this->write_csv( $fh, $records );
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- pairs with fopen on php://output above; stream wrapper, not a filesystem file.
         fclose( $fh );
         $this->terminate();
     }
@@ -504,17 +507,19 @@ class ScannerAjax {
         $rc  = $zip->open( $tmp_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE );
         if ( $rc !== true ) {
             error_log( '[AI Assets Scanner] ZipArchive::open failed: ' . $rc ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
-            @unlink( $tmp_path );
+            wp_delete_file( $tmp_path );
             return false;
         }
 
         $zip->addFromString( 'history.json', (string) wp_json_encode( $records, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
 
         // Generate CSV to a string via php://memory so we can addFromString.
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- php://memory is an in-memory stream used to buffer CSV for addFromString; WP_Filesystem does not operate on stream wrappers.
         $mem = fopen( 'php://memory', 'w+' );
         $this->write_csv( $mem, $records );
         rewind( $mem );
         $csv = stream_get_contents( $mem );
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- pairs with fopen on php://memory above.
         fclose( $mem );
         $zip->addFromString( 'history.csv', $csv );
 
@@ -543,7 +548,7 @@ class ScannerAjax {
 
         if ( $zip->close() !== true ) {
             error_log( '[AI Assets Scanner] ZipArchive::close failed' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
-            @unlink( $tmp_path );
+            wp_delete_file( $tmp_path );
             return false;
         }
         return true;
@@ -554,10 +559,9 @@ class ScannerAjax {
         header( 'Content-Type: application/zip' );
         header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
         header( 'Content-Length: ' . filesize( $tmp_path ) );
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streams server-generated wp_tempnam ZIP directly to HTTP response body; WP has no equivalent for binary pass-through, and loading via file_get_contents would blow memory on large archives.
         readfile( $tmp_path );
-        if ( ! @unlink( $tmp_path ) ) {
-            error_log( '[AI Assets Scanner] temp unlink failed: ' . $tmp_path ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
-        }
+        wp_delete_file( $tmp_path );
         $this->terminate();
     }
 
