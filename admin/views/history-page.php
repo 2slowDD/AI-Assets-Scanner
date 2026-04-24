@@ -27,6 +27,14 @@
         if ( empty( $history ) ) : ?>
             <p>No scans yet. <a href="?page=cu-scanner">Run your first scan.</a></p>
         <?php else : ?>
+            <div class="cu-history-actions" style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 12px;">
+                <button type="button" id="cu-history-export" class="button">
+                    <?php esc_html_e( 'Export to ZIP', 'cu-scanner' ); ?>
+                </button>
+                <button type="button" id="cu-history-delete" class="button button-link-delete">
+                    <?php esc_html_e( 'Delete all history', 'cu-scanner' ); ?>
+                </button>
+            </div>
             <table class="wp-list-table widefat striped">
                 <thead>
                     <tr>

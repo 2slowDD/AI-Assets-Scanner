@@ -7,6 +7,7 @@ class AdminPages {
     public function register(): void {
         add_action( 'admin_menu', [ $this, 'add_menus' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+        add_action( 'admin_notices', [ $this, 'maybe_render_history_deleted_notice' ] );
     }
 
     public function add_menus(): void {
@@ -45,6 +46,43 @@ class AdminPages {
                 'nonce'   => wp_create_nonce( 'cu_scanner_settings_nonce' ),
             ] );
         }
+        if ( $hook === 'ai-assets-scanner_page_cu-scanner-history' ) {
+            wp_enqueue_script(
+                'cu-scanner-history',
+                CU_SCANNER_URL . 'admin/js/history.js',
+                [ 'jquery' ],
+                CU_SCANNER_VERSION,
+                true
+            );
+            wp_localize_script( 'cu-scanner-history', 'cuScannerHistory', [
+                'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+                'nonce'         => wp_create_nonce( 'cu_scanner_nonce' ),
+                'deleteWarning' => __(
+                    "\xE2\x9A\xA0 This will permanently delete all scan history AND all stored scan JSON snapshots. Re-download links will stop working for old scans.\n\nDid you export a backup first?\n\nClick OK to delete everything, or Cancel to abort.",
+                    'cu-scanner'
+                ),
+            ] );
+        }
+    }
+
+    public function maybe_render_history_deleted_notice(): void {
+        $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+        if ( ! $screen || $screen->id !== 'ai-assets-scanner_page_cu-scanner-history' ) {
+            return;
+        }
+        $count = get_transient( 'cu_scanner_history_deleted_notice' );
+        if ( $count === false ) {
+            return;
+        }
+        delete_transient( 'cu_scanner_history_deleted_notice' );
+        ?>
+        <div class="notice notice-success is-dismissible">
+            <p><?php
+                // translators: %d = number of deleted records.
+                printf( esc_html__( 'History deleted (%d records).', 'cu-scanner' ), (int) $count );
+            ?></p>
+        </div>
+        <?php
     }
 
     public function render_scanner(): void  { require CU_SCANNER_DIR . 'admin/views/scanner-page.php'; }
