@@ -53,4 +53,17 @@ class ScanHistory {
     public function get_all(): array {
         return get_option( self::HISTORY_OPTION, [] );
     }
+
+    public function delete_all(): int {
+        $records = get_option( self::HISTORY_OPTION, [] );
+        $count   = 0;
+        foreach ( $records as $record ) {
+            if ( ! empty( $record['job_id'] ) && is_string( $record['job_id'] ) ) {
+                delete_option( self::JSON_OPTION_PREFIX . $record['job_id'] );
+            }
+            $count++;
+        }
+        delete_option( self::HISTORY_OPTION );
+        return $count;
+    }
 }
