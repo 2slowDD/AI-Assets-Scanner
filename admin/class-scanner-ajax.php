@@ -491,6 +491,74 @@ class ScannerAjax {
         $this->terminate();
     }
 
+    /**
+     * Builds the ZIP at $tmp_path. Returns true on success, false on any
+     * ZipArchive failure (at which point $tmp_path has been @unlink'd).
+     * Populates $missing_snapshots (by reference) with job_ids that had no
+     * stored snapshot.
+     */
+    private function build_zip( string $tmp_path, array $records, ScanHistory $history, array &$missing_snapshots ): bool {
+        $zip = new \ZipArchive();
+        $rc  = $zip->open( $tmp_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE );
+        if ( $rc !== true ) {
+            error_log( '[AI Assets Scanner] ZipArchive::open failed: ' . $rc ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
+            @unlink( $tmp_path );
+            return false;
+        }
+
+        $zip->addFromString( 'history.json', (string) wp_json_encode( $records, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+
+        // Generate CSV to a string via php://memory so we can addFromString.
+        $mem = fopen( 'php://memory', 'w+' );
+        $this->write_csv( $mem, $records );
+        rewind( $mem );
+        $csv = stream_get_contents( $mem );
+        fclose( $mem );
+        $zip->addFromString( 'history.csv', $csv );
+
+        $missing_snapshots = [];
+        foreach ( $records as $r ) {
+            $job_id = isset( $r['job_id'] ) ? (string) $r['job_id'] : '';
+            if ( $job_id === '' ) continue;
+            // Defensive: strip chars that could escape the archive path.
+            $safe = preg_replace( '/[^A-Za-z0-9._-]/', '', $job_id );
+            if ( $safe === '' ) continue;
+            $snapshot = $history->get_json( $safe );
+            if ( $snapshot === '' ) {
+                $missing_snapshots[] = $safe;
+                continue;
+            }
+            $zip->addFromString( 'scans/' . $safe . '.json', $snapshot );
+        }
+
+        $readme  = 'AI Assets Scanner v' . CU_SCANNER_VERSION . "\n";
+        $readme .= 'Export timestamp: ' . gmdate( 'c' ) . "\n";
+        $readme .= 'Records: ' . count( $records ) . "\n";
+        if ( ! empty( $missing_snapshots ) ) {
+            $readme .= 'Missing snapshots: ' . implode( ', ', $missing_snapshots ) . "\n";
+        }
+        $zip->addFromString( 'README.txt', $readme );
+
+        if ( $zip->close() !== true ) {
+            error_log( '[AI Assets Scanner] ZipArchive::close failed' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
+            @unlink( $tmp_path );
+            return false;
+        }
+        return true;
+    }
+
+    protected function stream_zip( string $tmp_path ): void {
+        $filename = 'ai-assets-scanner-history-' . gmdate( 'Y-m-d-His' ) . '.zip';
+        header( 'Content-Type: application/zip' );
+        header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+        header( 'Content-Length: ' . filesize( $tmp_path ) );
+        readfile( $tmp_path );
+        if ( ! @unlink( $tmp_path ) ) {
+            error_log( '[AI Assets Scanner] temp unlink failed: ' . $tmp_path ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
+        }
+        $this->terminate();
+    }
+
     public function export_history(): void {
         check_ajax_referer( 'cu_scanner_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) {
@@ -504,6 +572,15 @@ class ScannerAjax {
             $this->stream_csv_response( $records );
             return; // unreachable in prod; reachable under test seam
         }
-        // Task 7 fills in the ZIP primary path here.
+        // ZIP primary path.
+        $tmp = wp_tempnam( 'cu-scanner-history' );
+        $missing = [];
+        $history = new ScanHistory();
+        if ( $this->build_zip( $tmp, $records, $history, $missing ) ) {
+            $this->stream_zip( $tmp );
+            return;
+        }
+        // Fall through to CSV-only if ZIP build failed.
+        $this->stream_csv_response( $records );
     }
 }
