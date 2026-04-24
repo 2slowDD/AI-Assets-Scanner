@@ -27,6 +27,8 @@ class ScannerAjax {
             'cu_scanner_download_json',
             'cu_scanner_push_to_cu',
             'cu_scanner_check_job',
+            'cu_scanner_export_history',
+            'cu_scanner_delete_history',
         ];
         foreach ( $actions as $action ) {
             add_action( 'wp_ajax_' . $action, [ $this, str_replace( 'cu_scanner_', '', $action ) ] );
