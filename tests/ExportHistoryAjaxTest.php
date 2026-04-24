@@ -238,6 +238,66 @@ class ExportHistoryAjaxTest extends TestCase {
         $this->assertStringContainsString( 'a.com', $out );
         $this->assertConditionsMet();
     }
+
+    public function test_export_history_lists_missing_snapshots_in_readme(): void {
+        if ( ! class_exists( 'ZipArchive' ) ) {
+            $this->markTestSkipped( 'ZipArchive unavailable' );
+        }
+        WP_Mock::userFunction( 'check_ajax_referer' )->andReturn( 1 );
+        WP_Mock::userFunction( 'current_user_can' )->andReturn( true );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [
+                [
+                    'job_id' => 'job-have', 'domain' => 'a.com',
+                    'page_count' => 1, 'credits_used' => 0,
+                    'safe_count' => 0, 'aggressive_count' => 0,
+                    'status' => 'complete', 'created_at' => '2026-04-24T10:00:00+00:00',
+                ],
+                [
+                    'job_id' => 'job-missing', 'domain' => 'b.com',
+                    'page_count' => 1, 'credits_used' => 0,
+                    'safe_count' => 0, 'aggressive_count' => 0,
+                    'status' => 'complete', 'created_at' => '2026-04-23T09:00:00+00:00',
+                ],
+            ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_json_job-have', '' )->andReturn( '{"x":1}' );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_json_job-missing', '' )->andReturn( '' );
+        WP_Mock::userFunction( 'wp_tempnam' )
+            ->andReturnUsing( function () {
+                return tempnam( sys_get_temp_dir(), 'cu-hist-' );
+            } );
+        WP_Mock::userFunction( 'wp_json_encode' )
+            ->andReturnUsing( function ( $data, $flags = 0 ) {
+                return json_encode( $data, $flags );
+            } );
+
+        $subject = new class extends \CUScanner\Admin\ScannerAjax {
+            public ?string $captured = null;
+            protected function terminate(): void { throw new \RuntimeException( 'terminated' ); }
+            protected function stream_zip( string $tmp ): void {
+                $this->captured = $tmp;
+                $this->terminate();
+            }
+        };
+
+        try { $subject->export_history(); } catch ( \RuntimeException $e ) {}
+
+        $zip = new \ZipArchive();
+        $this->assertTrue( $zip->open( $subject->captured ) === true );
+        $readme       = $zip->getFromName( 'README.txt' );
+        $has_scan     = $zip->getFromName( 'scans/job-have.json' );
+        $missing_scan = $zip->getFromName( 'scans/job-missing.json' );
+        $zip->close();
+        @unlink( $subject->captured );
+
+        $this->assertStringContainsString( 'Missing snapshots: job-missing', $readme );
+        $this->assertNotFalse( $has_scan );
+        $this->assertFalse( $missing_scan, 'scans/job-missing.json should NOT be in the archive' );
+        $this->assertConditionsMet();
+    }
 }
 
 class ForcedCsvScannerAjax extends \CUScanner\Admin\ScannerAjax {
