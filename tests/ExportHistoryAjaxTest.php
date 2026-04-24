@@ -192,6 +192,52 @@ class ExportHistoryAjaxTest extends TestCase {
         );
         $this->assertConditionsMet();
     }
+
+    public function test_export_history_falls_through_to_csv_when_zip_open_fails(): void {
+        if ( ! class_exists( 'ZipArchive' ) ) {
+            $this->markTestSkipped( 'ZipArchive unavailable' );
+        }
+        WP_Mock::userFunction( 'check_ajax_referer' )->andReturn( 1 );
+        WP_Mock::userFunction( 'current_user_can' )->andReturn( true );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [ [
+                'job_id' => 'job-a', 'domain' => 'a.com',
+                'page_count' => 1, 'credits_used' => 0,
+                'safe_count' => 0, 'aggressive_count' => 0,
+                'status' => 'complete', 'created_at' => '2026-04-24T10:00:00+00:00',
+            ] ] );
+
+        // Make wp_tempnam return a directory path → ZipArchive::open will fail.
+        $fake_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cu-fake-dir-' . uniqid();
+        mkdir( $fake_dir );
+        WP_Mock::userFunction( 'wp_tempnam' )->andReturn( $fake_dir );
+
+        $subject = new class extends \CUScanner\Admin\ScannerAjax {
+            public bool $zip_stream_called = false;
+            protected function terminate(): void { throw new \RuntimeException( 'terminated' ); }
+            protected function stream_zip( string $tmp ): void {
+                $this->zip_stream_called = true;
+                $this->terminate();
+            }
+            protected function emit_csv_headers( string $filename ): void {} // no-op in test
+        };
+
+        ob_start();
+        try {
+            $subject->export_history();
+            $this->fail( 'Expected terminate()' );
+        } catch ( \RuntimeException $e ) {
+            $this->assertSame( 'terminated', $e->getMessage() );
+        }
+        $out = ob_get_clean();
+        @rmdir( $fake_dir );
+
+        $this->assertFalse( $subject->zip_stream_called, 'stream_zip must NOT be called when open() fails' );
+        $this->assertStringContainsString( "\xEF\xBB\xBF", $out );
+        $this->assertStringContainsString( 'a.com', $out );
+        $this->assertConditionsMet();
+    }
 }
 
 class ForcedCsvScannerAjax extends \CUScanner\Admin\ScannerAjax {
