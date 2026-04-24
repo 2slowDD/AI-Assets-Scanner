@@ -428,4 +428,16 @@ class ScannerAjax {
         set_transient( 'cu_scanner_history_deleted_notice', $count, 30 );
         wp_send_json_success( [ 'deleted' => $count ] );
     }
+
+    public function export_history(): void {
+        check_ajax_referer( 'cu_scanner_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( 'Forbidden', '', [ 'response' => 403 ] );
+        }
+        $records = ( new ScanHistory() )->get_all();
+        if ( empty( $records ) ) {
+            wp_die( 'No history to export', '', [ 'response' => 200 ] );
+        }
+        // Subsequent tasks fill in the body below this line.
+    }
 }
