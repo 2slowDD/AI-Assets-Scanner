@@ -420,4 +420,12 @@ class ScannerAjax {
             wp_send_json_error( 'Push failed. Check server error logs.' );
         }
     }
+
+    public function delete_history(): void {
+        $this->check();
+        $history = new ScanHistory();
+        $count   = $history->delete_all();
+        set_transient( 'cu_scanner_history_deleted_notice', $count, 30 );
+        wp_send_json_success( [ 'deleted' => $count ] );
+    }
 }
