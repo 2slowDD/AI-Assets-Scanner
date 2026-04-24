@@ -429,6 +429,42 @@ class ScannerAjax {
         wp_send_json_success( [ 'deleted' => $count ] );
     }
 
+    /**
+     * Defuses CSV formula injection. If the first byte is = + - @ TAB CR,
+     * prefix a single quote. Returns the value unchanged otherwise.
+     */
+    private function csv_cell( string $value ): string {
+        if ( $value === '' ) return '';
+        $first = $value[0];
+        if ( $first === '=' || $first === '+' || $first === '-' || $first === '@'
+            || $first === "\t" || $first === "\r" ) {
+            return "'" . $value;
+        }
+        return $value;
+    }
+
+    /**
+     * Writes BOM + header row + one data row per record to the given resource.
+     * Uses fputcsv for RFC 4180 quoting. Defuses every cell via csv_cell().
+     */
+    private function write_csv( $resource, array $records ): void {
+        fwrite( $resource, "\xEF\xBB\xBF" );
+        fputcsv( $resource, [ 'Date', 'Domain', 'Pages', 'Credits', 'Safe Rules', 'Aggressive Rules', 'Status', 'Job ID' ] );
+        foreach ( $records as $r ) {
+            $row = [
+                (string) ( $r['created_at']       ?? '' ),
+                (string) ( $r['domain']           ?? '' ),
+                (string) ( $r['page_count']       ?? '' ),
+                (string) ( $r['credits_used']     ?? '' ),
+                (string) ( $r['safe_count']       ?? '' ),
+                (string) ( $r['aggressive_count'] ?? '' ),
+                (string) ( $r['status']           ?? '' ),
+                (string) ( $r['job_id']           ?? '' ),
+            ];
+            fputcsv( $resource, array_map( [ $this, 'csv_cell' ], $row ) );
+        }
+    }
+
     public function export_history(): void {
         check_ajax_referer( 'cu_scanner_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) {
