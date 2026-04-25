@@ -21,12 +21,6 @@ if ( ! function_exists( 'is_wp_error' ) ) {
     }
 }
 
-if ( ! function_exists( 'add_query_arg' ) ) {
-    function add_query_arg(): string {
-        return \WP_Mock\Functions\Handler::handle( 'add_query_arg', func_get_args() ) ?? '';
-    }
-}
-
 if ( ! class_exists( 'WP_REST_Request' ) ) {
     class WP_REST_Request {
         private array $params = [];
