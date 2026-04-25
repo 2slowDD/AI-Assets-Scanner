@@ -25,5 +25,8 @@ class Plugin {
 
         // Class C orchestrator: stale-state self-heal + watchdog hooks.
         \CUScanner\Scanner\OptimizerBypassOrchestrator::init();
+
+        // Admin banner + force-restore handler.
+        \CUScanner\Admin\OptimizerStateNotices::init();
     }
 }

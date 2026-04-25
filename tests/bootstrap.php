@@ -21,6 +21,23 @@ if ( ! function_exists( 'is_wp_error' ) ) {
     }
 }
 
+if ( ! function_exists( 'add_query_arg' ) ) {
+    function add_query_arg(): string {
+        return \WP_Mock\Functions\Handler::handle( 'add_query_arg', func_get_args() ) ?? '';
+    }
+}
+
+if ( ! class_exists( 'WP_REST_Request' ) ) {
+    class WP_REST_Request {
+        private array $params = [];
+        public function __construct( private string $method = 'GET', private string $route = '' ) {}
+        public function get_param( string $key ): mixed { return $this->params[ $key ] ?? null; }
+        public function get_json_params(): array { return $this->params; }
+        public function set_param( string $key, mixed $value ): void { $this->params[ $key ] = $value; }
+        public function get_method(): string { return $this->method; }
+    }
+}
+
 spl_autoload_register( function ( string $class ): void {
     $map = [
         'CUScanner\\Admin\\ScannerAjax'        => 'admin/class-scanner-ajax.php',
@@ -43,6 +60,8 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\BypassHandler'      => 'includes/scanner/class-bypass-handler.php',
         'CUScanner\\Scanner\\Strategies\\AbstractOptimizerBypass' => 'includes/scanner/strategies/abstract-optimizer-bypass.php',
         'CUScanner\\Scanner\\Strategies\\FlyingPressBypass'        => 'includes/scanner/strategies/class-flying-press-bypass.php',
+        'CUScanner\\Scanner\\RestPreflight'       => 'includes/scanner/class-rest-preflight.php',
+        'CUScanner\\Admin\\OptimizerStateNotices' => 'includes/admin/class-optimizer-state-notices.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require CU_SCANNER_DIR . $map[ $class ];

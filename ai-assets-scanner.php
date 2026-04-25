@@ -45,11 +45,15 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Admin\\AdminPages'        => 'admin/class-admin-pages.php',
         'CUScanner\\Admin\\SettingsAjax'      => 'admin/class-settings-ajax.php',
         'CUScanner\\Admin\\ScannerAjax'       => 'admin/class-scanner-ajax.php',
+        'CUScanner\\Scanner\\RestPreflight'       => 'includes/scanner/class-rest-preflight.php',
+        'CUScanner\\Admin\\OptimizerStateNotices' => 'includes/admin/class-optimizer-state-notices.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require CU_SCANNER_DIR . $map[ $class ];
     }
 } );
+
+add_action( 'rest_api_init', [ \CUScanner\Scanner\RestPreflight::class, 'register_routes' ] );
 
 add_action( 'plugins_loaded', function (): void {
     ( new CUScanner\Plugin() )->init();
