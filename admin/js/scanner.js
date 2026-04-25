@@ -663,7 +663,34 @@
                 if (!res.success) { showStep(1); alert('Error: ' + res.data); return; }
                 const job_token = res.data.job_token;
                 post('cu_scanner_submit_job', { urls: selectedUrls, job_token })
-                    .then(res2 => {
+                    .then(async res2 => {
+                        // Phase 5 — Class C consent gate.
+                        // submit_job returns class_c_consent_required when Class C optimizers
+                        // are active and the user hasn't yet confirmed. Render the modal,
+                        // retry on confirm, fall back to existing failure path on cancel.
+                        if (!res2.success && res2.data && res2.data.error === 'class_c_consent_required') {
+                            const consented = await showConsentDialog(
+                                res2.data.class_c_active || [],
+                                selectedUrls.length
+                            );
+                            if (!consented) {
+                                post('cu_scanner_handle_failure');
+                                showStep(1);
+                                return;
+                            }
+                            const retry = await post('cu_scanner_submit_job', {
+                                urls: selectedUrls,
+                                job_token: job_token,
+                                class_c_consent_given: '1',
+                            });
+                            if (!retry.success) {
+                                post('cu_scanner_handle_failure');
+                                showStep(1);
+                                alert('Error: ' + retry.data);
+                                return;
+                            }
+                            res2 = retry;
+                        }
                         if (!res2.success) {
                             post('cu_scanner_handle_failure');
                             showStep(1);
