@@ -49,16 +49,43 @@ class CuJsonBuilderTest extends TestCase {
         $this->assertSame( 2, $rules[0]['group_id'] ); // Aggressive
     }
 
-    public function test_safe_aggressive_produces_two_rules(): void {
+    public function test_absent_aggressive_drops_desktop_safe_keeps_mobile_aggressive(): void {
+        // 2026-04-25: under the new classifier, asymmetric 'absent' (one device
+        // says !loaded, the other says loaded with coverage signal) drops the
+        // absent side as unreliable and emits only the loaded side's rule.
+        // Prevents false-Safe push that would unload assets Playwright missed
+        // due to coverage-tracking timing on the cold pass.
         $pages = [ $this->make_page( 'https://site.com/home/', [
             $this->make_asset( 'plugin-css', 'style', false, 0.0, true, 0.0 ),
         ] ) ];
         $output = ( new CuJsonBuilder() )->build( $pages );
         $rules  = $output['rules'];
-        $this->assertCount( 2, $rules );
-        $device_types = array_column( $rules, 'device_type' );
-        $this->assertContains( 'desktop', $device_types );
-        $this->assertContains( 'mobile', $device_types );
+        $this->assertCount( 1, $rules );
+        $this->assertSame( 'mobile', $rules[0]['device_type'] );
+        $this->assertSame( 2, $rules[0]['group_id'] ); // Aggressive only — desktop 'absent' dropped.
+    }
+
+    public function test_absent_needed_produces_no_rule(): void {
+        // 2026-04-25: when one device says !loaded and the other says needed
+        // (loaded with positive coverage), the absent side is unreliable and
+        // dropped entirely. No rule is emitted — neither a wrong Safe nor an
+        // aggressive that doesn't apply.
+        $pages = [ $this->make_page( 'https://site.com/home/', [
+            $this->make_asset( 'eb-block-style-863', 'style', false, 0.0, true, 0.5 ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertCount( 0, $output['rules'] );
+    }
+
+    public function test_needed_absent_produces_no_rule(): void {
+        // 2026-04-25: mirror of absent_needed — desktop loaded-and-used while
+        // mobile reports !loaded. Mobile's absent could be coverage-tracking
+        // timing; drop entirely rather than emit a wrong mobile-Safe rule.
+        $pages = [ $this->make_page( 'https://site.com/home/', [
+            $this->make_asset( 'eb-block-style-863', 'style', true, 0.5, false, 0.0 ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertCount( 0, $output['rules'] );
     }
 
     public function test_needed_needed_produces_no_rule(): void {
