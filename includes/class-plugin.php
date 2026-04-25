@@ -22,5 +22,8 @@ class Plugin {
 
         // Class A optimizer hook-removal (priority 0 — before BypassManager's default priority).
         BypassHandler::init();
+
+        // Class C orchestrator: stale-state self-heal + watchdog hooks.
+        \CUScanner\Scanner\OptimizerBypassOrchestrator::init();
     }
 }
