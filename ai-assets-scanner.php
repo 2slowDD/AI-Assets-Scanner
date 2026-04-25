@@ -31,6 +31,8 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\PageDiscovery'   => 'includes/scanner/class-page-discovery.php',
         'CUScanner\\Scanner\\PluginDetector'  => 'includes/scanner/class-plugin-detector.php',
         'CUScanner\\Scanner\\BypassManager'   => 'includes/scanner/class-bypass-manager.php',
+        'CUScanner\\Scanner\\BypassHandler'   => 'includes/scanner/class-bypass-handler.php',
+        'CUScanner\\Scanner\\EventEmitter'    => 'includes/scanner/class-event-emitter.php',
         'CUScanner\\Scanner\\CuJsonBuilder'   => 'includes/scanner/class-cu-json-builder.php',
         'CUScanner\\Scanner\\RulePusher'      => 'includes/scanner/class-rule-pusher.php',
         'CUScanner\\Scanner\\SnapshotManager' => 'includes/scanner/class-snapshot-manager.php',
