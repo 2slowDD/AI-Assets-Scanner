@@ -93,6 +93,78 @@
         return Math.max(1, Math.ceil(urlCount * SCAN_TIME_PER_URL_MINUTES));
     }
 
+    // Phase 5 — Build the consent dialog DOM tree. Returns a <dialog> element
+    // ready to be appended to document.body and shown via showModal().
+    // Pure DOM construction; no side effects.
+    function buildConsentDialog(classCActive, urlCount) {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'cu-consent-dialog';
+
+        const heading = document.createElement('h2');
+        heading.textContent = 'Temporary plugin pause required';
+        dialog.appendChild(heading);
+
+        const intro = document.createElement('p');
+        intro.textContent = 'Accurate scanning requires that the following optimizer be paused for the duration of this scan:';
+        dialog.appendChild(intro);
+
+        const pluginList = document.createElement('ul');
+        pluginList.className = 'cu-consent-plugins';
+        for (const entry of classCActive) {
+            const li = document.createElement('li');
+            const name = document.createElement('strong');
+            name.textContent = entry.name || entry.slug || 'Unknown plugin';
+            li.appendChild(name);
+            const warning = (entry.warning || '').trim();
+            if (warning) {
+                li.appendChild(document.createTextNode(' — ' + warning));
+            }
+            pluginList.appendChild(li);
+        }
+        dialog.appendChild(pluginList);
+
+        const meansHeader = document.createElement('p');
+        meansHeader.innerHTML = '<strong>What this means while the scan runs:</strong>';
+        dialog.appendChild(meansHeader);
+
+        const minutes = estimateScanMinutes(urlCount);
+        const meansList = document.createElement('ul');
+        meansList.innerHTML =
+            '<li>Your site will load with the un-optimized CSS and JS during the scan window. ' +
+            'Estimated duration: <strong>~' + minutes + ' minute' + (minutes === 1 ? '' : 's') + '</strong> (' + urlCount + ' URLs).</li>' +
+            '<li>Visitors arriving during this window will see the un-optimized site.</li>' +
+            '<li>The plugin’s options will be restored automatically when the scan finishes.</li>';
+        dialog.appendChild(meansList);
+
+        const crashNote = document.createElement('p');
+        crashNote.innerHTML =
+            '<strong>If the scan crashes:</strong> the plugin will still be re-enabled — on the next admin request after the timeout window expires, OR via the watchdog cron job. ' +
+            'On a very low-traffic site without OS cron, this fallback may not be immediate.';
+        dialog.appendChild(crashNote);
+
+        const auditNote = document.createElement('p');
+        auditNote.innerHTML = '<em>Audit trail: every disable and restore is logged in AI Assets Scanner → Logs.</em>';
+        dialog.appendChild(auditNote);
+
+        const actions = document.createElement('div');
+        actions.className = 'cu-consent-actions';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'button';
+        cancelBtn.dataset.cuConsent = 'cancel';
+        cancelBtn.textContent = 'Cancel';
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.className = 'button button-primary';
+        confirmBtn.dataset.cuConsent = 'confirm';
+        confirmBtn.textContent = 'Pause and start scan';
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+        dialog.appendChild(actions);
+
+        return dialog;
+    }
+
     // --- Step 1: Plugin detection ---
 
     function detectPlugins() {
