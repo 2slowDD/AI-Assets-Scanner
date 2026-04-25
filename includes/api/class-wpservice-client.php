@@ -32,6 +32,21 @@ class WpserviceClient {
         ] );
     }
 
+    /**
+     * POST batch of audit events to SaaS /cu-scanner/v1/events endpoint.
+     *
+     * @param string $scan_id  Scan ID (hash, 12-16 chars).
+     * @param array  $events   Each: { name: string, category: string, fields: array }.
+     * @return array  { accepted: int, rejected: int, errors: array } from SaaS,
+     *                or wp-remote-post failure shape.
+     */
+    public function emit_events( string $scan_id, array $events ): array {
+        return $this->post( '/cu-scanner/v1/events', [
+            'scan_id' => $scan_id,
+            'events'  => $events,
+        ] );
+    }
+
     private function domain(): string {
         return wp_parse_url( get_home_url(), PHP_URL_HOST ) ?: '';
     }
