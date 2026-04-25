@@ -165,6 +165,40 @@
         return dialog;
     }
 
+    // Phase 5 — Mount the consent dialog and resolve a Promise with the
+    // user's choice. Removes itself from the DOM after resolution.
+    function showConsentDialog(classCActive, urlCount) {
+        return new Promise(function (resolve) {
+            const dialog = buildConsentDialog(classCActive, urlCount);
+            document.body.appendChild(dialog);
+
+            let resolved = false;
+            function done(value) {
+                if (resolved) return;
+                resolved = true;
+                resolve(value);
+                if (dialog.open) dialog.close();
+                dialog.remove();
+            }
+
+            dialog.querySelector('[data-cu-consent="confirm"]').addEventListener('click', function () {
+                done(true);
+            });
+            dialog.querySelector('[data-cu-consent="cancel"]').addEventListener('click', function () {
+                done(false);
+            });
+            // Native <dialog> doesn't auto-close on backdrop click — emulate it.
+            // Click target === dialog itself when the click was on the backdrop padding.
+            dialog.addEventListener('click', function (e) {
+                if (e.target === dialog) done(false);
+            });
+            // Escape, programmatic close, anything else that fires the close event.
+            dialog.addEventListener('close', function () { done(false); });
+
+            dialog.showModal();
+        });
+    }
+
     // --- Step 1: Plugin detection ---
 
     function detectPlugins() {
