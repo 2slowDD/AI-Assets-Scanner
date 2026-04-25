@@ -54,6 +54,8 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\BypassHandler'      => 'includes/scanner/class-bypass-handler.php',
         'CUScanner\\Scanner\\Strategies\\AbstractOptimizerBypass' => 'includes/scanner/strategies/abstract-optimizer-bypass.php',
         'CUScanner\\Scanner\\Strategies\\FlyingPressBypass'        => 'includes/scanner/strategies/class-flying-press-bypass.php',
+        'CUScanner\\Scanner\\Strategies\\SgOptimizerBypass'        => 'includes/scanner/strategies/class-sg-optimizer-bypass.php',
+        'CUScanner\\Scanner\\Strategies\\HummingbirdBypass'        => 'includes/scanner/strategies/class-hummingbird-bypass.php',
         'CUScanner\\Scanner\\RestPreflight'       => 'includes/scanner/class-rest-preflight.php',
         'CUScanner\\Admin\\OptimizerStateNotices' => 'includes/admin/class-optimizer-state-notices.php',
     ];
