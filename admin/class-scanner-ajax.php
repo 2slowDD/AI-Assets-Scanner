@@ -225,8 +225,9 @@ class ScannerAjax {
                         'error'          => 'class_c_consent_required',
                         'class_c_active' => array_values( array_map(
                             static fn( $e ) => [
-                                'slug' => (string) ( $e['disable_method'] ?? '' ),
-                                'name' => (string) ( $e['name'] ?? '' ),
+                                'slug'    => (string) ( $e['disable_method'] ?? '' ),
+                                'name'    => (string) ( $e['name'] ?? '' ),
+                                'warning' => (string) ( $e['warning'] ?? '' ),
                             ],
                             $class_c_entries
                         ) ),
