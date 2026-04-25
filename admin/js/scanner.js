@@ -85,6 +85,14 @@
         }
     }
 
+    // Phase 5 — Class C consent modal duration estimator.
+    // Placeholder constant until Settings exposes a `scan_timeout` knob (Phase 6).
+    // Empirical Railway scan time ≈ 30-50 seconds per URL across desktop+mobile passes.
+    const SCAN_TIME_PER_URL_MINUTES = 0.75;
+    function estimateScanMinutes(urlCount) {
+        return Math.max(1, Math.ceil(urlCount * SCAN_TIME_PER_URL_MINUTES));
+    }
+
     // --- Step 1: Plugin detection ---
 
     function detectPlugins() {
