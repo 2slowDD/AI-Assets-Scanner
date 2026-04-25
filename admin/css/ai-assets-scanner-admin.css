@@ -446,3 +446,52 @@
 }
 
 .notice.notice-error { background: #d636383d; }
+
+/* =============================================================
+   Phase 5 — Class C consent dialog (spec §6.1)
+   Native <dialog> element rendered by admin/js/scanner.js when
+   submit_job returns class_c_consent_required.
+   ============================================================= */
+.cu-consent-dialog {
+    max-width: 560px;
+    width: calc(100% - 32px);
+    padding: 20px 24px;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+    background: #fff;
+    color: #1d2327;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.cu-consent-dialog::backdrop {
+    background: rgba(0,0,0,0.45);
+}
+.cu-consent-dialog h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 600;
+}
+.cu-consent-dialog ul.cu-consent-plugins {
+    margin: 8px 0 16px 20px;
+    padding: 0;
+    list-style: disc;
+}
+.cu-consent-dialog ul.cu-consent-plugins li {
+    margin-bottom: 6px;
+}
+.cu-consent-dialog ul {
+    margin-left: 20px;
+}
+.cu-consent-dialog p {
+    margin: 8px 0;
+}
+.cu-consent-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.cu-consent-actions .button {
+    min-width: 90px;
+}
