@@ -28,5 +28,13 @@ class Plugin {
 
         // Admin banner + force-restore handler.
         \CUScanner\Admin\OptimizerStateNotices::init();
+
+        // Class C scan-complete restore: fires when build_result() writes 'complete' to scan history.
+        add_action( 'cu_scanner_scan_complete', static function ( $scan_id ) {
+            $state = \CUScanner\Scanner\OptimizerState::load();
+            if ( ! $state || ( $state['scan_id'] ?? '' ) !== (string) $scan_id ) return;
+            \CUScanner\Scanner\OptimizerBypassOrchestrator::build_default_orchestrator()
+                ->complete( 'normal' );
+        }, 10, 1 );
     }
 }

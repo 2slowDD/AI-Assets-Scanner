@@ -208,6 +208,58 @@ class ScannerAjax {
                 );
             }
 
+            // Class C orchestrator gate (spec §3.5 + §6.1).
+            $class_c_entries = array_filter(
+                $detector_typed,
+                static fn( $e ) => ( $e['class'] ?? '' ) === 'C'
+            );
+
+            if ( ! empty( $class_c_entries ) ) {
+                // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified at top of submit_job via $this->check() / check_ajax_referer().
+                $consent = isset( $_POST['class_c_consent_given'] )
+                    ? sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) )
+                    : '';
+                if ( $consent !== '1' ) {
+                    wp_send_json( [
+                        'ok'             => false,
+                        'error'          => 'class_c_consent_required',
+                        'class_c_active' => array_values( array_map(
+                            static fn( $e ) => [
+                                'slug' => (string) ( $e['disable_method'] ?? '' ),
+                                'name' => (string) ( $e['name'] ?? '' ),
+                            ],
+                            $class_c_entries
+                        ) ),
+                    ] );
+                    return;
+                }
+
+                $strategies = [];
+                foreach ( $class_c_entries as $entry ) {
+                    $method = $entry['disable_method'] ?? '';
+                    if ( $method === '' ) continue;
+                    try {
+                        $strategies[] = \CUScanner\Scanner\StrategyFactory::for_method( $method );
+                    } catch ( \InvalidArgumentException $_ ) {
+                        // Unknown method: silently skip (factory may lag detector additions).
+                    }
+                }
+
+                if ( ! empty( $strategies ) ) {
+                    try {
+                        ( new \CUScanner\Scanner\OptimizerBypassOrchestrator( $strategies ) )
+                            ->begin( $scan_id, 1800 );
+                    } catch ( \RuntimeException $e ) {
+                        wp_send_json( [
+                            'ok'      => false,
+                            'error'   => 'class_c_disable_failed',
+                            'message' => $e->getMessage(),
+                        ] );
+                        return;
+                    }
+                }
+            }
+
             $domain = wp_parse_url( get_home_url(), PHP_URL_HOST );
             ( new ScanHistory() )->create_record( $job_id, $domain, count( $urls_raw ), 'queued' );
 
@@ -374,6 +426,10 @@ class ScannerAjax {
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
         ] );
+
+        // Signal scan completion so the Class C orchestrator can restore plugins (spec §3.5).
+        $scan_id_complete = substr( hash( 'sha256', (string) $job_id ), 0, 16 );
+        do_action( 'cu_scanner_scan_complete', $scan_id_complete );
 
         ( new BypassManager() )->delete_all_tokens();
         delete_transient( 'cu_scanner_job_' . get_current_user_id() );
