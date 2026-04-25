@@ -153,6 +153,14 @@ class ScannerAjax {
 
         $bypass_suffixes = PluginDetector::build_bypass_suffixes( $detector_typed );
 
+        // Force URL scheme to match the current admin request's protocol. Sitemaps
+        // and WP_Query can emit http URLs even on https-served sites (option drift,
+        // CDN/proxy setups, or sitemap generators that hardcode the scheme). On a
+        // 1000-page scan, an http→https redirect on each page costs ~50-100ms × N =
+        // 50-100 seconds of wasted Playwright time. is_ssl() reflects the protocol
+        // the operator is actually using to manage the site; assume reachable.
+        $site_scheme = is_ssl() ? 'https' : 'http';
+
         // Bake every detected bypass key (old auto_bypass + new typed-detector A/A_star)
         // into the URL itself so:
         //   1. The user can see exactly which keys are being applied (UX/verifiability).
@@ -162,8 +170,9 @@ class ScannerAjax {
         // bypass_suffixes are bare flags (or `key=value` for Autoptimize/LiteSpeed) and
         // come from PluginDetector::OPTIMIZERS — static strings, not user input — so
         // direct concatenation is safe.
-        $build_scan_url = static function ( string $u ) use ( $bypass_params, $bypass_suffixes ): string {
-            $with_old = add_query_arg( $bypass_params, sanitize_url( $u ) );
+        $build_scan_url = static function ( string $u ) use ( $bypass_params, $bypass_suffixes, $site_scheme ): string {
+            $sanitized = set_url_scheme( sanitize_url( $u ), $site_scheme );
+            $with_old  = add_query_arg( $bypass_params, $sanitized );
             if ( empty( $bypass_suffixes ) ) {
                 return $with_old;
             }
