@@ -35,6 +35,8 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\BypassHandler'   => 'includes/scanner/class-bypass-handler.php',
         'CUScanner\\Scanner\\Strategies\\AbstractOptimizerBypass' => 'includes/scanner/strategies/abstract-optimizer-bypass.php',
         'CUScanner\\Scanner\\Strategies\\FlyingPressBypass'        => 'includes/scanner/strategies/class-flying-press-bypass.php',
+        'CUScanner\\Scanner\\OptimizerBypassOrchestrator' => 'includes/scanner/class-optimizer-bypass-orchestrator.php',
+        'CUScanner\\Scanner\\StrategyFactory'             => 'includes/scanner/class-strategy-factory.php',
         'CUScanner\\Scanner\\EventEmitter'    => 'includes/scanner/class-event-emitter.php',
         'CUScanner\\Scanner\\CuJsonBuilder'   => 'includes/scanner/class-cu-json-builder.php',
         'CUScanner\\Scanner\\RulePusher'      => 'includes/scanner/class-rule-pusher.php',

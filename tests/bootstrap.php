@@ -37,6 +37,8 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\RulePusher'      => 'includes/scanner/class-rule-pusher.php',
         'CUScanner\\Scanner\\SnapshotManager' => 'includes/scanner/class-snapshot-manager.php',
         'CUScanner\\Scanner\\GroupVersionManager' => 'includes/scanner/class-group-version-manager.php',
+        'CUScanner\\Scanner\\OptimizerBypassOrchestrator' => 'includes/scanner/class-optimizer-bypass-orchestrator.php',
+        'CUScanner\\Scanner\\StrategyFactory'             => 'includes/scanner/class-strategy-factory.php',
         'CUScanner\\Scanner\\EventEmitter'       => 'includes/scanner/class-event-emitter.php',
         'CUScanner\\Scanner\\BypassHandler'      => 'includes/scanner/class-bypass-handler.php',
         'CUScanner\\Scanner\\Strategies\\AbstractOptimizerBypass' => 'includes/scanner/strategies/abstract-optimizer-bypass.php',
