@@ -153,9 +153,48 @@ class ScannerAjax {
 
         $bypass_suffixes = PluginDetector::build_bypass_suffixes( $detector_typed );
 
+        // Bake every detected bypass key (old auto_bypass + new typed-detector A/A_star)
+        // into the URL itself so:
+        //   1. The user can see exactly which keys are being applied (UX/verifiability).
+        //   2. Railway's verifier — which currently does NOT receive bypass_suffixes —
+        //      navigates to the same fully-bypassed URL during Pass 3 + Pass 4.
+        //   3. We don't rely on Railway-side appendQueryParams() for suffix application.
+        // bypass_suffixes are bare flags (or `key=value` for Autoptimize/LiteSpeed) and
+        // come from PluginDetector::OPTIMIZERS — static strings, not user input — so
+        // direct concatenation is safe.
+        $build_scan_url = static function ( string $u ) use ( $bypass_params, $bypass_suffixes ): string {
+            $with_old = add_query_arg( $bypass_params, sanitize_url( $u ) );
+            if ( empty( $bypass_suffixes ) ) {
+                return $with_old;
+            }
+            // Dedupe suffixes against keys already in $with_old's query string so we
+            // don't emit duplicates when both detectors agreed (e.g. nowprocket).
+            $existing_keys = [];
+            $existing_qs   = wp_parse_url( $with_old, PHP_URL_QUERY );
+            if ( is_string( $existing_qs ) && $existing_qs !== '' ) {
+                foreach ( explode( '&', $existing_qs ) as $pair ) {
+                    if ( $pair === '' ) continue;
+                    $eq  = strpos( $pair, '=' );
+                    $key = $eq === false ? $pair : substr( $pair, 0, $eq );
+                    $existing_keys[ $key ] = true;
+                }
+            }
+            $append = [];
+            foreach ( $bypass_suffixes as $s ) {
+                $eq  = strpos( $s, '=' );
+                $key = $eq === false ? $s : substr( $s, 0, $eq );
+                if ( isset( $existing_keys[ $key ] ) ) continue;
+                $existing_keys[ $key ] = true;
+                $append[] = $s;
+            }
+            if ( empty( $append ) ) return $with_old;
+            $sep = ( strpos( $with_old, '?' ) === false ) ? '?' : '&';
+            return $with_old . $sep . implode( '&', $append );
+        };
+
         $pages = array_map(
             fn( $u ) => [
-                'url'             => add_query_arg( $bypass_params, sanitize_url( $u ) ),
+                'url'             => $build_scan_url( $u ),
                 'bypass_token'    => $token,
                 'bypass_suffixes' => $bypass_suffixes,
             ],
