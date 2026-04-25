@@ -11,6 +11,7 @@ use CUScanner\Scanner\PageDiscovery;
 use CUScanner\Scanner\PluginDetector;
 use CUScanner\Scanner\BypassManager;
 use CUScanner\Scanner\CuJsonBuilder;
+use CUScanner\Scanner\EventEmitter;
 use CUScanner\Scanner\RulePusher;
 
 class ScannerAjax {
@@ -137,21 +138,26 @@ class ScannerAjax {
         }
 
         // Detect plugins, build bypass params
-        $detected = ( new PluginDetector() )->detect();
-        $bypass   = new BypassManager();
-        $token    = $bypass->create_token();
+        $detector       = new PluginDetector();
+        $detected       = $detector->detect();
+        $detector_typed = $detector->detect_typed();
+        $bypass         = new BypassManager();
+        $token          = $bypass->create_token();
 
-        $bypass_params = [];
+        $bypass_params   = [];
         foreach ( $detected['auto_bypass'] as $params ) {
             foreach ( $params as $param ) {
                 $bypass_params[ $param ] = '';
             }
         }
 
+        $bypass_suffixes = PluginDetector::build_bypass_suffixes( $detector_typed );
+
         $pages = array_map(
             fn( $u ) => [
-                'url'          => add_query_arg( $bypass_params, sanitize_url( $u ) ),
-                'bypass_token' => $token,
+                'url'             => add_query_arg( $bypass_params, sanitize_url( $u ) ),
+                'bypass_token'    => $token,
+                'bypass_suffixes' => $bypass_suffixes,
             ],
             $urls_raw
         );
@@ -172,6 +178,35 @@ class ScannerAjax {
             $client = new RailwayClient( $railway_url, $api_key );
             $result = $client->submit_job( $payload );
             $job_id = $result['job_id'];
+
+            // Derive a stable scan_id from the Railway job_id (16 hex chars).
+            $scan_id    = substr( hash( 'sha256', (string) $job_id ), 0, 16 );
+            $primary_url = (string) ( $urls_raw[0] ?? '' );
+
+            EventEmitter::emit(
+                'scan_request_received',
+                'operational',
+                [
+                    'scan_id'           => $scan_id,
+                    'path_hash'         => substr( hash( 'sha256', $primary_url ), 0, 16 ),
+                    'optimizers_active' => count( $detector_typed ),
+                ],
+                $scan_id
+            );
+
+            foreach ( $detector_typed as $file => $entry ) {
+                EventEmitter::emit(
+                    'optimizer_detected',
+                    'operational',
+                    [
+                        'plugin'       => PluginDetector::plugin_file_to_enum( $file ),
+                        'class'        => $entry['class'] ?? '',
+                        'bypass_query' => substr( hash( 'sha256', (string) ( $entry['bypass_query'] ?? '' ) ), 0, 16 ),
+                        'scan_id'      => $scan_id,
+                    ],
+                    $scan_id
+                );
+            }
 
             $domain = wp_parse_url( get_home_url(), PHP_URL_HOST );
             ( new ScanHistory() )->create_record( $job_id, $domain, count( $urls_raw ), 'queued' );

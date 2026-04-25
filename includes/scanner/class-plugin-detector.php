@@ -168,6 +168,52 @@ class PluginDetector {
      *
      * @return array<string, array{name:string,class:string,bypass_query:?string,disable_method:?string,warning:?string}>
      */
+    /**
+     * Extract bypass-key suffixes from typed-detector entries.
+     * Only Class A and A_star contribute; B and C return no suffix (B is QS-naive,
+     * C requires plugin-side disable orchestrator).
+     *
+     * @param array<string, array> $typed_entries Output of detect_typed().
+     * @return string[] Bypass keys (bare flag or `key=value`), in detector iteration order.
+     */
+    public static function build_bypass_suffixes( array $typed_entries ): array {
+        $out = [];
+        foreach ( $typed_entries as $entry ) {
+            $class = $entry['class'] ?? null;
+            $key   = $entry['bypass_query'] ?? null;
+            if ( in_array( $class, [ 'A', 'A_star' ], true ) && is_string( $key ) && $key !== '' ) {
+                $out[] = $key;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Map a plugin file path to the optimizer enum used in event fields.
+     *
+     * @param string $file Plugin file path (e.g. 'wp-rocket/wp-rocket.php').
+     * @return string Enum string, or 'unknown' for unmapped paths.
+     */
+    public static function plugin_file_to_enum( string $file ): string {
+        static $map = [
+            'wp-rocket/wp-rocket.php'                    => 'rocket',
+            'perfmatters/perfmatters.php'                => 'perfmatters',
+            'litespeed-cache/litespeed-cache.php'        => 'litespeed',
+            'autoptimize/autoptimize.php'                => 'autoptimize',
+            'nitropack/main.php'                         => 'nitropack',
+            'asset-cleanup/asset-cleanup.php'            => 'asset_cleanup',
+            'wp-fastest-cache/wpFastestCache.php'        => 'wp_fastest_cache',
+            'w3-total-cache/w3-total-cache.php'          => 'w3tc',
+            'breeze/breeze.php'                          => 'breeze',
+            'cache-enabler/cache-enabler.php'            => 'cache_enabler',
+            'swift-performance-lite/performance.php'     => 'swift',
+            'hummingbird-performance/wp-hummingbird.php' => 'hummingbird',
+            'flying-press/flying-press.php'              => 'flying_press',
+            'sg-cachepress/sg-cachepress.php'            => 'sg_optimizer',
+        ];
+        return $map[ $file ] ?? 'unknown';
+    }
+
     public function detect_typed(): array {
         $out = [];
         foreach ( self::OPTIMIZERS as $file => $base ) {
