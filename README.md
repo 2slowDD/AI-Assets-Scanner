@@ -1,8 +1,6 @@
 # AI Assets Scanner
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
-![Claude Code](https://img.shields.io/badge/CLAUDE%20CODE-SKILL-7e57c2?style=for-the-badge)
-![Codex](https://img.shields.io/badge/CODEX-SKILL-000000?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
 ![Version](https://img.shields.io/badge/VERSION-1.2.1-007cba?style=for-the-badge)
 
