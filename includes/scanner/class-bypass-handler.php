@@ -78,10 +78,8 @@ class BypassHandler {
 	// -------------------------------------------------------------------------
 
 	public static function handle_wp_loaded(): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- token-based bypass; nonce architecturally N/A.
-		$raw_token = isset( $_GET['cu_scan_token'] )
-			? sanitize_text_field( wp_unslash( $_GET['cu_scan_token'] ) )
-			: '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- token-based bypass; nonce architecturally N/A (request originates from headless browser, no session).
+		$raw_token = isset( $_GET['cu_scan_token'] ) ? sanitize_text_field( wp_unslash( $_GET['cu_scan_token'] ) ) : '';
 
 		if ( $raw_token === '' ) {
 			return;

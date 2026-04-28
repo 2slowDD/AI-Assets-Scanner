@@ -36,17 +36,16 @@ class OptimizerStateNotices {
             \admin_url( 'admin-post.php?action=' . self::FORCE_RESTORE_ACTION )
         );
 
-        $message = sprintf(
-            /* translators: %s: comma-separated list of optimizer plugin slugs */
-            \esc_html__( 'Scan in progress — %s temporarily paused. Re-enabled automatically when the scan finishes.', 'cu-scanner' ),
-            \esc_html( implode( ', ', $slugs ) )
-        );
-
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- inline sprintf wraps esc_html__() template + esc_html() value; both fragments are escaped before concat. Sniff does not trace into sprintf return.
         printf(
             '<div class="notice notice-warning"><p>%1$s <a href="%2$s">%3$s</a></p></div>',
-            $message,
+            sprintf(
+                /* translators: %s: comma-separated list of optimizer plugin slugs */
+                \esc_html__( 'Scan in progress — %s temporarily paused. Re-enabled automatically when the scan finishes.', 'AI-Assets-Scanner' ),
+                \esc_html( implode( ', ', $slugs ) )
+            ),
             \esc_url( $url ),
-            \esc_html__( 'Force restore now', 'cu-scanner' )
+            \esc_html__( 'Force restore now', 'AI-Assets-Scanner' )
         );
     }
 
