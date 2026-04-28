@@ -79,11 +79,7 @@ class OptimizerBypassOrchestrator {
             }
             OptimizerState::clear();
             // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- composing a new exception message for re-throw, not output. Caller renders via wp_send_json_error or logs server-side.
-            throw new \RuntimeException(
-                'Optimizer disable aborted: ' . $e->getMessage(),
-                0,
-                $e
-            );
+            throw new \RuntimeException( 'Optimizer disable aborted: ' . $e->getMessage(), 0, $e );
         }
 
         OptimizerState::save( $scan_id, $snapshots, $ttl_seconds );
