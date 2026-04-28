@@ -29,10 +29,10 @@
         <?php else : ?>
             <div class="cu-history-actions" style="display:flex;justify-content:flex-end;gap:8px;margin:0 0 12px;">
                 <button type="button" id="cu-history-export" class="button">
-                    <?php esc_html_e( 'Export to ZIP', 'cu-scanner' ); ?>
+                    <?php esc_html_e( 'Export to ZIP', 'AI-Assets-Scanner' ); ?>
                 </button>
                 <button type="button" id="cu-history-delete" class="button button-link-delete">
-                    <?php esc_html_e( 'Delete all history', 'cu-scanner' ); ?>
+                    <?php esc_html_e( 'Delete all history', 'AI-Assets-Scanner' ); ?>
                 </button>
             </div>
             <table class="wp-list-table widefat striped">

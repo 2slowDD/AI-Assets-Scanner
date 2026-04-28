@@ -2,20 +2,25 @@
 /**
  * Plugin Name: AI Assets Scanner
  * Description: AI-powered CSS/JS asset scanner by WPservice.pro.
- * Version:     1.2.0f
+ * Version:     1.2.1
  * Requires PHP: 8.0
  * Requires at least: 6.2
- * Text Domain: cu-scanner
- * License:     Proprietary
+ * Text Domain: AI-Assets-Scanner
+ * License:     Proprietary source-available
  */
 /*
- * Copyright (C) 2026 WPservice.pro. All rights reserved.
- * Modification or redistribution without written permission is prohibited.
+ * Copyright (C) 2026 Ermada / WPservice.pro / Dalibor Druzinec. All rights reserved.
+ *
+ * This plugin is proprietary source-available software. You may copy, install,
+ * and use unmodified copies. You may not modify, fork, sublicense, resell,
+ * rebrand, redistribute modified copies, remove license/API checks, or create
+ * derivative works based on this plugin without explicit written permission
+ * from Ermada / WPservice.pro.
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'CU_SCANNER_VERSION', '1.2.0f' );
+define( 'CU_SCANNER_VERSION', '1.2.1' );
 define( 'CU_SCANNER_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CU_SCANNER_URL', plugin_dir_url( __FILE__ ) );
 define( 'CU_SCANNER_WPSERVICE_BASE', 'https://wpservice.pro' );

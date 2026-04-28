@@ -59,7 +59,7 @@ class AdminPages {
                 'nonce'         => wp_create_nonce( 'cu_scanner_nonce' ),
                 'deleteWarning' => __(
                     "\xE2\x9A\xA0 This will permanently delete all scan history AND all stored scan JSON snapshots. Re-download links will stop working for old scans.\n\nDid you export a backup first?\n\nClick OK to delete everything, or Cancel to abort.",
-                    'cu-scanner'
+                    'AI-Assets-Scanner'
                 ),
             ] );
         }
@@ -79,7 +79,7 @@ class AdminPages {
         <div class="notice notice-success is-dismissible">
             <p><?php
                 // translators: %d = number of deleted records.
-                printf( esc_html__( 'History deleted (%d records).', 'cu-scanner' ), (int) $count );
+                printf( esc_html__( 'History deleted (%d records).', 'AI-Assets-Scanner' ), (int) $count );
             ?></p>
         </div>
         <?php

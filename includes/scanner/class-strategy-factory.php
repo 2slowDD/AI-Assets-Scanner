@@ -14,6 +14,7 @@ class StrategyFactory {
             'flying_press' => new FlyingPressBypass(),
             'sg_optimizer' => new SgOptimizerBypass(),
             'hummingbird'  => new HummingbirdBypass(),
+            // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- exception message thrown for caller to handle (logging or wp_send_json_error), not echoed.
             default => throw new \InvalidArgumentException( "Unknown disable_method: {$method}" ),
         };
     }

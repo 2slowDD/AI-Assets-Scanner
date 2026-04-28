@@ -264,9 +264,7 @@ class ScannerAjax {
 
             if ( ! empty( $class_c_entries ) ) {
                 // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified at top of submit_job via $this->check() / check_ajax_referer().
-                $consent = isset( $_POST['class_c_consent_given'] )
-                    ? sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) )
-                    : '';
+                $consent = isset( $_POST['class_c_consent_given'] ) ? sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) ) : '';
                 if ( $consent !== '1' ) {
                     wp_send_json( [
                         'ok'             => false,
@@ -478,6 +476,7 @@ class ScannerAjax {
 
         // Signal scan completion so the Class C orchestrator can restore plugins (spec §3.5).
         $scan_id_complete = substr( hash( 'sha256', (string) $job_id ), 0, 16 );
+        // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 'cu_scanner_*' is the long-standing internal prefix shared with the wpservice-saas backend and the Railway worker; renaming would break inter-component contracts.
         do_action( 'cu_scanner_scan_complete', $scan_id_complete );
 
         ( new BypassManager() )->delete_all_tokens();
