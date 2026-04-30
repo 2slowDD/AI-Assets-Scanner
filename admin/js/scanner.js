@@ -930,6 +930,28 @@
                     ? ` (${esc(res.data.error_count)} errors — first: ${esc(res.data.error_message)})`
                     : '';
                 el.innerHTML = `<div class="notice notice-success"><p>Rules added to Code Unloader: ${esc(res.data.safe_count)} safe, ${esc(res.data.aggressive_count)} aggressive.${errNote}</p></div>`;
+
+                // Notify any open Code Unloader admin Rules tab in this browser
+                // that rules just changed, so it refreshes its list table + count
+                // without manual reload. CU's assets/js/cu-bus.js is the listener;
+                // both halves use channel name 'code-unloader' and message type
+                // 'cu.rule.changed'. Source 'scanner' lets CU distinguish from
+                // its own admin echoes (admin.js filters those out).
+                try {
+                    const msg = { type: 'cu.rule.changed', source: 'scanner', action: 'bulk-create' };
+                    if (typeof BroadcastChannel !== 'undefined') {
+                        const bc = new BroadcastChannel('code-unloader');
+                        bc.postMessage(msg);
+                        bc.close();
+                    } else {
+                        // Storage-event fallback for older browsers — write-then-
+                        // remove so identical-payload emits still trigger 'storage'
+                        // events in other tabs.
+                        const key = 'cu-bus:code-unloader';
+                        localStorage.setItem(key, JSON.stringify({ t: Date.now(), msg: msg }));
+                        localStorage.removeItem(key);
+                    }
+                } catch (_e) { /* BroadcastChannel/localStorage unavailable — skip silently */ }
             } else {
                 el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
                 btn.disabled = false;
