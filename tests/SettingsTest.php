@@ -69,14 +69,20 @@ class SettingsTest extends TestCase {
             ->with( 'cu_scanner_secret', '' )
             ->once()
             ->andReturn( '' );
-        WP_Mock::userFunction( 'wp_generate_uuid4' )
-            ->once()
-            ->andReturn( 'generated-uuid-1234' );
+        $captured = null;
         WP_Mock::userFunction( 'update_option' )
-            ->with( 'cu_scanner_secret', 'generated-uuid-1234', false )
+            ->with(
+                'cu_scanner_secret',
+                \Mockery::on( function ( $val ) use ( &$captured ) {
+                    $captured = $val;
+                    return is_string( $val ) && 1 === preg_match( '/^[a-f0-9]{32}$/', $val );
+                } ),
+                false
+            )
             ->once();
         $secret = ( new Settings() )->get_scanner_secret();
-        $this->assertSame( 'generated-uuid-1234', $secret );
+        $this->assertSame( $captured, $secret );
+        $this->assertMatchesRegularExpression( '/^[a-f0-9]{32}$/', $secret );
         $this->assertConditionsMet();
     }
 }

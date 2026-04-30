@@ -87,7 +87,9 @@ class Settings {
     public function get_http_auth(): ?array {
         $stored = (string) get_option( 'cu_scanner_http_auth', '' );
         if ( ! $stored ) return null;
-        [ $iv_b64, $encrypted ] = explode( ':', $stored, 2 );
+        $parts = explode( ':', $stored, 2 );
+        if ( count( $parts ) !== 2 ) return null; // corrupted option — fail closed
+        [ $iv_b64, $encrypted ] = $parts;
         $key  = substr( hash( 'sha256', wp_salt( 'auth' ) ), 0, 32 );
         $iv   = base64_decode( $iv_b64 );
         $json = openssl_decrypt( $encrypted, 'AES-256-CBC', $key, 0, $iv );
@@ -101,7 +103,10 @@ class Settings {
     public function get_scanner_secret(): string {
         $secret = (string) get_option( 'cu_scanner_secret', '' );
         if ( ! $secret ) {
-            $secret = wp_generate_uuid4();
+            // 128 bits from CSPRNG (random_bytes) — stronger than wp_generate_uuid4()
+            // which is mt_rand-derived. Stored values from the previous UUID4
+            // generator continue to work; only first-run generation changes.
+            $secret = bin2hex( random_bytes( 16 ) );
             update_option( 'cu_scanner_secret', $secret, false );
         }
         return $secret;
