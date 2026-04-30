@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner;
 
+defined( 'ABSPATH' ) || exit;
+
 class Settings {
     public function get_api_key(): string {
         return (string) get_option( 'cu_scanner_api_key', '' );

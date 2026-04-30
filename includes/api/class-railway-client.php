@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Api;
 
+defined( 'ABSPATH' ) || exit;
+
 class RailwayClient {
     public function __construct(
         private readonly string $railway_url,

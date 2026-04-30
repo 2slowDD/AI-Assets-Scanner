@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Scanner;
 
+defined( 'ABSPATH' ) || exit;
+
 class CuJsonBuilder {
     private const VERSION         = '1.4.1'; // Code Unloader import format version
     private const GROUP_SAFE      = 1;

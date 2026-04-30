@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Scanner;
 
+defined( 'ABSPATH' ) || exit;
+
 class PageDiscovery {
     private array $urls           = [];
     private array $excluded_urls  = [];

@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Scanner;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Pushes CU Scanner rules directly into Code Unloader's database
  * via CodeUnloader\Core\RuleRepository (static API).

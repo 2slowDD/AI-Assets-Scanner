@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Scanner;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Renames and disables existing CU Scanner groups before a new push,
  * creating a versioned history ("CU Scanner — Safe v1", "v2", …).

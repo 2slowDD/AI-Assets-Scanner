@@ -525,7 +525,9 @@ class ScannerAjax {
     public function download_json(): void {
         check_ajax_referer( 'cu_scanner_nonce', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Forbidden' );
-        $job_id = sanitize_text_field( wp_unslash( $_GET['job_id'] ?? '' ) );
+        $raw    = sanitize_text_field( wp_unslash( $_GET['job_id'] ?? '' ) );
+        $job_id = (string) preg_replace( '/[^A-Za-z0-9._-]/', '', $raw );
+        if ( '' === $job_id ) { wp_die( 'Not found' ); }
         $json   = ( new ScanHistory() )->get_json( $job_id );
         if ( ! $json ) { wp_die( 'Not found' ); }
         header( 'Content-Type: application/json' );
