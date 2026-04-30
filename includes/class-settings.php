@@ -76,28 +76,144 @@ class Settings {
         return in_array( $host, self::ALLOWED_RAILWAY_HOSTS, true );
     }
 
+    /**
+     * Storage prefix for the v2 (sodium_crypto_secretbox / XSalsa20-Poly1305 AEAD)
+     * HTTP-auth blob format. Anything stored without this prefix is the legacy
+     * AES-256-CBC blob from <= 1.2.3. On hosts where libsodium is loaded, legacy
+     * blobs get transparently re-encrypted to v2 the first time get_http_auth()
+     * reads them. On hosts without sodium, both encryption and migration fall
+     * back to the legacy AES-256-CBC primitive — same behaviour as 1.2.3, no
+     * regression — but the AEAD upgrade is missed.
+     */
+    private const HTTP_AUTH_V2_PREFIX = 'v2:';
+
     public function set_http_auth( string $username, string $password ): void {
-        $payload   = json_encode( [ 'username' => $username, 'password' => $password ] );
-        $key       = substr( hash( 'sha256', wp_salt( 'auth' ) ), 0, 32 );
-        $iv        = random_bytes( 16 );
-        $encrypted = openssl_encrypt( $payload, 'AES-256-CBC', $key, 0, $iv );
-        update_option( 'cu_scanner_http_auth', base64_encode( $iv ) . ':' . $encrypted );
+        update_option(
+            'cu_scanner_http_auth',
+            self::encrypt_http_auth( array( 'username' => $username, 'password' => $password ) )
+        );
     }
 
     public function get_http_auth(): ?array {
         $stored = (string) get_option( 'cu_scanner_http_auth', '' );
-        if ( ! $stored ) return null;
-        $parts = explode( ':', $stored, 2 );
-        if ( count( $parts ) !== 2 ) return null; // corrupted option — fail closed
-        [ $iv_b64, $encrypted ] = $parts;
-        $key  = substr( hash( 'sha256', wp_salt( 'auth' ) ), 0, 32 );
-        $iv   = base64_decode( $iv_b64 );
-        $json = openssl_decrypt( $encrypted, 'AES-256-CBC', $key, 0, $iv );
-        return $json ? json_decode( $json, true ) : null;
+        if ( '' === $stored ) return null;
+
+        // v2 AEAD format — decrypt with sodium. If sodium isn't available on
+        // this host (rare but possible — e.g. wp-config moved between hosts),
+        // decrypt_http_auth_v2 returns null rather than fataling.
+        if ( str_starts_with( $stored, self::HTTP_AUTH_V2_PREFIX ) ) {
+            return self::decrypt_http_auth_v2( $stored );
+        }
+
+        // Legacy AES-256-CBC blob (<= 1.2.3). Decrypt, then if sodium is
+        // available, transparently re-encrypt with the v2 AEAD format so
+        // subsequent reads use the authenticated path. Migration is
+        // best-effort: if the re-encrypt write fails or sodium is missing,
+        // the call still returns the decoded value.
+        $decoded = self::decrypt_http_auth_legacy( $stored );
+        if ( null !== $decoded && self::sodium_available() ) {
+            update_option( 'cu_scanner_http_auth', self::encrypt_http_auth_v2( $decoded ) );
+        }
+        return $decoded;
     }
 
     public function clear_http_auth(): void {
         delete_option( 'cu_scanner_http_auth' );
+    }
+
+    /**
+     * Pick the strongest encryption primitive available on this host.
+     * Sodium (XSalsa20-Poly1305 AEAD) preferred; falls back to AES-256-CBC
+     * if libsodium is missing.
+     */
+    private static function encrypt_http_auth( array $payload ): string {
+        if ( self::sodium_available() ) {
+            return self::encrypt_http_auth_v2( $payload );
+        }
+        return self::encrypt_http_auth_legacy( $payload );
+    }
+
+    /**
+     * v2 encrypt: XSalsa20-Poly1305 AEAD via libsodium. Authenticated
+     * encryption — ciphertext tampering yields decrypt failure, not silent
+     * plaintext manipulation.
+     *
+     * Output format: "v2:" + base64(nonce) + ":" + base64(ciphertext_with_tag)
+     *
+     * Caller MUST gate on self::sodium_available() — this method assumes it.
+     */
+    private static function encrypt_http_auth_v2( array $payload ): string {
+        $key   = self::derive_http_auth_key_v2();
+        $nonce = random_bytes( \SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
+        $msg   = (string) wp_json_encode( $payload );
+        $ct    = sodium_crypto_secretbox( $msg, $nonce, $key );
+        return self::HTTP_AUTH_V2_PREFIX . base64_encode( $nonce ) . ':' . base64_encode( $ct );
+    }
+
+    private static function decrypt_http_auth_v2( string $stored ): ?array {
+        if ( ! self::sodium_available() ) return null;
+        $body  = substr( $stored, strlen( self::HTTP_AUTH_V2_PREFIX ) );
+        $parts = explode( ':', $body, 2 );
+        if ( 2 !== count( $parts ) ) return null;
+        [ $nonce_b64, $ct_b64 ] = $parts;
+        $nonce = base64_decode( $nonce_b64, true );
+        $ct    = base64_decode( $ct_b64, true );
+        if ( false === $nonce || false === $ct ) return null;
+        if ( \SODIUM_CRYPTO_SECRETBOX_NONCEBYTES !== strlen( $nonce ) ) return null;
+        $key = self::derive_http_auth_key_v2();
+        $msg = sodium_crypto_secretbox_open( $ct, $nonce, $key );
+        if ( false === $msg ) return null; // tampered or wrong key
+        $decoded = json_decode( $msg, true );
+        return is_array( $decoded ) ? $decoded : null;
+    }
+
+    /**
+     * Encrypt with the legacy AES-256-CBC primitive. Used as a fallback when
+     * libsodium is unavailable — same wire format as 1.2.3 so existing tooling
+     * still works. Writers prefer encrypt_http_auth_v2() when possible.
+     */
+    private static function encrypt_http_auth_legacy( array $payload ): string {
+        $msg       = (string) wp_json_encode( $payload );
+        $key       = self::derive_http_auth_key_legacy();
+        $iv        = random_bytes( 16 );
+        $encrypted = openssl_encrypt( $msg, 'AES-256-CBC', $key, 0, $iv );
+        return base64_encode( $iv ) . ':' . $encrypted;
+    }
+
+    /**
+     * Decrypt a legacy AES-256-CBC blob written by Settings <= 1.2.3 (or by
+     * encrypt_http_auth_legacy() above on hosts without libsodium).
+     * Format: base64(iv:16-bytes) + ":" + openssl-aes-256-cbc-base64-ciphertext.
+     */
+    private static function decrypt_http_auth_legacy( string $stored ): ?array {
+        $parts = explode( ':', $stored, 2 );
+        if ( 2 !== count( $parts ) ) return null;
+        [ $iv_b64, $encrypted ] = $parts;
+        $iv = base64_decode( $iv_b64, true );
+        if ( false === $iv || 16 !== strlen( $iv ) ) return null;
+        $key  = self::derive_http_auth_key_legacy();
+        $json = openssl_decrypt( $encrypted, 'AES-256-CBC', $key, 0, $iv );
+        if ( false === $json ) return null;
+        $decoded = json_decode( $json, true );
+        return is_array( $decoded ) ? $decoded : null;
+    }
+
+    private static function derive_http_auth_key_v2(): string {
+        // 32 raw bytes for sodium_crypto_secretbox.
+        return hash( 'sha256', wp_salt( 'auth' ), true );
+    }
+
+    private static function derive_http_auth_key_legacy(): string {
+        // Legacy <= 1.2.3 derivation: 32 hex chars (== 32 ASCII bytes) from
+        // the start of the hex SHA-256 of wp_salt('auth'). Used to decrypt
+        // blobs written before the v2 migration AND on hosts without sodium.
+        return substr( hash( 'sha256', wp_salt( 'auth' ) ), 0, 32 );
+    }
+
+    private static function sodium_available(): bool {
+        return function_exists( 'sodium_crypto_secretbox' )
+            && function_exists( 'sodium_crypto_secretbox_open' )
+            && defined( 'SODIUM_CRYPTO_SECRETBOX_NONCEBYTES' );
     }
 
     public function get_scanner_secret(): string {
