@@ -40,6 +40,7 @@ class SettingsTest extends TestCase {
 
     public function test_set_http_auth_encrypts_before_storing(): void {
         WP_Mock::userFunction( 'wp_salt' )->andReturn( str_repeat( 'x', 64 ) );
+        WP_Mock::userFunction( 'wp_json_encode' )->andReturnUsing( fn( $v, $opts = 0 ) => json_encode( $v, $opts ) );
         WP_Mock::userFunction( 'update_option' )
             ->with( 'cu_scanner_http_auth', \Mockery::type( 'string' ) )
             ->once()
