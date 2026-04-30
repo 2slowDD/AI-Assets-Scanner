@@ -36,7 +36,7 @@ class ScannerAjaxTest extends TestCase {
             ->andReturn( [
                 'job_id'       => 'abc123',
                 'job_token'    => 'tok456',
-                'railway_url'  => 'https://railway.example.com',
+                'railway_url'  => 'https://cu-scanner-railway-production.up.railway.app',
                 'bypass_token' => 'byp789',
             ] );
         WP_Mock::userFunction( 'wp_send_json_success' )
@@ -44,7 +44,7 @@ class ScannerAjaxTest extends TestCase {
             ->with( [
                 'job_id'      => 'abc123',
                 'job_token'   => 'tok456',
-                'railway_url' => 'https://railway.example.com',
+                'railway_url' => 'https://cu-scanner-railway-production.up.railway.app',
             ] );
 
         ( new ScannerAjax() )->check_job();

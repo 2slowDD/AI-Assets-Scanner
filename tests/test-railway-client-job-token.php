@@ -17,7 +17,7 @@ class Test_Railway_Client_Job_Token extends TestCase {
             ];
         }, 10, 3 );
 
-        $client = new RailwayClient( 'https://railway.test', 'cusk_APIKEY_SHOULD_NOT_LEAK' );
+        $client = new RailwayClient( 'https://cu-scanner-railway-production.up.railway.app', 'cusk_APIKEY_SHOULD_NOT_LEAK' );
         $client->submit_job( [
             'job_token' => 'jobtok_abc',
             'pages'     => [ [ 'url' => 'https://example.com' ] ],
@@ -44,7 +44,7 @@ class Test_Railway_Client_Job_Token extends TestCase {
 
     public function test_submit_job_throws_when_job_token_missing() {
         $this->expectException( \RuntimeException::class );
-        $client = new RailwayClient( 'https://railway.test', 'cusk_APIKEY' );
+        $client = new RailwayClient( 'https://cu-scanner-railway-production.up.railway.app', 'cusk_APIKEY' );
         $client->submit_job( [ 'pages' => [] ] );
     }
 }

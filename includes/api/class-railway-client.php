@@ -3,11 +3,20 @@ namespace CUScanner\Api;
 
 defined( 'ABSPATH' ) || exit;
 
+use CUScanner\Settings;
+
 class RailwayClient {
+    /**
+     * @throws \RuntimeException if $railway_url fails the host/scheme allowlist.
+     */
     public function __construct(
         private readonly string $railway_url,
         private readonly string $api_key
-    ) {}
+    ) {
+        if ( ! Settings::is_safe_railway_url( $railway_url ) ) {
+            throw new \RuntimeException( 'Railway URL rejected: not on the host allowlist. Re-save Settings to refresh.' );
+        }
+    }
 
     public function submit_job( array $payload ): array {
         $job_token = isset( $payload['job_token'] ) ? (string) $payload['job_token'] : '';

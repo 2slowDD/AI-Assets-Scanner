@@ -25,18 +25,18 @@ class WpserviceClientTest extends TestCase {
         WP_Mock::userFunction( 'wp_remote_post' )->andReturn( [ 'response' => [ 'code' => 200 ], 'body' => json_encode( [
             'user_id'      => 42,
             'credits'      => 500,
-            'railway_url'  => 'https://railway.example.com',
+            'railway_url'  => 'https://cu-scanner-railway-production.up.railway.app',
         ] ) ] );
         WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
         WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( json_encode( [
-            'user_id' => 42, 'credits' => 500, 'railway_url' => 'https://railway.example.com',
+            'user_id' => 42, 'credits' => 500, 'railway_url' => 'https://cu-scanner-railway-production.up.railway.app',
         ] ) );
         WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
 
         $result = $this->client->authenticate();
         $this->assertSame( 42, $result['user_id'] );
         $this->assertSame( 500, $result['credits'] );
-        $this->assertSame( 'https://railway.example.com', $result['railway_url'] );
+        $this->assertSame( 'https://cu-scanner-railway-production.up.railway.app', $result['railway_url'] );
     }
 
     public function test_authenticate_throws_on_wp_error(): void {

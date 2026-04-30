@@ -12,7 +12,8 @@ class RailwayClientTest extends TestCase {
     public function setUp(): void {
         parent::setUp();
         WP_Mock::setUp();
-        $this->client = new RailwayClient( 'https://railway.example.com', 'api-key-123' );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $url, $component = -1 ) => parse_url( $url, $component ) );
+        $this->client = new RailwayClient( 'https://cu-scanner-railway-production.up.railway.app', 'api-key-123' );
     }
     public function tearDown(): void {
         WP_Mock::tearDown();
@@ -36,7 +37,7 @@ class RailwayClientTest extends TestCase {
 
     public function test_get_status_uses_from_param(): void {
         WP_Mock::userFunction( 'wp_remote_get' )
-            ->with( 'https://railway.example.com/jobs/job-xyz/status?from=5', \Mockery::type( 'array' ) )
+            ->with( 'https://cu-scanner-railway-production.up.railway.app/jobs/job-xyz/status?from=5', \Mockery::type( 'array' ) )
             ->once()
             ->andReturn( [] );
         WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
@@ -61,7 +62,7 @@ class RailwayClientTest extends TestCase {
 
     public function test_cancel_job_posts_to_correct_endpoint(): void {
         WP_Mock::userFunction( 'wp_remote_post' )
-            ->with( 'https://railway.example.com/jobs/job-xyz/cancel', \Mockery::type( 'array' ) )
+            ->with( 'https://cu-scanner-railway-production.up.railway.app/jobs/job-xyz/cancel', \Mockery::type( 'array' ) )
             ->once()
             ->andReturn( [] );
         WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );

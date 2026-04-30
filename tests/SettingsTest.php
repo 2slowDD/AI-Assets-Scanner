@@ -34,8 +34,8 @@ class SettingsTest extends TestCase {
     public function test_get_railway_url_returns_stored_value(): void {
         WP_Mock::userFunction( 'get_option' )
             ->with( 'cu_scanner_railway_url', '' )
-            ->andReturn( 'https://railway.example.com' );
-        $this->assertSame( 'https://railway.example.com', ( new Settings() )->get_railway_url() );
+            ->andReturn( 'https://cu-scanner-railway-production.up.railway.app' );
+        $this->assertSame( 'https://cu-scanner-railway-production.up.railway.app', ( new Settings() )->get_railway_url() );
     }
 
     public function test_set_http_auth_encrypts_before_storing(): void {
