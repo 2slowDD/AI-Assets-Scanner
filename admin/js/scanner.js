@@ -61,9 +61,16 @@
     }
 
     function esc(s) {
-        const d = document.createElement('div');
-        d.textContent = String(s);
-        return d.innerHTML;
+        // Attribute-safe HTML escape: covers &, <, >, ", '. Round-tripping
+        // via textContent → innerHTML only escapes &/</> — the explicit
+        // quote/apostrophe replacements protect attribute-context interpolation
+        // (e.g. `data-x="${esc(val)}"`).
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function showStep(n) {
@@ -408,10 +415,10 @@
             header.className = 'cu-group-header ' + meta.cls;
             header.innerHTML = `
                 <label>
-                    <input type="checkbox" class="cu-group-cb" data-type="${type}" checked>
+                    <input type="checkbox" class="cu-group-cb" data-type="${esc(type)}" checked>
                     ${meta.label} <span class="cu-group-count">${urls.length}</span>
                 </label>
-                <button class="cu-group-toggle-link" data-type="${type}">deselect all ${meta.label.toLowerCase()}</button>
+                <button class="cu-group-toggle-link" data-type="${esc(type)}">deselect all ${meta.label.toLowerCase()}</button>
             `;
             groupDiv.appendChild(header);
 
@@ -424,7 +431,7 @@
                 const isChecked = selectedUrls.includes(url);
                 if (!isChecked) row.classList.add('is-deselected');
                 const badge = type === 'included' ? ' <span class="cu-included-badge">[included]</span>' : '';
-                row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${esc(url)}" data-type="${type}"${isChecked ? ' checked' : ''}>
+                row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${esc(url)}" data-type="${esc(type)}"${isChecked ? ' checked' : ''}>
                     <span class="cu-url-text">${esc(url)}</span>${badge}`;
                 row.style.display = idx < 20 ? '' : 'none';
                 groupDiv.appendChild(row);
