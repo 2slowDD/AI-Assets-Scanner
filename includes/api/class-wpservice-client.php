@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Api;
 
+defined( 'ABSPATH' ) || exit;
+
 class WpserviceClient {
     public function __construct(
         private readonly string $base_url,

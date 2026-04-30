@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner;
 
+defined( 'ABSPATH' ) || exit;
+
 class ScanHistory {
     private const HISTORY_OPTION    = 'cu_scanner_history';
     private const JSON_OPTION_PREFIX = 'cu_scanner_json_';

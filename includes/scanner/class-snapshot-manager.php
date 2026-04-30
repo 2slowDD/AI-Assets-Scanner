@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Scanner;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Snapshots active CU rules before a scanner push, then disables
  * old groups only after new rules are confirmed written.
