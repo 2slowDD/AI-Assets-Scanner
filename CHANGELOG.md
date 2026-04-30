@@ -4,6 +4,21 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.2.2] — 2026-04-30
+
+Cache-bust release. Pairs with Code Unloader 1.4.6's Bug 2 fix.
+
+### Fixed
+
+- **Scanner push did not refresh an open Code Unloader admin Rules tab in the same browser.** The BroadcastChannel emit code was added to `admin/js/scanner.js` in commit `d919945` (1.4.6 Phase 2 in the CU bundle), but `CU_SCANNER_VERSION` stayed at 1.2.1, so browsers continued serving the cached `scanner.js?ver=1.2.1` without the new emit. Bumping `CU_SCANNER_VERSION` 1.2.1 → 1.2.2 forces every browser to re-fetch `scanner.js`. After this bump, pushing rules from Step 4 emits a `cu.rule.changed` BroadcastChannel message; CU's `wireCrossTabSync` listener (since CU 1.4.4) debounces and refreshes the Rules tab in place. Same-browser-same-origin only, with a `localStorage` write/remove fallback for browsers without `BroadcastChannel`.
+
+### Internal
+
+- No code changes in 1.2.2 versus 1.2.1 — the emit code is already in `admin/js/scanner.js` from commit `d919945`. This release only bumps the version constant + plugin-header `Version:` to invalidate the browser cache.
+- Code Unloader plugin stays at 1.4.6; only the Scanner side ships a version bump in this release.
+
+---
+
 ## [1.2.1] — 2026-04-28
 
 ### Changed
