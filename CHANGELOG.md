@@ -4,6 +4,21 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.2.5] — 2026-05-03
+
+Bug fix release. Closes the F-DEG breach in the rule-emission classifier: Phase A demotions emitted by the Railway scanner (which catch console errors when stripping inline-only handles breaks consumer scripts) were being silently dropped on the plugin side, producing safe rules that re-broke production.
+
+### Fixed
+
+- **`CuJsonBuilder::classify()` now reads the per-device `bucket` field emitted by Railway as the authoritative classification signal.** Previous implementation re-derived the bucket from `{loaded, coverage}` and short-circuited on `!loaded` BEFORE checking coverage — this caused Phase-A-rescued inline-only handles (encoded on the wire as `loaded:false, coverage:0.001`) to land in the `absent` per-device bucket → safe rule pushed → consumer breaks. Production repro: `essential-blocks-blocks-localize` on a wpservice.pro home scan was correctly demoted by Railway (`verifier.safe_handle_demoted` event fired with `pattern_tier:always_on_var`, `error_signature:5fed6aefd209`), but the plugin still emitted a Safe rule that triggered `Uncaught ReferenceError: eb_conditional_localize is not defined` once applied. Pairs with the Railway scanner change that adds `bucket` to the wire format.
+- **Bucket value is whitelist-validated.** Only `'absent' | 'aggressive' | 'needed'` are trusted. Unknown / missing values fall through to the legacy `{loaded, coverage}` derivation as a defense-in-depth safety net (same behavior as pre-1.2.5, so older Railway versions that don't yet emit `bucket` continue to work).
+
+### Internal
+
+- 6 new PHPUnit cases in `tests/CuJsonBuilderTest.php` covering the bucket-passthrough contract: Phase-A-rescued handle does NOT emit a safe rule; Phase-B-rescued aggressive offender does NOT emit any rule; aggressive bucket passes through; absent-on-both-devices still emits Safe (existing behavior preserved); unknown bucket value falls back to legacy; missing bucket field falls back to legacy. 19/19 CuJsonBuilder tests green.
+
+---
+
 ## [1.2.4] — 2026-04-30
 
 Security release. Replaces the AES-256-CBC HTTP-auth blob encryption with `sodium_crypto_secretbox` (XSalsa20-Poly1305 AEAD). Existing stored credentials remain valid and migrate transparently on first read.
