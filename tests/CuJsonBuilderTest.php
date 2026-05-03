@@ -154,4 +154,113 @@ class CuJsonBuilderTest extends TestCase {
         $output = ( new CuJsonBuilder() )->build( $pages );
         $this->assertSame( 'js', $output['rules'][0]['asset_type'] );
     }
+
+    /**
+     * Build an asset whose per-device payload includes the bucket field —
+     * the new authoritative classification signal emitted by Railway scanner.
+     */
+    private function make_asset_with_bucket( string $handle, string $type, bool $loaded_desktop, float $cov_desktop, string $bucket_desktop, bool $loaded_mobile, float $cov_mobile, string $bucket_mobile ): array {
+        return [
+            'handle'  => $handle,
+            'type'    => $type,
+            'desktop' => [ 'loaded' => $loaded_desktop, 'coverage' => $cov_desktop, 'bucket' => $bucket_desktop ],
+            'mobile'  => [ 'loaded' => $loaded_mobile,  'coverage' => $cov_mobile,  'bucket' => $bucket_mobile  ],
+        ];
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // 2026-05-03 — Bucket field is authoritative classification signal
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function test_bucket_field_overrides_legacy_loaded_check_for_phase_a_demoted_asset(): void {
+        // Repro: essential-blocks-blocks-localize on wpservice.pro home.
+        // Phase A on Railway demotes inline-only handle (catches console error
+        // when stripping breaks consumer); wire format encodes RESCUED_SENTINEL
+        // as coverage:0.001. Without bucket-passthrough, classifier short-
+        // circuits on !loaded → 'absent' → safe rule emitted → consumer breaks.
+        // With bucket field, 'needed' wins regardless of loaded.
+        $pages = [ $this->make_page( 'https://site.com/home/', [
+            $this->make_asset_with_bucket(
+                'essential-blocks-blocks-localize', 'script',
+                false, 0.001, 'needed',   // desktop: !loaded but rescued
+                false, 0.001, 'needed'    // mobile:  !loaded but rescued
+            ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertCount( 0, $output['rules'], 'Phase A-demoted handle must NOT produce a safe rule' );
+    }
+
+    public function test_bucket_field_overrides_legacy_coverage_zero_for_phase_b_demoted_asset(): void {
+        // Phase B demotion of an aggressive offender (e.g. verge): coverage
+        // was 0, verifier confirmed stripping breaks consumer. Wire format
+        // encodes as coverage:0.001 + bucket:'needed'.
+        $pages = [ $this->make_page( 'https://site.com/home/', [
+            $this->make_asset_with_bucket(
+                'verge', 'script',
+                true, 0.001, 'needed',   // desktop: loaded, rescued
+                true, 0.001, 'needed'    // mobile:  loaded, rescued
+            ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertCount( 0, $output['rules'], 'Phase B-demoted aggressive offender must NOT produce any rule' );
+    }
+
+    public function test_bucket_field_passes_through_aggressive_to_emit_aggressive_rule(): void {
+        $pages = [ $this->make_page( 'https://site.com/home/', [
+            $this->make_asset_with_bucket(
+                'agg-handle', 'script',
+                true, 0.0, 'aggressive',
+                true, 0.0, 'aggressive'
+            ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertCount( 1, $output['rules'] );
+        $this->assertSame( 2, $output['rules'][0]['group_id'] );
+        $this->assertSame( 'all', $output['rules'][0]['device_type'] );
+    }
+
+    public function test_bucket_field_passes_through_absent_both_devices_to_emit_safe_rule(): void {
+        // Inline-only handle that was NOT demoted (no Phase A trigger) — both
+        // devices !loaded, no rescue. Bucket is 'absent' on both. Combined
+        // result: safe rule (existing behavior).
+        $pages = [ $this->make_page( 'https://site.com/home/', [
+            $this->make_asset_with_bucket(
+                'clean-inline', 'script',
+                false, 0.0, 'absent',
+                false, 0.0, 'absent'
+            ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertCount( 1, $output['rules'] );
+        $this->assertSame( 1, $output['rules'][0]['group_id'] ); // Safe
+    }
+
+    public function test_unknown_bucket_value_falls_back_to_legacy_loaded_check(): void {
+        // Defense-in-depth: if a future Railway version sends an unknown bucket
+        // value (typo, new enum we don't recognize, tampering), we should NOT
+        // trust it. Fall back to legacy {loaded, coverage} derivation.
+        $pages = [ $this->make_page( 'https://site.com/home/', [
+            $this->make_asset_with_bucket(
+                'mystery-handle', 'script',
+                true, 0.0, 'definitely-not-a-real-bucket-value',
+                true, 0.0, 'definitely-not-a-real-bucket-value'
+            ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        // Legacy path: loaded=true, coverage=0 → aggressive on both → aggressive rule.
+        $this->assertCount( 1, $output['rules'] );
+        $this->assertSame( 2, $output['rules'][0]['group_id'] );
+    }
+
+    public function test_missing_bucket_field_falls_back_to_legacy_loaded_check(): void {
+        // Older Railway versions (pre-bucket-emission) won't have the field.
+        // make_asset() (without _with_bucket) emits payload without bucket.
+        // Verify legacy fallback still produces correct rules for that case.
+        $pages = [ $this->make_page( 'https://site.com/home/', [
+            $this->make_asset( 'old-format-handle', 'script', true, 0.0, true, 0.0 ),
+        ] ) ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertCount( 1, $output['rules'] );
+        $this->assertSame( 2, $output['rules'][0]['group_id'] ); // aggressive,aggressive → all,aggressive
+    }
 }

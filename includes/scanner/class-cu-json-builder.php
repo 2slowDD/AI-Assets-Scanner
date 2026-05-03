@@ -37,14 +37,43 @@ class CuJsonBuilder {
      * Returns 'absent' (loaded=false), 'aggressive' (loaded with zero coverage),
      * or 'needed' (loaded with positive coverage).
      *
+     * AUTHORITATIVE source is `$device_data['bucket']` — emitted by Railway
+     * scanner's rebuildFinalAsset() using the raw-coverage classifier
+     * (RESCUED_SENTINEL aware). Reading bucket directly avoids re-deriving
+     * from {loaded, coverage}, which loses the verifier's rescue signal once
+     * coverage is wire-encoded as 0.001.
+     *
+     * Validation: bucket must be one of the three known values. Anything else
+     * (missing field from older Railway versions, tampered payload, future
+     * unknown enum value) falls through to the legacy {loaded, coverage}
+     * derivation as a safety net. The legacy path has the original
+     * F-DEG-blind bug — it cannot recognize a rescued !loaded asset — so the
+     * fallback should only fire on truly malformed input. Treat as
+     * defense-in-depth, not the primary code path.
+     *
      * 2026-04-25 fix: 'absent' replaces the previous 'safe' classification.
      * Playwright's CSS coverage can miss late-injected stylesheets on the cold
      * (desktop-first) pass, returning loaded=false for assets that ARE on the
      * page. Treating !loaded as 'safe' caused false-positive Safe rules whose
      * push broke real rendering. Asymmetric 'absent' (one device only) is now
      * dropped in combine(); only dual-device confirmation produces a Safe rule.
+     *
+     * 2026-05-03 fix: Phase A demotion of inline-only handles produced
+     * !loaded + coverage:0.001 (RESCUED_SENTINEL encoded). Legacy path
+     * short-circuited on !loaded → 'absent' → safe rule emitted, breaking
+     * eb_conditional_localize on production. Bucket field is now the
+     * authoritative classification signal; legacy is fallback only.
      */
     private function classify( array $device_data ): string {
+        // Validate the bucket field is one of the recognized enum values
+        // before trusting it. Untrusted input rule applies even when the
+        // sender is our own Railway scanner — defense in depth.
+        $bucket = $device_data['bucket'] ?? null;
+        if ( in_array( $bucket, [ 'absent', 'aggressive', 'needed' ], true ) ) {
+            return $bucket;
+        }
+        // Legacy fallback — see jsdoc above. F-DEG-blind for !loaded rescued
+        // assets; should not fire in current production.
         if ( ! $device_data['loaded'] ) return 'absent';
         if ( $device_data['coverage'] <= 0.0 ) return 'aggressive';
         return 'needed';
