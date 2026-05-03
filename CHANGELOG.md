@@ -10,7 +10,7 @@ Bug fix release. Closes the F-DEG breach in the rule-emission classifier: Phase 
 
 ### Fixed
 
-- **`CuJsonBuilder::classify()` now reads the per-device `bucket` field emitted by Railway as the authoritative classification signal.** Previous implementation re-derived the bucket from `{loaded, coverage}` and short-circuited on `!loaded` BEFORE checking coverage — this caused Phase-A-rescued inline-only handles (encoded on the wire as `loaded:false, coverage:0.001`) to land in the `absent` per-device bucket → safe rule pushed → consumer breaks. Production repro: `essential-blocks-blocks-localize` on a wpservice.pro home scan was correctly demoted by Railway (`verifier.safe_handle_demoted` event fired with `pattern_tier:always_on_var`, `error_signature:5fed6aefd209`), but the plugin still emitted a Safe rule that triggered `Uncaught ReferenceError: eb_conditional_localize is not defined` once applied. Pairs with the Railway scanner change that adds `bucket` to the wire format.
+- **`CuJsonBuilder::classify()` now reads the per-device `bucket` field emitted by Railway as the authoritative classification signal.** 
 - **Bucket value is whitelist-validated.** Only `'absent' | 'aggressive' | 'needed'` are trusted. Unknown / missing values fall through to the legacy `{loaded, coverage}` derivation as a defense-in-depth safety net (same behavior as pre-1.2.5, so older Railway versions that don't yet emit `bucket` continue to work).
 
 ### Internal
@@ -52,7 +52,7 @@ Security release. Bundles four hardening items from a D-security audit pass plus
 - **9 namespaced class files now ship `defined( 'ABSPATH' ) || exit;`** (Plugin Check Rule 21). Includes both API clients (`class-railway-client.php`, `class-wpservice-client.php`), `class-settings.php`, `class-scan-history.php`, and the five `includes/scanner/class-*.php` files that previously relied on the autoloader for direct-access protection.
 - **`download_json` Content-Disposition filename now whitelists `[A-Za-z0-9._-]`.** `sanitize_text_field` strips CR/LF (no header injection) but did not strip `"` — an admin-authenticated request could break the quoted filename. Mirrors the defensive pattern already used in `build_zip()`.
 - **New `uninstall.php`.** Removes every `cu_scanner_*` option (plaintext API key, encrypted HTTP-auth blob, scanner secret, active bypass tokens, scan history, per-job snapshots) plus plugin-prefixed transients. Guarded by `WP_UNINSTALL_PLUGIN` + `delete_plugins` capability + `esc_like` on `LIKE` patterns.
-- **Railway URL host allowlist.** `Settings::ALLOWED_RAILWAY_HOSTS` pins the allowed hostnames (currently single entry: `cu-scanner-railway-production.up.railway.app`). Validation runs at both store-time and on every `RailwayClient` constructor call. Defends against a compromised wpservice.pro auth response pointing every install at an attacker-controlled host. Stale stored URLs from before this release will reject with a clear error directing the admin to re-save Settings, which re-fetches the current `railway_url` from `/cu-scanner/v1/auth`.
+- **Railway URL host allowlist.** 
 
 ---
 
@@ -89,7 +89,7 @@ Cache-bust release. Pairs with Code Unloader 1.4.6's Bug 2 fix.
 
 - **`WordPress.Security.EscapeOutput.ExceptionNotEscaped`** in `includes/scanner/class-optimizer-bypass-orchestrator.php` (lines 82, 84) and `includes/scanner/class-strategy-factory.php` (line 17) — exception messages composed for `throw`, never echoed; sniff does not trace `throw` boundaries.
 - **`WordPress.Security.NonceVerification.Recommended` / `.Missing`** in `includes/scanner/class-bypass-handler.php` and `admin/class-scanner-ajax.php` — read sites collapsed onto one line so the existing `phpcs:ignore` directives cover the line where the sniff actually fires (per skill Rule 20 placement playbook).
-- **`WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound`** for `cu_scanner_scan_complete` and **`NonPrefixedFunctionFound`** for `cu_fields_hash` / `cu_fields_hash_deep_ksort` — names match the long-standing `cu_*` / `cu_scanner_*` internal prefix used across the CUScanner namespace, the wpservice-saas backend, and the Railway worker; renaming would break inter-component contracts.
+- **`WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound`** for `cu_scanner_scan_complete` and **`NonPrefixedFunctionFound`** .
 
 ---
 
@@ -128,7 +128,7 @@ Both handlers gate on `cu_scanner_nonce` + `manage_options`. New AJAX actions: `
 
 ### BREAKING — mandatory update
 
-This version is required to keep working with wpservice.pro after the 2026-04-20 service deployment. Older plugin versions (1.1.5 and below) will see all scans fail with **401 Unauthorized** from the Railway scanner service — the scanner now requires a scoped, short-lived `job_token` per submission instead of the account `api_key`.
+Older plugin versions (1.1.5 and below) will see all scans fail with **401 Unauthorized** from the Railway scanner service — the scanner now requires a scoped, short-lived `job_token` per submission instead of the account `api_key`.
 
 **If you are on 1.1.5 or earlier, update immediately.**
 
@@ -139,7 +139,7 @@ This version is required to keep working with wpservice.pro after the 2026-04-20
 
 ### Why this matters (security context)
 
-The scanner runtime previously held each active customer's account `api_key` in memory during a scan. A hypothetical compromise of that runtime would have exposed every in-flight key. With the 2026-04-20 service deployment the account `api_key` never leaves wpservice.pro / your plugin — the scanner runtime only ever sees per-scan `job_tokens`, which expire in 24 h and are scoped to a single job. This is a significant reduction in blast radius on the service side.
+The scanner runtime previously held each active customer's account `api_key` in memory during a scan. A hypothetical compromise of that runtime would have exposed every in-flight key. With the 2026-04-20 service deployment the account `api_key` never leaves your plugin — the scanner runtime only ever sees per-scan `job_tokens`, which expire in 24 h and are scoped to a single job. This is a significant reduction in blast radius on the service side.
 
 ---
 
@@ -272,7 +272,7 @@ The scanner runtime previously held each active customer's account `api_key` in 
 ### Bug fixes
 
 - **Railway payload format** — `submit_job()` now sends `pages` as an array of `{url, bypass_token}` objects instead of a flat `urls` string array, matching what the Railway worker expects.
-- **Railway base URL** — Plugin was sending `https://wpservice.pro/wp-json` as the `wpservice_url` field; Railway then appended `/wp-json/...` creating a double path. Added `CU_SCANNER_WPSERVICE_BASE` constant (bare `https://wpservice.pro`) used exclusively for the Railway callback field.
+- **Railway base URL** — Plugin was sending `https://***/wp-json` as the `url` field; Railway then appended `/wp-json/...` creating a double path. Added `CU_SCANNER_WPSERVICE_BASE` constant (bare `https://***`) used exclusively for the Railway callback field.
 - **Credits lost on job submission failure** — When `submit_job()` failed before writing job state, `handle_failure()` had no transient to read so it exited early without releasing reserved credits. `handle_failure()` now falls back to the `cu_scanner_pending_token_` transient as a safety net.
 - **Credits lost on PHP fatal** — Added `release_credits()` call directly in the `submit_job()` catch block so credits are always released if the submission throws before the job store is written.
 - **Uncaught fetch rejections** — Added `.catch()` handlers to the `reserve_job` and `submit_job` fetch chains in `scanner.js` so network failures trigger the failure flow instead of an unhandled promise rejection.
@@ -306,7 +306,7 @@ The scanner runtime previously held each active customer's account `api_key` in 
 
 ### New features
 
-- **Domain locking (client side)** — `WpserviceClient` now computes the site's hostname via `wp_parse_url(get_home_url(), PHP_URL_HOST)` and sends it as `domain` on every request to wpservice.pro (`/auth`, `/jobs/reserve`, `/credits`, `/credits/release`). No call sites change — domain extraction is centralised in a private `domain()` helper.
+- **Domain locking (client side)** — `WpserviceClient` now computes the site's hostname via `wp_parse_url(get_home_url(), PHP_URL_HOST)` and sends it as `domain` on every request to wpservice (`/auth`, `/jobs/reserve`, `/credits`, `/credits/release`). No call sites change — domain extraction is centralised in a private `domain()` helper.
 
 ### Other
 
@@ -348,7 +348,7 @@ The scanner runtime previously held each active customer's account `api_key` in 
 ### Initial release
 
 - Plugin scaffold with autoloader and WordPress hooks
-- wpservice.pro API client (authentication, credit balance, job reservation)
+- wpservice API client (authentication, credit balance, job reservation)
 - Railway API client (job submission, status polling, cancellation)
 - Settings page — API key, HTTP Basic Auth (stored encrypted), credit balance
 - Page discovery — sitemap parser with WP_Query fallback
