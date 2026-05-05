@@ -487,19 +487,33 @@ class ScannerAjax {
         delete_transient( 'cu_scanner_job_' . get_current_user_id() );
 
         // Compute pages_blocked + blocked_reasons from Railway status for Subsystem D-4 banner.
-        // pages_blocked.desktop/mobile = count of pages whose status indicates a bot-block.
-        // blocked_reasons = aggregated reason-key → count map across all blocked pages.
-        // Task 13 will wire the SaaS-persisted equivalents; for now derive from Railway status.
+        // Railway per-page shape (Task 8 / Subsystem D-1):
+        //   { url, status, assets, broken_devices?: [{device, is_broken, reason, http_status, body_bytes}] }
+        // broken_devices is an ARRAY inside the page object — NOT top-level 'device'/'blocked_reason' fields.
+        // Each entry represents one device (desktop or mobile) that was blocked.
         $pages_blocked  = [ 'desktop' => 0, 'mobile' => 0 ];
         $blocked_reasons = [];
+        $seen_blocked   = [ 'desktop' => [], 'mobile' => [] ]; // track per-device to count each page once
         foreach ( $pages_raw as $page ) {
-            $device = (string) ( $page['device'] ?? '' );
-            $reason = (string) ( $page['blocked_reason'] ?? '' );
-            if ( $reason !== '' ) {
+            $broken_devices = is_array( $page['broken_devices'] ?? null ) ? $page['broken_devices'] : [];
+            foreach ( $broken_devices as $bd ) {
+                $device = (string) ( $bd['device'] ?? '' );
+                $reason = (string) ( $bd['reason'] ?? '' );
+                if ( $reason === '' ) {
+                    continue;
+                }
+                // Count each device blocked once per page (broken_devices can have at most one desktop + one mobile entry).
+                $page_url = (string) ( $page['url'] ?? '' );
                 if ( $device === 'mobile' ) {
-                    $pages_blocked['mobile']++;
-                } else {
-                    $pages_blocked['desktop']++;
+                    if ( ! isset( $seen_blocked['mobile'][ $page_url ] ) ) {
+                        $pages_blocked['mobile']++;
+                        $seen_blocked['mobile'][ $page_url ] = true;
+                    }
+                } elseif ( $device === 'desktop' ) {
+                    if ( ! isset( $seen_blocked['desktop'][ $page_url ] ) ) {
+                        $pages_blocked['desktop']++;
+                        $seen_blocked['desktop'][ $page_url ] = true;
+                    }
                 }
                 $blocked_reasons[ $reason ] = ( $blocked_reasons[ $reason ] ?? 0 ) + 1;
             }
