@@ -126,10 +126,11 @@ class ScannerAjax {
     }
 
     public function submit_job(): void {
+        $this->check();
         // Wipe all prior banner dismissals — each new scan gets a fresh slate.
+        // After $this->check() so the state-change is gated by nonce + capability per WP Compliance Rules 4/11.
         AIAS_Broken_Banner::on_submit_job();
 
-        $this->check();
         $settings    = $this->settings();
         $railway_url = $settings->get_railway_url();
         $api_key     = $settings->get_api_key();
