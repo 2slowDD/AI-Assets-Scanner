@@ -153,6 +153,7 @@
 
     <!-- Step 4: Output -->
     <div id="step-4" class="cu-step cu-body" style="display:none">
+        <div id="cu-banner-area"></div>
         <p id="cu-result-summary"></p>
         <div style="display:flex; gap:16px; margin-top:16px">
             <a id="cu-btn-download" class="button button-primary" href="#">Download CU Import File</a>

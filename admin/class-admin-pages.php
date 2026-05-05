@@ -38,6 +38,10 @@ class AdminPages {
                 'nonce'   => wp_create_nonce( 'cu_scanner_nonce' ),
                 'siteUrl' => get_home_url(),
             ] );
+            // Subsystem D-4: nonce for AJAX banner-dismiss endpoint.
+            wp_localize_script( 'cu-scanner-scanner', 'aiasBannerL10n', [
+                'nonce' => wp_create_nonce( 'aias_dismiss_banner' ),
+            ] );
         }
         if ( $hook === 'ai-assets-scanner_page_cu-scanner-settings' ) {
             wp_enqueue_script( 'cu-scanner-settings', CU_SCANNER_URL . 'admin/js/settings.js', [], CU_SCANNER_VERSION, true );
