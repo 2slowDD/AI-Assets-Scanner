@@ -58,6 +58,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\Strategies\\HummingbirdBypass'        => 'includes/scanner/strategies/class-hummingbird-bypass.php',
         'CUScanner\\Scanner\\RestPreflight'       => 'includes/scanner/class-rest-preflight.php',
         'CUScanner\\Admin\\OptimizerStateNotices' => 'includes/admin/class-optimizer-state-notices.php',
+        'AIAS_Broken_Banner'                     => 'includes/class-broken-banner.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require CU_SCANNER_DIR . $map[ $class ];

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AI Assets Scanner
  * Description: AI-powered CSS/JS asset scanner by WPservice.pro.
- * Version:     1.2.5
+ * Version:     1.2.6
  * Requires PHP: 8.0
  * Requires at least: 6.2
  * Text Domain: AI-Assets-Scanner
@@ -20,7 +20,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'CU_SCANNER_VERSION', '1.2.5' );
+define( 'CU_SCANNER_VERSION', '1.2.6' );
 define( 'CU_SCANNER_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CU_SCANNER_URL', plugin_dir_url( __FILE__ ) );
 define( 'CU_SCANNER_WPSERVICE_BASE', 'https://wpservice.pro' );
@@ -54,6 +54,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Admin\\ScannerAjax'       => 'admin/class-scanner-ajax.php',
         'CUScanner\\Scanner\\RestPreflight'       => 'includes/scanner/class-rest-preflight.php',
         'CUScanner\\Admin\\OptimizerStateNotices' => 'includes/admin/class-optimizer-state-notices.php',
+        'AIAS_Broken_Banner'                     => 'includes/class-broken-banner.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require CU_SCANNER_DIR . $map[ $class ];

@@ -871,18 +871,25 @@
             .then(res => {
                 if (!res.success) { alert('Error building result: ' + res.data); return; }
                 const d = res.data;
-                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly );
+                const bannerData = {
+                    scan_id:         d.scan_id          || '',
+                    pages_blocked:   d.pages_blocked    || { desktop: 0, mobile: 0 },
+                    blocked_reasons: d.blocked_reasons  || {},
+                    total_pages:     d.total_pages      || 0,
+                };
+                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData );
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
                     job_id:        scanJobId,
                     safe_count:    d.safe_count,
                     agg_count:     d.aggressive_count,
                     can_push:      d.can_push,
                     external_only: externalOnly,
+                    // banner data not persisted \u2014 shown once per live build_result call only.
                 }) );
             });
     }
 
-    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly ) {
+    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData ) {
         document.getElementById('cu-result-summary').textContent =
             `Scan complete. ${safeCount} safe rules, ${aggCount} aggressive rules generated.`;
         const dlBtn = document.getElementById('cu-btn-download');
@@ -897,8 +904,79 @@
         } else if (canPush) {
             pushBtn.style.display = '';
         }
+
+        // Subsystem D-4: render broken-banner if pages were blocked.
+        renderBrokenBanner( bannerData || {} );
+
         showStep(4);
     }
+
+    /**
+     * Renders a dismissable warning banner in #cu-banner-area when any pages
+     * were blocked during the scan. Noop when bannerData is absent/zeroed.
+     *
+     * @param {{ scan_id?: string, pages_blocked?: {desktop:number,mobile:number},
+     *            blocked_reasons?: Object<string,number>, total_pages?: number }} bd
+     */
+    function renderBrokenBanner( bd ) {
+        const area = document.getElementById('cu-banner-area');
+        if ( !area ) return;
+        area.innerHTML = '';
+
+        const blockedD = (bd.pages_blocked && bd.pages_blocked.desktop) || 0;
+        const blockedM = (bd.pages_blocked && bd.pages_blocked.mobile)  || 0;
+        if ( blockedD + blockedM === 0 ) return;
+
+        const scanId     = bd.scan_id    || '';
+        const total      = bd.total_pages || 0;
+        const reasons    = bd.blocked_reasons || {};
+
+        // Build copy.
+        const bits = [];
+        if ( blockedD > 0 ) bits.push( 'Desktop scanner blocked on ' + blockedD + ' of ' + total + ' pages.' );
+        if ( blockedM > 0 ) bits.push( 'Mobile scanner blocked on '  + blockedM + ' of ' + total + ' pages.' );
+
+        const phraseMap = {
+            tier2_cf_challenge:       'Cloudflare challenge',
+            tier2_akamai_challenge:   'Akamai Bot Manager',
+            tier2_imperva_challenge:  'Imperva WAF',
+            tier2_rocket_loader_stub: 'Cloudflare Rocket-Loader stub',
+            tier2_small_body:         'asymmetric stub response',
+            tier1_zero_bytes:         'empty response',
+            tier1_http_4xx:           'site denial (4xx)',
+            tier1_http_5xx:           'site error (5xx)',
+            tier1_http_rate_limit:    'rate limit (429)',
+            tier1_transport_error:    'unreachable',
+        };
+        const phrases = [...new Set( Object.keys(reasons).map( k => phraseMap[k] || k ) )];
+        const reasonClause = phrases.length ? ' (' + phrases.map(esc).join(', ') + ')' : '';
+        const action = 'Your bot protection denied the scanner. The mobile rules are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.';
+
+        const copy = bits.map(esc).join(' ') + reasonClause + ' ' + esc(action);
+
+        area.innerHTML =
+            '<div class="notice notice-warning aias-broken-banner" data-scan-id="' + esc(scanId) + '">' +
+            '<p><strong>\u26a0 Some pages couldn\'t be fully scanned</strong></p>' +
+            '<p>' + copy + '</p>' +
+            '<p><button type="button" class="button aias-dismiss-banner">Got it \u2014 don\'t show again for this scan</button></p>' +
+            '</div>';
+    }
+
+    // Dismiss banner via AJAX (event delegation \u2014 banner is injected dynamically).
+    document.getElementById('cu-scanner-app').addEventListener('click', function(e) {
+        if ( !e.target.classList.contains('aias-dismiss-banner') ) return;
+        const banner = e.target.closest('.aias-broken-banner');
+        if ( !banner ) return;
+        const scanId = banner.dataset.scanId || '';
+        const nonceBanner = (typeof aiasBannerL10n !== 'undefined') ? aiasBannerL10n.nonce : '';
+        jQuery.post( ajax, {
+            action:       'aias_dismiss_banner',
+            scan_id:      scanId,
+            _ajax_nonce:  nonceBanner,
+        }, function() {
+            banner.style.display = 'none';
+        } );
+    });
 
     // --- Cancel ---
 

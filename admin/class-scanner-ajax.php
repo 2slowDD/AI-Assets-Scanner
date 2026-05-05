@@ -126,6 +126,9 @@ class ScannerAjax {
     }
 
     public function submit_job(): void {
+        // Wipe all prior banner dismissals — each new scan gets a fresh slate.
+        AIAS_Broken_Banner::on_submit_job();
+
         $this->check();
         $settings    = $this->settings();
         $railway_url = $settings->get_railway_url();
@@ -482,10 +485,33 @@ class ScannerAjax {
         ( new BypassManager() )->delete_all_tokens();
         delete_transient( 'cu_scanner_job_' . get_current_user_id() );
 
+        // Compute pages_blocked + blocked_reasons from Railway status for Subsystem D-4 banner.
+        // pages_blocked.desktop/mobile = count of pages whose status indicates a bot-block.
+        // blocked_reasons = aggregated reason-key → count map across all blocked pages.
+        // Task 13 will wire the SaaS-persisted equivalents; for now derive from Railway status.
+        $pages_blocked  = [ 'desktop' => 0, 'mobile' => 0 ];
+        $blocked_reasons = [];
+        foreach ( $pages_raw as $page ) {
+            $device = (string) ( $page['device'] ?? '' );
+            $reason = (string) ( $page['blocked_reason'] ?? '' );
+            if ( $reason !== '' ) {
+                if ( $device === 'mobile' ) {
+                    $pages_blocked['mobile']++;
+                } else {
+                    $pages_blocked['desktop']++;
+                }
+                $blocked_reasons[ $reason ] = ( $blocked_reasons[ $reason ] ?? 0 ) + 1;
+            }
+        }
+
         wp_send_json_success( [
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
             'can_push'         => ( new RulePusher() )->can_push(),
+            'scan_id'          => $scan_id_complete,
+            'pages_blocked'    => $pages_blocked,
+            'blocked_reasons'  => $blocked_reasons,
+            'total_pages'      => count( $pages_raw ),
         ] );
     }
 
