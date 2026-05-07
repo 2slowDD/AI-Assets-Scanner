@@ -24,6 +24,7 @@ class ScannerAjax {
             'cu_scanner_poll_status',
             'cu_scanner_cancel_job',
             'cu_scanner_handle_failure',
+            'cu_scanner_handle_killed',
             'cu_scanner_build_result',
             'cu_scanner_download_json',
             'cu_scanner_push_to_cu',
@@ -529,6 +530,39 @@ class ScannerAjax {
             'blocked_reasons'  => $blocked_reasons,
             'total_pages'      => count( $pages_raw ),
         ] );
+    }
+
+    /**
+     * FU-7 — handler for the SaaS-killed-by-admin terminal state arriving via
+     * Railway's /jobs/:id/status response (status='killed'). Mirror of
+     * cancel_job but without the Railway /cancel call (Railway already knows
+     * — that's how we got the 'killed' status in the first place).
+     *
+     * The plugin's local ScanHistory record was created at reserve time with
+     * status='in_progress'. Without this handler, scanner.js stops polling
+     * but the local record stays at in_progress forever, so the History tab
+     * shows the killed scan as still running. credits_used=0 (admin_kill is
+     * non-charging on the SaaS side; the wpservice worker finalized with
+     * source=admin_kill which charges 0).
+     */
+    public function handle_killed(): void {
+        $this->check();
+        $user_id = get_current_user_id();
+        $state   = get_transient( 'cu_scanner_job_' . $user_id );
+
+        // Even with no transient (e.g. session expired between Railway emitting
+        // 'killed' and this handler being invoked), still try to clean up any
+        // bypass tokens so the site doesn't sit in a half-bypassed state.
+        ( new BypassManager() )->delete_all_tokens();
+
+        if ( $state && ! empty( $state['job_id'] ) ) {
+            ( new ScanHistory() )->update_status( $state['job_id'], 'cancelled', [
+                'credits_used' => 0,  // admin_kill is non-charging
+            ] );
+            delete_transient( 'cu_scanner_job_' . $user_id );
+        }
+
+        wp_send_json_success();
     }
 
     public function handle_failure(): void {

@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.7';
+    const SCANNER_JS_VERSION = '1.0.10.8';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -811,10 +811,14 @@
             sessionStorage.removeItem('cu_scanner_active_job');
             var completedCount = Number(data.completed) || 0;
             var totalCount     = Number(data.total) || totalPages || 0;
+            // FU-7 — also update the plugin's local ScanHistory record so the
+            // History tab no longer shows this scan as in_progress/queued.
+            // Fire-and-forget; UI banner is the user-visible signal regardless.
+            post('cu_scanner_handle_killed');
             showQueueBanner(
                 null,
                 null,
-                'Your scan was cancelled. ' + completedCount + ' of ' + totalCount + ' pages were scanned before the kill.'
+                'Your scan was cancelled by an administrator. ' + completedCount + ' of ' + totalCount + ' pages were scanned before the kill.'
             );
             return;
         }
