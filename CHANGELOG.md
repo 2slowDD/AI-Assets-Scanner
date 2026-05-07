@@ -4,6 +4,39 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.2.7] — 2026-05-07
+
+### Fix — Local scan history reflects admin-kill terminal state (FU-7)
+
+When a SaaS administrator kills an in-flight scan from the SaaS Jobs > Running tab, the SaaS-side row is finalized as `admin_kill` (FU-2 / FU-6 ship 2026-05-06) and the plugin's polling loop already stops animating + shows a banner. But the plugin's *local* `ScanHistory` (wp_options) record was never updated — so the AAS Scan History tab kept showing the killed scan as `in_progress` / `queued` indefinitely, even after page reload.
+
+### Added
+
+- **New AJAX action `cu_scanner_handle_killed`** in `admin/class-scanner-ajax.php`. Mirrors the existing `cancel_job` handler minus the Railway `/cancel` call (Railway already knows about the kill — that's how the plugin learned `status === 'killed'` in the first place). Updates the local `ScanHistory` record to `status='cancelled'` with `credits_used=0` (admin_kill is non-charging), clears the bypass-tokens transient, deletes the active-job transient. Cap + nonce verified via `$this->check()` (Rules 4 + 5 + 11).
+
+### Changed
+
+- **`scanner.js` `handleStatusUpdate` killed branch** now fires `post('cu_scanner_handle_killed')` before showing the banner. Fire-and-forget: UI state is the user-visible signal regardless of whether the AJAX completes. Banner copy clarified to `"Your scan was cancelled by an administrator"` so the user understands it wasn't their click.
+- Cache-bust: `SCANNER_JS_VERSION` `1.0.10.7 → 1.0.10.8` + plugin Version `1.2.6 → 1.2.7`.
+
+### Out of scope (explicit decision)
+
+- **Worker mid-page abort (FU-8 — DROPPED).** SaaS Kill currently does NOT stop in-flight Playwright work mid-page on Railway; the worker keeps running until the natural 180s page-timeout. Per operator decision 2026-05-07: this is acceptable since admin-kill is rare and the worker dies within 180s + does not advance to next pages. AbortController plumbing through `processSinglePage` → page-analyzer → verifier deferred indefinitely.
+
+### Compliance — wp-compliance pre-code checklist clean
+
+- Cap + nonce paired via existing `$this->check()` helper (Rules 4 + 5 + 11).
+- ABSPATH guard inherited via `class-scanner-ajax.php` namespace (Rule 21).
+- No new SQL — uses existing `ScanHistory::update_status()` + `BypassManager::delete_all_tokens()` (Rule 6 vacuously clean).
+- No user input flows into the new handler (state read from a server-side transient keyed by user_id from `get_current_user_id()`).
+
+### Cross-repo dependencies
+
+- Requires SaaS plugin `1.2.10+` (FU-2 + FU-6 deployed) so SaaS-Kill click actually reaches Railway via the `/jobs/admin-kill-by-token-hash` push and Railway flips `meta.status` to `'killed'` on the next plugin poll. Without that the plugin will never see `status === 'killed'` and this handler won't fire.
+- Requires Railway `0904fae+` (FU-6 endpoint live).
+
+---
+
 ## [1.2.6] — 2026-05-05
 
 ### Feature — Heavy-site / bot-block warning banner (Subsystem D-4)
