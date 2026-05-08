@@ -94,12 +94,65 @@ class AIAS_Broken_Banner {
 			? sprintf( ' (%s)', implode( ', ', array_unique( $reason_phrases ) ) )
 			: '';
 
-		$action_clause = esc_html__(
+		$action_clause = self::action_clause( $reasons );
+
+		return implode( ' ', $bits ) . $reason_clause . ' ' . $action_clause;
+	}
+
+	/**
+	 * Maps a blocked-reason key to a remediation category.
+	 * 'rate'  → operator should space scans / raise rate limits.
+	 * 'error' → server-side issue, retry later / check site health.
+	 * 'bot'   → bot-protection or asymmetric stub; default for tier2_* + tier1_zero_bytes + unknown.
+	 */
+	private static function reason_category( string $reason ): string {
+		switch ( $reason ) {
+			case 'tier1_http_rate_limit':
+				return 'rate';
+			case 'tier1_http_4xx':
+			case 'tier1_http_5xx':
+			case 'tier1_transport_error':
+				return 'error';
+			default:
+				return 'bot';
+		}
+	}
+
+	/**
+	 * Builds the per-reason action clause for the banner body.
+	 *
+	 * If all reasons map to the same remediation category, returns that
+	 * category's clause. Mixed-category reasons fall back to the generic
+	 * bot-protection clause to avoid misleading single-cause guidance.
+	 *
+	 * @param array<string, int> $reasons
+	 */
+	private static function action_clause( array $reasons ): string {
+		$categories = [];
+		foreach ( $reasons as $key => $count ) {
+			$categories[] = self::reason_category( (string) $key );
+		}
+		$categories = array_values( array_unique( $categories ) );
+
+		if ( count( $categories ) === 1 ) {
+			if ( $categories[0] === 'rate' ) {
+				return esc_html__(
+					'Your server rate-limited the scanner. The mobile rules (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.',
+					'ai-assets-scanner'
+				);
+			}
+			if ( $categories[0] === 'error' ) {
+				return esc_html__(
+					'Your server returned an error or didn\'t respond. The mobile rules (if any) are complete and safe to apply. Try again later, or check site health.',
+					'ai-assets-scanner'
+				);
+			}
+		}
+
+		return esc_html__(
 			'Your bot protection denied the scanner. The mobile rules are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.',
 			'ai-assets-scanner'
 		);
-
-		return implode( ' ', $bits ) . $reason_clause . ' ' . $action_clause;
 	}
 
 	/**
