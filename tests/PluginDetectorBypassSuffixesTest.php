@@ -49,14 +49,28 @@ class PluginDetectorBypassSuffixesTest extends TestCase {
 
     public function test_class_c_entry_excluded(): void {
         $typed = [
-            'flying-press/flying-press.php' => [
-                'name' => 'FlyingPress', 'class' => 'C', 'bypass_query' => null,
-                'disable_method' => 'flying_press',
+            'sg-cachepress/sg-cachepress.php' => [
+                'name' => 'SiteGround Optimizer', 'class' => 'C', 'bypass_query' => null,
+                'disable_method' => 'sg_optimizer',
                 'warning' => 'CSS/JS optimization will be paused.',
             ],
         ];
         $result = PluginDetector::build_bypass_suffixes( $typed );
         $this->assertSame( [], $result );
+    }
+
+    /**
+     * AC-N2-9-unit — FlyingPress reclassed class A emits 'no_optimize' bypass suffix.
+     */
+    public function test_build_bypass_suffixes_flying_press_emits_no_optimize(): void {
+        $typed = [
+            'flying-press/flying-press.php' => [
+                'name' => 'FlyingPress', 'class' => 'A', 'bypass_query' => 'no_optimize',
+                'disable_method' => null, 'warning' => null,
+            ],
+        ];
+        $result = PluginDetector::build_bypass_suffixes( $typed );
+        $this->assertSame( [ 'no_optimize' ], $result );
     }
 
     public function test_only_b_and_c_returns_empty(): void {
