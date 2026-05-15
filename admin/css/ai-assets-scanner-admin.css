@@ -495,3 +495,82 @@
 .cu-consent-actions .button {
     min-width: 90px;
 }
+
+/* =============================================================
+   FU-NEW-2 Phase 6 — Target stack probe outcome dialog (spec §6.3)
+   Native <dialog> element rendered by admin/js/scanner.js when
+   cu_scanner_probe_target_stack returns warning_needed=true.
+   Mirrors the .cu-consent-dialog visual style for consistency.
+   ============================================================= */
+.cu-probe-outcome-dialog {
+    max-width: 560px;
+    width: calc(100% - 32px);
+    padding: 20px 24px;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+    background: #fff;
+    color: #1d2327;
+    font-size: 14px;
+    line-height: 1.5;
+}
+.cu-probe-outcome-dialog::backdrop {
+    background: rgba(0,0,0,0.45);
+}
+.cu-probe-outcome-dialog h2 {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 600;
+}
+.cu-probe-outcome-dialog p {
+    margin: 8px 0;
+}
+.cu-probe-outcome-dialog em {
+    color: #50575e;
+}
+.cu-probe-outcome-dialog ul.cu-probe-host-list {
+    margin: 8px 0 16px 20px;
+    padding: 0;
+    list-style: disc;
+}
+.cu-probe-outcome-dialog ul.cu-probe-host-list li {
+    margin-bottom: 8px;
+}
+.cu-probe-dialog-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.cu-probe-dialog-actions .button {
+    min-width: 90px;
+}
+
+/* FU-NEW-2 Phase 6 — Inline spinner during target stack probe (spec §9). */
+.cu-probe-spinner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 0;
+    padding: 10px 14px;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    background: #f6f7f7;
+    color: #1d2327;
+    font-size: 14px;
+}
+.cu-probe-spinner-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid #c3c4c7;
+    border-top-color: #2271b1;
+    border-radius: 50%;
+    animation: cu-probe-spin 0.8s linear infinite;
+}
+.cu-probe-spinner-label {
+    flex: 1;
+}
+@keyframes cu-probe-spin {
+    to { transform: rotate(360deg); }
+}

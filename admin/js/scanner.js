@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.8';
+    const SCANNER_JS_VERSION = '1.0.10.9';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -49,15 +49,41 @@
         return selectedUrls.every(isExternalUrl);
     }
 
-    function post(action, data) {
+    function post(action, data, opts) {
         const form = new FormData();
         form.append('action', action);
+        // Send nonce under both field names: legacy handlers read `nonce`
+        // (via $this->check()), probe_target_stack reads `_wpnonce`.
+        // Same nonce value, same action — sending both is additive and harmless.
         form.append('nonce', nonce);
+        form.append('_wpnonce', nonce);
         Object.entries(data || {}).forEach(([k, v]) => {
-            if (Array.isArray(v)) v.forEach(i => form.append(k + '[]', i));
-            else form.append(k, v);
+            appendField(form, k, v);
         });
-        return fetch(ajax, { method: 'POST', body: form }).then(r => r.json());
+        const fetchOpts = { method: 'POST', body: form };
+        if (opts && opts.signal) fetchOpts.signal = opts.signal;
+        return fetch(ajax, fetchOpts).then(r => r.json());
+    }
+
+    // Recursively append a value to a FormData using PHP's bracket array syntax,
+    // so PHP $_POST sees the structure as a native array.
+    //   string/number/bool  → key=value
+    //   array               → key[]=v0, key[]=v1, …  (or key[][child]= for objects)
+    //   plain object        → key[child1]=v1, key[child2]=v2, …
+    //   null/undefined      → skipped (matches today's behavior)
+    function appendField(form, key, value) {
+        if (value === null || value === undefined) return;
+        if (Array.isArray(value)) {
+            value.forEach((item, i) => appendField(form, key + '[' + i + ']', item));
+            return;
+        }
+        if (typeof value === 'object') {
+            Object.entries(value).forEach(([childKey, childVal]) => {
+                appendField(form, key + '[' + childKey + ']', childVal);
+            });
+            return;
+        }
+        form.append(key, value);
     }
 
     function esc(s) {
@@ -204,6 +230,159 @@
 
             dialog.showModal();
         });
+    }
+
+    // FU-NEW-2 Phase 6 — Inline spinner for cu_scanner_probe_target_stack.
+    // Returns { hide(), signal } — signal is an AbortSignal wired to a Cancel button
+    // so the operator can abort the probe mid-flight (spec §9). Probe typically
+    // completes in 1-3s; cancel UX exists for slow upstream cases.
+    function showInlineSpinner(message) {
+        const host = document.getElementById('cu-probe-spinner-host')
+            || (function () {
+                const h = document.createElement('div');
+                h.id = 'cu-probe-spinner-host';
+                // Append to step-1 container so it lives near the scanning UI.
+                const step1 = document.getElementById('step-1') || document.body;
+                step1.appendChild(h);
+                return h;
+            })();
+
+        host.innerHTML = '';
+        host.className = 'cu-probe-spinner';
+        host.style.display = 'flex';
+
+        const spin = document.createElement('span');
+        spin.className = 'cu-probe-spinner-icon';
+        spin.setAttribute('aria-hidden', 'true');
+
+        const label = document.createElement('span');
+        label.className = 'cu-probe-spinner-label';
+        label.textContent = message || 'Working…';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'button button-secondary cu-probe-spinner-cancel';
+        cancelBtn.textContent = 'Cancel';
+
+        host.appendChild(spin);
+        host.appendChild(label);
+        host.appendChild(cancelBtn);
+
+        const controller = ('AbortController' in window) ? new AbortController() : null;
+        cancelBtn.addEventListener('click', function () {
+            if (controller) controller.abort();
+            host.style.display = 'none';
+            host.innerHTML = '';
+        });
+
+        return {
+            signal: controller ? controller.signal : undefined,
+            hide: function () {
+                host.style.display = 'none';
+                host.innerHTML = '';
+            },
+        };
+    }
+
+    /**
+     * FU-NEW-2 Phase 6 — Render an outcome-specific dialog from
+     * cu_scanner_probe_target_stack result. Returns Promise<boolean>:
+     * true = continue with scan, false = cancel. Dialog content per spec §6.3.
+     */
+    function showProbeOutcomeDialog(probeData) {
+        return new Promise(function (resolve) {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'cu-probe-outcome-dialog';
+
+            const uniform = !!(probeData.summary && probeData.summary.uniform_outcome);
+            const summaryHtml = uniform
+                ? buildUniformMessage(probeData.per_host_results || [])
+                : buildPerHostList(probeData.per_host_results || []);
+
+            dialog.innerHTML =
+                '<div class="cu-probe-dialog-body">' +
+                    '<h2>Target site detection</h2>' +
+                    summaryHtml +
+                    '<p>Continue with scan?</p>' +
+                    '<div class="cu-probe-dialog-actions">' +
+                        '<button type="button" class="button button-secondary cu-probe-cancel">Cancel</button>' +
+                        '<button type="button" class="button button-primary cu-probe-continue">Continue</button>' +
+                    '</div>' +
+                '</div>';
+
+            let resolved = false;
+            function done(value) {
+                if (resolved) return;
+                resolved = true;
+                resolve(value);
+                if (dialog.open) dialog.close();
+                dialog.remove();
+            }
+
+            dialog.querySelector('.cu-probe-cancel').addEventListener('click', function () {
+                done(false);
+            });
+            dialog.querySelector('.cu-probe-continue').addEventListener('click', function () {
+                done(true);
+            });
+            dialog.addEventListener('click', function (e) {
+                if (e.target === dialog) done(false);
+            });
+            dialog.addEventListener('close', function () { done(false); });
+
+            document.body.appendChild(dialog);
+            dialog.showModal();
+        });
+    }
+
+    function buildUniformMessage(results) {
+        if (!results.length) return '<p>No probe results.</p>';
+        return '<p>' + outcomeMessage(results[0]) + '</p>';
+    }
+
+    function buildPerHostList(results) {
+        if (!results.length) return '<p>No probe results.</p>';
+        const items = results.map(function (r) {
+            return '<li>' + outcomeMessage(r) + '</li>';
+        }).join('');
+        return '<ul class="cu-probe-host-list">' + items + '</ul>';
+    }
+
+    function outcomeMessage(r) {
+        const host = esc(r.host || 'unknown host');
+        switch (r.outcome) {
+            case 'class_a_clean':
+                return 'Detected ' + listDetected(r.detected) + ' on <strong>' + host + '</strong>.';
+            case 'class_bc_only':
+                return 'Detected cache plugin <strong>' + listDetected(r.detected) + '</strong> on <strong>' + host
+                    + '</strong>. No proper bypass available; results may not be complete. '
+                    + '<em>Consider temporarily disabling any bot protection / firewall / CDN that may be blocking the scanner.</em>';
+            case 'hybrid_a_plus_bc':
+                return 'Detected <strong>' + listDetected(r.detected, ['A', 'A_star']) + '</strong> (will bypass) + '
+                    + 'cache plugin <strong>' + listDetected(r.detected, ['B', 'C']) + '</strong> on <strong>' + host
+                    + '</strong> (may be busted by the bypass; results may not be complete).';
+            case 'no_clue':
+                return 'Couldn’t detect target caching stack on <strong>' + host + '</strong> (probed 2 URLs). '
+                    + 'Results may not be complete. '
+                    + '<em>Consider temporarily disabling any bot protection / firewall / CDN that may be blocking probing.</em>';
+            case 'non_wordpress':
+                return 'Target <strong>' + host + '</strong> may not be WordPress (no WP signals detected on probed URLs). '
+                    + 'Results may not be meaningful.';
+            case 'probe_failed':
+                return 'Target probe to <strong>' + host + '</strong> failed: ' + esc(r.reason || 'unknown') + '. '
+                    + '<em>Consider temporarily disabling any bot protection / firewall / CDN that may be blocking the scanner.</em>';
+            default:
+                return 'Unknown outcome on <strong>' + host + '</strong>.';
+        }
+    }
+
+    function listDetected(detected, classFilter) {
+        const arr = Array.isArray(detected) ? detected : [];
+        const filtered = classFilter
+            ? arr.filter(function (d) { return classFilter.indexOf(d.class) !== -1; })
+            : arr;
+        if (!filtered.length) return 'unknown';
+        return filtered.map(function (d) { return esc(d.name || d.slug || 'unknown'); }).join(', ');
     }
 
     // --- Step 1: Plugin detection ---
@@ -641,7 +820,7 @@
 
     // --- Step 2: Reserve + Submit ---
 
-    document.getElementById('cu-btn-next-1').addEventListener('click', function () {
+    document.getElementById('cu-btn-next-1').addEventListener('click', async function () {
         // Include-only path: no discovery ran, populate state from textarea
         if (discoveredUrls.length === 0) {
             const includeList = getIncludedUrls();
@@ -652,12 +831,44 @@
             totalPages       = includeList.length;
         }
 
-        // Warn before scanning external URLs
-        const externalCount = selectedUrls.filter(isExternalUrl).length;
-        if (externalCount > 0) {
-            const noun = externalCount === 1 ? 'URL is' : 'URLs are';
-            const msg  = `${externalCount} of the selected ${noun} from an external site.\n\nYou can scan them, but rules cannot be pushed directly to Code Unloader — you will only be able to download the import file.\n\nContinue?`;
-            if (!confirm(msg)) return;
+        // FU-NEW-2 Phase 6 — target-stack-aware bypass routing for external URLs.
+        // Replaces the simple external-URL confirm() with a probe + outcome-specific dialog.
+        // Probe runs BEFORE cu_scanner_reserve_job — does NOT consume credit by construction.
+        const externalUrls = selectedUrls.filter(isExternalUrl);
+        let targetBypassPerUrl = {};
+        let targetStackSummary = null;
+
+        if (externalUrls.length > 0) {
+            const spinnerCtl = showInlineSpinner('Detecting target stack…');
+            let probeResult;
+            try {
+                probeResult = await post(
+                    'cu_scanner_probe_target_stack',
+                    { urls: externalUrls },
+                    { signal: spinnerCtl.signal }
+                );
+            } catch (err) {
+                spinnerCtl.hide();
+                if (err && err.name === 'AbortError') return; // operator cancelled spinner
+                alert('Target stack probe error: ' + (err && err.message ? err.message : String(err)));
+                return;
+            }
+            spinnerCtl.hide();
+            if (!probeResult || !probeResult.success) {
+                const errMsg = probeResult && probeResult.data
+                    ? (typeof probeResult.data === 'string' ? probeResult.data : JSON.stringify(probeResult.data))
+                    : (probeResult && probeResult.error ? probeResult.error : 'unknown error');
+                alert('Probe failed: ' + errMsg);
+                return;
+            }
+            targetBypassPerUrl = probeResult.data.suggested_bypass_per_url || {};
+            targetStackSummary = probeResult.data.per_host_results || [];
+
+            if (probeResult.data.warning_needed) {
+                const userConfirmed = await showProbeOutcomeDialog(probeResult.data);
+                if (!userConfirmed) return;
+            }
+            // Silent proceed on uniform class_a_clean.
         }
 
         showStep(2);
@@ -669,7 +880,12 @@
             .then(res => {
                 if (!res.success) { showStep(1); alert('Error: ' + res.data); return; }
                 const job_token = res.data.job_token;
-                post('cu_scanner_submit_job', { urls: selectedUrls, job_token })
+                post('cu_scanner_submit_job', {
+                    urls: selectedUrls,
+                    job_token,
+                    target_bypass_per_url: targetBypassPerUrl,
+                    target_stack_summary: targetStackSummary,
+                })
                     .then(async res2 => {
                         // Phase 5 — Class C consent gate.
                         // submit_job returns class_c_consent_required when Class C optimizers
@@ -689,6 +905,8 @@
                                 urls: selectedUrls,
                                 job_token: job_token,
                                 class_c_consent_given: '1',
+                                target_bypass_per_url: targetBypassPerUrl,
+                                target_stack_summary: targetStackSummary,
                             });
                             if (!retry.success) {
                                 post('cu_scanner_handle_failure');
