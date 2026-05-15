@@ -142,6 +142,30 @@ class OptimizerBypassOrchestratorTest extends TestCase {
         $this->assertArrayNotHasKey( 'aias_optimizer_state', $this->option_store );
     }
 
+    /**
+     * AC-N2-9-orchestrator-skip — FlyingPress is class A post-reclass; orchestrator
+     * skips it. With FlyingPress as the only locally-active optimizer,
+     * build_default_orchestrator() filters class === 'C' so no strategies are wrapped.
+     */
+    public function test_orchestrator_skips_flying_press_post_reclass(): void {
+        // Mock only FlyingPress active (class A post-reclass).
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->andReturnUsing( fn( $f ) => $f === 'flying-press/flying-press.php' );
+
+        $orchestrator = \CUScanner\Scanner\OptimizerBypassOrchestrator::build_default_orchestrator();
+
+        $rp = new \ReflectionClass( $orchestrator );
+        $prop = $rp->getProperty( 'strategies' );
+        $prop->setAccessible( true );
+        $strategies = $prop->getValue( $orchestrator );
+
+        $this->assertIsArray( $strategies );
+        $this->assertEmpty(
+            $strategies,
+            'Orchestrator must not include FlyingPress (class A post-reclass; only class C plugins are orchestrated)'
+        );
+    }
+
     public function test_refuse_to_start_when_state_is_orphaned(): void {
         $a = $this->make_strategy( 'a' );
         // Inject orphaned state
