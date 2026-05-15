@@ -35,13 +35,15 @@ class PluginDetectorTypedTest extends TestCase {
         $this->assertSame( 'LSCWP_CTRL=before_optm',  $entries['litespeed-cache/litespeed-cache.php']['bypass_query'] );
     }
 
-    public function test_class_c_flying_press_carries_disable_method(): void {
+    public function test_flying_press_is_class_a_with_no_optimize_post_reclass(): void {
+        // FU-NEW-2 Phase 1+3: FlyingPress reclassed C -> A per spec §5.2
+        // (changelog v2.3.0 ?no_optimize). Strategy + match arm deleted Phase 3.
         WP_Mock::userFunction( 'is_plugin_active' )
             ->andReturnUsing( fn( $f ) => $f === 'flying-press/flying-press.php' );
         $entries = ( new PluginDetector() )->detect_typed();
-        $this->assertSame( 'C',            $entries['flying-press/flying-press.php']['class'] );
-        $this->assertNull( $entries['flying-press/flying-press.php']['bypass_query'] );
-        $this->assertSame( 'flying_press', $entries['flying-press/flying-press.php']['disable_method'] );
+        $this->assertSame( 'A',           $entries['flying-press/flying-press.php']['class'] );
+        $this->assertSame( 'no_optimize', $entries['flying-press/flying-press.php']['bypass_query'] );
+        $this->assertNull( $entries['flying-press/flying-press.php']['disable_method'] );
     }
 
     public function test_class_b_breeze_no_query_no_disable(): void {
