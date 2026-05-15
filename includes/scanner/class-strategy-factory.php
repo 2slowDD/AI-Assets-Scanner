@@ -4,14 +4,12 @@ namespace CUScanner\Scanner;
 defined( 'ABSPATH' ) || exit;
 
 use CUScanner\Scanner\Strategies\AbstractOptimizerBypass;
-use CUScanner\Scanner\Strategies\FlyingPressBypass;
 use CUScanner\Scanner\Strategies\SgOptimizerBypass;
 use CUScanner\Scanner\Strategies\HummingbirdBypass;
 
 class StrategyFactory {
     public static function for_method( string $method ): AbstractOptimizerBypass {
         return match ( $method ) {
-            'flying_press' => new FlyingPressBypass(),
             'sg_optimizer' => new SgOptimizerBypass(),
             'hummingbird'  => new HummingbirdBypass(),
             // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- exception message thrown for caller to handle (logging or wp_send_json_error), not echoed.

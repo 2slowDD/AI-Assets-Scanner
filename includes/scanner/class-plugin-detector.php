@@ -23,7 +23,6 @@ class PluginDetector {
         'perfmatters/perfmatters.php'             => [ 'Perfmatters',        'May have dequeued assets already. Scan results may be incomplete.' ],
         'asset-cleanup/asset-cleanup.php'         => [ 'AssetsCleanUp',      'May have dequeued assets already. Scan results may be incomplete.' ],
         'scripts-to-footer/scripts-to-footer.php' => [ 'Scripts to Footer',  'Moves scripts — scan still works but results may be incomplete.' ],
-        'flying-press/flying-press.php'           => [ 'Flying Press',       'May have dequeued assets. Scan results may be incomplete.' ],
     ];
 
     private const SECURITY_WARN = [
