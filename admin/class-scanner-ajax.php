@@ -158,7 +158,18 @@ class ScannerAjax {
             }
         }
 
-        $bypass_suffixes = PluginDetector::build_bypass_suffixes( $detector_typed );
+        $host_bypass = PluginDetector::build_bypass_suffixes( $detector_typed );
+
+        // FU-NEW-2 Phase 5 (T5.2) — capture per-URL bypass map from JS probe step.
+        // External URLs use target-detected suffixes; internal URLs use $host_bypass.
+        // Missing external URLs default to [] and fire cu_scanner_target_bypass_missing.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $target_bypass_per_url = isset( $_POST['target_bypass_per_url'] )
+            ? (array) wp_unslash( $_POST['target_bypass_per_url'] )
+            : [];
+
+        $home_url    = home_url();
+        $page_specs  = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url );
 
         // Force URL scheme to match the current admin request's protocol. Sitemaps
         // and WP_Query can emit http URLs even on https-served sites (option drift,
@@ -177,7 +188,10 @@ class ScannerAjax {
         // bypass_suffixes are bare flags (or `key=value` for Autoptimize/LiteSpeed) and
         // come from PluginDetector::OPTIMIZERS — static strings, not user input — so
         // direct concatenation is safe.
-        $build_scan_url = static function ( string $u ) use ( $bypass_params, $bypass_suffixes, $site_scheme ): string {
+        //
+        // FU-NEW-2 Phase 5: each URL gets its own per-URL suffix list (passed in via
+        // $page_specs from build_pages_array). External URLs may have an empty list.
+        $build_scan_url = static function ( string $u, array $bypass_suffixes ) use ( $bypass_params, $site_scheme ): string {
             $sanitized = set_url_scheme( sanitize_url( $u ), $site_scheme );
             $with_old  = add_query_arg( $bypass_params, $sanitized );
             if ( empty( $bypass_suffixes ) ) {
@@ -209,12 +223,12 @@ class ScannerAjax {
         };
 
         $pages = array_map(
-            fn( $u ) => [
-                'url'             => $build_scan_url( $u ),
+            static fn( array $spec ): array => [
+                'url'             => $build_scan_url( $spec['url'], $spec['bypass_suffixes'] ),
                 'bypass_token'    => $token,
-                'bypass_suffixes' => $bypass_suffixes,
+                'bypass_suffixes' => $spec['bypass_suffixes'],
             ],
-            $urls_raw
+            $page_specs
         );
 
         $payload = [
@@ -227,6 +241,18 @@ class ScannerAjax {
         $http_auth = $settings->get_http_auth();
         if ( $http_auth ) {
             $payload['http_auth'] = $http_auth;
+        }
+
+        // FU-NEW-2 Phase 5 (T5.4) — forward target_stack_summary blob to SaaS (AC-N2-10).
+        // JS attaches this after the cu_scanner_probe_target_stack step; if absent/empty,
+        // the field is omitted from the SaaS payload (null signal from the helper).
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $target_stack_summary_raw = isset( $_POST['target_stack_summary'] )
+            ? wp_unslash( $_POST['target_stack_summary'] )
+            : null;
+        $target_stack_summary = self::capture_target_stack_summary( $target_stack_summary_raw );
+        if ( $target_stack_summary !== null ) {
+            $payload['target_stack_summary'] = $target_stack_summary;
         }
 
         try {
@@ -914,12 +940,93 @@ class ScannerAjax {
         return false;
     }
 
+    /**
+     * FU-NEW-2 Phase 5 — Build the pages[] array for submit_job per spec §4.2 rule.
+     *
+     * - Internal URLs (same host as $home_url) use $host_bypass (today's behavior).
+     * - External URLs use $target_bypass_per_url[url] ?? [] (empty default; NEVER host-leaked).
+     *   When fallback fires, do_action('cu_scanner_target_bypass_missing', [...]) telemetry hook.
+     *
+     * Note: bypass_token is attached downstream where the token is built — this helper
+     * focuses solely on the per-URL bypass_suffixes decision (the load-bearing §4.2 rule).
+     *
+     * @param string[]            $selected_urls         Raw selected URLs.
+     * @param string[]            $host_bypass           Host-detected bypass suffixes (today's array).
+     * @param array<string,array> $target_bypass_per_url Per-URL bypass map from probe response (keyed by URL).
+     * @param string              $home_url              Site's home URL (for internal/external classification).
+     * @return array<int,array{url:string,bypass_suffixes:array}>
+     */
+    private static function build_pages_array( array $selected_urls, array $host_bypass,
+                                                array $target_bypass_per_url, string $home_url ): array {
+        $home_host = strtolower( preg_replace( '/^www\./i', '',
+            wp_parse_url( $home_url, PHP_URL_HOST ) ?: '' ) );
+        $pages = [];
+        foreach ( $selected_urls as $url ) {
+            $host = strtolower( preg_replace( '/^www\./i', '',
+                wp_parse_url( $url, PHP_URL_HOST ) ?: '' ) );
+            $is_external = ( $host !== '' && $host !== $home_host );
+
+            if ( $is_external ) {
+                if ( isset( $target_bypass_per_url[ $url ] ) ) {
+                    $bypass_suffixes = $target_bypass_per_url[ $url ];
+                } else {
+                    // AC-N2-12 — external URL missing from map → empty fallback + telemetry.
+                    $bypass_suffixes = [];
+                    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 'cu_scanner_*' is the long-standing internal prefix shared with the wpservice-saas backend and the Railway worker; renaming would break inter-component contracts.
+                    do_action( 'cu_scanner_target_bypass_missing', [ 'url' => $url, 'host' => $host ] );
+                }
+            } else {
+                $bypass_suffixes = $host_bypass;
+            }
+
+            $pages[] = [
+                'url'             => $url,
+                'bypass_suffixes' => $bypass_suffixes,
+                // bypass_token attached downstream where the token is built.
+            ];
+        }
+        return $pages;
+    }
+
+    /**
+     * FU-NEW-2 Phase 5 — Capture target_stack_summary from POST data (forwarded by JS after probe).
+     * Returns null if absent/empty (caller omits the field from SaaS payload).
+     * Filters non-conforming entries (missing host or outcome).
+     *
+     * @param mixed $post_value Raw $_POST['target_stack_summary'] value.
+     * @return array<int,array{host:string,detected:array,outcome:string,cache_hit:bool}>|null
+     */
+    private static function capture_target_stack_summary( $post_value ): ?array {
+        if ( ! is_array( $post_value ) || empty( $post_value ) ) return null;
+        $out = [];
+        foreach ( $post_value as $entry ) {
+            if ( ! is_array( $entry ) ) continue;
+            if ( empty( $entry['host'] ) || empty( $entry['outcome'] ) ) continue;
+            $out[] = [
+                'host'      => sanitize_text_field( (string) $entry['host'] ),
+                'detected'  => isset( $entry['detected'] ) && is_array( $entry['detected'] )
+                    ? array_values( array_map( static fn( $d ) => sanitize_text_field( (string) $d ), $entry['detected'] ) )
+                    : [],
+                'outcome'   => sanitize_text_field( (string) $entry['outcome'] ),
+                'cache_hit' => ! empty( $entry['cache_hit'] ),
+            ];
+        }
+        return empty( $out ) ? null : $out;
+    }
+
     // --- Test seams (public static; call into private static helpers for unit testing) ---
     public static function __test_group_urls_by_host( array $urls ): array {
         return self::group_urls_by_host( $urls );
     }
     public static function __test_strip_to_whitelist( array $r ): array {
         return self::strip_to_whitelist( $r );
+    }
+    public static function __test_build_pages_array( array $selected_urls, array $host_bypass,
+                                                      array $target_bypass_per_url, string $home_url ): array {
+        return self::build_pages_array( $selected_urls, $host_bypass, $target_bypass_per_url, $home_url );
+    }
+    public static function __test_capture_target_stack_summary( $post_value ): ?array {
+        return self::capture_target_stack_summary( $post_value );
     }
 
     public function export_history(): void {
