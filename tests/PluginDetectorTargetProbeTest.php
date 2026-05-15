@@ -66,4 +66,61 @@ class PluginDetectorTargetProbeTest extends TestCase {
         // Marker is at offset 40000, beyond 32KB cap — must NOT match.
         $this->assertFalse( PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ] ) );
     }
+
+    /**
+     * AC-N2 — outcome classifier follows §5.4 decision tree.
+     * Precedence: probe_failed > non_wordpress > optimizer classification.
+     */
+    public function test_classifier_probe_failed_takes_precedence() {
+        // Both probes failed → probe_failed regardless of any detected entries.
+        $r = PluginDetector::__test_classify_outcome(
+            true,           // probe_failed flag
+            true,           // is_wordpress (irrelevant under probe_failed)
+            [ ['class' => 'A'] ]  // detected (irrelevant under probe_failed)
+        );
+        $this->assertSame( 'probe_failed', $r );
+    }
+
+    public function test_classifier_non_wordpress_when_no_wp_signals() {
+        // No WP signals → non_wordpress regardless of body marker matches (§5.4 trust-WP-first rule).
+        $r = PluginDetector::__test_classify_outcome(
+            false,          // probe_failed
+            false,          // is_wordpress = false
+            [ ['class' => 'B'] ]  // body marker may have matched but no WP context
+        );
+        $this->assertSame( 'non_wordpress', $r );
+    }
+
+    public function test_classifier_class_a_clean_when_only_a_detected() {
+        $r = PluginDetector::__test_classify_outcome( false, true, [ ['class' => 'A'] ] );
+        $this->assertSame( 'class_a_clean', $r );
+    }
+
+    public function test_classifier_class_a_star_treated_as_a_for_classification() {
+        $r = PluginDetector::__test_classify_outcome( false, true, [ ['class' => 'A_star'] ] );
+        $this->assertSame( 'class_a_clean', $r );
+    }
+
+    public function test_classifier_class_bc_only_when_no_a() {
+        $r = PluginDetector::__test_classify_outcome( false, true, [ ['class' => 'B'] ] );
+        $this->assertSame( 'class_bc_only', $r );
+        $r = PluginDetector::__test_classify_outcome( false, true, [ ['class' => 'C'] ] );
+        $this->assertSame( 'class_bc_only', $r );
+    }
+
+    public function test_classifier_hybrid_when_a_plus_bc() {
+        $r = PluginDetector::__test_classify_outcome( false, true, [
+            ['class' => 'A'], ['class' => 'B']
+        ] );
+        $this->assertSame( 'hybrid_a_plus_bc', $r );
+        $r = PluginDetector::__test_classify_outcome( false, true, [
+            ['class' => 'A_star'], ['class' => 'C']
+        ] );
+        $this->assertSame( 'hybrid_a_plus_bc', $r );
+    }
+
+    public function test_classifier_no_clue_when_wp_but_no_optimizer() {
+        $r = PluginDetector::__test_classify_outcome( false, true, [] );
+        $this->assertSame( 'no_clue', $r );
+    }
 }

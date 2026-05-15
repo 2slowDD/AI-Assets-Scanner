@@ -195,7 +195,7 @@ class PluginDetector {
      * driven by the OPTIMIZERS const, not the legacy AUTO_BYPASS/SOFT_BLOCK/
      * SOFT_WARN classification.
      *
-     * @return array<string, array{name:string,class:string,bypass_query:?string,disable_method:?string,warning:?string}>
+     * @return array<string, array{name:string,class:?string,bypass_query:?string,disable_method:?string,warning:?string,target_headers:string[],target_body_markers:string[]}>
      */
     /**
      * Extract bypass-key suffixes from typed-detector entries.
@@ -306,11 +306,41 @@ class PluginDetector {
         return false;
     }
 
+    /**
+     * Classify probe outcome per spec §5.4 decision tree.
+     * Precedence: probe_failed > non_wordpress > optimizer classification.
+     *
+     * @param bool  $probe_failed True if both probe URLs returned WP_Error / 5xx / 403 / 429 / timeout.
+     * @param bool  $is_wordpress True if any WP signal was detected on either probe URL.
+     * @param array $detected     Array of detected entries (each with 'class' key).
+     * @return string Outcome class: probe_failed | non_wordpress | class_a_clean | class_bc_only | hybrid_a_plus_bc | no_clue.
+     */
+    private static function classify_outcome( bool $probe_failed, bool $is_wordpress, array $detected ): string {
+        if ( $probe_failed ) return 'probe_failed';
+        if ( ! $is_wordpress ) return 'non_wordpress';
+
+        $classes_seen = [];
+        foreach ( $detected as $d ) {
+            $c = $d['class'] ?? null;
+            if ( $c ) $classes_seen[ $c ] = true;
+        }
+        $has_class_a  = isset( $classes_seen['A'] ) || isset( $classes_seen['A_star'] );
+        $has_class_bc = isset( $classes_seen['B'] ) || isset( $classes_seen['C'] );
+
+        if ( $has_class_a && $has_class_bc ) return 'hybrid_a_plus_bc';
+        if ( $has_class_a )                   return 'class_a_clean';
+        if ( $has_class_bc )                  return 'class_bc_only';
+        return 'no_clue';
+    }
+
     // --- Test seams (private-method exposure for unit testing) ---
     public static function __test_header_match( array $headers, array $patterns ): bool {
         return self::header_match( $headers, $patterns );
     }
     public static function __test_body_match( string $body, array $patterns ): bool {
         return self::body_match( $body, $patterns );
+    }
+    public static function __test_classify_outcome( bool $probe_failed, bool $is_wordpress, array $detected ): string {
+        return self::classify_outcome( $probe_failed, $is_wordpress, $detected );
     }
 }
