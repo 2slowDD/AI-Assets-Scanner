@@ -16,8 +16,9 @@ class MultiOptimizerCompositionTest extends TestCase {
     public function setUp(): void { parent::setUp(); WP_Mock::setUp(); }
     public function tearDown(): void { WP_Mock::tearDown(); parent::tearDown(); }
 
-    public function test_class_c_consent_required_when_flying_press_active(): void {
-        // Arrange: WP Rocket (Class A) + FlyingPress (Class C) both active.
+    public function test_flying_press_contributes_no_optimize_suffix_post_reclass(): void {
+        // Arrange: WP Rocket (Class A) + FlyingPress (Class A post-reclass) both active.
+        // FlyingPress is now class A; it should contribute 'no_optimize' to bypass_suffixes.
         WP_Mock::userFunction( 'is_plugin_active' )
             ->andReturnUsing( fn( $f ) => in_array( $f, [
                 'wp-rocket/wp-rocket.php',
@@ -27,27 +28,19 @@ class MultiOptimizerCompositionTest extends TestCase {
         $detector = new \CUScanner\Scanner\PluginDetector();
         $entries  = $detector->detect_typed();
 
+        // FlyingPress is class A post-reclass — no class C entries from these two plugins.
         $class_c = array_filter( $entries, fn( $e ) => ( $e['class'] ?? '' ) === 'C' );
-        $this->assertCount( 1, $class_c );
-        $this->assertSame( 'FlyingPress', $entries['flying-press/flying-press.php']['name'] );
+        $this->assertCount( 0, $class_c, 'FlyingPress reclassed C -> A; no class C entries expected' );
+        $this->assertSame( 'A', $entries['flying-press/flying-press.php']['class'] );
 
         $bypass_suffixes = \CUScanner\Scanner\PluginDetector::build_bypass_suffixes( $entries );
-        $this->assertSame( [ 'nowprocket' ], $bypass_suffixes,
-            'Class A suffix builds; Class C contributes nothing to suffix list' );
+        sort( $bypass_suffixes );
+        $this->assertSame( [ 'no_optimize', 'nowprocket' ], $bypass_suffixes,
+            'WP Rocket + FlyingPress both class A; both contribute bypass suffixes' );
     }
 
-    public function test_strategy_factory_resolves_flying_press(): void {
-        $strategy = \CUScanner\Scanner\StrategyFactory::for_method( 'flying_press' );
-        $this->assertInstanceOf(
-            \CUScanner\Scanner\Strategies\FlyingPressBypass::class,
-            $strategy
-        );
-    }
-
-    public function test_orchestrator_runs_only_class_c_strategies(): void {
-        // Build orchestrator from a mixed A+C detector list.
-        // build_default_orchestrator filters to Class C — Class A entries are NOT
-        // wrapped in any strategy.
+    public function test_orchestrator_empty_when_only_class_a_plugins_active(): void {
+        // WP Rocket + FlyingPress both class A — orchestrator should have empty strategies array.
         WP_Mock::userFunction( 'is_plugin_active' )
             ->andReturnUsing( fn( $f ) => in_array( $f, [
                 'wp-rocket/wp-rocket.php',
@@ -56,14 +49,14 @@ class MultiOptimizerCompositionTest extends TestCase {
 
         $orchestrator = \CUScanner\Scanner\OptimizerBypassOrchestrator::build_default_orchestrator();
 
-        // Reflect to verify the strategies array contains only FlyingPress.
         $rp = new \ReflectionClass( $orchestrator );
         $prop = $rp->getProperty( 'strategies' );
         $prop->setAccessible( true );
         $strategies = $prop->getValue( $orchestrator );
 
-        $this->assertCount( 1, $strategies );
-        $this->assertSame( 'flying_press', $strategies[0]->slug() );
+        $this->assertIsArray( $strategies );
+        $this->assertEmpty( $strategies,
+            'Both WP Rocket and FlyingPress are class A post-reclass; orchestrator skips both' );
     }
 
     public function test_required_event_types_have_emit_call_sites(): void {
