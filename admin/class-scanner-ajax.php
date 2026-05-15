@@ -163,10 +163,35 @@ class ScannerAjax {
         // FU-NEW-2 Phase 5 (T5.2) — capture per-URL bypass map from JS probe step.
         // External URLs use target-detected suffixes; internal URLs use $host_bypass.
         // Missing external URLs default to [] and fire cu_scanner_target_bypass_missing.
+        //
+        // wp-compliance Rule 25 / proposed-Rule-27 — $_POST may carry a structured
+        // multi-level map (URL key → suffix-array). PHP's $_POST parser hands us
+        // nested arrays without per-value unslash beyond the outer level. Walk the
+        // structure: validate each URL key, validate each suffix value's character
+        // class (must match the legal bypass-suffix shape produced by OPTIMIZERS).
+        // Anything outside that allowlist is dropped silently.
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
-        $target_bypass_per_url = isset( $_POST['target_bypass_per_url'] )
+        $target_bypass_per_url_raw = isset( $_POST['target_bypass_per_url'] )
             ? (array) wp_unslash( $_POST['target_bypass_per_url'] )
             : [];
+        $target_bypass_per_url = [];
+        foreach ( $target_bypass_per_url_raw as $u => $suffixes ) {
+            $clean_url = esc_url_raw( (string) $u );
+            if ( $clean_url === '' || ! is_array( $suffixes ) ) {
+                continue;
+            }
+            $clean_suffixes = [];
+            foreach ( $suffixes as $s ) {
+                $candidate = (string) $s;
+                // Legal bypass-suffix shapes: bare flag (e.g. 'nowprocket')
+                // or 'key=value' (e.g. 'ao_noptimize=1', 'LSCWP_CTRL=before_optm').
+                // Allowed chars: A-Z a-z 0-9 _ - . =
+                if ( preg_match( '/^[A-Za-z0-9_=.\-]+$/', $candidate ) ) {
+                    $clean_suffixes[] = $candidate;
+                }
+            }
+            $target_bypass_per_url[ $clean_url ] = $clean_suffixes;
+        }
 
         $home_url    = home_url();
         $page_specs  = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url );
