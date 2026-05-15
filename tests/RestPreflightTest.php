@@ -20,17 +20,17 @@ class RestPreflightTest extends TestCase {
         $this->assertGreaterThan( 0, $response['estimated_minutes'] );
     }
 
-    public function test_handle_returns_flying_press_when_active(): void {
+    public function test_handle_returns_empty_class_c_when_flying_press_active_post_reclass(): void {
+        // FlyingPress is class A post-reclass (Phase 1 + Phase 3) — it must NOT
+        // appear in class_c_active even when locally active.
         WP_Mock::userFunction( 'is_plugin_active' )
             ->andReturnUsing( fn( $f ) => $f === 'flying-press/flying-press.php' );
 
         $request  = new \WP_REST_Request( 'POST' );
         $response = RestPreflight::handle( $request );
 
-        $this->assertCount( 1, $response['class_c_active'] );
-        $this->assertSame( 'flying_press', $response['class_c_active'][0]['slug'] );
-        $this->assertSame( 'FlyingPress',  $response['class_c_active'][0]['name'] );
-        $this->assertNotEmpty( $response['class_c_active'][0]['warning'] );
+        $this->assertSame( [], $response['class_c_active'],
+            'FlyingPress reclassed C -> A; preflight class_c_active must be empty' );
     }
 
     public function test_handle_includes_hummingbird_only_when_minify_enabled(): void {
