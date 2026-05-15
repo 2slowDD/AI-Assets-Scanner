@@ -266,4 +266,51 @@ class PluginDetector {
         }
         return $out;
     }
+
+    /**
+     * Match any of $patterns against any header value (case-insensitive substring).
+     * Used by target-probe outcome classification.
+     *
+     * @param array $headers Headers as returned by wp_remote_retrieve_headers (assoc array).
+     * @param array $patterns Patterns to match (case-insensitive substring).
+     * @return bool true if ANY pattern matches ANY header value.
+     */
+    private static function header_match( array $headers, array $patterns ): bool {
+        if ( empty( $patterns ) ) return false;
+        // Flatten header values to a single lowercase string for substring search.
+        $haystack = '';
+        foreach ( $headers as $name => $val ) {
+            if ( is_array( $val ) ) $val = implode( ', ', $val );
+            $haystack .= strtolower( (string) $name ) . ': ' . strtolower( (string) $val ) . "\n";
+        }
+        foreach ( $patterns as $pat ) {
+            if ( strpos( $haystack, strtolower( (string) $pat ) ) !== false ) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Match any of $patterns against the body (case-insensitive substring on first 32KB).
+     * 32KB cap is per spec §5.5 + §8 row 18 — bounds CPU regardless of server's Range support.
+     *
+     * @param string $body Body string.
+     * @param array $patterns Patterns to match (case-insensitive substring).
+     * @return bool true if ANY pattern matches.
+     */
+    private static function body_match( string $body, array $patterns ): bool {
+        if ( empty( $patterns ) ) return false;
+        $haystack = strtolower( substr( $body, 0, 32768 ) );
+        foreach ( $patterns as $pat ) {
+            if ( strpos( $haystack, strtolower( (string) $pat ) ) !== false ) return true;
+        }
+        return false;
+    }
+
+    // --- Test seams (private-method exposure for unit testing) ---
+    public static function __test_header_match( array $headers, array $patterns ): bool {
+        return self::header_match( $headers, $patterns );
+    }
+    public static function __test_body_match( string $body, array $patterns ): bool {
+        return self::body_match( $body, $patterns );
+    }
 }
