@@ -21,7 +21,7 @@ class OptimizerStateTest extends TestCase {
 
         OptimizerState::save(
             'abcdef0123456789',
-            [ 'flying_press' => [ 'optimize_css' => true ] ],
+            [ 'sg_optimizer' => [ 'siteground_optimizer_optimize_css' => 1 ] ],
             600
         );
 
@@ -29,8 +29,8 @@ class OptimizerStateTest extends TestCase {
         $this->assertSame( false, $captured['autoload'], 'autoload must be false' );
         $this->assertSame( 'abcdef0123456789', $captured['value']['scan_id'] );
         $this->assertSame(
-            [ 'optimize_css' => true ],
-            $captured['value']['snapshots']['flying_press']
+            [ 'siteground_optimizer_optimize_css' => 1 ],
+            $captured['value']['snapshots']['sg_optimizer']
         );
         $this->assertGreaterThan( time(), $captured['value']['expires_at'] );
         $this->assertLessThanOrEqual( time() + 600, $captured['value']['expires_at'] );
@@ -42,7 +42,7 @@ class OptimizerStateTest extends TestCase {
             'scan_id'    => 'abcdef0123456789',
             'created_at' => time() - 5,
             'expires_at' => time() + 600,
-            'snapshots'  => [ 'flying_press' => [ 'optimize_css' => true ] ],
+            'snapshots'  => [ 'sg_optimizer' => [ 'siteground_optimizer_optimize_css' => 1 ] ],
         ];
         WP_Mock::userFunction( 'get_option' )
             ->with( 'aias_optimizer_state', null )
