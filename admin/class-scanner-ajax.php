@@ -31,6 +31,7 @@ class ScannerAjax {
             'cu_scanner_check_job',
             'cu_scanner_export_history',
             'cu_scanner_delete_history',
+            'cu_scanner_probe_target_stack',
         ];
         foreach ( $actions as $action ) {
             add_action( 'wp_ajax_' . $action, [ $this, str_replace( 'cu_scanner_', '', $action ) ] );
@@ -780,6 +781,145 @@ class ScannerAjax {
         readfile( $tmp_path );
         wp_delete_file( $tmp_path );
         $this->terminate();
+    }
+
+    /**
+     * AJAX endpoint: probe external URLs for their actual optimizer stack.
+     * Spec §6.1 + §6.1.1. Runs server-side wp_remote_get from operator's WP install
+     * BEFORE cu_scanner_reserve_job — does NOT consume customer credit by construction.
+     *
+     * Request:  POST { action: cu_scanner_probe_target_stack, _wpnonce, urls: [string,...] }
+     * Response: { success: true, data: { per_host_results, suggested_bypass_per_url, warning_needed, summary } }
+     */
+    public function probe_target_stack(): void {
+        // AC-N2-Auth — nonce + capability. Uses '_wpnonce' (default WP form-nonce param)
+        // to match the spec'd request shape; existing handlers use 'nonce' instead.
+        if ( ! check_ajax_referer( 'cu_scanner_nonce', '_wpnonce', false ) ) {
+            wp_send_json( [ 'ok' => false, 'error' => 'nonce_invalid' ], 403 );
+            return;
+        }
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json( [ 'ok' => false, 'error' => 'permission_denied' ], 403 );
+            return;
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce checked above
+        $urls_raw = isset( $_POST['urls'] ) ? wp_unslash( $_POST['urls'] ) : [];
+        if ( ! is_array( $urls_raw ) ) {
+            wp_send_json( [ 'ok' => false, 'error' => 'urls_must_be_array' ], 400 );
+            return;
+        }
+        $urls = array_values( array_filter( array_map(
+            static fn( $u ) => esc_url_raw( (string) $u ),
+            $urls_raw
+        ) ) );
+
+        // Group URLs by external host (per spec §6.1 server-side flow).
+        $by_host = self::group_urls_by_host( $urls );
+
+        // Per-host probe. PluginDetector::probe_target_stack handles its own 24h cache + 2-attempt fallback.
+        // For each host, probe URL #1 with URL #2 as fallback (or root '/' if only one URL).
+        $per_host_results = [];
+        foreach ( $by_host as $host => $host_urls ) {
+            $url1 = $host_urls[0];
+            $url2 = $host_urls[1] ?? self::root_url_for( $host, $url1 );
+            $result = \CUScanner\Scanner\PluginDetector::probe_target_stack( $url1, $url2, 12 );
+            $result['host'] = $host;
+            $per_host_results[] = $result;
+        }
+
+        // Build per-URL bypass map (§4.2 rule — every URL of same host gets same suffix list).
+        $suggested_bypass_per_url = [];
+        foreach ( $by_host as $host => $host_urls ) {
+            $r = self::find_result_for_host( $per_host_results, $host );
+            $bypass = is_array( $r['bypass_suffixes'] ?? null ) ? $r['bypass_suffixes'] : [];
+            foreach ( $host_urls as $u ) {
+                $suggested_bypass_per_url[ $u ] = $bypass;
+            }
+        }
+
+        // Determine warning_needed (any host has outcome other than class_a_clean).
+        $warning_needed = false;
+        foreach ( $per_host_results as $r ) {
+            if ( ( $r['outcome'] ?? '' ) !== 'class_a_clean' ) {
+                $warning_needed = true;
+                break;
+            }
+        }
+
+        // Strip non-whitelist fields from each per_host_results entry per AC-N2-SSRF (iii).
+        $per_host_results = array_map( [ self::class, 'strip_to_whitelist' ], $per_host_results );
+
+        wp_send_json( [
+            'success' => true,
+            'data'    => [
+                'per_host_results'         => $per_host_results,
+                'suggested_bypass_per_url' => $suggested_bypass_per_url,
+                'warning_needed'           => $warning_needed,
+                'summary'                  => [
+                    'uniform_outcome'   => self::is_uniform_outcome( $per_host_results ),
+                    'any_class_a_clean' => self::any_outcome_matches( $per_host_results, 'class_a_clean' ),
+                ],
+            ],
+        ] );
+    }
+
+    /** Group input URLs by host (parsed via wp_parse_url). Strips www. prefix for consistent grouping. */
+    private static function group_urls_by_host( array $urls ): array {
+        $out = [];
+        foreach ( $urls as $u ) {
+            $host = wp_parse_url( $u, PHP_URL_HOST );
+            if ( ! $host ) continue;
+            $host = strtolower( preg_replace( '/^www\./i', '', $host ) );
+            $out[ $host ][] = $u;
+        }
+        return $out;
+    }
+
+    /** Synthesize a root-URL fallback for hosts that only have 1 selected URL. */
+    private static function root_url_for( string $host, string $reference_url ): string {
+        $parts  = wp_parse_url( $reference_url );
+        $scheme = $parts['scheme'] ?? 'https';
+        return $scheme . '://' . $host . '/';
+    }
+
+    private static function find_result_for_host( array $results, string $host ): ?array {
+        foreach ( $results as $r ) {
+            if ( ( $r['host'] ?? null ) === $host ) return $r;
+        }
+        return null;
+    }
+
+    /**
+     * AC-N2-SSRF (iii) — response field whitelist.
+     * Drop any field not in the allowed list (defensive against probe_target_stack returning extras).
+     */
+    private static function strip_to_whitelist( array $r ): array {
+        static $allowed = [ 'host','outcome','detected','bypass_suffixes','is_wordpress',
+                            'probed_url_1','probed_url_2','probe_failed','probe_duration_ms',
+                            'cache_hit','reason','protocol_downgrade' ];
+        return array_intersect_key( $r, array_flip( $allowed ) );
+    }
+
+    private static function is_uniform_outcome( array $results ): bool {
+        if ( empty( $results ) ) return true;
+        $outcomes = array_unique( array_column( $results, 'outcome' ) );
+        return count( $outcomes ) === 1;
+    }
+
+    private static function any_outcome_matches( array $results, string $outcome ): bool {
+        foreach ( $results as $r ) {
+            if ( ( $r['outcome'] ?? '' ) === $outcome ) return true;
+        }
+        return false;
+    }
+
+    // --- Test seams (public static; call into private static helpers for unit testing) ---
+    public static function __test_group_urls_by_host( array $urls ): array {
+        return self::group_urls_by_host( $urls );
+    }
+    public static function __test_strip_to_whitelist( array $r ): array {
+        return self::strip_to_whitelist( $r );
     }
 
     public function export_history(): void {
