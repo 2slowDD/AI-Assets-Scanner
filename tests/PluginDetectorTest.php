@@ -147,4 +147,21 @@ class PluginDetectorTest extends TestCase {
         $this->assertSame( [], $result['security_warn'] );
         $this->assertTrue( $result['cu_missing'] );   // add this line
     }
+
+    /**
+     * AC-N2 — every OPTIMIZERS entry must define target_headers and target_body_markers
+     * sub-keys (arrays, possibly empty). Plan §1 + spec §5.1.
+     */
+    public function test_optimizers_table_has_target_detection_subkeys() {
+        $reflection = new \ReflectionClass( PluginDetector::class );
+        $optimizers = $reflection->getConstant( 'OPTIMIZERS' );
+        $this->assertNotFalse( $optimizers, 'OPTIMIZERS constant must be accessible' );
+
+        foreach ( $optimizers as $plugin_file => $entry ) {
+            $this->assertArrayHasKey( 'target_headers',      $entry, "{$plugin_file}: missing target_headers sub-key" );
+            $this->assertArrayHasKey( 'target_body_markers', $entry, "{$plugin_file}: missing target_body_markers sub-key" );
+            $this->assertIsArray( $entry['target_headers'],      "{$plugin_file}: target_headers must be array" );
+            $this->assertIsArray( $entry['target_body_markers'], "{$plugin_file}: target_body_markers must be array" );
+        }
+    }
 }
