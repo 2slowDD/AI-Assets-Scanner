@@ -6,6 +6,7 @@ define( 'WP_PLUGIN_DIR', '/fake/wp/wp-content/plugins' );
 define( 'CU_SCANNER_DIR', dirname( __DIR__ ) . '/' );
 define( 'CU_SCANNER_VERSION', '1.0.0' );
 define( 'CU_SCANNER_WPSERVICE_URL', 'https://api.wpservice.pro' );
+defined( 'HOUR_IN_SECONDS' ) || define( 'HOUR_IN_SECONDS', 3600 );
 
 if ( ! class_exists( 'WP_Error' ) ) {
     class WP_Error {

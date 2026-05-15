@@ -48,6 +48,20 @@ class PluginDetector {
     private const CU_MIN_VERSION = '1.3.9';
 
     /**
+     * §5.5 + §8 row 18 — CPU-bound cap on body-scan haystack.
+     * Bounds substring-scan cost regardless of whether the upstream server
+     * honored the probe's Range: bytes=0-32767 request.
+     */
+    private const BODY_SCAN_MAX_BYTES = 32768;
+
+    /**
+     * AC-N2-SSRF (i) — scheme allowlist for probe URLs.
+     * Rejects file://, javascript:, ftp://, gopher://, etc. before any
+     * wp_remote_get call.
+     */
+    private const ALLOWED_SCHEMES = [ 'http', 'https' ];
+
+    /**
      * Per-spec §3 optimizer matrix. Keyed by plugin file path.
      * Hummingbird's class/disable_method are null at the constant level — set
      * at runtime by detect_typed() based on `wphb_settings.minify.enabled`.
@@ -190,14 +204,6 @@ class PluginDetector {
     }
 
     /**
-     * Returns the spec §3 typed array shape: per-plugin entries for every
-     * currently-active optimizer. Distinct from detect() — this method is
-     * driven by the OPTIMIZERS const, not the legacy AUTO_BYPASS/SOFT_BLOCK/
-     * SOFT_WARN classification.
-     *
-     * @return array<string, array{name:string,class:?string,bypass_query:?string,disable_method:?string,warning:?string,target_headers:string[],target_body_markers:string[]}>
-     */
-    /**
      * Extract bypass-key suffixes from typed-detector entries.
      * Only Class A and A_star contribute; B and C return no suffix (B is QS-naive,
      * C requires plugin-side disable orchestrator).
@@ -243,6 +249,14 @@ class PluginDetector {
         return $map[ $file ] ?? 'unknown';
     }
 
+    /**
+     * Returns the spec §3 typed array shape: per-plugin entries for every
+     * currently-active optimizer. Distinct from detect() — this method is
+     * driven by the OPTIMIZERS const, not the legacy AUTO_BYPASS/SOFT_BLOCK/
+     * SOFT_WARN classification.
+     *
+     * @return array<string, array{name:string,class:?string,bypass_query:?string,disable_method:?string,warning:?string,target_headers:string[],target_body_markers:string[]}>
+     */
     public function detect_typed(): array {
         $out = [];
         foreach ( self::OPTIMIZERS as $file => $base ) {
@@ -278,6 +292,7 @@ class PluginDetector {
     private static function header_match( array $headers, array $patterns ): bool {
         if ( empty( $patterns ) ) return false;
         // Flatten header values to a single lowercase string for substring search.
+        // NOTE: patterns must not span lines; \n separator is for substring search only.
         $haystack = '';
         foreach ( $headers as $name => $val ) {
             if ( is_array( $val ) ) $val = implode( ', ', $val );
@@ -299,7 +314,7 @@ class PluginDetector {
      */
     private static function body_match( string $body, array $patterns ): bool {
         if ( empty( $patterns ) ) return false;
-        $haystack = strtolower( substr( $body, 0, 32768 ) );
+        $haystack = strtolower( substr( $body, 0, self::BODY_SCAN_MAX_BYTES ) );
         foreach ( $patterns as $pat ) {
             if ( strpos( $haystack, strtolower( (string) $pat ) ) !== false ) return true;
         }
@@ -317,6 +332,9 @@ class PluginDetector {
      */
     private static function classify_outcome( bool $probe_failed, bool $is_wordpress, array $detected ): string {
         if ( $probe_failed ) return 'probe_failed';
+        // §5.4 step 3 trust-WP-first: body markers without WP context are unreliable
+        // (regex may match unrelated customer content). Discard any class hits in
+        // favor of 'non_wordpress' when no WP signals present.
         if ( ! $is_wordpress ) return 'non_wordpress';
 
         $classes_seen = [];
@@ -342,5 +360,196 @@ class PluginDetector {
     }
     public static function __test_classify_outcome( bool $probe_failed, bool $is_wordpress, array $detected ): string {
         return self::classify_outcome( $probe_failed, $is_wordpress, $detected );
+    }
+
+    /**
+     * AC-N2-SSRF (iv) — sanitize WP_Error / HTTP-error reason messages before returning to client.
+     * Redacts IPs + server-internal paths; length-caps to 120.
+     * Per d-review-r1 N2: redact only common server-internal path prefixes (not probed URL paths).
+     */
+    private static function sanitize_reason( string $reason ): string {
+        $reason = preg_replace( '/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?\b/', '<ip-redacted>', $reason );
+        $reason = preg_replace( '#(?:^|\s)(/(?:home|var|usr|srv|etc|opt|root|tmp)/[^\s]*)#i', ' <internal-path-redacted>', $reason );
+        return substr( $reason, 0, 120 );
+    }
+
+    /**
+     * WordPress-detection signals per spec §5.1 last row.
+     * Case-insensitive substring match against headers + first 32KB of body.
+     */
+    private static function is_wordpress_target( array $headers, string $body ): bool {
+        $body_lower = strtolower( substr( $body, 0, self::BODY_SCAN_MAX_BYTES ) );
+        if ( strpos( $body_lower, '<meta name="generator" content="wordpress' ) !== false ) return true;
+        if ( strpos( $body_lower, 'wp-content/' )  !== false ) return true;
+        if ( strpos( $body_lower, 'wp-includes/' ) !== false ) return true;
+        if ( strpos( $body_lower, 'wp-json/' )     !== false ) return true;
+        foreach ( $headers as $name => $val ) {
+            if ( strtolower( (string) $name ) === 'x-pingback' ) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Single probe attempt — one wp_remote_get + classify what was returned.
+     * Returns inconclusive on transient inconclusive result so caller can retry on URL #2.
+     */
+    private static function single_probe_attempt( string $url, int $timeout_seconds ): array {
+        $start_ms = (int) round( microtime( true ) * 1000 );
+
+        $parts  = wp_parse_url( $url );
+        $scheme = strtolower( $parts['scheme'] ?? '' );
+        if ( ! in_array( $scheme, self::ALLOWED_SCHEMES, true ) ) {
+            return [
+                'outcome'             => 'probe_failed',
+                'reason'              => 'invalid_scheme',
+                'is_wordpress'        => false,
+                'detected'            => [],
+                'bypass_suffixes'     => [],
+                'probed_url'          => $url,
+                'probe_duration_ms'   => 0,
+                'protocol_downgrade'  => false,
+            ];
+        }
+
+        $response = wp_remote_get( $url, [
+            'timeout'     => $timeout_seconds,
+            'redirection' => 3,
+            'sslverify'   => true,
+            'headers'     => [
+                'Range'      => 'bytes=0-32767',
+                'User-Agent' => 'CU-Scanner-Probe/1.0 (target-stack-detection)',
+            ],
+        ] );
+
+        $duration_ms = ( (int) round( microtime( true ) * 1000 ) ) - $start_ms;
+
+        if ( is_wp_error( $response ) ) {
+            return [
+                'outcome'             => 'probe_failed',
+                'reason'              => self::sanitize_reason( $response->get_error_message() ?: 'unreachable' ),
+                'is_wordpress'        => false,
+                'detected'            => [],
+                'bypass_suffixes'     => [],
+                'probed_url'          => $url,
+                'probe_duration_ms'   => $duration_ms,
+                'protocol_downgrade'  => false,
+            ];
+        }
+
+        $status  = (int) wp_remote_retrieve_response_code( $response );
+        $headers = wp_remote_retrieve_headers( $response );
+        if ( is_object( $headers ) && method_exists( $headers, 'getAll' ) ) {
+            $headers = $headers->getAll();
+        } elseif ( ! is_array( $headers ) ) {
+            $headers = (array) $headers;
+        }
+        $body = (string) wp_remote_retrieve_body( $response );
+
+        if ( $status >= 500 || $status === 403 || $status === 429 ) {
+            return [
+                'outcome'             => 'probe_failed',
+                'reason'              => 'HTTP ' . $status,
+                'is_wordpress'        => false,
+                'detected'            => [],
+                'bypass_suffixes'     => [],
+                'probed_url'          => $url,
+                'probe_duration_ms'   => $duration_ms,
+                'protocol_downgrade'  => false,
+            ];
+        }
+
+        // 4xx other than 403/429 → inconclusive; caller may retry URL #2.
+        if ( $status >= 400 ) {
+            return [
+                'outcome'             => 'inconclusive',
+                'reason'              => 'HTTP ' . $status,
+                'is_wordpress'        => false,
+                'detected'            => [],
+                'bypass_suffixes'     => [],
+                'probed_url'          => $url,
+                'probe_duration_ms'   => $duration_ms,
+                'protocol_downgrade'  => false,
+            ];
+        }
+
+        // Scan headers + body for each optimizer signature.
+        $detected = [];
+        foreach ( self::OPTIMIZERS as $plugin_file => $entry ) {
+            $h_pat = $entry['target_headers']      ?? [];
+            $b_pat = $entry['target_body_markers'] ?? [];
+            $h_match = self::header_match( $headers, $h_pat );
+            $b_match = self::body_match( $body, $b_pat );
+            if ( $h_match || $b_match ) {
+                $detected[] = [
+                    'name'         => (string) $entry['name'],
+                    'class'        => (string) ( $entry['class'] ?? '' ),
+                    'bypass_query' => $entry['bypass_query'] ?? null,
+                    'source'       => $h_match ? 'header' : 'body',
+                ];
+            }
+        }
+        $is_wordpress = self::is_wordpress_target( $headers, $body );
+
+        $outcome = self::classify_outcome( false, $is_wordpress, $detected );
+
+        // Build bypass_suffixes (only class A / A_star emit keys; mirrors build_bypass_suffixes contract).
+        $bypass = [];
+        foreach ( $detected as $d ) {
+            $cls = $d['class'] ?? '';
+            $key = $d['bypass_query'] ?? null;
+            if ( in_array( $cls, [ 'A', 'A_star' ], true ) && is_string( $key ) && $key !== '' ) {
+                $bypass[] = $key;
+            }
+        }
+
+        return [
+            // 'inconclusive' is a transient label only inside single_probe_attempt; the wrapper
+            // resolves it to 'no_clue' / 'non_wordpress' per §5.4 step 4 if BOTH probes are inconclusive.
+            'outcome'             => $outcome === 'no_clue' ? 'inconclusive' : $outcome,
+            'reason'              => null,
+            'is_wordpress'        => $is_wordpress,
+            'detected'            => $detected,
+            'bypass_suffixes'     => $bypass,
+            'probed_url'          => $url,
+            'probe_duration_ms'   => $duration_ms,
+            'protocol_downgrade'  => false,
+        ];
+    }
+
+    /**
+     * Public wrapper — 2-attempt probe with 24h per-host transient cache.
+     * Cache key includes scheme + port to avoid collision (spec §5.3 + d-review M5).
+     */
+    public static function probe_target_stack( string $url, ?string $fallback_url = null, int $timeout_seconds = 12 ): array {
+        $parts  = wp_parse_url( $url );
+        $scheme = strtolower( $parts['scheme'] ?? 'https' );
+        $host   = strtolower( $parts['host']   ?? '' );
+        $port   = (string) ( $parts['port']    ?? ( $scheme === 'http' ? '80' : '443' ) );
+        $cache_key = 'cu_scanner_target_stack_' . md5( $scheme . '://' . $host . ':' . $port );
+
+        $cached = get_transient( $cache_key );
+        if ( $cached !== false && is_array( $cached ) ) {
+            $cached['cache_hit'] = true;
+            return $cached;
+        }
+
+        $result = self::single_probe_attempt( $url, $timeout_seconds );
+        if ( $result['outcome'] === 'inconclusive' && $fallback_url ) {
+            $r2 = self::single_probe_attempt( $fallback_url, $timeout_seconds );
+            if ( $r2['outcome'] !== 'inconclusive' ) {
+                $result = $r2;
+                $result['probed_url_2'] = $fallback_url;
+            }
+        }
+
+        // Resolve transient 'inconclusive' to 'no_clue' / 'non_wordpress' per §5.4 step 4.
+        if ( $result['outcome'] === 'inconclusive' ) {
+            $result['outcome'] = $result['is_wordpress'] ? 'no_clue' : 'non_wordpress';
+        }
+
+        $result['probed_url_1'] = $url;
+        $result['cache_hit']    = false;
+        set_transient( $cache_key, $result, 24 * HOUR_IN_SECONDS );
+        return $result;
     }
 }

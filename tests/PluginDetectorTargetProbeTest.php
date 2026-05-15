@@ -11,6 +11,9 @@ use WP_Mock\Tools\TestCase;
  */
 class PluginDetectorTargetProbeTest extends TestCase {
 
+    protected $http_stub_response = null;
+    protected $http_stub_calls    = [];
+
     public function setUp(): void {
         parent::setUp();
         WP_Mock::setUp();
@@ -122,5 +125,239 @@ class PluginDetectorTargetProbeTest extends TestCase {
     public function test_classifier_no_clue_when_wp_but_no_optimizer() {
         $r = PluginDetector::__test_classify_outcome( false, true, [] );
         $this->assertSame( 'no_clue', $r );
+    }
+
+    // -----------------------------------------------------------------
+    // Minor #6 absorption — extra matcher coverage (header symmetry +
+    // array-valued header flattening).
+    // -----------------------------------------------------------------
+
+    /**
+     * Header matcher: empty patterns array never matches (symmetry with body_match).
+     */
+    public function test_header_matcher_empty_patterns_returns_false() {
+        $this->assertFalse( PluginDetector::__test_header_match( [ 'X-Some-Header' => 'value' ], [] ) );
+    }
+
+    /**
+     * Header matcher: array-valued headers (e.g. multi-value Set-Cookie) flattened via implode.
+     */
+    public function test_header_matcher_handles_array_valued_headers() {
+        $headers = [ 'Set-Cookie' => [ '_lscache_vary=abc', 'wordpress_logged_in=def' ] ];
+        $this->assertTrue( PluginDetector::__test_header_match( $headers, [ '_lscache_vary' ] ) );
+    }
+
+    // -----------------------------------------------------------------
+    // Task 2.5 — probe_target_stack() integration tests.
+    // -----------------------------------------------------------------
+
+    /**
+     * AC-N2-SSRF (i) — scheme allowlist rejects file://.
+     */
+    public function test_probe_rejects_file_scheme() {
+        // wp_remote_get must NOT be called for invalid scheme.
+        WP_Mock::userFunction( 'wp_remote_get' )->never();
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+
+        $r = PluginDetector::probe_target_stack( 'file:///etc/passwd', null, 12 );
+        $this->assertSame( 'probe_failed', $r['outcome'] );
+        $this->assertSame( 'invalid_scheme', $r['reason'] );
+    }
+
+    /**
+     * AC-N2-SSRF (i) — scheme allowlist rejects javascript:.
+     */
+    public function test_probe_rejects_javascript_scheme() {
+        WP_Mock::userFunction( 'wp_remote_get' )->never();
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+
+        $r = PluginDetector::probe_target_stack( 'javascript:alert(1)', null, 12 );
+        $this->assertSame( 'probe_failed', $r['outcome'] );
+        $this->assertSame( 'invalid_scheme', $r['reason'] );
+    }
+
+    /**
+     * is_wordpress detection via meta generator (spec §5.1 WordPress core row).
+     */
+    public function test_probe_detects_wordpress_via_meta_generator() {
+        $this->stub_probe_response( 200, [], '<meta name="generator" content="WordPress 6.4">' );
+        $r = PluginDetector::probe_target_stack( 'https://example.com/', null, 12 );
+        $this->assertTrue( $r['is_wordpress'] );
+    }
+
+    /**
+     * is_wordpress false when no WP signals (non-WP target — spec §5.4 step 3).
+     */
+    public function test_probe_is_wordpress_false_when_no_wp_signals() {
+        $this->stub_probe_response( 200, [], '<html><body>Generic non-WP site</body></html>' );
+        $r = PluginDetector::probe_target_stack( 'https://static-html.example.com/', null, 12 );
+        $this->assertSame( 'non_wordpress', $r['outcome'] );
+        $this->assertFalse( $r['is_wordpress'] );
+    }
+
+    /**
+     * AC-N2-1 — Breeze body marker detected → class_bc_only outcome → empty bypass_suffixes.
+     */
+    public function test_probe_detects_breeze_class_bc_only() {
+        $this->stub_probe_response( 200, [],
+            '<meta name="generator" content="WordPress 6.4"><!-- Cache served by breeze CACHE (Desktop) -->' );
+        $r = PluginDetector::probe_target_stack( 'https://pinadventures.com/', null, 12 );
+        $this->assertSame( 'class_bc_only', $r['outcome'] );
+        $this->assertTrue( $r['is_wordpress'] );
+        $this->assertCount( 1, $r['detected'] );
+        $this->assertSame( 'Breeze', $r['detected'][0]['name'] );
+        $this->assertSame( 'body',   $r['detected'][0]['source'] );
+        $this->assertSame( [], $r['bypass_suffixes'] );
+    }
+
+    /**
+     * AC-N2-7 — LiteSpeed header + WP Fastest Cache body → hybrid.
+     */
+    public function test_probe_detects_hybrid_a_plus_bc() {
+        $this->stub_probe_response( 200,
+            [ 'x-litespeed-cache' => 'hit' ],
+            '<meta name="generator" content="WordPress 6.4"><!-- WP Fastest Cache file was created in -->'
+        );
+        $r = PluginDetector::probe_target_stack( 'https://hybrid.example.com/', null, 12 );
+        $this->assertSame( 'hybrid_a_plus_bc', $r['outcome'] );
+        $this->assertSame( [ 'LSCWP_CTRL=before_optm' ], $r['bypass_suffixes'] );
+    }
+
+    /**
+     * AC-N2-9-unit (probe-side) — FlyingPress body marker → class_a_clean → 'no_optimize' suffix.
+     */
+    public function test_probe_detects_flying_press_emits_no_optimize() {
+        $this->stub_probe_response( 200, [],
+            '<meta name="generator" content="WordPress 6.4"><!-- Optimized by FlyingPress -->' );
+        $r = PluginDetector::probe_target_stack( 'https://flyingpress-site.example.com/', null, 12 );
+        $this->assertSame( 'class_a_clean', $r['outcome'] );
+        $this->assertSame( [ 'no_optimize' ], $r['bypass_suffixes'] );
+    }
+
+    /**
+     * AC-N2-5 — HTTP 403 → probe_failed.
+     */
+    public function test_probe_http_403_returns_probe_failed() {
+        $this->stub_probe_response( 403, [], 'Forbidden' );
+        $r = PluginDetector::probe_target_stack( 'https://bot-protected.example.com/', null, 12 );
+        $this->assertSame( 'probe_failed', $r['outcome'] );
+        $this->assertStringContainsString( '403', $r['reason'] );
+    }
+
+    /**
+     * AC-N2-5 — WP_Error → probe_failed with sanitized reason.
+     */
+    public function test_probe_wp_error_returns_probe_failed_sanitized() {
+        $err = $this->make_wp_error( 'http_request_failed', 'Connection refused to 10.0.0.5:8080 in /home/dev/path' );
+        $this->stub_probe_wp_error( $err );
+        $r = PluginDetector::probe_target_stack( 'https://unreachable.example.com/', null, 12 );
+        $this->assertSame( 'probe_failed', $r['outcome'] );
+        // §6.1.1 sanitization — IPs redacted, internal paths redacted, length-capped.
+        $this->assertStringNotContainsString( '10.0.0.5', $r['reason'] );
+        $this->assertStringNotContainsString( '/home/',   $r['reason'] );
+        $this->assertLessThanOrEqual( 120, strlen( $r['reason'] ) );
+    }
+
+    /**
+     * AC-N2-4 — 24h transient cache hit returns cache_hit=true and skips wp_remote_get.
+     */
+    public function test_probe_cache_hit_returns_cached_result() {
+        $cached = [
+            'outcome'         => 'class_a_clean',
+            'detected'        => [ [ 'name' => 'WP Rocket', 'class' => 'A', 'bypass_query' => 'nowprocket', 'source' => 'body' ] ],
+            'bypass_suffixes' => [ 'nowprocket' ],
+            'is_wordpress'    => true,
+        ];
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( $cached );
+        WP_Mock::userFunction( 'wp_remote_get' )->never();
+
+        $r = PluginDetector::probe_target_stack( 'https://cached.example.com/', null, 12 );
+        $this->assertTrue( $r['cache_hit'] );
+        $this->assertSame( 'class_a_clean', $r['outcome'] );
+    }
+
+    /**
+     * AC-N2-12 — non-WP returns empty bypass_suffixes (no host stack leak).
+     */
+    public function test_probe_non_wordpress_returns_empty_bypass_suffixes() {
+        $this->stub_probe_response( 200, [], '<html>not WP</html>' );
+        $r = PluginDetector::probe_target_stack( 'https://example.com/', null, 12 );
+        $this->assertSame( [], $r['bypass_suffixes'] );
+    }
+
+    // -----------------------------------------------------------------
+    // Probe-test helpers.
+    // -----------------------------------------------------------------
+
+    /**
+     * Stub a successful wp_remote_get response with the given status, headers, body.
+     * Mocks wp_remote_get + wp_parse_url + wp_remote_retrieve_* + get_transient + set_transient
+     * + is_wp_error for the common probe path.
+     */
+    private function stub_probe_response( int $status, array $headers, string $body ): void {
+        $response = [ 'response' => [ 'code' => $status ], 'headers' => $headers, 'body' => $body ];
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturn( $response );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( $status );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( $headers );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( $body );
+    }
+
+    private function stub_probe_wp_error( $wp_error ): void {
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturn( $wp_error );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) use ( $wp_error ) {
+            return $r === $wp_error;
+        } );
+    }
+
+    /**
+     * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
+     * If a real WP_Error is available in the test bootstrap, prefer that.
+     */
+    private function make_wp_error( string $code, string $message ) {
+        if ( class_exists( 'WP_Error' ) ) {
+            return new \WP_Error( $code, $message );
+        }
+        // Fallback: anonymous object with get_error_message()
+        return new class( $code, $message ) {
+            public function __construct( public string $code, public string $message ) {}
+            public function get_error_message(): string { return $this->message; }
+        };
     }
 }
