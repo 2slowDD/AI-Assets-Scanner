@@ -164,4 +164,18 @@ class PluginDetectorTest extends TestCase {
             $this->assertIsArray( $entry['target_body_markers'], "{$plugin_file}: target_body_markers must be array" );
         }
     }
+
+    /**
+     * AC-N2-9-unit — FlyingPress reclass C → A per spec §5.2.
+     */
+    public function test_flying_press_is_class_a_with_no_optimize() {
+        $reflection = new \ReflectionClass( PluginDetector::class );
+        $optimizers = $reflection->getConstant( 'OPTIMIZERS' );
+        $fp = $optimizers['flying-press/flying-press.php'] ?? null;
+        $this->assertNotNull( $fp, 'FlyingPress entry must exist in OPTIMIZERS' );
+        $this->assertSame( 'A',           $fp['class'],          'FlyingPress must be class A (reclassified from C)' );
+        $this->assertSame( 'no_optimize', $fp['bypass_query'],   'FlyingPress bypass_query must be no_optimize' );
+        $this->assertNull( $fp['disable_method'], 'FlyingPress disable_method must be null post-reclass' );
+        $this->assertNull( $fp['warning'],        'FlyingPress warning copy must be null post-reclass' );
+    }
 }
