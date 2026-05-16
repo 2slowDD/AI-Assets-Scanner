@@ -347,6 +347,35 @@ class PluginDetectorTargetProbeTest extends TestCase {
     }
 
     /**
+     * T-N7-A (helper test for body_match tail-only mode).
+     * Verifies that body_match with $tail_only=true scans only the last 8KB of body,
+     * NOT the first 32KB. End-of-body cache markers (Breeze, WP Rocket, LiteSpeed,
+     * etc.) live in HTML comments after </html> — typically in the last few KB.
+     */
+    public function test_t_n7_helper_body_match_tail_only() {
+        // 95KB of filler body with a Breeze marker at byte 95000 (in last 8KB of a ~95031B body).
+        $filler_head = str_repeat( 'x', 50000 );      // 50KB of x's
+        $filler_mid  = str_repeat( 'y', 45000 );      // 45KB of y's (so total 95KB before marker)
+        $marker_tail = '<!-- Cache served by breeze -->';
+        $body        = $filler_head . $filler_mid . $marker_tail;
+
+        // Confirm test fixture: marker is BEYOND first 32KB.
+        $this->assertGreaterThan( 32768, strpos( $body, 'Cache served by breeze' ) );
+
+        // Default mode (head-only): marker is beyond 32KB → MISS.
+        $this->assertFalse(
+            PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ] ),
+            'body_match default mode should miss the tail marker'
+        );
+
+        // Tail-only mode: scan last 8KB → HIT.
+        $this->assertTrue(
+            PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ], true ),
+            'body_match with tail_only=true should detect the tail marker'
+        );
+    }
+
+    /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
      */
