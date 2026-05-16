@@ -370,6 +370,14 @@ class PluginDetector {
     public static function __test_classify_outcome( bool $probe_failed, bool $is_wordpress, array $detected ): string {
         return self::classify_outcome( $probe_failed, $is_wordpress, $detected );
     }
+    public static function __test_single_probe_attempt(
+        string $url,
+        int $timeout_seconds,
+        bool $use_range = true,
+        bool $scan_tail_only = false
+    ): array {
+        return self::single_probe_attempt( $url, $timeout_seconds, $use_range, $scan_tail_only );
+    }
 
     /**
      * AC-N2-SSRF (iv) — sanitize WP_Error / HTTP-error reason messages before returning to client.
@@ -401,8 +409,22 @@ class PluginDetector {
     /**
      * Single probe attempt — one wp_remote_get + classify what was returned.
      * Returns inconclusive on transient inconclusive result so caller can retry on URL #2.
+     *
+     * @param string $url             validated URL (caller responsible for SSRF gate)
+     * @param int    $timeout_seconds wp_remote_get timeout
+     * @param bool   $use_range       Pass 1 (true): send Range: bytes=0-32767 header.
+     *                                Pass 2 (false): NO Range header + 2MB limit_response_size cap.
+     * @param bool   $scan_tail_only  Pass 1 (false): body_match scans first 32KB head.
+     *                                Pass 2 (true): body_match scans last 8KB tail (end-of-body
+     *                                cache markers — Breeze, WP Rocket, LiteSpeed, etc.).
+     * @return array probe result; see class docblock for shape
      */
-    private static function single_probe_attempt( string $url, int $timeout_seconds ): array {
+    private static function single_probe_attempt(
+        string $url,
+        int $timeout_seconds,
+        bool $use_range = true,
+        bool $scan_tail_only = false
+    ): array {
         $start_ms = (int) round( microtime( true ) * 1000 );
 
         $parts  = wp_parse_url( $url );
@@ -420,15 +442,26 @@ class PluginDetector {
             ];
         }
 
-        $response = wp_remote_get( $url, [
+        $request_headers = [
+            'User-Agent' => 'CU-Scanner-Probe/1.0 (target-stack-detection)',
+        ];
+        if ( $use_range ) {
+            $request_headers['Range'] = 'bytes=0-32767';
+        }
+
+        $request_args = [
             'timeout'     => $timeout_seconds,
             'redirection' => 3,
             'sslverify'   => true,
-            'headers'     => [
-                'Range'      => 'bytes=0-32767',
-                'User-Agent' => 'CU-Scanner-Probe/1.0 (target-stack-detection)',
-            ],
-        ] );
+            'headers'     => $request_headers,
+        ];
+        if ( ! $use_range ) {
+            // Pass 2 (full-body fetch): cap response size at 2MB to bound memory.
+            // wp_remote_get truncates body to this limit; oversized responses don't fault.
+            $request_args['limit_response_size'] = 2 * 1024 * 1024;
+        }
+
+        $response = wp_remote_get( $url, $request_args );
 
         $duration_ms = ( (int) round( microtime( true ) * 1000 ) ) - $start_ms;
 
@@ -487,7 +520,7 @@ class PluginDetector {
             $h_pat = $entry['target_headers']      ?? [];
             $b_pat = $entry['target_body_markers'] ?? [];
             $h_match = self::header_match( $headers, $h_pat );
-            $b_match = self::body_match( $body, $b_pat );
+            $b_match = self::body_match( $body, $b_pat, $scan_tail_only );
             if ( $h_match || $b_match ) {
                 $detected[] = [
                     'name'         => (string) $entry['name'],
