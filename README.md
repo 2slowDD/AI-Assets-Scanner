@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.2.9-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.3.5-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
@@ -24,6 +24,10 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **Credit system** — pay per scan via wpservice.pro credits
 - **Optimization plugin auto-bypass** — automatically bypasses WP Rocket, Autoptimize, and Code Unloader caches during scanning
 - **Target-stack-aware bypass routing (external URLs)** — when scanning a URL on a different host than the WP install hosting the plugin, the plugin probes the target server-side (one or two URLs per host, 24h cached) to detect its actual cache/optimization stack (WP Rocket, Perfmatters, Autoptimize, NitroPack, Asset CleanUp, LiteSpeed, FlyingPress, Breeze, Cache Enabler, W3 Total Cache, etc.) before scan-credit reservation. Class A/A_star plugins get their proper bypass query param; class B/C-only or no-clue or non-WP targets surface a blocking warning naming the detected stack + suggesting to temporarily disable bot protection. The probe is server-to-server (no customer scan credit consumed). FlyingPress reclassified to class A using its officially-documented `?no_optimize` query (per FlyingPress changelog v2.3.0)
+- **Two-pass probe for end-of-body cache markers (FU-NEW-7, 1.3.3)** — when the probe's first 32KB head scan returns inconclusive AND no transport error, a second pass fetches the full body (2 MB cap) and scans the last 8KB for end-of-body HTML comments injected by 9 of 14 OPTIMIZERS plugins (WP Rocket, LiteSpeed, WP Fastest Cache, W3 Total Cache, Breeze, Cache Enabler, Swift Performance, FlyingPress, SG Optimizer). Closes the detection gap on cache-protected sites behind CDNs that strip plugin-specific headers (e.g. Breeze on Kinsta returning no head signals)
+- **Pre-probe external-URL safety gate (1.3.4)** — restores a generic `window.confirm()` consent dialog BEFORE the target-stack probe AJAX fires for any external URL, listing the unique hosts + URL count. Cancels cleanly; Continue proceeds to the probe + outcome modal. Closes the silent-proceed-on-class-A-clean gap where suffix-friendly external sites (LiteSpeed/WP Rocket/Perfmatters hosts) used to start scanning without operator consent
+- **Host-aware operator-site bypass filter (FU-NEW-9, 1.3.5)** — operator-host plugin keys (`nowprocket` for WP Rocket, `nowpcu` for Code Unloader, `perfmattersoff` for Perfmatters, etc., detected on the WP install hosting the scanner) are now ONLY applied to same-host scan URLs. External URLs receive only the target's probe-derived bypass suffix, with no leak of operator-site keys onto a different site's request (closes the F-DEG bug where `bestdiagnostics.net/?LSCWP_CTRL=before_optm` was getting polluted with the operator-host's `?nowprocket&nowpcu`)
+- **Multi-scan state-leak fix (FU-NEW-6, 1.3.2)** — `selectedUrls` is now refreshed from the include-URLs textarea on every Start Scan click within the same page session (was only refreshed on the FIRST click pre-fix, causing silent wrong-target scans when the operator changed the textarea + clicked Start Scan again without reloading)
 - **HTTP Basic Auth support** — scan password-protected staging environments
 - **Scan history** — browse past scan results and re-download rule files at any time
 - **Bot-protection notice** — contextual warning before scanning reminds users to disable Cloudflare / WordFence bot blocking for accurate results
