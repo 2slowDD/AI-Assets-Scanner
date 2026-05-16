@@ -194,6 +194,7 @@ class ScannerAjax {
         }
 
         $home_url    = home_url();
+        $home_host   = wp_parse_url( $home_url, PHP_URL_HOST );
         $page_specs  = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url );
 
         // Force URL scheme to match the current admin request's protocol. Sitemaps
@@ -216,9 +217,26 @@ class ScannerAjax {
         //
         // FU-NEW-2 Phase 5: each URL gets its own per-URL suffix list (passed in via
         // $page_specs from build_pages_array). External URLs may have an empty list.
-        $build_scan_url = static function ( string $u, array $bypass_suffixes ) use ( $bypass_params, $site_scheme ): string {
+        $build_scan_url = static function ( string $u, array $bypass_suffixes ) use ( $bypass_params, $site_scheme, $home_host ): string {
             $sanitized = set_url_scheme( sanitize_url( $u ), $site_scheme );
-            $with_old  = add_query_arg( $bypass_params, $sanitized );
+
+            // FU-NEW-9 (1.3.5) — only apply operator-site $bypass_params
+            // (auto_bypass keys from the LOCAL detector — nowprocket /
+            // nowpcu / perfmattersoff / etc. for plugins installed on the
+            // operator's OWN WP host) to same-host URLs. External URLs
+            // receive ONLY the target-detected $bypass_suffixes from the
+            // FU-NEW-2 probe. F-DEG: mixing operator-site keys onto
+            // external scan URLs pollutes the target's request with
+            // unexpected query params from a different site's plugin
+            // config (e.g. bestdiagnostics.net was receiving wpservice.pro's
+            // nowprocket+nowpcu alongside its own LSCWP_CTRL=before_optm).
+            $url_host     = wp_parse_url( $sanitized, PHP_URL_HOST );
+            $is_same_host = ( $url_host && $home_host
+                              && strcasecmp( $url_host, $home_host ) === 0 );
+            $with_old     = $is_same_host
+                ? add_query_arg( $bypass_params, $sanitized )
+                : $sanitized;
+
             if ( empty( $bypass_suffixes ) ) {
                 return $with_old;
             }
