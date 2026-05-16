@@ -584,6 +584,36 @@ class PluginDetector {
             }
         }
 
+        // FU-NEW-7: Pass 2 orchestration. Fires when Pass 1 (head-area scan) was inconclusive
+        // AND the response was healthy (reason === null, i.e. not an HTTP/transport error).
+        // Retries each URL with a full-body fetch + last-8KB tail-scan to recover end-of-body
+        // cache markers (Breeze, WP Rocket, LiteSpeed, etc. — 9 of 14 OPTIMIZERS).
+        // Spec rev 2.1 §3.2 + §3.3 + §3.8.
+        if ( $result['outcome'] === 'inconclusive' && ( $result['reason'] ?? null ) === null ) {
+            // Pass 2a: URL1 full body + tail-scan.
+            $p2_url1 = self::single_probe_attempt(
+                $url,
+                $timeout_seconds,
+                false, /* use_range */
+                true   /* scan_tail_only */
+            );
+            if ( $p2_url1['outcome'] !== 'inconclusive' ) {
+                $final = $p2_url1;
+            } elseif ( $fallback_url ) {
+                // Pass 2b: URL2 full body + tail-scan.
+                $p2_url2 = self::single_probe_attempt(
+                    $fallback_url,
+                    $timeout_seconds,
+                    false, /* use_range */
+                    true   /* scan_tail_only */
+                );
+                $final = $p2_url2['outcome'] !== 'inconclusive' ? $p2_url2 : $result;
+            } else {
+                $final = $result;
+            }
+            $result = $final;
+        }
+
         // Resolve transient 'inconclusive' to 'no_clue' / 'non_wordpress' per §5.4 step 4.
         if ( $result['outcome'] === 'inconclusive' ) {
             $result['outcome'] = $result['is_wordpress'] ? 'no_clue' : 'non_wordpress';

@@ -436,6 +436,98 @@ class PluginDetectorTargetProbeTest extends TestCase {
             'Case 2: limit_response_size must be exactly 2MB' );
     }
 
+    // -----------------------------------------------------------------
+    // FU-NEW-7 Task 3 — two-pass orchestration integration test.
+    // -----------------------------------------------------------------
+
+    /**
+     * T-N7-2: Pass 1 inconclusive both URLs; Pass 2 detects Breeze marker
+     * in last 8KB of full body on URL1.
+     *
+     * Reproduces the pinadventures.com Breeze-on-Kinsta failure pattern from
+     * FU-NEW-4/5 AC validation 2026-05-16. The Breeze HTML comment marker
+     * '<!-- Cache served by breeze -->' lives at end-of-body, beyond the 32KB
+     * Range cap. Pass 2's full-body fetch + tail-scan recovers it.
+     */
+    public function test_t_n7_2_pass_2_detects_breeze_in_tail() {
+        $call_count     = 0;
+        $captured_calls = [];
+
+        // wp_remote_get returns different bodies per call:
+        //   call 1 (URL1 ranged): healthy WP page, no Breeze marker, no header.
+        //   call 2 (URL2 ranged): same — both Pass 1 attempts inconclusive.
+        //   call 3 (URL1 full):   full body with end-of-body Breeze marker.
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$call_count, &$captured_calls ) {
+                $call_count++;
+                $captured_calls[] = [
+                    'url'                     => $url,
+                    'range'                   => $args['headers']['Range'] ?? null,
+                    'has_limit_response_size' => array_key_exists( 'limit_response_size', $args ),
+                ];
+
+                if ( $call_count <= 2 ) {
+                    // Pass 1 (ranged, 2 URLs): healthy WP page, no markers/header.
+                    return [
+                        'response' => [ 'code' => 200 ],
+                        'headers'  => [], // no x-cache-handler — Kinsta-stripped
+                        'body'     => '<!doctype html><html><head>'
+                                    . '<meta name="generator" content="WordPress 6.4">'
+                                    . str_repeat( '<meta name="x" content="y">', 1000 ) // long head, no marker
+                                    . '</head><body>plain content</body></html>',
+                    ];
+                }
+                // Pass 2 (URL1, no Range): full body with end-of-body Breeze marker.
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'headers'  => [],
+                    'body'     => '<!doctype html><html><head>'
+                                . '<meta name="generator" content="WordPress 6.4">'
+                                . '</head><body>'
+                                . str_repeat( 'content ', 5000 ) // ~40KB of body content
+                                . '</body></html>'
+                                . '<!-- Cache served by breeze -->',
+                ];
+            }
+        );
+
+        // Stub other WP functions probe_target_stack needs.
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) {
+                return $parts;
+            }
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( $r ) { return $r['response']['code']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+        // Ensure no 24h transient hit (fresh test).
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+
+        $result = PluginDetector::probe_target_stack(
+            'https://pinadventures.example/',
+            'https://pinadventures.example/page-2/',
+            12
+        );
+
+        // Final outcome: Breeze detected via tail-scan.
+        $this->assertSame( 'class_bc_only', $result['outcome'] );
+        $detected_names = array_column( $result['detected'], 'name' );
+        $this->assertContains( 'Breeze', $detected_names );
+
+        // Verify orchestration: 3 fetches (URL1 ranged, URL2 ranged, URL1 full).
+        // URL2 full-body fetch should NOT fire because URL1 Pass 2 already succeeded.
+        $this->assertSame( 3, $call_count );
+        $this->assertSame( 'bytes=0-32767', $captured_calls[0]['range'] );  // Pass 1a
+        $this->assertSame( 'bytes=0-32767', $captured_calls[1]['range'] );  // Pass 1b
+        $this->assertNull( $captured_calls[2]['range'] );                    // Pass 2a (no Range)
+        $this->assertTrue( $captured_calls[2]['has_limit_response_size'] );  // Pass 2a has 2MB cap
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
