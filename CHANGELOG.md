@@ -4,6 +4,39 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.3.5] — 2026-05-16
+
+### Fixed — FU-NEW-9: operator-site bypass keys leaking onto external scan URLs
+
+**Bug (F-DEG):** when scanning external URLs, the operator's wpservice.pro plugin auto-bypass keys (`nowprocket` for WP Rocket, `nowpcu` for Code Unloader, `perfmattersoff` for Perfmatters, etc.) were being appended to ALL scan URLs — including external targets — alongside the target-detected suffixes. Example: scanning `https://bestdiagnostics.net/` (LiteSpeed external) shipped as `https://bestdiagnostics.net/?nowprocket&nowpcu&LSCWP_CTRL=before_optm` — the `nowprocket&nowpcu` are leaked operator-site keys that don't belong on an external target's request.
+
+**Reproduced 2026-05-16 PM:** operator scanned bestdiagnostics.net (LiteSpeed) after 1.3.4 deploy and observed the polluted URL in worker logs. Probe response was clean (`suggested_bypass_per_url: { "https://bestdiagnostics.net/": ["LSCWP_CTRL=before_optm"] }` — ONLY LiteSpeed key, no operator-site contamination); pollution happened on the AAS side at submit_job assembly. Same pattern verified on prior lubd.com scans (`?nowprocket&nowpcu` present on URLs despite the host running neither WP Rocket nor Code Unloader — these were operator-site keys leaking through).
+
+**Root cause:** `admin/class-scanner-ajax.php:154-159` builds `$bypass_params` from `$detected['auto_bypass']` (detected via `PluginDetector::detect()` against the LOCAL WP install — wpservice.pro's own plugins). Then the `$build_scan_url` closure at L221 unconditionally calls `add_query_arg( $bypass_params, $sanitized )` on every URL — INCLUDING external ones. The intent comment at L164 ("External URLs use target-detected suffixes; internal URLs use $host_bypass") was implemented for the FU-NEW-2 `$host_bypass` / `$target_bypass_per_url` path only — the legacy `$bypass_params` (auto_bypass) path predates FU-NEW-2 and was never made host-aware.
+
+**Fix:** make `$bypass_params` application host-aware inside `$build_scan_url`. Extract `$home_host = wp_parse_url( home_url(), PHP_URL_HOST )` once at the submit_job entry. Inside the closure, parse each URL's host and only call `add_query_arg( $bypass_params, $sanitized )` when the URL's host matches `$home_host` (case-insensitive, via `strcasecmp`). External URLs receive ONLY the probe-derived `$bypass_suffixes` (which may be empty if probe returned `no_clue` / `probe_failed` — graceful no-bypass behavior).
+
+**Behavior after fix:**
+
+| URL type | `$bypass_params` (operator-site) | `$bypass_suffixes` (target-probe) | Final example |
+|---|---|---|---|
+| Internal (same-host as `home_url()`) | ✅ applied | ✅ applied | `wpservice.pro/page?nowprocket&nowpcu&cu_scan_token=…` (unchanged) |
+| External `class_a_clean` (LiteSpeed) | ❌ skipped | ✅ `LSCWP_CTRL=before_optm` | `bestdiagnostics.net/?LSCWP_CTRL=before_optm&cu_scan_token=…` (clean) |
+| External `class_a_clean` (WP Rocket on a DIFFERENT site) | ❌ skipped | ✅ `nowprocket` (from probe) | `that-site.com/?nowprocket&cu_scan_token=…` (clean — comes from THEIR detection, not ours) |
+| External `no_clue` / `probe_failed` | ❌ skipped | empty | `lubd.com/?cu_scan_token=…` (just the token; graceful no-bypass) |
+
+**Why this didn't surface in FU-NEW-2 AC validation:** FU-NEW-2's ACs focused on the per-URL `$target_bypass_per_url` (suggested_bypass_per_url) plumbing, which IS correctly host-aware. The legacy `$bypass_params` (auto_bypass) path predates FU-NEW-2 and wasn't covered by FU-NEW-2's test surface. The pollution was only operator-visible once they inspected actual scan URLs in the Railway worker log.
+
+- **Version bump** `1.3.4 → 1.3.5`.
+- **Internal `SCANNER_JS_VERSION` unchanged** at `1.0.10.12` (server-side PHP fix only; scanner.js not modified).
+- **wp-compliance:** P10 invoked pre-edit. All 27 rules N/A or pass (pure logical filter; no new input read, no new output, no SQL, no security surface).
+
+Refs:
+- Operator-reported bug 2026-05-16 PM during AC validation of bestdiagnostics.net (LiteSpeed) scan after 1.3.4 deploy. Verbatim operator framing: "`?nowprocket` and `nopwcu` are again transplates from my website, that website should have only Lightspeed cache related `LSCWP_CTRL=before_optm` suffix. External URLs with detected stacks should ran ONLY detected stack suffix (if is it suffix frienldy category), not my website + their."
+- Related: FU-NEW-2 spec (rev 2) `docs/superpowers/specs/2026-05-15-fu-new-2-target-stack-bypass-routing-design.md` — fixed the `$host_bypass` / `$target_bypass_per_url` half of the bypass-routing intent; this commit completes the second half (the legacy `$bypass_params` path).
+
+---
+
 ## [1.3.4] — 2026-05-16
 
 ### Fixed — pre-probe external-URL safety gate restoration
