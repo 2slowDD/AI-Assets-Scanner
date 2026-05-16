@@ -4,6 +4,29 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.3.4] — 2026-05-16
+
+### Fixed — pre-probe external-URL safety gate restoration
+
+**Gap (pre-FU-NEW-2 regression surfaced 2026-05-16 PM):** the original external-URL `confirm()` dialog ("This is an external URL — continue?") was removed in FU-NEW-2 (1.2.9) and replaced by the probe-driven outcome modal. The new modal correctly gates non-`class_a_clean` outcomes, but on uniform `class_a_clean` / `A_star` outcomes the modal is suppressed for "silent proceed" — leaving NO operator confirmation before the scan starts on suffix-friendly external sites (LiteSpeed, WP Rocket, Perfmatters, FlyingPress hosts, etc.).
+
+**Reproduced 2026-05-16 PM:** operator entered `getkush.cc` (LiteSpeed-class suffix bypass) → Start Scan → probe AJAX fired → no modal shown → scan started + credits reserved with no operator click.
+
+**Fix:** added a pre-probe safety gate inside the `if (externalUrls.length > 0) {` block in `admin/js/scanner.js` (~L858, before the inline "Detecting target stack…" spinner shows). Shows `window.confirm(...)` listing the unique external hosts + the URL count before any probe AJAX fires. Cancel = clean abort (return). Continue = proceed to probe + outcome-specific modal (existing FU-NEW-2 behavior preserved end-to-end for non-`class_a_clean` outcomes).
+
+**Why BEFORE the probe, not after:** the probe is itself an HTTP request from wpservice.pro to the external site. Operator-stated requirement: ask the external-website question BEFORE starting the stack-probe check, so the operator can abort without any external network calls (and without wpservice.pro server-side load).
+
+**Why the silent-proceed-on-`class_a_clean` detection modal-skip is preserved:** intentional and orthogonal. The silent-proceed concerns the DETECTION RESULT ("Detected LiteSpeed — proceeding with bypass") which is unwanted UX noise per operator directive. The pre-probe gate concerns generic external-scan consent — a separate concern that operator wants. Both rules now coexist: pre-probe `confirm()` covers consent; post-probe modal (for non-`class_a_clean`) covers detection-result transparency; class_a_clean silent-proceed (after pre-probe consent) covers the high-confidence happy path.
+
+- **Version bump** `1.3.3 → 1.3.4`.
+- **Internal `SCANNER_JS_VERSION`** bumped `1.0.10.11 → 1.0.10.12`.
+
+Refs:
+- Operator directive verbatim 2026-05-16 PM: "ASk the external website question BEFORE starting the stack probe check" (surfaced during FU-NEW-7 AC validation closure).
+- Memory: `~/.claude/projects/d--AI-ChatGPT/memory/feedback_silent_proceed_suffix_friendly_correct.md` updated to clarify scope (rule applies to detection-result observability toast, NOT to the external-URL safety gate restored in this version).
+
+---
+
 ## [1.3.3] — 2026-05-16
 
 ### Fixed — FU-NEW-7: end-of-body cache marker detection (Two-pass probe)
