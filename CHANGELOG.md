@@ -4,6 +4,23 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.3.0] — 2026-05-16
+
+### Cache-bust release — no code changes
+
+Plugin version bumped `1.2.9 → 1.3.0` to force browser cache-bust on enqueued JS/CSS files (`?ver=1.3.0` query parameter) and provide a clean deploy signal for FU-NEW-4 AC-A validation on wpservice.pro. Internal `SCANNER_JS_VERSION` in `admin/js/scanner.js` remains at `1.0.10.9` (the JS file itself is unchanged).
+
+**No functional changes.** Banner pipeline (`renderBrokenBanner` at `admin/js/scanner.js:1143`), target-stack probe (FU-NEW-2 Phase 6), and submit_job payload contract all carry through unchanged from 1.2.9.
+
+Operator deploy procedure: SFTP `ai-assets-scanner.php` (only file with version-string changes) + `CHANGELOG.md` to wpservice.pro plugin directory. Verify WP Admin → Plugins page shows version `1.3.0`. Hard-refresh any open admin pages.
+
+Refs:
+- Plan: `docs/superpowers/plans/2026-05-16-fu-new-4-fu-new-5-plan.md`
+- Spec: `docs/superpowers/specs/2026-05-16-fu-new-4-fu-new-5-design.md`
+- Work-track: FU-NEW-4 + FU-NEW-5 (bundled) — `master-tasks.md` L51
+
+---
+
 ## [1.2.9] — 2026-05-15
 
 ### Added — FU-NEW-2: Target-stack-aware bypass-suffix routing for external-URL scans
