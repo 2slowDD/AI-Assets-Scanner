@@ -376,6 +376,67 @@ class PluginDetectorTargetProbeTest extends TestCase {
     }
 
     /**
+     * T-N7-B (helper test for single_probe_attempt parameter expansion).
+     * Verifies that single_probe_attempt accepts $use_range + $scan_tail_only
+     * parameters and threads them through to wp_remote_get + body_match.
+     */
+    public function test_t_n7_helper_single_probe_attempt_params_threaded() {
+        $body = '<!doctype html><html><body>OK</body></html>';
+
+        // Stubs required by single_probe_attempt (scheme validation + response processing).
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( [] );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( $body );
+
+        // ----------------------------------------------------------------
+        // Case 1: $use_range=true → Range header present, NO limit_response_size.
+        // ----------------------------------------------------------------
+        $captured_args = null;
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$captured_args, $body ) {
+                $captured_args = $args;
+                return [ 'response' => [ 'code' => 200 ], 'headers' => [], 'body' => $body ];
+            }
+        );
+
+        PluginDetector::__test_single_probe_attempt( 'https://example.com/', 12, true, false );
+
+        $this->assertArrayHasKey( 'Range', $captured_args['headers'],
+            'Case 1: Range header must be present when $use_range=true' );
+        $this->assertSame( 'bytes=0-32767', $captured_args['headers']['Range'],
+            'Case 1: Range value must be bytes=0-32767' );
+        $this->assertArrayNotHasKey( 'limit_response_size', $captured_args,
+            'Case 1: limit_response_size must NOT be set when $use_range=true' );
+
+        // ----------------------------------------------------------------
+        // Case 2: $use_range=false → NO Range header AND limit_response_size set to 2MB.
+        // ----------------------------------------------------------------
+        $captured_args = null;
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$captured_args, $body ) {
+                $captured_args = $args;
+                return [ 'response' => [ 'code' => 200 ], 'headers' => [], 'body' => $body ];
+            }
+        );
+
+        PluginDetector::__test_single_probe_attempt( 'https://example.com/', 12, false, false );
+
+        $this->assertArrayNotHasKey( 'Range', $captured_args['headers'],
+            'Case 2: Range header must NOT be present when $use_range=false' );
+        $this->assertArrayHasKey( 'limit_response_size', $captured_args,
+            'Case 2: limit_response_size must be set when $use_range=false' );
+        $this->assertSame( 2 * 1024 * 1024, $captured_args['limit_response_size'],
+            'Case 2: limit_response_size must be exactly 2MB' );
+    }
+
+    /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
      */
