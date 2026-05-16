@@ -528,6 +528,368 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertTrue( $captured_calls[2]['has_limit_response_size'] );  // Pass 2a has 2MB cap
     }
 
+    // -----------------------------------------------------------------
+    // FU-NEW-7 Tasks 4–6 — two-pass orchestration branch coverage.
+    // -----------------------------------------------------------------
+
+    /**
+     * T-N7-1: Pass 1 detects via response header on URL1 → Pass 2 NOT triggered.
+     * Fast path: header detection on URL1 is definitive → only 1 wp_remote_get call.
+     */
+    public function test_t_n7_1_pass_1_header_detect_no_pass_2() {
+        $call_count = 0;
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$call_count ) {
+                $call_count++;
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'headers'  => [ 'x-wp-rocket-cache' => 'HIT' ],
+                    'body'     => '<!doctype html><html><head><meta name="generator" content="WordPress 6.4"></head><body>OK</body></html>',
+                ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( $r ) { return $r['response']['code']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+
+        $result = PluginDetector::probe_target_stack(
+            'https://wprocket-site.example/',
+            'https://wprocket-site.example/page-2/',
+            12
+        );
+
+        $this->assertSame( 'class_a_clean', $result['outcome'] );
+        $detected_names = array_column( $result['detected'] ?? [], 'name' );
+        $this->assertContains( 'WP Rocket', $detected_names );
+        $this->assertSame( 1, $call_count, 'Only URL1 should be probed (definitive on Pass 1)' );
+    }
+
+    /**
+     * T-N7-3: All 4 attempts inconclusive (URL1 ranged, URL2 ranged, URL1 full,
+     * URL2 full) → final outcome resolves to 'no_clue'. Worst-case path:
+     * 4 fetches, ranged × 2 + full-body × 2.
+     */
+    public function test_t_n7_3_all_inconclusive_final_no_clue() {
+        $call_count     = 0;
+        $captured_calls = [];
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$call_count, &$captured_calls ) {
+                $call_count++;
+                $captured_calls[] = [ 'range' => $args['headers']['Range'] ?? null ];
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'headers'  => [],
+                    // Healthy WP page (meta generator) but no cache plugin markers anywhere.
+                    'body'     => '<!doctype html><html><head><meta name="generator" content="WordPress 6.4"></head>'
+                                . '<body>' . str_repeat( 'plain content ', 5000 ) . '</body></html>',
+                ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( $r ) { return $r['response']['code']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+
+        $result = PluginDetector::probe_target_stack(
+            'https://noplugins.example/',
+            'https://noplugins.example/page-2/',
+            12
+        );
+
+        $this->assertSame( 'no_clue', $result['outcome'] );
+        $this->assertSame( 4, $call_count, 'All 4 attempts should fire on worst-case path' );
+        $this->assertSame( 'bytes=0-32767', $captured_calls[0]['range'] );
+        $this->assertSame( 'bytes=0-32767', $captured_calls[1]['range'] );
+        $this->assertNull( $captured_calls[2]['range'] );
+        $this->assertNull( $captured_calls[3]['range'] );
+    }
+
+    /**
+     * T-N7-4: Pass 1 returns inconclusive with reason='HTTP 4xx' on URL1 → Pass 2
+     * NOT triggered for that URL. Fallback URL2 probed on Pass 1 and detects WP Rocket.
+     * reason !== null gate at line 592 prevents Pass 2 for the 4xx URL.
+     */
+    public function test_t_n7_4_http_4xx_excludes_pass_2() {
+        $call_count = 0;
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$call_count ) {
+                $call_count++;
+                if ( $call_count === 1 ) {
+                    // URL1 ranged: 404 → single_probe_attempt sets reason='HTTP 404', outcome='inconclusive'.
+                    return [
+                        'response' => [ 'code' => 404 ],
+                        'headers'  => [],
+                        'body'     => 'Not Found',
+                    ];
+                }
+                // URL2 ranged: WP Rocket header → definitive class_a_clean.
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'headers'  => [ 'x-wp-rocket-cache' => 'HIT' ],
+                    'body'     => '<!doctype html><html><head><meta name="generator" content="WordPress 6.4"></head><body>OK</body></html>',
+                ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( $r ) { return $r['response']['code']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+
+        $result = PluginDetector::probe_target_stack(
+            'https://url1.example/',
+            'https://url2.example/',
+            12
+        );
+
+        $this->assertSame( 'class_a_clean', $result['outcome'] );
+        // URL1 ranged (404) → URL2 ranged (detect WP Rocket). Pass 2 NOT triggered
+        // because URL2 result is definitive (not inconclusive).
+        $this->assertSame( 2, $call_count );
+    }
+
+    /**
+     * T-N7-5: Pass 1 returns definitive 'non_wordpress' on URL1 → Pass 2 NOT
+     * triggered. Definitive outcomes (class_*, non_wordpress) short-circuit.
+     *
+     * Documented trade-off in spec §3.4: WP sites with <meta generator> beyond
+     * byte 32768 ship as non_wordpress and are not re-probed in v1.
+     */
+    public function test_t_n7_5_non_wordpress_excludes_pass_2() {
+        $call_count = 0;
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$call_count ) {
+                $call_count++;
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'headers'  => [],
+                    // Plain non-WP page: no <meta generator>, no wp-content/, no markers.
+                    'body'     => '<!doctype html><html><head><title>Not WP</title></head><body><h1>Custom site</h1></body></html>',
+                ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( $r ) { return $r['response']['code']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+
+        $result = PluginDetector::probe_target_stack(
+            'https://non-wp.example/',
+            'https://non-wp.example/page-2/',
+            12
+        );
+
+        $this->assertSame( 'non_wordpress', $result['outcome'] );
+        $this->assertSame( 1, $call_count, 'Definitive non_wordpress on URL1 skips URL2 and Pass 2' );
+    }
+
+    /**
+     * T-N7-6: False-positive control. Article body mentions 'WP Rocket' verbatim
+     * in the MIDDLE of the body (beyond Pass 1's 32KB head-scan, within Pass 2's
+     * full-body range but OUTSIDE the last 8KB tail-scan window). Pass 2's
+     * tail-only scan correctly EXCLUDES the article body text → outcome no_clue.
+     *
+     * Fixture design: ~100KB body with 'WP Rocket' at byte ~90000; last 8KB
+     * contains only repeated filler — no cache markers.
+     */
+    public function test_t_n7_6_fp_control_article_body_mentions_marker() {
+        $call_count = 0;
+
+        // Article body with WP Rocket mention in MIDDLE, not in tail 8KB.
+        // ~90KB before the mention, then ~10KB of repeated filler after it.
+        // The tail 8KB is purely the last portion of that filler — no cache markers.
+        $article_full = '<!doctype html><html><head><meta name="generator" content="WordPress 6.4"></head><body>'
+                      . str_repeat( 'Article intro content. ', 200 )     // ~4.6KB
+                      . str_repeat( 'More article body filler text. ', 3000 ) // ~93KB
+                      . 'Some article discussing WP Rocket and its features. '
+                      . str_repeat( 'More article body content here. ', 500 ) // ~16KB trailing filler
+                      . '</body></html>';
+        // Confirm fixture: WP Rocket mention is NOT in the last 8KB.
+        $tail_8kb = substr( $article_full, -8192 );
+        $this->assertStringNotContainsString( 'WP Rocket', $tail_8kb,
+            'Fixture sanity: WP Rocket must NOT appear in last 8KB of the article body' );
+
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$call_count, $article_full ) {
+                $call_count++;
+                if ( $call_count <= 2 ) {
+                    // Pass 1 (ranged): head area only — no markers, no WP Rocket header.
+                    return [
+                        'response' => [ 'code' => 200 ],
+                        'headers'  => [],
+                        'body'     => '<!doctype html><html><head><meta name="generator" content="WordPress 6.4"></head><body>',
+                    ];
+                }
+                // Pass 2 (full body): full article with WP Rocket mention in middle, not in tail.
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'headers'  => [],
+                    'body'     => $article_full,
+                ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( $r ) { return $r['response']['code']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+
+        $result = PluginDetector::probe_target_stack(
+            'https://blog.example/',
+            'https://blog.example/page-2/',
+            12
+        );
+
+        $this->assertSame( 'no_clue', $result['outcome'] );
+        $detected_names = array_column( $result['detected'] ?? [], 'name' );
+        $this->assertNotContains( 'WP Rocket', $detected_names,
+            'Tail-scan must not detect WP Rocket mentioned in middle of article body' );
+        $this->assertSame( 4, $call_count, 'All 4 attempts fire; tail-scan misses article body FP' );
+    }
+
+    /**
+     * T-N7-7: SSRF gate fires BEFORE any wp_remote_get call.
+     * URL with disallowed scheme (file://) → probe_failed immediately.
+     * The SSRF check is inside single_probe_attempt; wp_remote_get is never reached.
+     */
+    public function test_t_n7_7_ssrf_gate_blocks_before_pass_1() {
+        WP_Mock::userFunction( 'wp_remote_get' )->never();
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+
+        $result = PluginDetector::probe_target_stack(
+            'file:///etc/passwd',
+            null,
+            12
+        );
+
+        $this->assertSame( 'probe_failed', $result['outcome'] );
+        $this->assertSame( 'invalid_scheme', $result['reason'] );
+    }
+
+    /**
+     * T-N7-8: 24h transient cache hit on a Pass-2-resolved host short-circuits
+     * all 4 attempts on the second call. Validates that cache integration works
+     * correctly when the cached outcome was derived via Pass 2 (full-body tail-scan).
+     *
+     * First call: Pass 1 inconclusive × 2, Pass 2a detects Breeze in tail → 3 fetches.
+     * Second call: transient hit → 0 fetches, same result returned.
+     */
+    public function test_t_n7_8_cache_hit_short_circuits_pass_2_resolved() {
+        $cached_value = false;
+        WP_Mock::userFunction( 'get_transient' )->andReturnUsing(
+            function () use ( &$cached_value ) {
+                return $cached_value;
+            }
+        );
+        WP_Mock::userFunction( 'set_transient' )->andReturnUsing(
+            function ( $key, $value, $ttl ) use ( &$cached_value ) {
+                $cached_value = $value;
+                return true;
+            }
+        );
+
+        $call_count = 0;
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$call_count ) {
+                $call_count++;
+                if ( $call_count <= 2 ) {
+                    // Pass 1 (ranged × 2): healthy WP page, no markers → inconclusive.
+                    return [
+                        'response' => [ 'code' => 200 ],
+                        'headers'  => [],
+                        'body'     => '<!doctype html><html><head><meta name="generator" content="WordPress 6.4"></head>'
+                                    . '<body>plain content</body></html>',
+                    ];
+                }
+                // Pass 2a (URL1 full body): Breeze end-of-body marker in tail → class_bc_only.
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'headers'  => [],
+                    'body'     => '<!doctype html><html><head><meta name="generator" content="WordPress 6.4"></head>'
+                                . '<body>' . str_repeat( 'x', 5000 ) . '</body></html>'
+                                . '<!-- Cache served by breeze -->',
+                ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturnUsing( function ( $r ) { return false; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( $r ) { return $r['response']['code']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+
+        // First call: populates 24h transient via Pass 2.
+        $result1 = PluginDetector::probe_target_stack(
+            'https://cached-breeze.example/',
+            'https://cached-breeze.example/page-2/',
+            12
+        );
+        $this->assertSame( 'class_bc_only', $result1['outcome'] );
+        $this->assertSame( 3, $call_count, 'First call should fire 3 attempts (Pass 1×2 + Pass 2a)' );
+
+        // Second call: cache hit, zero additional wp_remote_get calls.
+        $result2 = PluginDetector::probe_target_stack(
+            'https://cached-breeze.example/',
+            'https://cached-breeze.example/page-2/',
+            12
+        );
+        $this->assertSame( 'class_bc_only', $result2['outcome'] );
+        $detected_names = array_column( $result2['detected'] ?? [], 'name' );
+        $this->assertContains( 'Breeze', $detected_names );
+        $this->assertSame( 3, $call_count, 'Second call should hit cache; no additional wp_remote_get' );
+        $this->assertTrue( $result2['cache_hit'] );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
