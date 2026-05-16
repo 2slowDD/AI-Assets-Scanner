@@ -311,9 +311,19 @@ class PluginDetector {
      * @param array $patterns Patterns to match (case-insensitive substring).
      * @return bool true if ANY pattern matches.
      */
-    private static function body_match( string $body, array $patterns ): bool {
+    /**
+     * @param string $body     full response body
+     * @param array  $patterns list of substrings to look for (case-insensitive)
+     * @param bool   $tail_only when true, scan last 8KB of body (for end-of-body cache markers
+     *                          like '<!-- Cache served by breeze -->' that live after </html>).
+     *                          When false (default), scan first BODY_SCAN_MAX_BYTES (32KB head).
+     *                          FU-NEW-7: tail-only mode used by Pass 2 of the two-pass probe.
+     */
+    private static function body_match( string $body, array $patterns, bool $tail_only = false ): bool {
         if ( empty( $patterns ) ) return false;
-        $haystack = strtolower( substr( $body, 0, self::BODY_SCAN_MAX_BYTES ) );
+        $haystack = $tail_only
+            ? strtolower( substr( $body, -8192 ) )  // last 8KB
+            : strtolower( substr( $body, 0, self::BODY_SCAN_MAX_BYTES ) );  // first 32KB (head)
         foreach ( $patterns as $pat ) {
             if ( strpos( $haystack, strtolower( (string) $pat ) ) !== false ) return true;
         }
@@ -354,8 +364,8 @@ class PluginDetector {
     public static function __test_header_match( array $headers, array $patterns ): bool {
         return self::header_match( $headers, $patterns );
     }
-    public static function __test_body_match( string $body, array $patterns ): bool {
-        return self::body_match( $body, $patterns );
+    public static function __test_body_match( string $body, array $patterns, bool $tail_only = false ): bool {
+        return self::body_match( $body, $patterns, $tail_only );
     }
     public static function __test_classify_outcome( bool $probe_failed, bool $is_wordpress, array $detected ): string {
         return self::classify_outcome( $probe_failed, $is_wordpress, $detected );
