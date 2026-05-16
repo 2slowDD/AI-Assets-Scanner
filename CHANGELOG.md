@@ -4,6 +4,29 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.3.2] — 2026-05-16
+
+### Fixed — FU-NEW-6 rev 2: include-only-mode re-trigger gap (1.3.1 hotfix was insufficient)
+
+**Bug (still present after 1.3.1):** the L825-832 include-only-path block in `admin/js/scanner.js` populates `selectedUrls` from the textarea, but its guard `if (discoveredUrls.length === 0)` only fires on the FIRST Start Scan click — because L829 sets `discoveredUrls = includeList` after that point. On the SECOND+ click within the same page session, neither the L825 block NOR the 1.3.1 defensive re-read at L846 (same guard) fired, so `selectedUrls` retained the prior scan's URLs.
+
+**Reproduced 2026-05-16 PM:** operator did fresh page load → typed `pinadventures.com` → Start Scan (probe sent pinadventures.com ✓) → Cancel modal → cleared textarea → typed `wptavern.com` → Start Scan again → probe AJAX payload showed `urls[0]=pinadventures.com, urls[1]=wptavern.com` even though textarea contained ONLY `wptavern.com` (confirmed via `console.log(JSON.stringify(document.getElementById('cu-included-urls').value))`).
+
+**Fix:** widen the include-only-mode detection. Instead of `discoveredUrls.length === 0`, use `(discoveredUrls.length === 0) || (groupedUrls.included !== undefined)`. The `groupedUrls.included` field is set uniquely by L830 of the include-only path (NOT set by the Discover Pages flow at L541, which sets `groupedUrls = res.data.groups`). This makes the L825 block re-fire on every Start Scan click in include-only mode while leaving Discover Pages mode untouched.
+
+The 1.3.1 redundant defensive fix at the post-L832 site is now removed (the L825 block handles it correctly).
+
+**Impact severity (same as 1.3.1):** F-DEG-critical — silent wrong-target scanning, wrong-host attribution in `cu_scanner_events`, credits spent on unintended scans.
+
+- **Version bump** `1.3.1 → 1.3.2`.
+- **Internal `SCANNER_JS_VERSION`** bumped `1.0.10.10 → 1.0.10.11`.
+
+Refs:
+- Diagnosis: operator DevTools Network + Console capture 2026-05-16 PM (textarea content `"wptavern.com"`, AJAX payload had pinadventures + wptavern → root cause at `admin/js/scanner.js:825` pre-existing guard semantics).
+- Supersedes the 1.3.1 fix at the same L846 site (now removed in this version).
+
+---
+
 ## [1.3.1] — 2026-05-16
 
 ### Fixed — FU-NEW-6: selectedUrls state-leak across scan attempts
