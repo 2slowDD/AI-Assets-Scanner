@@ -4,6 +4,27 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.3.1] — 2026-05-16
+
+### Fixed — FU-NEW-6: selectedUrls state-leak across scan attempts
+
+**Bug:** When the user changed the include-URLs textarea content between scan attempts within a single page session, scanner.js's `selectedUrls` could retain the previous attempt's URLs. The probe AJAX (`cu_scanner_probe_target_stack`) + the submit_job AJAX (`cu_scanner_submit_job`) both read from `selectedUrls`, so a stale URL would be sent server-side — Railway would silently scan the WRONG target while the user thought they were scanning the URL they typed.
+
+**Reproduced 2026-05-16 PM:** operator entered `https://pinadventures.com/` in the textarea, but DevTools Network capture showed the probe AJAX sending `urls[0]=wptavern.com` (the previous test target). The modal correctly displayed wptavern.com results (the server probed the URL it received); the bug was upstream in JS state.
+
+**Fix:** added a 3-line defensive re-read at `admin/js/scanner.js:836` — before deriving `externalUrls`, re-call `getIncludedUrls()` to pull fresh URLs from the textarea when in direct-URL mode (`discoveredUrls.length === 0`). Makes the user-visible textarea the single source of truth at scan-trigger time. Discover Pages mode keeps its existing include/exclude filter logic unchanged.
+
+**Impact severity:** F-DEG-critical pre-fix (silent wrong-target scanning + wrong-host attribution in `cu_scanner_events` telemetry). Defensive re-read closes the symptom without changing the L505 input-handler architecture (which can be reviewed later as a separate followup if needed).
+
+- **Version bump** `1.3.0 → 1.3.1` (cache-bust for `scanner.js`).
+- **Internal `SCANNER_JS_VERSION`** in `admin/js/scanner.js` bumped `1.0.10.9 → 1.0.10.10` (matches the file's own change-tracking).
+
+Refs:
+- Diagnosis: operator DevTools Network + Console capture 2026-05-16 PM (probe AJAX payload showed wptavern.com despite textarea reading pinadventures.com).
+- Master tasks: `master-tasks.md` — FU-NEW-6 work-track.
+
+---
+
 ## [1.3.0] — 2026-05-16
 
 ### Cache-bust release — no code changes

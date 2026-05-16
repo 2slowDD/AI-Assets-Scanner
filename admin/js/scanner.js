@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.9';
+    const SCANNER_JS_VERSION = '1.0.10.10';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -834,6 +834,18 @@
         // FU-NEW-2 Phase 6 — target-stack-aware bypass routing for external URLs.
         // Replaces the simple external-URL confirm() with a probe + outcome-specific dialog.
         // Probe runs BEFORE cu_scanner_reserve_job — does NOT consume credit by construction.
+        //
+        // FU-NEW-6 (2026-05-16): defensive re-read of selectedUrls from the include-URLs
+        // textarea at scan-trigger time. The L505 input handler keeps selectedUrls in sync
+        // via the 'input' event, but state-leaks across scan attempts have been observed
+        // (e.g., wptavern.com retained in selectedUrls when user changed textarea to
+        // pinadventures.com → probe + submit_job sent wptavern.com → silent wrong-target
+        // scan). Re-deriving from the textarea here makes the user-visible textarea the
+        // single source of truth at scan time. Direct-URL mode only — Discover Pages
+        // mode keeps its own include/exclude filter state on top of discoveredUrls.
+        if (discoveredUrls.length === 0) {
+            selectedUrls = getIncludedUrls();
+        }
         const externalUrls = selectedUrls.filter(isExternalUrl);
         let targetBypassPerUrl = {};
         let targetStackSummary = null;
