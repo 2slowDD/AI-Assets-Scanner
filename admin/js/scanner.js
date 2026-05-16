@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.11';
+    const SCANNER_JS_VERSION = '1.0.10.12';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -856,6 +856,20 @@
         let targetStackSummary = null;
 
         if (externalUrls.length > 0) {
+            // 1.3.4 (2026-05-16) — Pre-probe external-URL safety gate (restores the
+            // pre-FU-NEW-2 confirm before the probe AJAX hits the external site).
+            const uniqueHosts = [...new Set(externalUrls.map(function (u) {
+                try { return new URL(u).host; } catch (e) { return u; }
+            }))];
+            const hostLabel = uniqueHosts.length === 1 ? 'host' : 'hosts';
+            if (!window.confirm(
+                'You\'re about to scan ' + externalUrls.length + ' URL(s) on external '
+                + hostLabel + ': ' + uniqueHosts.join(', ') + '.\n\n'
+                + 'External sites may have firewalls or CDNs that affect scanning. Continue?'
+            )) {
+                return;
+            }
+
             const spinnerCtl = showInlineSpinner('Detecting target stack…');
             let probeResult;
             try {
