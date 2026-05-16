@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.10';
+    const SCANNER_JS_VERSION = '1.0.10.11';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -821,8 +821,25 @@
     // --- Step 2: Reserve + Submit ---
 
     document.getElementById('cu-btn-next-1').addEventListener('click', async function () {
-        // Include-only path: no discovery ran, populate state from textarea
-        if (discoveredUrls.length === 0) {
+        // Include-only path: no discovery ran, populate state from textarea.
+        //
+        // FU-NEW-6 rev 2 (2026-05-16): the original condition `discoveredUrls.length === 0`
+        // only fires on the FIRST scan because L829 below sets discoveredUrls = includeList
+        // — making the guard permanently false for any subsequent Start Scan click within
+        // the same page session. That left selectedUrls retaining the prior scan's URLs;
+        // the probe + submit_job AJAX silently sent stale URLs (wrong-target scan).
+        //
+        // Fix: ALSO enter this block when the user is in include-only mode (detected
+        // via `groupedUrls.included !== undefined` — a marker set uniquely by L830
+        // below, NOT set by the Discover Pages flow at L541 which sets groupedUrls
+        // from `res.data.groups`). On the second+ Start Scan click in include-only
+        // mode, this re-reads the textarea and replaces selectedUrls cleanly.
+        //
+        // Discover Pages mode (discoveredUrls populated by L540, groupedUrls without
+        // `included` field) is intentionally untouched: pure-Discover-Pages users keep
+        // their checkbox selections on selectedUrls.
+        const isIncludeOnlyMode = (discoveredUrls.length === 0) || (groupedUrls.included !== undefined);
+        if (isIncludeOnlyMode) {
             const includeList = getIncludedUrls();
             if (includeList.length === 0) return; // nothing to scan
             selectedUrls     = includeList;
@@ -834,18 +851,6 @@
         // FU-NEW-2 Phase 6 — target-stack-aware bypass routing for external URLs.
         // Replaces the simple external-URL confirm() with a probe + outcome-specific dialog.
         // Probe runs BEFORE cu_scanner_reserve_job — does NOT consume credit by construction.
-        //
-        // FU-NEW-6 (2026-05-16): defensive re-read of selectedUrls from the include-URLs
-        // textarea at scan-trigger time. The L505 input handler keeps selectedUrls in sync
-        // via the 'input' event, but state-leaks across scan attempts have been observed
-        // (e.g., wptavern.com retained in selectedUrls when user changed textarea to
-        // pinadventures.com → probe + submit_job sent wptavern.com → silent wrong-target
-        // scan). Re-deriving from the textarea here makes the user-visible textarea the
-        // single source of truth at scan time. Direct-URL mode only — Discover Pages
-        // mode keeps its own include/exclude filter state on top of discoveredUrls.
-        if (discoveredUrls.length === 0) {
-            selectedUrls = getIncludedUrls();
-        }
         const externalUrls = selectedUrls.filter(isExternalUrl);
         let targetBypassPerUrl = {};
         let targetStackSummary = null;
