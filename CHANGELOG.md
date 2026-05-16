@@ -4,6 +4,39 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.3.3] — 2026-05-16
+
+### Fixed — FU-NEW-7: end-of-body cache marker detection (Two-pass probe)
+
+**Gap:** the target-stack probe's existing 32KB scan cap (via `Range: bytes=0-32767` request header AND `substr( $body, 0, BODY_SCAN_MAX_BYTES )` inside `body_match()` / `is_wordpress_target()`) prevented detection of 9 of 14 OPTIMIZERS table plugins whose identifying HTML comment is injected AFTER `</html>` — beyond 32KB on typical 100KB-1MB WP pages.
+
+**Affected plugins (now detectable):** WP Rocket, LiteSpeed, WP Fastest Cache, W3 Total Cache, **Breeze**, Cache Enabler, Swift Performance, FlyingPress, SG Optimizer. Header-based detection (`x-wp-rocket-cache`, `x-cache-handler: breeze`, etc.) was the only working signal for these plugins; when the CDN strips headers (Kinsta strips `x-cache-handler: breeze` per observed pinadventures.com behavior), the probe returned `no_clue` even on clear cache-plugin-protected sites.
+
+**Fix:** added Pass 2 to `probe_target_stack()` at the wrapper level. Pass 1 (existing ranged 32KB + head-area scan) is unchanged. Pass 2 fires when Pass 1 returns `inconclusive` AND `reason === null` (no-markers case — NOT HTTP-error / transport-error inconclusives). Pass 2 re-probes each URL with `use_range=false` (full body, capped at 2MB via `'limit_response_size'`) + `scan_tail_only=true` (last 8KB scan via new `body_match()` parameter) to recover end-of-body markers.
+
+**Why last-8KB instead of full-body substring scan:** end-of-body cache markers live in HTML comments after `</html>`. Scanning the full body would expand the false-positive surface (article text mentioning cache plugin names — e.g., wptavern.com blog posts about WP Rocket — would match the bare marker strings). Last-8KB scan matches actual signal location, bounds CPU, and narrows FP surface.
+
+**Trade-off / known limitation:** `is_wordpress_target()` deliberately remains head-only. WP sites with `<meta name="generator">` beyond byte 32768 (rare; long head injections) ship as `non_wordpress` and are not re-probed in v1.
+
+**Performance:**
+- Pass 1 detects (head-area marker / header): 1-2 fetches, unchanged.
+- Pass 2 detects: 3 fetches (URL1 ranged, URL2 ranged, URL1 full ~100KB-2MB).
+- All 4 attempts (worst case, truly-no-cache-plugin target): 4 fetches, +2-6s latency.
+- 24h transient cache absorbs repeat probes on the same host.
+
+**Coverage:** 10 new PHPUnit tests in `tests/PluginDetectorTargetProbeTest.php` — 2 helper tests (T-N7-A `body_match()` tail-only mode; T-N7-B `single_probe_attempt()` parameter passthrough) and 8 integration tests (T-N7-1 header-detect fast-path; T-N7-2 Breeze tail-detect on pinadventures-class fixture; T-N7-3 all-4-inconclusive worst-case; T-N7-4 HTTP-4xx exclusion; T-N7-5 definitive `non_wordpress` exclusion; T-N7-6 false-positive control with article-body cache plugin name; T-N7-7 SSRF gate; T-N7-8 24h cache hit short-circuit).
+
+- **Version bump** `1.3.2 → 1.3.3`.
+- **Internal `SCANNER_JS_VERSION` unchanged** at `1.0.10.11` (scanner.js not modified — server-side PHP refactor only).
+
+Refs:
+- Spec: `docs/superpowers/specs/2026-05-16-fu-new-7-two-pass-probe-design.md` (rev 2.1)
+- D-reviews: `…-design-review.md` (rev 1, needs-revision 3C/4M/5m/3n) + `…-design-review-r2.md` (rev 2, ready-to-plan 0C/0M/2m/2n)
+- Plan: `docs/superpowers/plans/2026-05-16-fu-new-7-two-pass-probe-plan.md`
+- Spawned during FU-NEW-4/5 AC validation 2026-05-16 PM after pinadventures.com (Breeze) returned `no_clue` from the probe.
+
+---
+
 ## [1.3.2] — 2026-05-16
 
 ### Fixed — FU-NEW-6 rev 2: include-only-mode re-trigger gap (1.3.1 hotfix was insufficient)
