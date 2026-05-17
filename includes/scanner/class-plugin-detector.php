@@ -168,7 +168,10 @@ class PluginDetector {
             'name' => 'FlyingPress', 'class' => 'A', 'bypass_query' => 'no_optimize',
             'disable_method' => null, 'warning' => null,
             'target_headers' => ['x-flying-press-cache', 'x-flying-press-source'],
-            'target_body_markers' => ['Optimized by FlyingPress', '/wp-content/plugins/flying-press/'],
+            // 'Optimized by FlyingPress' kept for legacy plugin versions; 'Powered by FlyingPress' is the
+            // current v2.x footer comment that triggered the 1.4.0 diagnostic. Both literals serve as
+            // defense-in-depth alongside the target_body_pattern regex below.
+            'target_body_markers' => ['Powered by FlyingPress', 'Optimized by FlyingPress', '/wp-content/plugins/flying-press/'],
             'target_body_pattern' => '/\bflying[- _]?press\b/i',
         ],
         'sg-cachepress/sg-cachepress.php' => [
