@@ -1275,6 +1275,65 @@ class PluginDetectorTargetProbeTest extends TestCase {
         ];
     }
 
+    // AAS 1.4.0 Task 11 — AC-T2-2 FP corpus regression: target_body_pattern must NOT fire on
+    // visible body text that merely mentions the plugin name (review articles, comparison pages).
+    // -----------------------------------------------------------------
+
+    /**
+     * AC-T2-2 — no target_body_pattern matches against a corpus of HTML fixtures that
+     * mention the plugin name in VISIBLE body text WITHOUT using the plugin.
+     *
+     * This is the production-safety net for Tier 2: extract_non_text_zones() strips
+     * visible <body> text before regex matching, so plugin-name mentions in <p>/<h1>/<li>
+     * etc. must not trip a match.
+     *
+     * @dataProvider fp_corpus_fixtures
+     */
+    public function test_target_body_pattern_does_not_match_fp_corpus( string $plugin_name, string $html ): void {
+        $entry = $this->getOptimizerEntry( $plugin_name );
+        $pat = $entry['target_body_pattern'] ?? null;
+        $this->assertNotNull( $pat );
+
+        // Mirror the production path: slice → extract_non_text_zones → body_match_pattern.
+        // Pass 1 (use_range=true) slices first 32KB; fixtures here are <1KB so the slice is the full HTML.
+        $body_slice = substr( $html, 0, 32768 );
+        $scoped     = PluginDetector::__test_extract_non_text_zones( $body_slice );
+        $r          = PluginDetector::__test_body_match_pattern( $scoped, $pat );
+
+        $this->assertFalse( $r,
+            "Pattern '$pat' must NOT match plugin-name-in-visible-text fixture for '$plugin_name'. Scoped output: " . substr( $scoped, 0, 500 )
+        );
+    }
+
+    public function fp_corpus_fixtures(): array {
+        // Each fixture: visible body text mentioning the plugin name in user-facing copy
+        // (review article, comparison page, FAQ). NO plugin assets, NO plugin output comments,
+        // NO plugin headers. The plugin name appears only in <p>/<h1>/<li> visible text.
+        // The <title> must NOT contain a plugin-namespaced token that the regex matches (since
+        // <head> content is preserved by extract_non_text_zones — titles use deliberately
+        // generic copy that avoids the pattern).
+        $tpl = function ( string $title, string $body_text ): string {
+            return '<!DOCTYPE html><html><head><title>' . $title . '</title></head>'
+                 . '<body><h1>' . $title . '</h1><p>' . $body_text . '</p></body></html>';
+        };
+        return [
+            'WP Rocket'             => [ 'WP Rocket', $tpl( 'Cache Plugin Reviews', 'In this guide we compare WP Rocket with other plugins.' ) ],
+            'Perfmatters'           => [ 'Perfmatters', $tpl( 'Optimization Tools', 'Perfmatters is a popular WordPress optimization plugin.' ) ],
+            'Autoptimize'           => [ 'Autoptimize', $tpl( 'Free WP Plugins', 'Autoptimize handles CSS and JS minification at no cost.' ) ],
+            'NitroPack'             => [ 'NitroPack', $tpl( 'Cloud Caching', 'NitroPack offers a cloud-based optimization service.' ) ],
+            'Asset CleanUp'         => [ 'Asset CleanUp', $tpl( 'Bloat Removers', 'Asset CleanUp removes unused CSS and JS from your pages.' ) ],
+            'LiteSpeed Cache'       => [ 'LiteSpeed Cache', $tpl( 'Server-Side Caching', 'LiteSpeed Cache requires the LSWS server but is otherwise excellent.' ) ],
+            'WP Fastest Cache'      => [ 'WP Fastest Cache', $tpl( 'Beginner Cache Plugins', 'WP Fastest Cache is a beginner-friendly cache plugin.' ) ],
+            'W3 Total Cache'        => [ 'W3 Total Cache', $tpl( 'Legacy Cache Plugins', 'W3 Total Cache, sometimes shortened to W3TC, has been around since 2009.' ) ],
+            'Breeze'                => [ 'Breeze', $tpl( 'Hosting Plugins', 'Breeze is the cache plugin made by Cloudways for their managed hosting.' ) ],
+            'Cache Enabler'         => [ 'Cache Enabler', $tpl( 'Minimal Caches', 'Cache Enabler from KeyCDN is a lightweight cache plugin.' ) ],
+            'Swift Performance'     => [ 'Swift Performance', $tpl( 'All-In-One Optimization', 'Swift Performance combines caching with image optimization.' ) ],
+            'Hummingbird'           => [ 'Hummingbird', $tpl( 'WPMU DEV Plugins', 'Hummingbird is the performance plugin from WPMU DEV.' ) ],
+            'FlyingPress'           => [ 'FlyingPress', $tpl( 'Premium Cache Plugins', 'FlyingPress is one of the newer premium cache plugins.' ) ],
+            'SiteGround Optimizer'  => [ 'SiteGround Optimizer', $tpl( 'Host Plugins', 'SG Optimizer is the SiteGround cache and optimization plugin.' ) ],
+        ];
+    }
+
     /**
      * AC-T1-3 — the removed phantom pattern 'x-cache: wpfc-' (WP Fastest Cache) must not trigger
      * detection; existing body marker 'WP Fastest Cache file was created' must still trigger detection.
