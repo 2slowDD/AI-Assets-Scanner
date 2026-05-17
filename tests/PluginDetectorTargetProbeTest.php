@@ -1446,6 +1446,106 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertTrue( $r2, '2MB body with marker near end (within cap) must match' );
     }
 
+    // -----------------------------------------------------------------
+    // AAS 1.4.0 Task 14 — AC-T1-1 + AC-T3-4 FlyingPress end-to-end integration tests.
+    // Closes the original diagnostic trigger of this whole release: pre-1.4.0 returned
+    // 'no_clue' because FlyingPress's empty target_headers was the dominant failure cause.
+    // -----------------------------------------------------------------
+
+    /**
+     * AC-T1-1 + AC-T3-4 — FlyingPress is detected via header on a synthetic response
+     * mirroring flyingpress.com's actual response shape (header-driven, no Pass 2 needed).
+     *
+     * This closes the original diagnostic trigger of this whole release: pre-1.4.0 returned
+     * 'no_clue' because FlyingPress's empty target_headers was the dominant failure cause.
+     */
+    public function test_act1_1_flyingpress_detected_via_header_alone(): void {
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturn( [
+            'response' => [ 'code' => 200 ],
+            'headers'  => [
+                'x-flying-press-cache'  => 'HIT',
+                'x-flying-press-source' => 'Web Server',
+                'content-type'          => 'text/html; charset=UTF-8',
+            ],
+            'body'     => '<html><body><p>visible content here</p></body></html>',
+        ] );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( [
+            'x-flying-press-cache'  => 'HIT',
+            'x-flying-press-source' => 'Web Server',
+            'content-type'          => 'text/html; charset=UTF-8',
+        ] );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( '<html><body><p>visible content here</p></body></html>' );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+
+        $r = PluginDetector::probe_target_stack( 'https://flyingpress.com/', null, 12 );
+
+        // outcome may be 'detected', 'class_a_clean', or similar depending on the classifier's view.
+        // The KEY assertion is that FlyingPress appears in the detected list with source='header'.
+        $this->assertNotEmpty( $r['detected'] ?? [], 'FlyingPress must be detected' );
+        $flying_press = null;
+        foreach ( $r['detected'] as $d ) {
+            if ( ( $d['name'] ?? '' ) === 'FlyingPress' ) {
+                $flying_press = $d;
+                break;
+            }
+        }
+        $this->assertNotNull( $flying_press, 'FlyingPress must be in the detected list' );
+        $this->assertSame( 'header', $flying_press['source'], 'Detection source must be header (not body)' );
+    }
+
+    /**
+     * AC-T3-4 fallback — even if headers were stripped (e.g., by an aggressive CDN), the body marker
+     * path catches FlyingPress via the asset path `/wp-content/cache/flying-press/` in `<link href>`.
+     *
+     * This validates that the Tier 2 body-pattern fallback (per spec §5.2) provides defense-in-depth.
+     */
+    public function test_act3_4_flyingpress_detected_via_body_when_headers_stripped(): void {
+        $body = '<html><head></head><body><p>visible</p>'
+              . '<link href="https://example.com/wp-content/cache/flying-press/x.css">'
+              . '</body></html>';
+        $headers_no_fingerprint = [ 'content-type' => 'text/html; charset=UTF-8' ];
+
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturn( [
+            'response' => [ 'code' => 200 ],
+            'headers'  => $headers_no_fingerprint,
+            'body'     => $body,
+        ] );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( $headers_no_fingerprint );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( $body );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+
+        $r = PluginDetector::probe_target_stack( 'https://example.com/', null, 12 );
+
+        $this->assertNotEmpty( $r['detected'] ?? [], 'FlyingPress must be detected via body fallback' );
+        $flying_press = null;
+        foreach ( $r['detected'] as $d ) {
+            if ( ( $d['name'] ?? '' ) === 'FlyingPress' ) {
+                $flying_press = $d;
+                break;
+            }
+        }
+        $this->assertNotNull( $flying_press, 'FlyingPress must be in the detected list' );
+        $this->assertSame( 'body', $flying_press['source'], 'Detection source must be body (headers stripped)' );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
