@@ -4,6 +4,28 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.3.7] — 2026-05-17 PM late
+
+### Fixed — FU-NEW-X-A: Subsystem D-4 banner silent disappearance on hard-error external scans
+
+**Bug (F-DEG-adjacent — observability regression):** for external scans that errored hard at the URL level (pre-probe correctly flagged the 4xx; operator clicked "Continue with scan"; Railway worker recorded `pages_completed:0, pages_error:1, pages_blocked_*:1, blocked_reasons:{tier1_http_4xx:1}`), the AAS scan-complete view showed only the ordinary "Scan complete. 0 safe rules, 0 aggressive rules generated." message — without the yellow-triangle ⚠ broken-banner that operators relied on pre-FU-NEW-2 to recognize "this scan didn't produce useful rules because the site errored." Operator reported regression 2026-05-17 PM after re-running a lubd.com scan post-T3d-SFTP.
+
+**Root cause:** the post-scan banner pipeline (`class-scanner-ajax.php::build_result()`) walks the Railway per-page `broken_devices` array to compute `pages_blocked` + `blocked_reasons`. For some scan-error paths — notably `analyzePage`'s outer `catch` at [`src/analysis/page-analyzer.js:893-897`](../../CU%20Scanner%20Railway/cu-scanner-railway-master/cu-scanner-railway-master/src/analysis/page-analyzer.js#L893) which returns `{url, status:'error', assets:[]}` without `broken_devices`, plus certain pre-runPass failures — the page result lands at AAS with `status='error'` but no `broken_devices` field. The walk then yields zero pages_blocked, the JS-side `renderBrokenBanner()` returns early per its zero-check at scanner.js:1181, and the user sees only the rule-count summary.
+
+**Fix:** add a defensive fallback to `class-scanner-ajax.php::build_result()` — after the `broken_devices` walk, if `pages_blocked.desktop === 0 && pages_blocked.mobile === 0` BUT one or more pages have `status === 'error'`, count each errored page as blocked-on-both-devices with synthetic reason `scan_errored` (counted in `blocked_reasons`). The JS-side `phraseMap` gets a `scan_errored: 'scan errored'` entry; the `reasonCategory()` function maps `scan_errored → 'error'` so the action_clause copy reads "Your server returned an error or didn't respond..." — same copy operators see for `tier1_http_4xx/5xx/transport_error`.
+
+**Behavior after fix:**
+
+| Scan outcome | `pages_blocked` source | Banner reason phrase | action_clause category |
+|---|---|---|---|
+| `broken_devices` populated (e.g., Phase A symbol_match demote on a 4xx site) | from broken_devices walk (unchanged) | `tier1_http_4xx` → "site denial (4xx)" | 'error' → "server error" copy |
+| `status='error'` but no `broken_devices` (hard pre-runPass fail) | **fallback: 1 page → desktop+1, mobile+1, reason=`scan_errored`** | `scan_errored` → "scan errored" | 'error' → "server error" copy |
+| `status='done'` everywhere | walk yields 0, fallback skips | no banner | n/a |
+
+**Files:** `admin/class-scanner-ajax.php` (~12 LOC fallback block at L594), `admin/js/scanner.js` (+2 LOC phraseMap + reasonCategory), `ai-assets-scanner.php` (version bump 1.3.6 → 1.3.7), `CHANGELOG.md`. F-DEG-neutral on the rule-pipeline (no scan behavior changed). F-CHECK-EFF + (restores the user-visible "this scan errored" signal that pre-FU-NEW-2 displayed).
+
+---
+
 ## [1.3.6] — 2026-05-17
 
 ### Fixed — T3d: JS/PHP banner `action_clause` divergence

@@ -1200,6 +1200,12 @@
             tier1_http_5xx:           'site error (5xx)',
             tier1_http_rate_limit:    'rate limit (429)',
             tier1_transport_error:    'unreachable',
+            // FU-NEW-X-A (2026-05-17 PM late): synthetic reason used by the AAS PHP
+            // fallback at class-scanner-ajax.php:~594 when a page has status='error'
+            // but no broken_devices payload (scan errored before broken-device
+            // detection populated). Keeps the banner visible on hard-error external
+            // scans (e.g., pre-probe-confirmed 403 that proceeds to a failing scan).
+            scan_errored:             'scan errored',
         };
         const phrases = [...new Set( Object.keys(reasons).map( k => phraseMap[k] || k ) )];
         const reasonClause = phrases.length ? ' (' + phrases.map(esc).join(', ') + ')' : '';
@@ -1209,7 +1215,9 @@
         // the generic 'bot' clause, matching the PHP-side fallback.
         function reasonCategory( reason ) {
             if ( reason === 'tier1_http_rate_limit' ) return 'rate';
-            if ( reason === 'tier1_http_4xx' || reason === 'tier1_http_5xx' || reason === 'tier1_transport_error' ) return 'error';
+            // 'scan_errored' is the PHP-side synthetic reason from class-scanner-ajax.php
+            // when a page has status='error' but no broken_devices — maps to 'error' copy.
+            if ( reason === 'tier1_http_4xx' || reason === 'tier1_http_5xx' || reason === 'tier1_transport_error' || reason === 'scan_errored' ) return 'error';
             return 'bot';
         }
         const categories = [...new Set( Object.keys(reasons).map(reasonCategory) )];
