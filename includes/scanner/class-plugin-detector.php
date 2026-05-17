@@ -385,7 +385,36 @@ class PluginDetector {
             return $html; // fallback per AC-T2-3
         }
         $parts = [];
-        // Zone extraction wired in Tasks 2/3/4
+
+        // 1. <head>...</head> wholesale
+        if ( preg_match( '/<head\b[^>]*>([\s\S]*?)<\/head>/i', $html, $m ) ) {
+            $parts[] = $m[1];
+        }
+
+        // 2. HTML comments (entire document)
+        if ( preg_match_all( '/<!--[\s\S]*?-->/', $html, $matches ) ) {
+            foreach ( $matches[0] as $c ) {
+                $parts[] = $c;
+            }
+        }
+
+        // 3. <script>...</script> content
+        if ( preg_match_all( '/<script\b[^>]*>([\s\S]*?)<\/script>/i', $html, $matches ) ) {
+            foreach ( $matches[1] as $c ) {
+                $parts[] = $c;
+            }
+        }
+
+        // 4. <style>...</style> content
+        if ( preg_match_all( '/<style\b[^>]*>([\s\S]*?)<\/style>/i', $html, $matches ) ) {
+            foreach ( $matches[1] as $c ) {
+                $parts[] = $c;
+            }
+        }
+
+        // 5. <noscript>...</noscript> content — wired in Task 4
+        // 6. Attribute whitelist — wired in Task 3
+
         return implode( "\n", $parts );
     }
 
