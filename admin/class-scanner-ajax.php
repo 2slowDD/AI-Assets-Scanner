@@ -591,6 +591,27 @@ class ScannerAjax {
             }
         }
 
+        // FU-NEW-X-A (2026-05-17 PM late): defensive fallback for the Subsystem D-4 banner.
+        // Some scan-error paths populate `status: 'error'` on a page but DON'T populate
+        // `broken_devices` (e.g., analyzePage's outer catch at page-analyzer.js:893
+        // returns `{url, status:'error', assets:[]}` without broken_devices; certain
+        // pre-runPass failure modes also bypass the broken_devices construction).
+        // Without this fallback the banner silently disappears for external scans that
+        // errored — operator reported regression 2026-05-17 PM. When the broken_devices
+        // walk above yielded zero pages_blocked BUT some pages have `status === 'error'`,
+        // count those errored pages as blocked-on-both-devices with reason `scan_errored`
+        // (a synthetic reason for this fallback path; mapped to the 'error' action_clause
+        // category in scanner.js phraseMap + reasonCategory()).
+        if ( $pages_blocked['desktop'] === 0 && $pages_blocked['mobile'] === 0 ) {
+            foreach ( $pages_raw as $page ) {
+                if ( ( $page['status'] ?? '' ) === 'error' ) {
+                    $pages_blocked['desktop']++;
+                    $pages_blocked['mobile']++;
+                    $blocked_reasons['scan_errored'] = ( $blocked_reasons['scan_errored'] ?? 0 ) + 1;
+                }
+            }
+        }
+
         wp_send_json_success( [
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
