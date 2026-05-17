@@ -1405,6 +1405,48 @@ class PluginDetectorTargetProbeTest extends TestCase {
     }
 
     /**
+     * AC-T3-1 — synthetic 200KB body with marker at byte ~100,000 (middle of body) must be detected by Pass 2.
+     * Complements Task 7's test_body_match_use_range_false_scans_full_body_t3 (100KB body, marker near end).
+     */
+    public function test_act3_1_pass2_detects_marker_in_middle_of_200kb_body(): void {
+        $body = str_repeat( 'X', 100000 ) . '<!-- Optimized by SG Optimizer -->' . str_repeat( 'Y', 100000 );
+        $r = PluginDetector::__test_body_match( $body, [ 'Optimized by SG Optimizer' ], false );
+        $this->assertTrue( $r, 'Pass 2 (use_range=false) must scan past byte 32768 and find the marker at byte ~100,000' );
+    }
+
+    /**
+     * AC-T3-2 — synthetic 50KB body with marker at byte 10,000 must be detected by Pass 1 (use_range=true).
+     * Confirms the head-scan path still works at intermediate offsets.
+     */
+    public function test_act3_2_pass1_detects_marker_at_byte_10000_in_50kb_body(): void {
+        $body = str_repeat( 'X', 10000 ) . '<!-- Optimized by SG Optimizer -->' . str_repeat( 'Y', 40000 );
+        $r = PluginDetector::__test_body_match( $body, [ 'Optimized by SG Optimizer' ], true );
+        $this->assertTrue( $r, 'Pass 1 first-32KB head-scan must find marker at byte 10000' );
+    }
+
+    /**
+     * AC-T3-3 — body_match operates on whatever wp_remote_get returns. The 2MB limit_response_size cap
+     * is enforced at the HTTP layer (wp_remote_get) BEFORE body_match sees the body — so body_match
+     * itself just receives a (possibly truncated) string and scans it. This test confirms that body_match
+     * doesn't crash or misbehave on a 2MB-truncated body when no marker is present.
+     *
+     * The "marker past 2MB cap" case (i.e., the marker would be at byte >2,097,152 but the response is
+     * truncated to 2MB) is exercised indirectly: body_match only sees the truncated 2MB body, so the
+     * marker simply isn't there — assertFalse is correct.
+     */
+    public function test_act3_3_body_match_handles_2mb_capped_body(): void {
+        // Simulate a body that wp_remote_get truncated at 2MB. No marker present.
+        $truncated_2mb = str_repeat( 'X', 2 * 1024 * 1024 );
+        $r = PluginDetector::__test_body_match( $truncated_2mb, [ 'NEVER_PRESENT_MARKER' ], false );
+        $this->assertFalse( $r, '2MB body with no marker must NOT match' );
+
+        // And confirm the cap doesn't truncate a marker that fits within 2MB.
+        $body_with_marker_near_2mb_end = str_repeat( 'X', 2 * 1024 * 1024 - 100 ) . 'Optimized by SG Optimizer';
+        $r2 = PluginDetector::__test_body_match( $body_with_marker_near_2mb_end, [ 'Optimized by SG Optimizer' ], false );
+        $this->assertTrue( $r2, '2MB body with marker near end (within cap) must match' );
+    }
+
+    /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
      */
