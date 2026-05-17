@@ -137,6 +137,9 @@ class PluginDetector {
         'swift-performance-lite/performance.php' => [
             'name' => 'Swift Performance', 'class' => 'B', 'bypass_query' => null,
             'disable_method' => null, 'warning' => null,
+            // NOTE: 'swift3: ' carries an INTENTIONAL trailing space — anchors on the header-name
+            // boundary in header_match's "name: value\n" haystack. DO NOT let an editor auto-trim it;
+            // 'swift3:' alone could false-positive on substrings inside arbitrary value fields.
             'target_headers' => ['swift3: ', 'x-cache-status: identical', 'x-cache-status: changed', 'x-cache-status: not-modified'],
             'target_body_markers' => ['Cached by Swift Performance', 'swift-performance'],
         ],
