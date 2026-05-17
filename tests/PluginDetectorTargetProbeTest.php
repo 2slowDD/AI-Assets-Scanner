@@ -1179,6 +1179,77 @@ class PluginDetectorTargetProbeTest extends TestCase {
         );
     }
 
+    // -----------------------------------------------------------------
+    // AAS 1.4.0 Task 9 — target_headers data-provider tests (AC-T1-1/T1-2/T1-3).
+    // Verifies header_match detects each plugin via its documented header patterns,
+    // and that the WP Fastest Cache phantom pattern has been removed.
+    // -----------------------------------------------------------------
+
+    /**
+     * AC-T1-1 + AC-T1-2 — every plugin with new/expanded target_headers is detectable
+     * via header_match against a synthetic header fixture containing the documented header.
+     *
+     * @dataProvider target_header_fixtures
+     */
+    public function test_target_headers_detect_each_plugin( string $plugin_name, array $headers ): void {
+        $entry = $this->getOptimizerEntry( $plugin_name );
+        $r = PluginDetector::__test_header_match( $headers, $entry['target_headers'] );
+        $this->assertTrue( $r, "Plugin '$plugin_name' must be detected via headers " . json_encode( $headers ) );
+    }
+
+    public function target_header_fixtures(): array {
+        return [
+            'WP Rocket via x-wp-rocket-cache'                => [ 'WP Rocket', [ 'x-wp-rocket-cache' => 'HIT' ] ],
+            'WP Rocket via x-rocket-nginx-bypass'            => [ 'WP Rocket', [ 'x-rocket-nginx-bypass' => 'No' ] ],
+            'NitroPack via x-nitro-cache'                    => [ 'NitroPack', [ 'x-nitro-cache' => 'HIT' ] ],
+            'NitroPack via x-nitro-cache-from'               => [ 'NitroPack', [ 'x-nitro-cache-from' => 'drop-in' ] ],
+            'NitroPack via x-nitro-rev'                      => [ 'NitroPack', [ 'x-nitro-rev' => '5b74026' ] ],
+            'LiteSpeed Cache via x-litespeed-cache'          => [ 'LiteSpeed Cache', [ 'x-litespeed-cache' => 'hit' ] ],
+            'LiteSpeed Cache via x-litespeed-cache-control'  => [ 'LiteSpeed Cache', [ 'x-litespeed-cache-control' => 'no-cache' ] ],
+            'W3 Total Cache via x-w3tc-cached-by'            => [ 'W3 Total Cache', [ 'x-w3tc-cached-by' => 'memcached' ] ],
+            'W3 Total Cache via x-w3tc-page-cache'           => [ 'W3 Total Cache', [ 'x-w3tc-page-cache' => 'true' ] ],
+            'W3 Total Cache via x-w3tc-cdn'                  => [ 'W3 Total Cache', [ 'x-w3tc-cdn' => 'bunny' ] ],
+            'W3 Total Cache via x-powered-by combo'          => [ 'W3 Total Cache', [ 'x-powered-by' => 'W3 Total Cache/2.9.4' ] ],
+            'Breeze via x-cache-handler'                     => [ 'Breeze', [ 'x-cache-handler' => 'breeze' ] ],
+            'Breeze via x-breeze-cache-write'                => [ 'Breeze', [ 'x-breeze-cache-write' => 'SUCCESS' ] ],
+            'Breeze via x-breeze-cache'                      => [ 'Breeze', [ 'x-breeze-cache' => 'BYPASSED-CIRCUIT-BREAKER' ] ],
+            'Breeze via x-breeze-circuit-breaker'            => [ 'Breeze', [ 'x-breeze-circuit-breaker' => 'OPEN' ] ],
+            'Cache Enabler via x-cache-handler'              => [ 'Cache Enabler', [ 'x-cache-handler' => 'cache-enabler-engine' ] ],
+            'Swift Performance via swift3'                   => [ 'Swift Performance', [ 'swift3' => 'HIT/Proxy' ] ],
+            'Swift Performance via x-cache-status identical' => [ 'Swift Performance', [ 'x-cache-status' => 'identical' ] ],
+            'Hummingbird via hummingbird-cache'              => [ 'Hummingbird', [ 'hummingbird-cache' => 'Served' ] ],
+            'FlyingPress via x-flying-press-cache'           => [ 'FlyingPress', [ 'x-flying-press-cache' => 'HIT' ] ],
+            'FlyingPress via x-flying-press-source'          => [ 'FlyingPress', [ 'x-flying-press-source' => 'Web Server' ] ],
+            'SG Optimizer via sg-f-cache'                    => [ 'SiteGround Optimizer', [ 'sg-f-cache' => 'HIT' ] ],
+            'SG Optimizer via x-powered-by siteground combo' => [ 'SiteGround Optimizer', [ 'x-powered-by' => 'siteground' ] ],
+        ];
+    }
+
+    private function getOptimizerEntry( string $name ): array {
+        $r = new \ReflectionClass( PluginDetector::class );
+        $opt = $r->getConstant( 'OPTIMIZERS' );
+        foreach ( $opt as $entry ) {
+            if ( ( $entry['name'] ?? '' ) === $name ) {
+                return $entry;
+            }
+        }
+        $this->fail( "OPTIMIZERS entry for '$name' not found" );
+    }
+
+    /**
+     * AC-T1-3 — the removed phantom pattern 'x-cache: wpfc-' (WP Fastest Cache) must not trigger
+     * detection; existing body marker 'WP Fastest Cache file was created' must still trigger detection.
+     */
+    public function test_wp_fastest_cache_phantom_header_removed_act1t3(): void {
+        $entry = $this->getOptimizerEntry( 'WP Fastest Cache' );
+        $this->assertSame( [], $entry['target_headers'], 'WP Fastest Cache target_headers must be empty (phantom pattern removed per spec §4.2)' );
+
+        // Body marker still works (Pass 1 head scan).
+        $body = '<html><body><!-- WP Fastest Cache file was created --></body></html>';
+        $r = PluginDetector::__test_body_match( $body, $entry['target_body_markers'], true );
+        $this->assertTrue( $r );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
