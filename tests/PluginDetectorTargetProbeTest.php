@@ -916,9 +916,7 @@ class PluginDetectorTargetProbeTest extends TestCase {
 
     /**
      * AC-T2-2 — minimal valid HTML with <head> and <body>:
-     * head content preserved, visible body text excluded.
-     * NOTE: The title-present assertion (Task 2 wires zone extraction) will
-     * FAIL at end of Task 1 — this is EXPECTED. Task 2 will fix it.
+     * head content preserved (via Task 2 zone 1 wholesale capture), visible body text excluded.
      */
     public function test_extract_non_text_zones_minimal_valid_html(): void {
         $html = '<html><head><title>X</title></head><body><p>visible</p></body></html>';
