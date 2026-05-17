@@ -927,6 +927,51 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertStringNotContainsString( 'visible', $r );
     }
 
+    // -----------------------------------------------------------------
+    // AAS 1.4.0 Task 2 — extract_non_text_zones zone-wiring tests.
+    // -----------------------------------------------------------------
+
+    /**
+     * HTML comments are included; visible body text is excluded.
+     */
+    public function test_extract_non_text_zones_preserves_html_comments(): void {
+        $html = '<html><body><p>Visible</p><!-- Cached at 12345 --></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( 'Cached at 12345', $r );
+        $this->assertStringNotContainsString( 'Visible', $r );
+    }
+
+    /**
+     * <script> content is included; visible body text is excluded.
+     */
+    public function test_extract_non_text_zones_preserves_script_content(): void {
+        $html = '<html><body><script>var path = "/wp-content/cache/flying-press/x.js";</script><p>visible</p></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( '/wp-content/cache/flying-press/x.js', $r );
+        $this->assertStringNotContainsString( 'visible', $r );
+    }
+
+    /**
+     * <style> content is included; visible body text is excluded.
+     */
+    public function test_extract_non_text_zones_preserves_style_content(): void {
+        $html = '<html><body><style>.flying-press-lazy-bg { background: none; }</style><p>visible</p></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( 'flying-press-lazy-bg', $r );
+        $this->assertStringNotContainsString( 'visible', $r );
+    }
+
+    /**
+     * <head>...</head> is included wholesale; visible body text is excluded.
+     */
+    public function test_extract_non_text_zones_preserves_head_zone_wholesale(): void {
+        $html = '<html><head><meta name="generator" content="LiteSpeed Cache"><link rel="stylesheet" href="/wp-content/cache/litespeed/x.css"></head><body><p>visible</p></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( 'LiteSpeed Cache', $r );
+        $this->assertStringContainsString( '/wp-content/cache/litespeed/', $r );
+        $this->assertStringNotContainsString( 'visible', $r );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
