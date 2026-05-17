@@ -1169,15 +1169,13 @@ class PluginDetectorTargetProbeTest extends TestCase {
 
         PluginDetector::probe_target_stack( 'https://example.com/', null, 12 );
 
-        $this->assertLessThanOrEqual( 4, PluginDetector::$extract_call_count,
-            'AC-T2-6: extract_non_text_zones must be called <=4 times per probe_target_stack '
-            . '(1 per single_probe_attempt). Got '
-            . PluginDetector::$extract_call_count
-            . '. If this is 14 or more, the hoist in single_probe_attempt is broken.'
-        );
-        // Stricter assertion for the single-URL, Pass-1-resolves case: exactly 1 call.
+        // Single-URL fixture, Pass 1 resolves → exactly 1 extract_non_text_zones call.
+        // 14+ = hoist broken (per-plugin invocation inside OPTIMIZERS loop); 0 = mock not invoking probe path.
         $this->assertSame( 1, PluginDetector::$extract_call_count,
-            'AC-T2-6 (strict): single URL, Pass 1 resolves → exactly 1 extract_non_text_zones call expected.'
+            'AC-T2-6: single URL, Pass 1 resolves → expected 1 extract_non_text_zones call; got '
+            . PluginDetector::$extract_call_count
+            . '. If 14+, the hoist in single_probe_attempt is broken (spec §6.4.2 cost analysis fails). '
+            . 'If 0, the mock chain is not reaching single_probe_attempt.'
         );
     }
 
