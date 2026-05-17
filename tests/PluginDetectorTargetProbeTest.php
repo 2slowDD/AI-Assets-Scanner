@@ -1242,7 +1242,10 @@ class PluginDetectorTargetProbeTest extends TestCase {
      */
     public function test_wp_fastest_cache_phantom_header_removed_act1t3(): void {
         $entry = $this->getOptimizerEntry( 'WP Fastest Cache' );
-        $this->assertSame( [], $entry['target_headers'], 'WP Fastest Cache target_headers must be empty (phantom pattern removed per spec §4.2)' );
+        // Tighter than assertSame([]): a future contributor may add a legitimate WPFC header
+        // (e.g. via .htaccess emission) without re-introducing the specific phantom pattern. See spec §4.2 Mi5.
+        $this->assertNotContains( 'x-cache: wpfc-', $entry['target_headers'],
+            'Phantom pattern x-cache: wpfc- (no PHP header() emission found in source) must not be present per spec §4.2 Mi5.' );
 
         // Body marker still works (Pass 1 head scan).
         $body = '<html><body><!-- WP Fastest Cache file was created --></body></html>';
