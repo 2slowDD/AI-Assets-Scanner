@@ -61,6 +61,13 @@ class PluginDetector {
     private const ALLOWED_SCHEMES = [ 'http', 'https' ];
 
     /**
+     * AC-T2-6 hoist-preservation instrumentation. Tests reset + read this counter
+     * to verify extract_non_text_zones is invoked at most once per single_probe_attempt.
+     * Production code does not depend on this value.
+     */
+    public static $extract_call_count = 0;
+
+    /**
      * Per-spec §3 optimizer matrix. Keyed by plugin file path.
      * Hummingbird's class/disable_method are null at the constant level — set
      * at runtime by detect_typed() based on `wphb_settings.minify.enabled`.
@@ -385,6 +392,7 @@ class PluginDetector {
         if ( $html === '' ) {
             return '';
         }
+        self::$extract_call_count++;
         $has_head = (bool) preg_match( '/<head\b[^>]*>/i', $html );
         $has_body = (bool) preg_match( '/<body\b[^>]*>/i', $html );
         if ( ! $has_head && ! $has_body ) {
@@ -616,13 +624,22 @@ class PluginDetector {
             ];
         }
 
+        // Tier 2 hoist (d-review M3 + AC-T2-6): pre-compute scoped body ONCE per probe.
+        // Pass 1 ($use_range=true) caps the slice at 32KB; Pass 2 uses the full body
+        // (already capped at 2MB by limit_response_size). The scoped output feeds
+        // every plugin's regex match in the loop below — DO NOT move this call inside
+        // the loop, AC-T2-6 will fail and the cost analysis in spec §6.4.2 breaks.
+        $body_slice  = $use_range ? substr( $body, 0, self::BODY_SCAN_MAX_BYTES ) : $body;
+        $scoped_body = self::extract_non_text_zones( $body_slice );
+
         // Scan headers + body for each optimizer signature.
         $detected = [];
         foreach ( self::OPTIMIZERS as $plugin_file => $entry ) {
             $h_pat = $entry['target_headers']      ?? [];
             $b_pat = $entry['target_body_markers'] ?? [];
             $h_match = self::header_match( $headers, $h_pat );
-            $b_match = self::body_match( $body, $b_pat, $use_range );
+            $b_match = self::body_match( $body, $b_pat, $use_range )
+                    || self::body_match_pattern( $scoped_body, $entry['target_body_pattern'] ?? null );
             if ( $h_match || $b_match ) {
                 $detected[] = [
                     'name'         => (string) $entry['name'],

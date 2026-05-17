@@ -1121,6 +1121,66 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertTrue( $r );
     }
 
+    // -----------------------------------------------------------------
+    // AAS 1.4.0 Task 8 — AC-T2-6 hoist-preservation test (d-review M3).
+    // -----------------------------------------------------------------
+
+    /**
+     * AC-T2-6 — d-review M3 hoist is load-bearing. extract_non_text_zones must be
+     * invoked AT MOST ONCE per single_probe_attempt call (NOT 14× inside the
+     * OPTIMIZERS loop). A regression here would make Tier 2 cost analysis in
+     * spec §6.4.2 fail (~14× cost increase on 2MB bodies).
+     *
+     * Strategy: stub wp_remote_get to return a body that triggers the loop, reset
+     * $extract_call_count before the call, then assert <=4 after probe_target_stack.
+     * probe_target_stack runs up to 4 single_probe_attempt invocations
+     * (Pass-1a, Pass-1b, Pass-2a, Pass-2b). Each invokes extract_non_text_zones
+     * exactly ONCE per probe (NOT 14 times per probe).
+     * For this single-URL fixture (no fallback, Pass 1 resolves), only Pass-1a fires
+     * → expected count is 1. Without hoist: 14 invocations. With hoist: 1 invocation.
+     */
+    public function test_extract_non_text_zones_called_at_most_once_per_probe_act2t6(): void {
+        PluginDetector::$extract_call_count = 0;
+
+        $body = '<html><body><p>visible</p><!-- Powered by FlyingPress -->'
+              . '<script>/* WP Rocket optimisation */</script>'
+              . '</body></html>'
+              . str_repeat( 'X', 50000 );
+
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( $body ) {
+                return [ 'response' => [ 'code' => 200 ], 'headers' => [], 'body' => $body ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( [] );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function () use ( $body ) {
+            return $body;
+        } );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+
+        PluginDetector::probe_target_stack( 'https://example.com/', null, 12 );
+
+        $this->assertLessThanOrEqual( 4, PluginDetector::$extract_call_count,
+            'AC-T2-6: extract_non_text_zones must be called <=4 times per probe_target_stack '
+            . '(1 per single_probe_attempt). Got '
+            . PluginDetector::$extract_call_count
+            . '. If this is 14 or more, the hoist in single_probe_attempt is broken.'
+        );
+        // Stricter assertion for the single-URL, Pass-1-resolves case: exactly 1 call.
+        $this->assertSame( 1, PluginDetector::$extract_call_count,
+            'AC-T2-6 (strict): single URL, Pass 1 resolves → exactly 1 extract_non_text_zones call expected.'
+        );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
