@@ -85,7 +85,7 @@ class PluginDetector {
             'disable_method' => null, 'warning' => null,
             'target_headers' => [],
             'target_body_markers' => ['/wp-content/plugins/perfmatters/'],
-            'target_body_pattern' => '/\bperfmatters?\b/i',
+            'target_body_pattern' => '/\bperfmatters\b/i',
         ],
         'autoptimize/autoptimize.php' => [
             'name' => 'Autoptimize', 'class' => 'A', 'bypass_query' => 'ao_noptimize=1',
