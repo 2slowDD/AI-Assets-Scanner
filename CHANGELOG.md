@@ -4,6 +4,31 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.3.6] — 2026-05-17
+
+### Fixed — T3d: JS/PHP banner `action_clause` divergence
+
+**Bug (UX cosmetic, F-DEG-neutral):** the broken-scan banner has two render paths — server-side via `class-broken-banner.php::action_clause()` (history view, REST responses) and client-side via `admin/js/scanner.js::renderBrokenBanner()` (live scan result on the Running tab). The PHP path correctly mapped `tier1_http_4xx`, `tier1_http_5xx`, `tier1_transport_error` to the `'error'` category ("Your server returned an error or didn't respond...") and `tier1_http_rate_limit` to `'rate'` ("Your server rate-limited the scanner..."), with everything else falling back to `'bot'` ("Your bot protection denied the scanner..."). The JS path was hardcoded to ALWAYS emit the `'bot'` copy regardless of reason — so the same scan could surface inconsistent guidance depending on which UI path the user happened to see first.
+
+**Reproduced:** scan against a deterministic 404 fixture (banner-test-404 path) showed "Your bot protection denied the scanner..." in the live Running-tab banner, then "Your server returned an error or didn't respond..." in the History-tab banner for the same scan_id. Two different messages, same reason, same scan. Functionally fine; semantically inconsistent.
+
+**Root cause:** `admin/js/scanner.js::renderBrokenBanner()` at L1206 (pre-fix) hardcoded the action string to the 'bot' copy — no per-category mapping was implemented on the JS side; the PHP-side `reason_category()` lookup was never mirrored. Spec'd as a Minor follow-up from FU-NEW-4/5 work-track 2026-05-16; closed 2026-05-17 PM.
+
+**Fix:** mirror PHP's `reason_category()` lookup in JS. Add `reasonCategory(reason)` function returning `'rate' | 'error' | 'bot'`; map the per-scan `reasons` keys; if all categories collapse to a single non-bot category, use that category's copy verbatim from PHP; otherwise fall back to 'bot' (matches PHP's `count($categories) === 1` gate at `class-broken-banner.php:137`).
+
+**Behavior after fix:**
+
+| Reason set | JS-side action_clause | PHP-side action_clause | Match? |
+|---|---|---|---|
+| `{tier1_http_4xx: N}` (only) | "Your server returned an error or didn't respond..." | (same) | ✅ |
+| `{tier1_http_rate_limit: N}` (only) | "Your server rate-limited the scanner..." | (same) | ✅ |
+| `{tier2_cf_challenge: N}` (only) | "Your bot protection denied the scanner..." | (same) | ✅ |
+| Mixed `{tier1_http_4xx: 1, tier2_cf_challenge: 1}` | "Your bot protection denied the scanner..." (fallback) | (same — `count($categories) !== 1` ⇒ fallback) | ✅ |
+
+**Files:** `admin/js/scanner.js` (~15 LOC added), `ai-assets-scanner.php` (version bump 1.3.5 → 1.3.6), `CHANGELOG.md`. Pure UX-text change; F-DEG-neutral; F-CHECK-EFF + (eliminates two-paths-of-truth on a user-facing message).
+
+---
+
 ## [1.3.5] — 2026-05-16
 
 ### Fixed — FU-NEW-9: operator-site bypass keys leaking onto external scan URLs
