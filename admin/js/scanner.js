@@ -1203,7 +1203,24 @@
         };
         const phrases = [...new Set( Object.keys(reasons).map( k => phraseMap[k] || k ) )];
         const reasonClause = phrases.length ? ' (' + phrases.map(esc).join(', ') + ')' : '';
-        const action = 'Your bot protection denied the scanner. The mobile rules are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.';
+
+        // Per-reason action copy — must match class-broken-banner.php:108-156
+        // (reason_category + action_clause). Mixed-category reasons fall back to
+        // the generic 'bot' clause, matching the PHP-side fallback.
+        function reasonCategory( reason ) {
+            if ( reason === 'tier1_http_rate_limit' ) return 'rate';
+            if ( reason === 'tier1_http_4xx' || reason === 'tier1_http_5xx' || reason === 'tier1_transport_error' ) return 'error';
+            return 'bot';
+        }
+        const categories = [...new Set( Object.keys(reasons).map(reasonCategory) )];
+        let action;
+        if ( categories.length === 1 && categories[0] === 'rate' ) {
+            action = 'Your server rate-limited the scanner. The mobile rules (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.';
+        } else if ( categories.length === 1 && categories[0] === 'error' ) {
+            action = 'Your server returned an error or didn\'t respond. The mobile rules (if any) are complete and safe to apply. Try again later, or check site health.';
+        } else {
+            action = 'Your bot protection denied the scanner. The mobile rules are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.';
+        }
 
         const copy = bits.map(esc).join(' ') + reasonClause + ' ' + esc(action);
 
