@@ -360,6 +360,35 @@ class PluginDetector {
         return 'no_clue';
     }
 
+    /**
+     * Strip visible body text from HTML; return concatenation of safe-to-match zones.
+     *
+     * Preserved zones (wired across Tasks 2-4): <head> entire content, all HTML comments,
+     * all <script>/<style>/<noscript> blocks, attribute values from a whitelist
+     * (class/id/src/href/data-[*]/rel/type/name/content).
+     *
+     * Best-effort regex extraction (not DOMDocument). On HTML with no <head> AND no <body>,
+     * returns the input unchanged (fallback).
+     *
+     * Per spec §5.3 + d-review Mi3 (name/content) + Mi4 (noscript).
+     *
+     * @param string $html
+     * @return string
+     */
+    private static function extract_non_text_zones( string $html ): string {
+        if ( $html === '' ) {
+            return '';
+        }
+        $has_head = (bool) preg_match( '/<head\b[^>]*>/i', $html );
+        $has_body = (bool) preg_match( '/<body\b[^>]*>/i', $html );
+        if ( ! $has_head && ! $has_body ) {
+            return $html; // fallback per AC-T2-3
+        }
+        $parts = [];
+        // Zone extraction wired in Tasks 2/3/4
+        return implode( "\n", $parts );
+    }
+
     // --- Test seams (private-method exposure for unit testing) ---
     public static function __test_header_match( array $headers, array $patterns ): bool {
         return self::header_match( $headers, $patterns );
@@ -369,6 +398,9 @@ class PluginDetector {
     }
     public static function __test_classify_outcome( bool $probe_failed, bool $is_wordpress, array $detected ): string {
         return self::classify_outcome( $probe_failed, $is_wordpress, $detected );
+    }
+    public static function __test_extract_non_text_zones( string $html ): string {
+        return self::extract_non_text_zones( $html );
     }
     public static function __test_single_probe_attempt(
         string $url,

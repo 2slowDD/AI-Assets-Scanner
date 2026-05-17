@@ -890,6 +890,43 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertTrue( $result2['cache_hit'] );
     }
 
+    // -----------------------------------------------------------------
+    // AAS 1.4.0 Task 1 — extract_non_text_zones skeleton tests.
+    // Tests invoke via the __test_extract_non_text_zones public seam
+    // (matching the __test_body_match / __test_header_match convention).
+    // -----------------------------------------------------------------
+
+    /**
+     * AC-T2-1 — empty string input returns empty string.
+     */
+    public function test_extract_non_text_zones_empty_string_returns_empty(): void {
+        $r = PluginDetector::__test_extract_non_text_zones( '' );
+        $this->assertSame( '', $r );
+    }
+
+    /**
+     * AC-T2-3 — no <head> AND no <body> → fallback returns input unchanged.
+     * Per spec §5.3 fallback rule.
+     */
+    public function test_extract_non_text_zones_no_head_no_body_falls_back_to_input(): void {
+        $input = '<!-- standalone comment --><script>var x=1;</script>';
+        $r = PluginDetector::__test_extract_non_text_zones( $input );
+        $this->assertSame( $input, $r );
+    }
+
+    /**
+     * AC-T2-2 — minimal valid HTML with <head> and <body>:
+     * head content preserved, visible body text excluded.
+     * NOTE: The title-present assertion (Task 2 wires zone extraction) will
+     * FAIL at end of Task 1 — this is EXPECTED. Task 2 will fix it.
+     */
+    public function test_extract_non_text_zones_minimal_valid_html(): void {
+        $html = '<html><head><title>X</title></head><body><p>visible</p></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( '<title>X</title>', $r );
+        $this->assertStringNotContainsString( 'visible', $r );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
