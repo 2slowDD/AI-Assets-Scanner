@@ -4,6 +4,101 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## [1.4.0] — 2026-05-17
+
+### Added — Optimizer Fingerprint Broadening (T1 + T2 + T3 bundled)
+
+**Diagnostic trigger:** scanning `flyingpress.com` (real FlyingPress-cached site) returned `outcome: 'no_clue'` despite a clear `<!-- Powered by FlyingPress … Cached at 1778932465 -->` marker as the last line of the response. Root cause was three compounding gaps in the target-stack probe ([`includes/scanner/class-plugin-detector.php`](includes/scanner/class-plugin-detector.php)):
+
+1. `target_headers` empty for FlyingPress, despite the plugin emitting `x-flying-press-cache: HIT` + `x-flying-press-source: Web Server` on every cached page
+2. `target_body_markers` list contained `'Optimized by FlyingPress'` (legacy) but the current plugin emits `'Powered by FlyingPress'`
+3. Pass-2's 8KB-tail-only fallback left a dead zone between bytes 32,768 and `(body_len − 8192)` — the existing `/wp-content/plugins/flying-press/` marker sits at byte 125,954 on flyingpress.com and was invisible to both passes
+
+Spec: [`docs/product-docs/04-development/2026-05-17-optimizer-fingerprint-broadening-design.md`](../docs/product-docs/04-development/2026-05-17-optimizer-fingerprint-broadening-design.md) (rev 2 + d-review verdict `ready-to-plan`). Plan: [`…-implementation-plan.md`](../docs/product-docs/04-development/2026-05-17-optimizer-fingerprint-broadening-implementation-plan.md) (20 TDD tasks, subagent-driven-development with spec + code-quality reviews per task).
+
+### Tier 1 — Header pattern audit (9 plugins gain patterns, 1 phantom removed)
+
+Updated `OPTIMIZERS::target_headers` based on plugin-source-grep (10 open-source plugins) + live-probe (5 plugin-author sites) + community-documented headers (paid plugins):
+
+- **FlyingPress**: added `x-flying-press-cache`, `x-flying-press-source` (was empty)
+- **Hummingbird**: added `hummingbird-cache` (was empty; source: WPMU DEV's `Hummingbird-Cache: Served` PHP emission)
+- **Swift Performance**: added `swift3: ` (trailing-space-anchored — DO NOT auto-trim), `x-cache-status: identical/changed/not-modified` (was empty)
+- **WP Rocket**: added `x-rocket-nginx-bypass` (kept existing `x-wp-rocket-cache`)
+- **NitroPack**: added `x-nitro-cache-from`, `x-nitro-rev` (kept existing `x-nitro-cache`)
+- **LiteSpeed Cache**: added `x-litespeed-cache-control` (kept existing `x-litespeed-cache`)
+- **W3 Total Cache**: added `x-w3tc-cdn`, `x-powered-by: w3 total cache` (kept existing `x-w3tc-cached-by`, `x-w3tc-page-cache`)
+- **Breeze**: added `x-breeze-cache-write`, `x-breeze-cache`, `x-breeze-circuit-breaker` (kept existing `x-cache-handler: breeze`)
+- **SG Optimizer**: added `sg-f-cache` (kept existing `x-powered-by: siteground`)
+
+Removed the unverified `x-cache: wpfc-` pattern from WP Fastest Cache — no PHP `header()` emission found in the plugin source; the existing body marker `'WP Fastest Cache file was created'` covers detection.
+
+### Tier 2 — Body marker regex with context-scoping
+
+New optional `target_body_pattern` field on every OPTIMIZERS entry (single PCRE; case-insensitive `/i`) provides fallback detection when literal `target_body_markers` miss due to plugin output drift. The 14 starter regexes use word boundaries + permissive separators `[- _]?` and avoid catastrophic-backtracking constructs (linear-time guarantee tested at AC-T2-5 lint via 100KB adversarial input — 14/14 patterns complete in <100ms each).
+
+New helper `extract_non_text_zones( string $html ): string` strips visible body text before regex application. Preserved zones:
+- Entire `<head>` content (title, meta, link, script)
+- All HTML comments (entire document)
+- All `<script>` / `<style>` / `<noscript>` block contents
+- Attribute values from the whitelist: `class`, `id`, `src`, `href`, `data-*`, `rel`, `type`, `name`, `content` (last two added per d-review Mi3 for OG/meta-generator coverage)
+
+Style attributes are deliberately excluded — inline CSS commonly carries unrelated `url(...)` references that would false-positive against `target_body_pattern`.
+
+**`extract_non_text_zones` is hoisted once per probe** before the OPTIMIZERS-scan loop (load-bearing per d-review M3). Without the hoist, the helper would run 14× per probe (~280 ms zone-extraction worst case on 2MB bodies); the hoist cuts that to ~10-30 ms — a ~14× reduction. AC-T2-6 spy test enforces `$extract_call_count <= 1` per `single_probe_attempt` to prevent regression.
+
+False-positive corpus (AC-T2-2): 14 synthetic HTML fixtures with plugin names in visible body text (review/comparison articles); each fixture's `target_body_pattern` must NOT match against the stripped scoped output. All 14 pass — visible body text is correctly excluded.
+
+### Tier 3 — Pass-2 widening (8KB tail → full body)
+
+Dropped the `$scan_tail_only` parameter on `body_match()` and `single_probe_attempt()`. Pass 2 now scans the **entire body** up to the existing 2MB `limit_response_size` cap (already enforced in `wp_remote_get` args). The 95KB dead zone on the canonical flyingpress.com body (~133KB total) is closed; the plugin-directory script tag at byte 125,954 is now visible to Pass 2.
+
+| Body size | Pre-1.4.0 dead zone | Post-1.4.0 dead zone |
+|---|---|---|
+| 133 KB (flyingpress.com) | 95.5 KB blind | 0 KB blind |
+| 500 KB | 467 KB blind (93 %) | 0 KB blind |
+| 1 MB | 1008 KB blind (96 %) | 0 KB blind |
+| 2 MB+ | bounded by `limit_response_size` cap | unchanged |
+
+CPU cost analysis (spec §6.4.3): combined Pass-2 new path (literal scan + zone extraction + 14× regex) is ~70-150 ms worst-case on a 2MB body; ~20-60 ms typical on 200-500 KB pages. HTTP fetch latency (~100-500 ms typical) still dominates total probe time. Perf budget reconciled to **p50 ≤30 ms, p95 ≤100 ms** added probe latency (AC-OVERALL-4).
+
+### Validation
+
+17 acceptance criteria implemented (AC-T1-1..3, AC-T2-1..6, AC-T3-1..4, AC-OVERALL-1..6):
+
+- **AC-T2-5 perf bench**: ≤50 ms p95 on 2 MB body — PASS (observed <30 ms p95 on dev hardware)
+- **AC-T2-6 hoist preservation**: `extract_non_text_zones` invoked exactly 1× per `single_probe_attempt` — PASS
+- **AC-T1-1 + AC-T3-4 production-mirror**: FlyingPress detected end-to-end via `probe_target_stack` — PASS via header path AND body fallback
+- **AC-T2-2 FP corpus**: 14 visible-text fixtures — none match
+- **Regex backtracking lint**: 14 patterns each <100 ms on 100 KB of `'a'`
+- **PHPUnit regression**: `PluginDetectorTargetProbeTest` 128/128 PASS, 243 assertions; `ProbeTargetStackEndpointTest` 4/4 PASS (endpoint contract unchanged)
+
+### Operator post-deploy validation
+
+- **AC-T1-1 manual verification**: probe `https://flyingpress.com/` via WP Admin → CU Scanner → Run Scan. Expect: scan-complete view shows FlyingPress detection (header path: `x-flying-press-cache` HIT); no `no_clue` banner.
+- **AC-OVERALL-4 latency observation**: across the next 5+ external-URL probes (operator-initiated), `probe_duration_ms` (in the AJAX response) should stay within `p50 ≤ baseline+30ms`, `p95 ≤ baseline+100ms`. Pre-1.4.0 baseline was typically 100-500 ms; post-1.4.0 expected typically 130-600 ms (HTTP fetch dominates; the new in-PHP scan work adds ~20-60 ms typical).
+- **7-day monitoring window**: watch the `cu_scanner_probe_target_stack` AJAX outcome distribution. `outcome: detected` rate should rise (Tier 1+2+3 cumulative F-MISS recovery). `outcome: no_clue` rate should fall. `outcome: probe_failed` rate should remain unchanged.
+
+### Migration / backward compatibility
+
+All changes additive:
+- `target_body_pattern` is OPTIONAL on OPTIMIZERS entries — pre-1.4.0 callers (or future plugins added without this field) behave identically to today.
+- `target_body_markers` literals unchanged (still primary signal; new regex is fallback OR'ed via `body_match($body, $b_pat, $use_range) || body_match_pattern($scoped_body, $entry['target_body_pattern'] ?? null)`).
+- `body_match()` and `single_probe_attempt()` signature changes are internal (private static); no public API touched.
+- `probe_target_stack()` return shape, AJAX endpoint contract, 24h cache key (`cu_scanner_target_stack_<md5>`), and TTL all unchanged.
+
+### Rollback path
+
+`target_body_pattern` is optional; an emergency rollback can NULL all entries' pattern fields via a single config edit without a code revert. The `body_match` signature change (drop `scan_tail_only`) is irreversible without code revert, but the Pass-2 full-body behavior is strictly more permissive than the prior 8KB-tail, so rollback is unlikely to be needed.
+
+### Files
+
+- `includes/scanner/class-plugin-detector.php` — OPTIMIZERS updates (T1 + T2), new `extract_non_text_zones()` + `body_match_pattern()` helpers, `body_match()` signature change (T3), loop hoist in `single_probe_attempt()`, `__test_*` seam additions
+- `tests/PluginDetectorTargetProbeTest.php` — 71 new tests (helper coverage, T1 fixtures, T2 fixtures, FP corpus, backtracking lint, AC-T3 integration, AC-T1-1/T3-4 end-to-end, AC-T2-5 perf bench, AC-T2-6 hoist spy)
+- `ai-assets-scanner.php` — version bump 1.3.7 → 1.4.0
+- `CHANGELOG.md` — this entry
+
+---
+
 ## [1.3.7] — 2026-05-17 PM late
 
 ### Fixed — FU-NEW-X-A: Subsystem D-4 banner silent disappearance on hard-error external scans
