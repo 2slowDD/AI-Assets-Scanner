@@ -413,7 +413,14 @@ class PluginDetector {
         }
 
         // 5. <noscript>...</noscript> content — wired in Task 4
-        // 6. Attribute whitelist — wired in Task 3
+
+        // 6. Tag attribute values from whitelist (class/id/src/href/data-[*]/rel/type/name/content per d-review Mi3).
+        $attr_re = '/\s(?:class|id|src|href|data-[\w\-]+|rel|type|name|content)\s*=\s*(?:"[^"]*"|\'[^\']*\')/i';
+        if ( preg_match_all( $attr_re, $html, $matches ) ) {
+            foreach ( $matches[0] as $a ) {
+                $parts[] = $a;
+            }
+        }
 
         return implode( "\n", $parts );
     }

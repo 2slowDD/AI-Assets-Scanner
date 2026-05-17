@@ -970,6 +970,46 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertStringNotContainsString( 'visible', $r );
     }
 
+    // -----------------------------------------------------------------
+    // AAS 1.4.0 Task 3 — extract_non_text_zones attribute whitelist tests.
+    // d-review Mi3: name/content added so OG/meta-generator markers survive.
+    // -----------------------------------------------------------------
+
+    /**
+     * class and id attributes are extracted; visible text is excluded.
+     */
+    public function test_extract_non_text_zones_preserves_class_id_attributes(): void {
+        $html = '<html><body><div class="flying-press-lazy-bg" id="flying-press-css"><p>visible</p></div></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( 'flying-press-lazy-bg', $r );
+        $this->assertStringContainsString( 'flying-press-css', $r );
+        $this->assertStringNotContainsString( 'visible', $r );
+    }
+
+    /**
+     * src, href, and data-* attributes are extracted; visible text is excluded.
+     */
+    public function test_extract_non_text_zones_preserves_src_href_data_attributes(): void {
+        $html = '<html><body><a href="/wp-content/cache/flying-press/x.css" data-wpacu="1">link</a><img src="/wp-content/plugins/perfmatters/icon.png"></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( '/wp-content/cache/flying-press/', $r );
+        $this->assertStringContainsString( 'data-wpacu', $r );
+        $this->assertStringContainsString( '/wp-content/plugins/perfmatters/', $r );
+        $this->assertStringNotContainsString( 'link', $r );
+    }
+
+    /**
+     * name and content attributes are extracted (d-review Mi3).
+     * OG/meta-generator markers in <body> must survive the non-text-zone pass.
+     */
+    public function test_extract_non_text_zones_preserves_name_content_attributes_mi3(): void {
+        // d-review Mi3: name/content attributes added so OG/meta-generator markers in <body> survive
+        $html = '<html><body><meta name="generator" content="WP Rocket caching plugin"><p>visible</p></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( 'WP Rocket', $r );
+        $this->assertStringNotContainsString( 'visible', $r );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
