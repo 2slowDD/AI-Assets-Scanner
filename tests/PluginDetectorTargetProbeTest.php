@@ -1547,6 +1547,46 @@ class PluginDetectorTargetProbeTest extends TestCase {
     }
 
     /**
+     * AC-T2-5 — measured combined extract_non_text_zones() + 14× body_match_pattern()
+     * time on a synthetic 2MB HTML body completes in ≤50ms p95 on the dev workstation.
+     *
+     * Validates the d-review M3 hoist preserved through implementation. Without the hoist,
+     * the same fixture would take ~14× longer per spec §6.4.2.
+     */
+    public function test_act2_5_tier2_path_perf_on_2mb_body(): void {
+        // Build a 2MB HTML body that exercises the regex zones (head, body, comments, scripts).
+        $body = '<html><head><title>Bench</title></head><body>'
+              . str_repeat( '<p>filler ' . str_repeat( 'a', 100 ) . '</p>', 18000 )
+              . '<!-- Powered by FlyingPress --></body></html>';
+        // Pad to exactly 2MB (the limit_response_size ceiling).
+        if ( strlen( $body ) < 2 * 1024 * 1024 ) {
+            $body .= str_repeat( ' ', 2 * 1024 * 1024 - strlen( $body ) );
+        }
+
+        $reflection = new \ReflectionClass( PluginDetector::class );
+        $optimizers = $reflection->getConstant( 'OPTIMIZERS' );
+
+        // N=5 runs; p95 = max of 5 runs (lenient — single bad sample bounds the result).
+        $times = [];
+        for ( $i = 0; $i < 5; $i++ ) {
+            $start = microtime( true );
+            $scoped = PluginDetector::__test_extract_non_text_zones( $body );
+            foreach ( $optimizers as $entry ) {
+                PluginDetector::__test_body_match_pattern( $scoped, $entry['target_body_pattern'] ?? null );
+            }
+            $times[] = ( microtime( true ) - $start ) * 1000;
+        }
+        sort( $times );
+        $p95 = end( $times ); // max of 5 = p95 with small N
+
+        $this->assertLessThan( 50, $p95,
+            "Tier 2 path p95 on 2MB body was {$p95}ms; spec §6.4.2 budget is ≤50ms. "
+            . "Times: " . json_encode( $times ) . ". "
+            . "If this fails, the hoist may be broken OR a target_body_pattern is exhibiting catastrophic backtracking."
+        );
+    }
+
+    /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
      */
