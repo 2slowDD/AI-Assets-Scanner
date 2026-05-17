@@ -1066,6 +1066,25 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertFalse( $r );
     }
 
+    public function test_body_match_pattern_matches_on_scoped_input(): void {
+        $scoped = '<!-- Powered by FlyingPress for lightning-fast performance -->';
+        $r = PluginDetector::__test_body_match_pattern( $scoped, '/\bflying[- _]?press\b/i' );
+        $this->assertTrue( $r );
+    }
+
+    public function test_body_match_pattern_no_match_returns_false(): void {
+        $scoped = '<!-- This site uses WP Rocket -->';
+        $r = PluginDetector::__test_body_match_pattern( $scoped, '/\bflying[- _]?press\b/i' );
+        $this->assertFalse( $r );
+    }
+
+    public function test_body_match_pattern_case_insensitivity_via_i_flag(): void {
+        // Patterns in OPTIMIZERS always carry /i — assert the helper preserves it.
+        $scoped = 'POWERED BY FLYINGPRESS';
+        $r = PluginDetector::__test_body_match_pattern( $scoped, '/\bflying[- _]?press\b/i' );
+        $this->assertTrue( $r );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
