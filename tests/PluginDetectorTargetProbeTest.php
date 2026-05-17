@@ -1024,6 +1024,22 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertStringNotContainsString( 'visible', $r );
     }
 
+    // -----------------------------------------------------------------
+    // AAS 1.4.0 Task 4 — extract_non_text_zones <noscript> zone (d-review Mi4).
+    // -----------------------------------------------------------------
+
+    /**
+     * <noscript> inner text is preserved; visible body text is excluded.
+     * d-review Mi4: noscript inner text may contain plugin fingerprints not in attributes.
+     */
+    public function test_extract_non_text_zones_preserves_noscript_inner_text_mi4(): void {
+        // The text content inside <noscript> may contain plugin fingerprints that aren't in attributes.
+        $html = '<html><body><noscript>This page was Cached by FlyingPress</noscript><p>visible body text</p></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringContainsString( 'Cached by FlyingPress', $r );
+        $this->assertStringNotContainsString( 'visible body text', $r );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.

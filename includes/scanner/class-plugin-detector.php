@@ -412,7 +412,12 @@ class PluginDetector {
             }
         }
 
-        // 5. <noscript>...</noscript> content — wired in Task 4
+        // 5. <noscript>...</noscript> content (d-review Mi4)
+        if ( preg_match_all( '/<noscript\b[^>]*>([\s\S]*?)<\/noscript>/i', $html, $matches ) ) {
+            foreach ( $matches[1] as $c ) {
+                $parts[] = $c;
+            }
+        }
 
         // 6. Tag attribute values from whitelist (class/id/src/href/data-[*]/rel/type/name/content per d-review Mi3).
         //    style excluded — inline CSS commonly contains url(...) references unrelated to the plugin
