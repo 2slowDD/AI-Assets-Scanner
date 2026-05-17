@@ -1351,6 +1351,59 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertTrue( $r );
     }
 
+    // -------------------------------------------------------------------------
+    // Regex backtracking safety lint
+    // -------------------------------------------------------------------------
+
+    /**
+     * Linear-time guarantee: each target_body_pattern must complete in <100ms
+     * against a 100KB pathological string. Prevents catastrophic PCRE backtracking
+     * from making it into future pattern additions.
+     *
+     * Per spec §11 risk register + §15 implementation prerequisite #6.
+     *
+     * @dataProvider target_body_pattern_lint_fixtures
+     */
+    public function test_target_body_pattern_linear_time_on_adversarial_input( string $plugin_name ): void {
+        $entry = $this->getOptimizerEntry( $plugin_name );
+        $pat = $entry['target_body_pattern'] ?? null;
+        $this->assertNotNull( $pat );
+
+        // Pathological input: 100KB of repeated 'a' (a common backtracking trap for
+        // greedy quantifiers + alternation). Linear-time patterns complete in <1ms;
+        // catastrophic backtracking patterns hit PHP's pcre.backtrack_limit and return false
+        // (and take seconds).
+        $adversarial = str_repeat( 'a', 102400 );
+
+        $start = microtime( true );
+        @preg_match( $pat, $adversarial );
+        $elapsed_ms = ( microtime( true ) - $start ) * 1000;
+
+        $this->assertLessThan( 100, $elapsed_ms,
+            "Pattern '$pat' for plugin '$plugin_name' took {$elapsed_ms}ms on 100KB of 'a'; suspect catastrophic backtracking. "
+            . "Tighten the pattern (bounded quantifiers, no nested .*) before merging."
+        );
+    }
+
+    public function target_body_pattern_lint_fixtures(): array {
+        return [
+            [ 'WP Rocket' ],
+            [ 'Perfmatters' ],
+            [ 'Autoptimize' ],
+            [ 'NitroPack' ],
+            [ 'Asset CleanUp' ],
+            [ 'LiteSpeed Cache' ],
+            [ 'WP Fastest Cache' ],
+            [ 'W3 Total Cache' ],
+            [ 'Breeze' ],
+            [ 'Cache Enabler' ],
+            [ 'Swift Performance' ],
+            [ 'Hummingbird' ],
+            [ 'FlyingPress' ],
+            [ 'SiteGround Optimizer' ],
+        ];
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
