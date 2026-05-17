@@ -433,6 +433,25 @@ class PluginDetector {
         return implode( "\n", $parts );
     }
 
+    /**
+     * Match a regex pattern against a pre-scoped body string.
+     * Caller is responsible for context-scoping via extract_non_text_zones (per spec §5.2 + d-review M3 hoist).
+     *
+     * Returns false on empty pattern, null/empty scoped body, malformed PCRE, or no match.
+     *
+     * @param ?string $scoped_body  Output of extract_non_text_zones( $body_slice ). Null = skip.
+     * @param ?string $pattern      PCRE regex, e.g. '/\bflying[- _]?press\b/i'.
+     * @return bool
+     */
+    private static function body_match_pattern( ?string $scoped_body, ?string $pattern ): bool {
+        if ( ! $pattern || $scoped_body === null || $scoped_body === '' ) {
+            return false;
+        }
+        // @ to silence PCRE warnings on bad patterns (defensive; pattern set is internal).
+        $r = @preg_match( $pattern, $scoped_body );
+        return $r === 1;
+    }
+
     // --- Test seams (private-method exposure for unit testing) ---
     public static function __test_header_match( array $headers, array $patterns ): bool {
         return self::header_match( $headers, $patterns );
@@ -445,6 +464,9 @@ class PluginDetector {
     }
     public static function __test_extract_non_text_zones( string $html ): string {
         return self::extract_non_text_zones( $html );
+    }
+    public static function __test_body_match_pattern( ?string $scoped_body, ?string $pattern ): bool {
+        return self::body_match_pattern( $scoped_body, $pattern );
     }
     public static function __test_single_probe_attempt(
         string $url,

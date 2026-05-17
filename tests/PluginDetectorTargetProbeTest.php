@@ -1040,6 +1040,32 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertStringNotContainsString( 'visible body text', $r );
     }
 
+    // AAS 1.4.0 Task 5 — body_match_pattern null/empty/malformed-PCRE contract (AC-T2-4).
+    // Tests invoke via the __test_body_match_pattern public seam.
+
+    public function test_body_match_pattern_empty_pattern_returns_false(): void {
+        $r = PluginDetector::__test_body_match_pattern( 'any scoped body', null );
+        $this->assertFalse( $r );
+        $r2 = PluginDetector::__test_body_match_pattern( 'any scoped body', '' );
+        $this->assertFalse( $r2 );
+    }
+
+    public function test_body_match_pattern_null_scoped_body_returns_false(): void {
+        $r = PluginDetector::__test_body_match_pattern( null, '/\bfoo\b/i' );
+        $this->assertFalse( $r );
+    }
+
+    public function test_body_match_pattern_empty_scoped_body_returns_false(): void {
+        $r = PluginDetector::__test_body_match_pattern( '', '/\bfoo\b/i' );
+        $this->assertFalse( $r );
+    }
+
+    public function test_body_match_pattern_malformed_pcre_returns_false(): void {
+        // Unclosed group — preg_match returns false (not 0); we should swallow and return false.
+        $r = PluginDetector::__test_body_match_pattern( 'foo bar', '/(unclosed/' );
+        $this->assertFalse( $r );
+    }
+
     /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
