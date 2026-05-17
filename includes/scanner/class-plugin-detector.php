@@ -312,20 +312,34 @@ class PluginDetector {
      * @return bool true if ANY pattern matches.
      */
     /**
-     * @param string $body     full response body
-     * @param array  $patterns list of substrings to look for (case-insensitive)
-     * @param bool   $tail_only when true, scan last 8KB of body (for end-of-body cache markers
-     *                          like '<!-- Cache served by breeze -->' that live after </html>).
-     *                          When false (default), scan first BODY_SCAN_MAX_BYTES (32KB head).
-     *                          FU-NEW-7: tail-only mode used by Pass 2 of the two-pass probe.
+     * Match any of $patterns against the body (case-insensitive substring).
+     *
+     * Pass 1 ($use_range=true): scans first BODY_SCAN_MAX_BYTES (32KB) of body.
+     * Pass 2 ($use_range=false): scans the FULL body (already capped at 2MB by limit_response_size
+     * in single_probe_attempt's wp_remote_get args).
+     *
+     * T3 widening (spec §6.3): drops the prior $scan_tail_only / $tail_only param. Pass 2 now sees
+     * full body instead of just the last 8KB tail — closes the dead zone between 32KB head and 8KB
+     * tail for plugins whose markers sit in the body middle (e.g. flying-press script tags at ~byte
+     * 125K on flyingpress.com).
+     *
+     * @param string $body
+     * @param array  $patterns Case-insensitive substring patterns.
+     * @param bool   $use_range True for Pass 1 (32KB head cap), false for Pass 2 (full body).
+     * @return bool
      */
-    private static function body_match( string $body, array $patterns, bool $tail_only = false ): bool {
-        if ( empty( $patterns ) ) return false;
-        $haystack = $tail_only
-            ? strtolower( substr( $body, -8192 ) )  // last 8KB
-            : strtolower( substr( $body, 0, self::BODY_SCAN_MAX_BYTES ) );  // first 32KB (head)
+    private static function body_match( string $body, array $patterns, bool $use_range ): bool {
+        if ( empty( $patterns ) ) {
+            return false;
+        }
+        $haystack = $use_range
+            ? substr( $body, 0, self::BODY_SCAN_MAX_BYTES )
+            : $body;
+        $haystack_lower = strtolower( $haystack );
         foreach ( $patterns as $pat ) {
-            if ( strpos( $haystack, strtolower( (string) $pat ) ) !== false ) return true;
+            if ( strpos( $haystack_lower, strtolower( (string) $pat ) ) !== false ) {
+                return true;
+            }
         }
         return false;
     }
@@ -457,8 +471,8 @@ class PluginDetector {
     public static function __test_header_match( array $headers, array $patterns ): bool {
         return self::header_match( $headers, $patterns );
     }
-    public static function __test_body_match( string $body, array $patterns, bool $tail_only = false ): bool {
-        return self::body_match( $body, $patterns, $tail_only );
+    public static function __test_body_match( string $body, array $patterns, bool $use_range = true ): bool {
+        return self::body_match( $body, $patterns, $use_range );
     }
     public static function __test_classify_outcome( bool $probe_failed, bool $is_wordpress, array $detected ): string {
         return self::classify_outcome( $probe_failed, $is_wordpress, $detected );
@@ -472,10 +486,9 @@ class PluginDetector {
     public static function __test_single_probe_attempt(
         string $url,
         int $timeout_seconds,
-        bool $use_range = true,
-        bool $scan_tail_only = false
+        bool $use_range = true
     ): array {
-        return self::single_probe_attempt( $url, $timeout_seconds, $use_range, $scan_tail_only );
+        return self::single_probe_attempt( $url, $timeout_seconds, $use_range );
     }
 
     /**
@@ -511,18 +524,16 @@ class PluginDetector {
      *
      * @param string $url             validated URL (caller responsible for SSRF gate)
      * @param int    $timeout_seconds wp_remote_get timeout
-     * @param bool   $use_range       Pass 1 (true): send Range: bytes=0-32767 header.
-     *                                Pass 2 (false): NO Range header + 2MB limit_response_size cap.
-     * @param bool   $scan_tail_only  Pass 1 (false): body_match scans first 32KB head.
-     *                                Pass 2 (true): body_match scans last 8KB tail (end-of-body
-     *                                cache markers — Breeze, WP Rocket, LiteSpeed, etc.).
+     * @param bool   $use_range       Pass 1 (true): send Range: bytes=0-32767 header; body_match
+     *                                scans first 32KB head.
+     *                                Pass 2 (false): NO Range header + 2MB limit_response_size cap;
+     *                                body_match scans FULL body (T3 widening, spec §6.3).
      * @return array probe result; see class docblock for shape
      */
     private static function single_probe_attempt(
         string $url,
         int $timeout_seconds,
-        bool $use_range = true,
-        bool $scan_tail_only = false
+        bool $use_range = true
     ): array {
         $start_ms = (int) round( microtime( true ) * 1000 );
 
@@ -619,7 +630,7 @@ class PluginDetector {
             $h_pat = $entry['target_headers']      ?? [];
             $b_pat = $entry['target_body_markers'] ?? [];
             $h_match = self::header_match( $headers, $h_pat );
-            $b_match = self::body_match( $body, $b_pat, $scan_tail_only );
+            $b_match = self::body_match( $body, $b_pat, $use_range );
             if ( $h_match || $b_match ) {
                 $detected[] = [
                     'name'         => (string) $entry['name'],
@@ -685,26 +696,25 @@ class PluginDetector {
 
         // FU-NEW-7: Pass 2 orchestration. Fires when Pass 1 (head-area scan) was inconclusive
         // AND the response was healthy (reason === null, i.e. not an HTTP/transport error).
-        // Retries each URL with a full-body fetch + last-8KB tail-scan to recover end-of-body
-        // cache markers (Breeze, WP Rocket, LiteSpeed, etc. — 9 of 14 OPTIMIZERS).
+        // Retries each URL with a full-body fetch (use_range=false) — T3 widening (spec §6.3)
+        // scans the entire body up to the 2MB limit_response_size cap, closing the dead zone
+        // between 32KB head and end-of-body for markers at any byte offset.
         // Spec rev 2.1 §3.2 + §3.3 + §3.8.
         if ( $result['outcome'] === 'inconclusive' && ( $result['reason'] ?? null ) === null ) {
-            // Pass 2a: URL1 full body + tail-scan.
+            // Pass 2a: URL1 full body scan.
             $p2_url1 = self::single_probe_attempt(
                 $url,
                 $timeout_seconds,
-                false, /* use_range */
-                true   /* scan_tail_only */
+                false  /* use_range — Pass 2: full body */
             );
             if ( $p2_url1['outcome'] !== 'inconclusive' ) {
                 $final = $p2_url1;
             } elseif ( $fallback_url ) {
-                // Pass 2b: URL2 full body + tail-scan.
+                // Pass 2b: URL2 full body scan.
                 $p2_url2 = self::single_probe_attempt(
                     $fallback_url,
                     $timeout_seconds,
-                    false, /* use_range */
-                    true   /* scan_tail_only */
+                    false  /* use_range — Pass 2: full body */
                 );
                 $final = $p2_url2['outcome'] !== 'inconclusive' ? $p2_url2 : $result;
             } else {

@@ -347,13 +347,14 @@ class PluginDetectorTargetProbeTest extends TestCase {
     }
 
     /**
-     * T-N7-A (helper test for body_match tail-only mode).
-     * Verifies that body_match with $tail_only=true scans only the last 8KB of body,
-     * NOT the first 32KB. End-of-body cache markers (Breeze, WP Rocket, LiteSpeed,
-     * etc.) live in HTML comments after </html> — typically in the last few KB.
+     * T-N7-A (helper test for body_match use_range semantics — updated for T3 widening).
+     * Verifies that body_match with $use_range=true (Pass 1) scans only first 32KB head,
+     * and that $use_range=false (Pass 2, T3 widening) scans the FULL body, catching markers
+     * at any byte offset (including end-of-body cache markers that were previously reachable
+     * only via the former 8KB-tail window).
      */
-    public function test_t_n7_helper_body_match_tail_only() {
-        // 95KB of filler body with a Breeze marker at byte 95000 (in last 8KB of a ~95031B body).
+    public function test_t_n7_helper_body_match_use_range_semantics() {
+        // 95KB of filler body with a Breeze marker at byte 95000 (well beyond 32KB head).
         $filler_head = str_repeat( 'x', 50000 );      // 50KB of x's
         $filler_mid  = str_repeat( 'y', 45000 );      // 45KB of y's (so total 95KB before marker)
         $marker_tail = '<!-- Cache served by breeze -->';
@@ -362,23 +363,58 @@ class PluginDetectorTargetProbeTest extends TestCase {
         // Confirm test fixture: marker is BEYOND first 32KB.
         $this->assertGreaterThan( 32768, strpos( $body, 'Cache served by breeze' ) );
 
-        // Default mode (head-only): marker is beyond 32KB → MISS.
+        // Pass 1 (use_range=true, default): marker is beyond 32KB head → MISS.
         $this->assertFalse(
             PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ] ),
-            'body_match default mode should miss the tail marker'
+            'body_match Pass 1 (use_range=true, default) should miss the marker beyond 32KB head'
         );
 
-        // Tail-only mode: scan last 8KB → HIT.
+        // Pass 2 (use_range=false, T3 widening): full body scan → HIT anywhere in body.
         $this->assertTrue(
-            PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ], true ),
-            'body_match with tail_only=true should detect the tail marker'
+            PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ], false ),
+            'body_match Pass 2 (use_range=false) should detect the marker via full-body scan'
         );
     }
 
+    // -----------------------------------------------------------------
+    // AAS 1.4.0 Task 7 — body_match T3 widening (Pass 2 full-body scan).
+    // Spec §6.3. AC-T3-1 and AC-T3-2.
+    // -----------------------------------------------------------------
+
     /**
-     * T-N7-B (helper test for single_probe_attempt parameter expansion).
-     * Verifies that single_probe_attempt accepts $use_range + $scan_tail_only
-     * parameters and threads them through to wp_remote_get + body_match.
+     * AC-T3-2 — Pass 1 (use_range=true) still caps at 32KB head; marker beyond byte 32768 is NOT matched.
+     */
+    public function test_body_match_use_range_true_caps_at_32kb_head(): void {
+        // Marker placed at byte 40000 — beyond the 32KB head cap.
+        $body = str_repeat( 'X', 40000 ) . 'Cache served by breeze';
+        $r = PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ], true );
+        $this->assertFalse( $r, 'marker past byte 32768 must NOT be matched in Pass 1 (use_range=true)' );
+    }
+
+    /**
+     * AC-T3-1 — Pass 2 (use_range=false) scans the full body up to the 2MB limit_response_size cap.
+     * Marker at byte 100000 (beyond former 8KB-tail window) must now be found.
+     */
+    public function test_body_match_use_range_false_scans_full_body_t3(): void {
+        // Marker placed at byte 100000 — beyond both 32KB head and former 8KB tail window.
+        $body = str_repeat( 'X', 100000 ) . 'Cache served by breeze';
+        $r = PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ], false );
+        $this->assertTrue( $r, 'marker beyond former 8KB-tail window must be matched in Pass 2 (use_range=false)' );
+    }
+
+    /**
+     * AC-T3 helper — Pass 1 (use_range=true) finds a marker within the first 32KB head.
+     */
+    public function test_body_match_use_range_true_finds_marker_in_first_32kb(): void {
+        $body = str_repeat( 'X', 100 ) . 'Cache served by breeze' . str_repeat( 'Y', 1000 );
+        $r = PluginDetector::__test_body_match( $body, [ 'Cache served by breeze' ], true );
+        $this->assertTrue( $r );
+    }
+
+    /**
+     * T-N7-B (helper test for single_probe_attempt parameter threading).
+     * Verifies that single_probe_attempt accepts $use_range and threads it through
+     * to wp_remote_get args (Range header / limit_response_size) and body_match.
      */
     public function test_t_n7_helper_single_probe_attempt_params_threaded() {
         $body = '<!doctype html><html><body>OK</body></html>';
@@ -406,7 +442,7 @@ class PluginDetectorTargetProbeTest extends TestCase {
             }
         );
 
-        PluginDetector::__test_single_probe_attempt( 'https://example.com/', 12, true, false );
+        PluginDetector::__test_single_probe_attempt( 'https://example.com/', 12, true );
 
         $this->assertArrayHasKey( 'Range', $captured_args['headers'],
             'Case 1: Range header must be present when $use_range=true' );
@@ -426,7 +462,7 @@ class PluginDetectorTargetProbeTest extends TestCase {
             }
         );
 
-        PluginDetector::__test_single_probe_attempt( 'https://example.com/', 12, false, false );
+        PluginDetector::__test_single_probe_attempt( 'https://example.com/', 12, false );
 
         $this->assertArrayNotHasKey( 'Range', $captured_args['headers'],
             'Case 2: Range header must NOT be present when $use_range=false' );
