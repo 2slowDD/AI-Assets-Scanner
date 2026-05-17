@@ -415,6 +415,9 @@ class PluginDetector {
         // 5. <noscript>...</noscript> content — wired in Task 4
 
         // 6. Tag attribute values from whitelist (class/id/src/href/data-[*]/rel/type/name/content per d-review Mi3).
+        //    style excluded — inline CSS commonly contains url(...) references unrelated to the plugin
+        //    that would produce false-positive matches against target_body_pattern. Adding style here
+        //    must be paired with the FP-corpus regression test in Task 11.
         $attr_re = '/\s(?:class|id|src|href|data-[\w\-]+|rel|type|name|content)\s*=\s*(?:"[^"]*"|\'[^\']*\')/i';
         if ( preg_match_all( $attr_re, $html, $matches ) ) {
             foreach ( $matches[0] as $a ) {
