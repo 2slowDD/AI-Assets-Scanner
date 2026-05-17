@@ -1011,6 +1011,20 @@ class PluginDetectorTargetProbeTest extends TestCase {
     }
 
     /**
+     * Zone 6 negative boundary — `style` attribute is intentionally NOT in the whitelist.
+     * A url() reference inside an inline style must NOT survive into the scoped output, because inline
+     * CSS commonly carries unrelated URLs that would false-positive against target_body_pattern.
+     * Hardens the whitelist decision flagged in Task 3 code-quality review.
+     */
+    public function test_extract_non_text_zones_excludes_style_attribute(): void {
+        $html = '<html><body><div style="background-image:url(/wp-content/cache/flying-press/x.png)"><p>visible</p></div></body></html>';
+        $r = PluginDetector::__test_extract_non_text_zones( $html );
+        $this->assertStringNotContainsString( '/wp-content/cache/flying-press/', $r,
+            'style attribute URLs must NOT appear in scoped output (style is excluded from whitelist).' );
+        $this->assertStringNotContainsString( 'visible', $r );
+    }
+
+    /**
      * Build a WP_Error-shaped object for tests (a simple stdClass with get_error_message()).
      * If a real WP_Error is available in the test bootstrap, prefer that.
      */
