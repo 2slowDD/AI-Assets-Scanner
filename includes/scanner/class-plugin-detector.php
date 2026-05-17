@@ -449,6 +449,7 @@ class PluginDetector {
         }
         // @ to silence PCRE warnings on bad patterns (defensive; pattern set is internal).
         $r = @preg_match( $pattern, $scoped_body );
+        // Strict: preg_match returns 1=match, 0=no-match, false=PCRE error. Only match returns true.
         return $r === 1;
     }
 
