@@ -304,14 +304,6 @@ class PluginDetector {
     }
 
     /**
-     * Match any of $patterns against the body (case-insensitive substring on first 32KB).
-     * 32KB cap is per spec §5.5 + §8 row 18 — bounds CPU regardless of server's Range support.
-     *
-     * @param string $body Body string.
-     * @param array $patterns Patterns to match (case-insensitive substring).
-     * @return bool true if ANY pattern matches.
-     */
-    /**
      * Match any of $patterns against the body (case-insensitive substring).
      *
      * Pass 1 ($use_range=true): scans first BODY_SCAN_MAX_BYTES (32KB) of body.
