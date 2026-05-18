@@ -1242,6 +1242,7 @@ class PluginDetectorTargetProbeTest extends TestCase {
             'FlyingPress via x-flying-press-source'          => [ 'FlyingPress', [ 'x-flying-press-source' => 'Web Server' ] ],
             'SG Optimizer via sg-f-cache'                    => [ 'SiteGround Optimizer', [ 'sg-f-cache' => 'HIT' ] ],
             'SG Optimizer via x-powered-by siteground combo' => [ 'SiteGround Optimizer', [ 'x-powered-by' => 'siteground' ] ],
+            'Kinsta via x-kinsta-cache' => [ 'Kinsta Page Cache', [ 'x-kinsta-cache' => 'HIT' ] ],
         ];
     }
 
