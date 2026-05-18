@@ -43,6 +43,36 @@ class PluginDetector {
         ],
     ];
 
+    /**
+     * Operator-side hosting fingerprint detection (rev-1.4.1).
+     *
+     * MU-plugins and hosting-defined constants don't show up in is_plugin_active().
+     * This table walks per-host detector callables and merges hits into
+     * $result['soft_warn'] via detect(). Informational only (Option I per spec §3.3)
+     * — scans on these hosts work because the AAS scan flow's unique-query-string
+     * suffix auto-bypasses query-aware caches.
+     *
+     * Labels verified disjoint from AUTO_BYPASS / SOFT_BLOCK / SOFT_WARN /
+     * SECURITY_WARN tables (spec §6.4 + d-review Mi6).
+     */
+    private const HOST_FINGERPRINTS = [
+        'kinsta' => [
+            'label'    => 'Kinsta',
+            'detector' => [ self::class, 'detect_kinsta_host' ],
+            'reason'   => 'Kinsta-hosted WordPress detected. AAS auto-bypasses the host page cache via unique-query-string probes; no operator action needed. Manual cache flush: MyKinsta → Sites → Cache.',
+        ],
+        'wp-engine' => [
+            'label'    => 'WP Engine',
+            'detector' => [ self::class, 'detect_wpe_host' ],
+            'reason'   => 'WP Engine-hosted WordPress detected. AAS auto-bypasses the host page cache via unique-query-string probes; no operator action needed. Manual cache flush: WP Engine User Portal → your-site → Caching.',
+        ],
+        'pantheon' => [
+            'label'    => 'Pantheon',
+            'detector' => [ self::class, 'detect_pantheon_host' ],
+            'reason'   => 'Pantheon-hosted WordPress detected. AAS auto-bypasses the edge cache (Fastly via Styx) via unique-query-string probes; no operator action needed. Manual cache flush: Pantheon Dashboard → your-site → Clear Caches.',
+        ],
+    ];
+
     private const CU_PLUGIN      = 'code-unloader/code-unloader.php';
     private const CU_MIN_VERSION = '1.3.9';
 
