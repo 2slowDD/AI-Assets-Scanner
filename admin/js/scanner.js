@@ -496,8 +496,19 @@
         // Add newly-included URLs to selectedUrls
         selectedUrls = [...selectedUrls, ...newIncluded];
 
-        includedUrls         = newIncluded;
-        groupedUrls.included = newIncluded;
+        includedUrls = newIncluded;
+
+        // 1.4.2 fix — only set the `included` marker when there are actual include URLs.
+        // Pre-1.4.2 this line unconditionally set `groupedUrls.included = []` even on the
+        // post-Discover sync (line 546) when the textarea was empty, which made the Start
+        // Scan handler's `groupedUrls.included !== undefined` predicate (the FU-NEW-6
+        // include-only-mode marker, line 841) wrongly TRUE — silent no-op on every
+        // Discover→unselect→select→Scan flow with an empty Include URLs textarea.
+        if ( newIncluded.length > 0 ) {
+            groupedUrls.included = newIncluded;
+        } else {
+            delete groupedUrls.included;
+        }
     }
 
     // --- Step 1: Discovery ---
