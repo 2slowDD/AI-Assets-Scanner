@@ -1243,6 +1243,10 @@ class PluginDetectorTargetProbeTest extends TestCase {
             'SG Optimizer via sg-f-cache'                    => [ 'SiteGround Optimizer', [ 'sg-f-cache' => 'HIT' ] ],
             'SG Optimizer via x-powered-by siteground combo' => [ 'SiteGround Optimizer', [ 'x-powered-by' => 'siteground' ] ],
             'Kinsta via x-kinsta-cache' => [ 'Kinsta Page Cache', [ 'x-kinsta-cache' => 'HIT' ] ],
+            'WP Engine via x-cache-group normal'      => [ 'WP Engine Page Cache', [ 'x-cache-group' => 'normal' ] ],
+            'WP Engine via x-cacheable short'         => [ 'WP Engine Page Cache', [ 'x-cacheable' => 'SHORT' ] ],
+            'WP Engine via x-cacheable no-cacheable'  => [ 'WP Engine Page Cache', [ 'x-cacheable' => 'NO-CACHEABLE' ] ],
+            'WP Engine via x-powered-by'              => [ 'WP Engine Page Cache', [ 'x-powered-by' => 'WP Engine' ] ],
         ];
     }
 

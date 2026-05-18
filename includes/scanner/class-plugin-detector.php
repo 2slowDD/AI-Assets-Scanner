@@ -202,6 +202,27 @@ class PluginDetector {
             'target_body_markers' => [],
             'target_body_pattern' => null,
         ],
+        // Rev-1.4.1 — Managed host cache (WP Engine). Class B, header-only.
+        // 4-pattern coverage: WPE emits any of these depending on cache state
+        // (SHORT for short-cached, NO-CACHEABLE for excluded/logged-in/no-cache).
+        // Known F-MISS gap: Cloudflare in front of WPE can strip all 4 patterns
+        // (spec §5.2 + §11 row 1). Operator-side HOST_FINGERPRINTS is fallback
+        // for THIS operator's install, NOT for cross-stack probing.
+        'wpengine-common/plugin.php' => [
+            'name' => 'WP Engine Page Cache',
+            'class' => 'B',
+            'bypass_query' => null,
+            'disable_method' => null,
+            'warning' => 'WP Engine page cache detected on target. AAS auto-bypasses it via unique-query-string probes; no operator action needed.',
+            'target_headers' => [
+                'x-cache-group: normal',
+                'x-cacheable: short',
+                'x-cacheable: no-cacheable',
+                'x-powered-by: wp engine',
+            ],
+            'target_body_markers' => [],
+            'target_body_pattern' => null,
+        ],
     ];
 
     public function detect(): array {
