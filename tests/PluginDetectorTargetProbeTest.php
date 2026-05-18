@@ -13,6 +13,7 @@ class PluginDetectorTargetProbeTest extends TestCase {
 
     protected $http_stub_response = null;
     protected $http_stub_calls    = [];
+    protected $tmp_dirs           = [];
 
     public function setUp(): void {
         parent::setUp();
@@ -20,6 +21,25 @@ class PluginDetectorTargetProbeTest extends TestCase {
     }
 
     public function tearDown(): void {
+        // Reset detector override state so tests don't leak between cases (rev-2 C1).
+        PluginDetector::__test_set_mu_plugin_dir_override( null );
+        PluginDetector::__test_set_pantheon_env_override( null );
+
+        // Remove any temp dirs created by detector tests.
+        foreach ( $this->tmp_dirs as $dir ) {
+            if ( is_dir( $dir ) ) {
+                $it = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator( $dir, \FilesystemIterator::SKIP_DOTS ),
+                    \RecursiveIteratorIterator::CHILD_FIRST
+                );
+                foreach ( $it as $fileinfo ) {
+                    $fileinfo->isDir() ? rmdir( $fileinfo->getRealPath() ) : unlink( $fileinfo->getRealPath() );
+                }
+                rmdir( $dir );
+            }
+        }
+        $this->tmp_dirs = [];
+
         WP_Mock::tearDown();
         parent::tearDown();
     }
@@ -1599,5 +1619,49 @@ class PluginDetectorTargetProbeTest extends TestCase {
             public function __construct( public string $code, public string $message ) {}
             public function get_error_message(): string { return $this->message; }
         };
+    }
+
+    // -----------------------------------------------------------------
+    // AAS 1.4.1 Task 1 — Foundation: override-setter seams (rev-2 C1).
+    // -----------------------------------------------------------------
+
+    /**
+     * Foundation — override-setter seams (rev-2 C1 refactor).
+     * After Task 1 ships, every detector test below uses these seams to swap state
+     * without touching PHP's define-once constants.
+     */
+    public function test_set_mu_plugin_dir_override_swaps_dir_then_resets(): void {
+        $temp = sys_get_temp_dir() . '/aas-foundation-' . uniqid();
+        mkdir( $temp, 0777, true );
+        $this->tmp_dirs[] = $temp;
+
+        // Set override; tearDown will reset to null.
+        PluginDetector::__test_set_mu_plugin_dir_override( $temp );
+
+        // Detector test seams don't exist yet, so verify via reflection that the
+        // override property holds the value we set.
+        $reflect = new \ReflectionClass( PluginDetector::class );
+        $prop    = $reflect->getProperty( 'mu_plugin_dir_override' );
+        $prop->setAccessible( true );
+        $this->assertSame( $temp, $prop->getValue() );
+
+        // Setting null clears the override.
+        PluginDetector::__test_set_mu_plugin_dir_override( null );
+        $this->assertNull( $prop->getValue() );
+    }
+
+    public function test_set_pantheon_env_override_swaps_then_resets(): void {
+        PluginDetector::__test_set_pantheon_env_override( true );
+
+        $reflect = new \ReflectionClass( PluginDetector::class );
+        $prop    = $reflect->getProperty( 'pantheon_env_override' );
+        $prop->setAccessible( true );
+        $this->assertTrue( $prop->getValue() );
+
+        PluginDetector::__test_set_pantheon_env_override( false );
+        $this->assertFalse( $prop->getValue() );
+
+        PluginDetector::__test_set_pantheon_env_override( null );
+        $this->assertNull( $prop->getValue() );
     }
 }
