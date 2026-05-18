@@ -190,6 +190,18 @@ class PluginDetector {
             'target_body_markers' => ['Optimized by SG Optimizer'],
             'target_body_pattern' => '/\b(?:sg|siteground)[- _]?optimizer\b/i',
         ],
+        // Rev-1.4.1 — Managed host cache (Kinsta). Class B, header-only.
+        // MU-plugin nominal key — never matches is_plugin_active() (see spec §5.4).
+        'kinsta-mu-plugins/kinsta-mu-plugins.php' => [
+            'name' => 'Kinsta Page Cache',
+            'class' => 'B',
+            'bypass_query' => null,
+            'disable_method' => null,
+            'warning' => 'Kinsta page cache detected on target. AAS auto-bypasses it via unique-query-string probes; no operator action needed.',
+            'target_headers' => [ 'x-kinsta-cache' ],
+            'target_body_markers' => [],
+            'target_body_pattern' => null,
+        ],
     ];
 
     public function detect(): array {
