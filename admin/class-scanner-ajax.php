@@ -526,6 +526,18 @@ class ScannerAjax {
             error_log( '[AI Assets Scanner] build_result: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
             wp_send_json_error( 'Could not retrieve scan data. Check server error logs.' ); return;
         }
+        // 1.4.6 — AAS-page-side completion marks-as-seen immediately. This AJAX
+        // handler is called by scanner.js's polling loop on the AAS scanner page,
+        // so the operator is actively viewing the result. Marking seen here avoids
+        // the badge-flash-on-next-nav timing race where mark_seen_on_main_page
+        // (admin_head hook) ran BEFORE this AJAX completed — at admin_head time
+        // ScanHistory still had status='queued', so mark_seen early-returned
+        // without updating aias_last_seen_scan_id, leaving the badge to fire on
+        // the next non-AAS navigation. The server-side Heartbeat path
+        // (MenuBadge::check_active_job_completion) intentionally does NOT call
+        // update_option here because the operator IS away from AAS in that case
+        // and the badge SHOULD fire.
+        update_option( 'aias_last_seen_scan_id', $job_id );
         wp_send_json_success( $result );
     }
 

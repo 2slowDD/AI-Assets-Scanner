@@ -148,13 +148,22 @@ class MenuBadge {
         $transient_key = 'cu_scanner_job_' . get_current_user_id();
         $state = get_transient( $transient_key );
         if ( ! is_array( $state ) ) {
+            // No active scan — early return silently. This fires on every Heartbeat
+            // tick when no scan is in progress, so don't log here (would spam the log).
             return;
         }
+
+        // 1.4.6 — diagnostic logging. Fires only when there's an active scan, so
+        // bounded by scan-in-progress windows. Tracks each Heartbeat-tick checkpoint
+        // so debug.log shows where the chain breaks if the badge ever fails to fire.
+        $user_id = get_current_user_id();
+        error_log( '[AI Assets Scanner] menu-badge tick: transient present (user=' . $user_id . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging for the 1.4.5/1.4.6 server-side polling path; only fires during active scans.
 
         $job_id      = (string) ( $state['job_id']      ?? '' );
         $job_token   = (string) ( $state['job_token']   ?? '' );
         $railway_url = (string) ( $state['railway_url'] ?? '' );
         if ( $job_id === '' || $job_token === '' || $railway_url === '' ) {
+            error_log( '[AI Assets Scanner] menu-badge tick: transient malformed (missing job_id/token/railway_url)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
             return;
         }
 
@@ -162,31 +171,36 @@ class MenuBadge {
             $client = new \CUScanner\Api\RailwayClient( $railway_url, ( new \CUScanner\Settings() )->get_api_key() );
             $status = $client->get_status( $job_id, $job_token, 0 );
         } catch ( \RuntimeException $e ) {
-            error_log( '[AI Assets Scanner] menu-badge heartbeat poll: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: Railway exception detail captured server-side only; client receives no notification (Heartbeat response just omits the terminal action).
+            error_log( '[AI Assets Scanner] menu-badge heartbeat poll FAILED: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: Railway exception detail captured server-side only.
             return;
         }
 
         $rs = (string) ( $status['status'] ?? '' );
+        error_log( '[AI Assets Scanner] menu-badge tick: Railway status=' . $rs . ' job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
 
         if ( $rs === 'complete' ) {
+            error_log( '[AI Assets Scanner] menu-badge: firing do_build_result for job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
             try {
                 ( new \CUScanner\Admin\ScannerAjax() )->do_build_result( $job_id, $job_token );
+                error_log( '[AI Assets Scanner] menu-badge: do_build_result OK for job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
             } catch ( \RuntimeException $e ) {
                 // Build failed (e.g., Railway 410 — job data expired between status
                 // poll and coverage fetch). Force the scan into 'failed' state so the
                 // badge fires red AND the transient is deleted to break the poll loop.
-                error_log( '[AI Assets Scanner] menu-badge build_result: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: forced-failure path; full exception logged for diagnostics.
+                error_log( '[AI Assets Scanner] menu-badge build_result FAILED: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging: forced-failure path.
                 $this->get_history()->update_status( $job_id, 'failed' );
                 delete_transient( $transient_key );
             }
             // do_build_result deletes the transient itself on success (scanner-ajax.php:559).
         } elseif ( $rs === 'failed' ) {
+            error_log( '[AI Assets Scanner] menu-badge: marking failed for job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
             $this->get_history()->update_status( $job_id, 'failed' );
             delete_transient( $transient_key );
         } elseif ( $rs === 'killed' || $rs === 'cancelled_timeout' ) {
             // Kill paths are already terminal in ScanHistory via the orchestrator
             // (ScannerAjax::handle_killed / cancel paths). Just clear the transient
             // so the polling loop stops; status is already correctly recorded.
+            error_log( '[AI Assets Scanner] menu-badge: clearing transient for ' . $rs . ' job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
             delete_transient( $transient_key );
         }
         // 'queued' / 'in_progress' / unknown → no-op; next heartbeat tick re-polls.

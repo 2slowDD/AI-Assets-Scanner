@@ -4,6 +4,28 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.6 — 2026-05-18
+
+### Diagnostic
+
+- **Added diagnostic `error_log` checkpoints to `MenuBadge::check_active_job_completion()`** so the 1.4.5 server-side polling chain is traceable in WP debug.log when the badge fails to fire. Post-1.4.5 production test showed zero AAS entries in debug.log despite the badge never appearing — couldn't distinguish "method never fires" from "method fires successfully every time." Now the path emits log entries at each checkpoint: transient-present, Railway-status, do_build_result-firing, do_build_result-OK / failed. Whatever entry is MISSING in the next operator-reproduced debug.log tells us where the chain breaks. Entries fire ONLY when there's an active scan (transient present), so no log spam.
+
+### Fixed
+
+- **Badge-flash-on-next-navigation timing race** (UX bug surfaced by operator 2026-05-18 PM: "if you are chaining the green ! only after animation you need to replace it with something else"). When the operator was away from AAS, scan finished server-side, and operator then returned to AAS, the flow was: scanner.js detects active sessionStorage → polls Railway → fires `cu_scanner_build_result` AJAX → status flips to `'complete'` in ScanHistory → operator sees result. But `mark_seen_on_main_page` (the admin_head hook) had already run earlier in the page render, at which point ScanHistory still had `'queued'` — so `aias_last_seen_scan_id` was never updated. On the operator's NEXT navigation away from AAS, `add_menu_classes` filter saw `aias_last_seen_scan_id` was empty while the latest scan was `'complete'` → green badge fired AFTER the operator had already seen the result.
+- **Fix:** the `cu_scanner_build_result` AJAX handler now ALSO calls `update_option('aias_last_seen_scan_id', $job_id)` after `do_build_result()` succeeds. This AJAX endpoint is reachable only from authenticated AAS-scanner-page scanner.js, so the operator IS viewing the result by the time it fires — marking-seen there avoids the next-nav flash. The server-side Heartbeat-driven path (`MenuBadge::check_active_job_completion`) intentionally does NOT call `update_option` because that path runs when the operator is AWAY from AAS, and the badge SHOULD fire in that case.
+
+### Technical
+
+- ~25 LOC added across 2 files. No new tests required (existing 13/13 still pass; the `error_log` calls and `update_option` are pure side-effects, mechanically verified by `php -l` + manual smoke).
+- Diagnostic `error_log` entries are intentionally kept permanent — they'll be useful in any future scan-completion debugging session and only fire during active scans (~1 entry per active scan, ~5 per scan total).
+
+### Compliance
+
+- P10 wp-compliance re-confirmed: only adds `error_log` (intentional production diagnostic, scope-limited) + `update_option` on the same `aias_last_seen_scan_id` key already used by `mark_seen_on_main_page`. No new SQL, no new AJAX endpoint, no new input handling, no escape contract change. AJAX handler's nonce/cap check unchanged.
+
+---
+
 ## 1.4.5 — 2026-05-18
 
 ### Fixed
