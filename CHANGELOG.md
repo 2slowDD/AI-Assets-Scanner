@@ -4,6 +4,46 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.11 — 2026-05-18
+
+### Fixed
+
+- **Menu badge: complete architectural fix (closes the 1.4.3-introduced regression chain).** The badge now appears reliably within ~30s when a scan completes while the operator is on any other wp-admin page, AND returning to AAS restores the Step 4 result screen directly. Closes the four production failures observed across 1.4.3 → 1.4.6 (operator-flagged "badge only after AAS-return + animation", "no badge during wait + no Step 4 on return") and the architectural dead-ends discovered during 1.4.7-diag / 1.4.8-diag investigation.
+- **Root cause** (proven by 1.4.8-diag triangulation logs in `debug (3).log`): another plugin on the operator's WP install replaces `wp_ajax_heartbeat` with a custom handler that short-circuits `apply_filters('heartbeat_received', ...)`. The 1.4.5 server-side polling fix registered correctly but the filter never fired — `MenuBadge::init()` and `filter_menu_title()` produced log entries, `filter_heartbeat()` produced zero. The Heartbeat-channel architecture was unrecoverable on this install.
+
+### Architecture
+
+- **Browser-driven setInterval polling.** `admin/js/menu-badge.js` now runs a `setInterval(30000)` (first poll at 2s after page-load) that POSTs to a new AJAX action `cu_scanner_get_badge_state`. Independent of WP Heartbeat, independent of operator navigation. The 30s cadence matches the "look away then back" UX window without hammering the server.
+- **New AJAX endpoint `cu_scanner_get_badge_state`.** Authenticated (nonce + `manage_options`), thin wrapper that calls `MenuBadge::run_polling_check_and_get_state()` (new public method). The poll method drives the same Railway-status → ScanHistory-update → `do_build_result` path the 1.4.5 server-side code used — but now triggered by JS timer instead of the bypassed Heartbeat filter.
+- **`admin_init` poller as supplementary trigger (1.4.9 path retained).** Both `admin_init` and the JS setInterval converge on the same `check_active_job_completion()` method (idempotent + transient-deleted-on-success). Two independent triggers means the badge appears whether the operator navigates frequently (admin_init wins) or sits idle (setInterval wins).
+- **`result` snapshot in the AJAX response** (1.4.11 fix). When badge state is `'green'`, the response also includes `{job_id, safe_count, agg_count, can_push, external_only:false, total_pages}` synthesized from the most-recent unseen `'complete'` ScanHistory record. The JS poller writes this to `localStorage.cu_scanner_result` (guarded by job_id mismatch so it can't clobber a fresher entry written by scanner.js on the AAS tab). `scanner.js` init at `admin/js/scanner.js:1349` reads exactly that key on AAS-return and runs the existing `restoreStep4` flow — no Step 1 default screen anymore.
+
+### Iteration history (1.4.7-diag → 1.4.11)
+
+- **1.4.7-diag** — moved diagnostic `error_log` to the top of `check_active_job_completion` (1.4.6 logged AFTER the early-return, so "filter not firing" and "transient missing" produced identical evidence). Result: still zero entries in `debug (2).log` — confirmed filter_heartbeat doesn't fire.
+- **1.4.8-diag** — added triangulation logs at `MenuBadge::init()` + `filter_menu_title()` + `filter_heartbeat()`. Result (`debug (3).log`): init fires 9 times (mostly during AJAX, `doing_ajax=1`), `filter_menu_title` fires once on regular page render, `filter_heartbeat` NEVER fires. Definitively isolated the bypass.
+- **1.4.9** — pivoted server-side polling from `heartbeat_received` filter to `admin_init` action with 15s transient rate limiter. WP-core hook fires on every admin request including admin-ajax.php; much harder to bypass than the Heartbeat-specific filter chain. Production result (`debug (4).log`): polling worked but missed scan-end transition window when operator sat idle on one page during the 35-second scan-end gap.
+- **1.4.10** — added the JS setInterval poller + `cu_scanner_get_badge_state` AJAX endpoint. Decoupled badge state sync from operator navigation entirely. Operator confirmed green badge appears reliably during scan-in-progress.
+- **1.4.11** — added the `result` snapshot to the AJAX response + JS-side `localStorage.cu_scanner_result` write so AAS-return restores Step 4 instead of falling back to the Step 1 default. End-to-end validated by operator 2026-05-18 PM.
+
+### Technical
+
+- **New method `MenuBadge::run_polling_check_and_get_state(): ?string`** — public wrapper around `check_active_job_completion()` + `get_badge_state()` so the new AJAX handler can drive both in one call.
+- **New AJAX action `cu_scanner_get_badge_state`** registered in `ScannerAjax::register()` alongside the existing 15 actions; handler runs nonce + cap check via `$this->check()` then returns `{badge, result}`.
+- ~125 LOC added across 3 files (menu-badge.js, class-scanner-ajax.php, class-menu-badge.php). `CU_SCANNER_VERSION` + plugin header bumped 1.4.6 → 1.4.11 for JS cache-bust on next page load.
+
+### Testing
+
+- 13/13 `MenuBadgeTest` + 10/10 `ScannerAjaxTest` pass locally. `PluginDetectorTargetProbeTest` 146/146 + `ProbeTargetStackEndpointTest` 4/4 unchanged (no scan-pipeline modification).
+- Snapshot/RulePusher pre-existing `FakeRuleRepository::create_group_item()` test-stub errors verified pre-existing (confirmed by stash + baseline rerun); unrelated to menu-badge changes.
+- Manual smoke MS-AC-HF-1 (start scan, navigate to any wp-admin page, badge appears within ~30s of scan completion) and MS-AC-HF-2 (return to AAS post-completion → Step 4 renders with result counts populated, no Step 1 flash) validated end-to-end by operator post-SFTP-deploy 2026-05-18 PM.
+
+### Compliance
+
+- P10 wp-compliance re-confirmed: new AJAX endpoint uses the existing `cu_scanner_nonce` + `manage_options` capability check via `ScannerAjax::check()`. No new SQL, no new input handling beyond the nonce, no escape contract change (response is `wp_send_json_success` with synthesized array — same shape as existing endpoints). JS `localStorage` write uses idempotent `setItem` with `JSON.stringify` of server-supplied integer/boolean/string fields — no DOM injection, no XSS surface.
+
+---
+
 ## 1.4.6 — 2026-05-18
 
 ### Diagnostic
