@@ -1664,4 +1664,30 @@ class PluginDetectorTargetProbeTest extends TestCase {
         PluginDetector::__test_set_pantheon_env_override( null );
         $this->assertNull( $prop->getValue() );
     }
+
+    /**
+     * Kinsta detector — positive: MU-plugin file exists under override dir.
+     * Spec §6.2 detect_kinsta_host().
+     */
+    public function test_detect_kinsta_host_when_mu_plugin_exists(): void {
+        $temp_dir = sys_get_temp_dir() . '/aas-kinsta-' . uniqid();
+        mkdir( $temp_dir . '/kinsta-mu-plugins', 0777, true );
+        touch( $temp_dir . '/kinsta-mu-plugins/kinsta-mu-plugins.php' );
+        $this->tmp_dirs[] = $temp_dir;
+
+        PluginDetector::__test_set_mu_plugin_dir_override( $temp_dir );
+        $this->assertTrue( PluginDetector::__test_detect_kinsta_host() );
+    }
+
+    /**
+     * Kinsta detector — negative: empty dir under override.
+     */
+    public function test_detect_kinsta_host_when_mu_plugin_absent(): void {
+        $temp_dir = sys_get_temp_dir() . '/aas-empty-kinsta-' . uniqid();
+        mkdir( $temp_dir, 0777, true );
+        $this->tmp_dirs[] = $temp_dir;
+
+        PluginDetector::__test_set_mu_plugin_dir_override( $temp_dir );
+        $this->assertFalse( PluginDetector::__test_detect_kinsta_host() );
+    }
 }

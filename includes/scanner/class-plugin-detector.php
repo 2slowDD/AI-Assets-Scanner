@@ -496,6 +496,28 @@ class PluginDetector {
         return $r === 1;
     }
 
+    /**
+     * Resolve MU-plugin directory path. Production reads WPMU_PLUGIN_DIR;
+     * tests override via __test_set_mu_plugin_dir_override() without touching
+     * PHP's define-once constants (rev-2 C1).
+     */
+    private static function get_mu_plugin_dir(): string {
+        if ( self::$mu_plugin_dir_override !== null ) {
+            return self::$mu_plugin_dir_override;
+        }
+        return defined( 'WPMU_PLUGIN_DIR' ) ? WPMU_PLUGIN_DIR : '';
+    }
+
+    /**
+     * Detect Kinsta-hosted WP install via MU-plugin file existence.
+     * Kinsta auto-installs kinsta-mu-plugins on every site since ~2017; the file
+     * path is stable. Spec §6.2.
+     */
+    private static function detect_kinsta_host(): bool {
+        $dir = self::get_mu_plugin_dir();
+        return $dir !== '' && file_exists( $dir . '/kinsta-mu-plugins/kinsta-mu-plugins.php' );
+    }
+
     // --- Test seams (private-method exposure for unit testing) ---
     public static function __test_header_match( array $headers, array $patterns ): bool {
         return self::header_match( $headers, $patterns );
@@ -524,6 +546,9 @@ class PluginDetector {
     }
     public static function __test_set_pantheon_env_override( ?bool $val ): void {
         self::$pantheon_env_override = $val;
+    }
+    public static function __test_detect_kinsta_host(): bool {
+        return self::detect_kinsta_host();
     }
 
     /**
