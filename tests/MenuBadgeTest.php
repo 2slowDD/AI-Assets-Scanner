@@ -99,4 +99,52 @@ class MenuBadgeTest extends TestCase {
         $badge = new MenuBadge();
         $this->assertSame( 'green', $badge->get_badge_state() );
     }
+
+    // --- AC-MB-11: cancelled does NOT trigger badge ---
+
+    public function test_cancelled_only_returns_null(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [ [ 'job_id' => 'cancelled1', 'status' => 'cancelled' ] ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_last_seen_scan_id', '' )
+            ->andReturn( '' );
+
+        $badge = new MenuBadge();
+        $this->assertNull( $badge->get_badge_state() );
+    }
+
+    // --- AC-MB-12: cancelled between two badge-triggering scans doesn't break the walk ---
+
+    public function test_cancelled_between_complete_records_walks_past(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [
+                [ 'job_id' => 'newest',    'status' => 'complete' ],
+                [ 'job_id' => 'cancelled', 'status' => 'cancelled' ],
+                [ 'job_id' => 'older',     'status' => 'complete' ],
+            ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_last_seen_scan_id', '' )
+            ->andReturn( '' );
+
+        $badge = new MenuBadge();
+        $this->assertSame( 'green', $badge->get_badge_state() );
+    }
+
+    public function test_cancelled_blocks_no_walks_to_older_failed(): void {
+        // Newest is cancelled (non-triggering); next is failed (triggers red).
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [
+                [ 'job_id' => 'cancelled1', 'status' => 'cancelled' ],
+                [ 'job_id' => 'older_fail', 'status' => 'failed' ],
+            ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_last_seen_scan_id', '' )
+            ->andReturn( '' );
+
+        $badge = new MenuBadge();
+        $this->assertSame( 'red', $badge->get_badge_state() );
+    }
 }
