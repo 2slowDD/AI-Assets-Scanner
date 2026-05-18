@@ -223,6 +223,22 @@ class PluginDetector {
             'target_body_markers' => [],
             'target_body_pattern' => null,
         ],
+        // Rev-1.4.1 — Managed host cache (Pantheon). Class B, header-only.
+        // 2-pattern: Pantheon always emits both X-Pantheon-Styx-Hostname AND
+        // X-Styx-Req-Id on every response from styx (Fastly via Pantheon edge).
+        'pantheon-mu-plugin/pantheon.php' => [
+            'name' => 'Pantheon Edge Cache',
+            'class' => 'B',
+            'bypass_query' => null,
+            'disable_method' => null,
+            'warning' => 'Pantheon edge cache (Fastly via Styx) detected on target. AAS auto-bypasses it via unique-query-string probes; no operator action needed.',
+            'target_headers' => [
+                'x-pantheon-styx-hostname',
+                'x-styx-req-id',
+            ],
+            'target_body_markers' => [],
+            'target_body_pattern' => null,
+        ],
     ];
 
     public function detect(): array {
