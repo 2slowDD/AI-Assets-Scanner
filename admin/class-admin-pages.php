@@ -8,6 +8,7 @@ class AdminPages {
         add_action( 'admin_menu', [ $this, 'add_menus' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
         add_action( 'admin_notices', [ $this, 'maybe_render_history_deleted_notice' ] );
+        ( new \CUScanner\MenuBadge() )->init();
     }
 
     public function add_menus(): void {
