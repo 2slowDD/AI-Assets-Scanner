@@ -53,4 +53,18 @@ class MenuBadgeTest extends TestCase {
         $badge = new MenuBadge();
         $this->assertSame( 'green', $badge->get_badge_state() );
     }
+
+    // --- AC-MB-7: failed-unseen → red ---
+
+    public function test_failed_unseen_returns_red(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [ [ 'job_id' => 'failed1', 'status' => 'failed' ] ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_last_seen_scan_id', '' )
+            ->andReturn( '' );
+
+        $badge = new MenuBadge();
+        $this->assertSame( 'red', $badge->get_badge_state() );
+    }
 }
