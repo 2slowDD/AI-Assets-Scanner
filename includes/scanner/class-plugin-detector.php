@@ -54,6 +54,14 @@ class PluginDetector {
     private const BODY_SCAN_MAX_BYTES = 32768;
 
     /**
+     * Rev-2 C1 — injectable-override seams for detector dependencies.
+     * Default null = production fall-through (real WPMU_PLUGIN_DIR / PANTHEON_ENVIRONMENT).
+     * Tests swap via __test_set_*_override() to avoid PHP's define-once semantics.
+     */
+    private static $mu_plugin_dir_override = null;
+    private static $pantheon_env_override  = null;
+
+    /**
      * AC-N2-SSRF (i) — scheme allowlist for probe URLs.
      * Rejects file://, javascript:, ftp://, gopher://, etc. before any
      * wp_remote_get call.
@@ -510,6 +518,12 @@ class PluginDetector {
         bool $use_range = true
     ): array {
         return self::single_probe_attempt( $url, $timeout_seconds, $use_range );
+    }
+    public static function __test_set_mu_plugin_dir_override( ?string $dir ): void {
+        self::$mu_plugin_dir_override = $dir;
+    }
+    public static function __test_set_pantheon_env_override( ?bool $val ): void {
+        self::$pantheon_env_override = $val;
     }
 
     /**
