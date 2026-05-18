@@ -179,4 +179,37 @@
         // 1.4.4 — also check active-job state for background completion.
         maybeCheckActiveJob();
     });
+
+    // 1.4.10 — browser-driven setInterval poller. Decouples badge state sync
+    // from operator navigation. The 1.4.5/1.4.7-diag/1.4.8-diag investigation
+    // proved that heartbeat_received is bypassed on the operator's WP install
+    // (another plugin replaces wp_ajax_heartbeat). The 1.4.9 admin_init poller
+    // works but only fires when the operator navigates — operator idling on
+    // one admin page during the scan-end transition misses the state flip.
+    //
+    // This setInterval fires every 30s independent of operator navigation, hits
+    // the new cu_scanner_get_badge_state AJAX endpoint, and applies the
+    // returned badge state to the DOM. The endpoint internally drives the same
+    // Railway poll → ScanHistory update path the admin_init poller uses, so
+    // the badge appears within ~30s of scan completion regardless of where
+    // the operator is in wp-admin.
+    function pollBadgeState() {
+        if (!window.aiasMenuBadgeData) return;
+        $.post(window.aiasMenuBadgeData.ajaxurl, {
+            action: 'cu_scanner_get_badge_state',
+            nonce:  window.aiasMenuBadgeData.nonce
+        }).then(function (res) {
+            if (res && res.success && res.data) {
+                // res.data.badge: 'green' | 'red' | null
+                applyState(res.data.badge);
+            }
+        });
+    }
+
+    // First poll on page load (after a short delay so jQuery + DOM are ready),
+    // then every 30s thereafter. 30s matches the operator-visibility cadence
+    // we want — fast enough to catch scan-end inside a typical "look away then
+    // back" window, slow enough to keep server load negligible.
+    setTimeout(pollBadgeState, 2000);
+    setInterval(pollBadgeState, 30000);
 })(jQuery);

@@ -32,6 +32,7 @@ class ScannerAjax {
             'cu_scanner_export_history',
             'cu_scanner_delete_history',
             'cu_scanner_probe_target_stack',
+            'cu_scanner_get_badge_state',
         ];
         foreach ( $actions as $action ) {
             add_action( 'wp_ajax_' . $action, [ $this, str_replace( 'cu_scanner_', '', $action ) ] );
@@ -1120,6 +1121,28 @@ class ScannerAjax {
     }
     public static function __test_capture_target_stack_summary( $post_value ): ?array {
         return self::capture_target_stack_summary( $post_value );
+    }
+
+    /**
+     * 1.4.10 — browser-driven badge state poll.
+     *
+     * Backs the setInterval poller in admin/js/menu-badge.js. Each tick (~30s):
+     *   1. Calls MenuBadge::run_polling_check_and_get_state() — drives the
+     *      same Railway poll + transient + ScanHistory update logic as the
+     *      1.4.9 admin_init path.
+     *   2. Returns the resulting badge state ('green' | 'red' | null) so the
+     *      JS can sync the DOM badge node independently of operator navigation.
+     *
+     * Independent of WP Heartbeat (the 1.4.8-diag investigation proved
+     * heartbeat_received is bypassed on operator's WP install) and independent
+     * of admin_init (the 1.4.9 attempt that depends on operator navigation
+     * firing fresh admin requests — fails when operator sits idle on one page
+     * during the scan-end transition window).
+     */
+    public function get_badge_state(): void {
+        $this->check();
+        $state = ( new \CUScanner\MenuBadge() )->run_polling_check_and_get_state();
+        wp_send_json_success( [ 'badge' => $state ] );
     }
 
     public function export_history(): void {

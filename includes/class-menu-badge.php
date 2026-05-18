@@ -120,6 +120,21 @@ class MenuBadge {
     }
 
     /**
+     * 1.4.10 — public entry point for the browser-driven setInterval poller in
+     * menu-badge.js. The 1.4.9 admin_init path works but depends on operator
+     * navigation: if the operator sits idle on one admin page, admin_init
+     * doesn't fire and the badge transition is missed. The setInterval in
+     * menu-badge.js fires every 30s independent of operator navigation, hits
+     * cu_scanner_get_badge_state, which calls THIS method to drive the same
+     * check_active_job_completion path. Returns the post-check badge state so
+     * the AJAX response can carry it straight to the JS DOM updater.
+     */
+    public function run_polling_check_and_get_state(): ?string {
+        $this->check_active_job_completion();
+        return $this->get_badge_state();
+    }
+
+    /**
      * WordPress passes the global $menu array (each item is [ $menu_title,
      * $capability, $menu_slug, $page_title, $css_class, $hookname, $icon_url ]).
      * We match by $menu_slug at index 2 ('cu-scanner') and append a badge span
