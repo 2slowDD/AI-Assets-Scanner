@@ -4,6 +4,23 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.2 — 2026-05-18
+
+### Fixed
+
+- **Start Scan silent no-op after Discover Pages with subset selection (FU-NEW-6 regression).** Clicking Discover, unselecting some URLs, and clicking Start Scan produced no scan attempt, no modal, and no console error — the click handler bailed silently. Root cause: `syncIncludedUrls()` at `admin/js/scanner.js:500` was unconditionally setting `groupedUrls.included = newIncluded` even when `newIncluded` was an empty array (the post-Discover sync at line 546 reads an empty Include URLs textarea). This polluted the FU-NEW-6 include-only-mode predicate at the Start Scan handler (line 841 — `groupedUrls.included !== undefined`), which wrongly evaluated TRUE on every Discover→Scan flow and short-circuited at line 844 (`if (includeList.length === 0) return;`). Fix: only assign the `included` key when there are actual include URLs; `delete` it otherwise. Restores the FU-NEW-6 author's documented intent that `groupedUrls.included !== undefined` ⟺ include URLs exist. Bumps `CU_SCANNER_VERSION` 1.4.1 → 1.4.2 for cache-bust on the `?ver=` query of the enqueued JS asset (per `feedback_cache_bust_on_enqueue_change.md`).
+
+### Compliance
+
+- No PHP / SQL / AJAX / REST / `$_*` surface change. JS-only bug fix. wp-compliance trivially clean.
+
+### Testing
+
+- PHP regression unchanged: 146/146 PluginDetectorTargetProbeTest + 4/4 ProbeTargetStackEndpointTest (no PHP modifications).
+- Manual JS trace verified on 4 scenarios: (1) Discover → unselect/select subset → Scan now proceeds; (2) Pure include-only multi-scan (original FU-NEW-6 case) still works; (3) Pure include-only with empty textarea correctly short-circuits with no scan (intentional); (4) Discover + textarea-added URL still routes through include-only path as pre-1.4.2 (unchanged behavior).
+
+---
+
 ## 1.4.1 — 2026-05-17
 
 ### Added
