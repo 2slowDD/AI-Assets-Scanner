@@ -4,6 +4,30 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.3 — 2026-05-18
+
+### Added
+
+- **Menu badge for completed-but-unseen scans.** A small `!` badge now appears next to "AI Assets Scanner" in the WP admin menu when a scan finishes while you're on a different admin page. Green for `'complete'` (success), red for `'failed'`. Disappears when you visit the main AAS scanner page. Updates live via WordPress's built-in Heartbeat API (~15s polling — no manual refresh needed). Cancelled scans (`'cancelled'`) do NOT trigger the badge — you already know you cancelled it.
+- **URL count in scan-complete summary.** Result line now reads `Scan complete. N URLs scanned, S safe rules, A aggressive rules generated.` (was: missing the URL count). Works on both the live success path and the page-reload restore path; data sourced from `total_pages` already in the server response.
+
+### Technical
+
+- New `CUScanner\MenuBadge` class at `includes/class-menu-badge.php` — single-responsibility, DI-constructor-injected `ScanHistory` for testability. Registers `add_menu_classes` filter (server render), `heartbeat_received` filter (live update), `admin_head-toplevel_page_cu-scanner` hook (mark-seen), `admin_print_styles` (inline CSS), `admin_enqueue_scripts` (load JS).
+- New `admin/js/menu-badge.js` — Heartbeat-tick listener that syncs the badge DOM node based on the server response field `aias_badge` (`'green' | 'red' | null`).
+- New WP option `aias_last_seen_scan_id` — tracks the most-recent badge-triggering scan job_id the operator has viewed. Global key (site-wide, single value).
+
+### Testing
+
+- **New `MenuBadgeTest`** — 11 WP_Mock unit tests covering AC-MB-1, -2, -3, -4, -5, -7, -8, -10, -11, -12 + Minor 6 conditional `update_option`.
+- Existing 146/146 `PluginDetectorTargetProbeTest` + 4/4 `ProbeTargetStackEndpointTest` unchanged.
+
+### Compliance
+
+- P10 wp-compliance re-confirmed: no new SQL, no new AJAX endpoints (Heartbeat is WP-core), no new escape contract, no new user input handling, no `$_*` reads. `get_option` + `update_option` on one new key only. wp-compliance 27/27 clean.
+
+---
+
 ## 1.4.2 — 2026-05-18
 
 ### Fixed
