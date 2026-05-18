@@ -1733,4 +1733,29 @@ class PluginDetectorTargetProbeTest extends TestCase {
         PluginDetector::__test_set_pantheon_env_override( false );
         $this->assertFalse( PluginDetector::__test_detect_pantheon_host() );
     }
+
+    /**
+     * Mi-r2-3 — Pantheon production fall-through path (override null + real constant read).
+     *
+     * The 6 detector tests above exercise the override path. This test exercises
+     * the fall-through path where override is null and pantheon_env_defined() must
+     * read the real PANTHEON_ENVIRONMENT constant + reject empty strings.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_pantheon_env_defined_fallthrough_rejects_empty_string(): void {
+        // Sanity: in a fresh process, PANTHEON_ENVIRONMENT is NOT defined by the AAS
+        // bootstrap (tests/bootstrap.php does not define it).
+        $this->assertFalse( defined( 'PANTHEON_ENVIRONMENT' ), 'Bootstrap must not pre-define PANTHEON_ENVIRONMENT' );
+
+        // Define it as empty string — pantheon_env_defined() must reject.
+        define( 'PANTHEON_ENVIRONMENT', '' );
+
+        // Ensure override is null so the helper falls through to the real constant.
+        PluginDetector::__test_set_pantheon_env_override( null );
+
+        // Even though defined() returns true, constant() === '' must reject.
+        $this->assertFalse( PluginDetector::__test_detect_pantheon_host() );
+    }
 }
