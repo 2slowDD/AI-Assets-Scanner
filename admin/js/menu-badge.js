@@ -199,9 +199,31 @@
             action: 'cu_scanner_get_badge_state',
             nonce:  window.aiasMenuBadgeData.nonce
         }).then(function (res) {
-            if (res && res.success && res.data) {
-                // res.data.badge: 'green' | 'red' | null
-                applyState(res.data.badge);
+            if (!res || !res.success || !res.data) return;
+            // res.data.badge: 'green' | 'red' | null
+            applyState(res.data.badge);
+
+            // 1.4.11 — when the server returns a result snapshot (badge='green'
+            // and there's an unseen complete scan), populate cu_scanner_result
+            // in localStorage so scanner.js init at admin/js/scanner.js:1349
+            // finds the result on AAS-return and restores Step 4. Idempotent:
+            // only writes when localStorage is missing OR stores a different
+            // job_id (avoids clobbering a fresher entry written by scanner.js
+            // itself on the AAS tab).
+            if (res.data.result && res.data.result.job_id) {
+                try {
+                    var existing = localStorage.getItem('cu_scanner_result');
+                    var existingJob = null;
+                    if (existing) {
+                        try { existingJob = (JSON.parse(existing) || {}).job_id; } catch (_e) {}
+                    }
+                    if (existingJob !== res.data.result.job_id) {
+                        localStorage.setItem('cu_scanner_result', JSON.stringify(res.data.result));
+                    }
+                } catch (_storageErr) {
+                    // localStorage quota or disabled — non-fatal; the badge
+                    // still appears and operator can re-scan if needed.
+                }
             }
         });
     }
