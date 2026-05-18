@@ -116,6 +116,34 @@ class MenuBadge {
     }
 
     /**
+     * Inline CSS for the badge. Emitted unconditionally on every wp-admin page.
+     *
+     * Why not gated on get_badge_state() !== null: the Heartbeat path can
+     * transition state null → green/red WITHOUT a page reload; the JS would
+     * then inject a <span> with no CSS to style it. Emitting ~200 bytes of
+     * inline CSS on every admin page is the cheaper trade-off.
+     */
+    public function print_inline_css(): void {
+        echo '<style id="aias-menu-badge-css">'
+            . '.aias-menu-badge { display:inline-block; margin-left:6px; padding:1px 7px; '
+            . 'border-radius:10px; color:#fff; font-weight:bold; font-size:11px; '
+            . 'line-height:17px; vertical-align:middle; }'
+            . '.aias-menu-badge--green { background:#46b450; }'
+            . '.aias-menu-badge--red   { background:#dc3232; }'
+            . '</style>';
+    }
+
+    public function enqueue_heartbeat_listener(): void {
+        wp_enqueue_script(
+            'aias-menu-badge',
+            CU_SCANNER_URL . 'admin/js/menu-badge.js',
+            [ 'jquery', 'heartbeat' ],
+            CU_SCANNER_VERSION,
+            true
+        );
+    }
+
+    /**
      * Returns the most-recent BADGE-TRIGGERING terminal record, walking newest-first.
      * 'complete' and 'failed' trigger the badge; 'cancelled' and 'queued' are skipped.
      */
