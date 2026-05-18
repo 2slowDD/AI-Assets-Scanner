@@ -1690,4 +1690,30 @@ class PluginDetectorTargetProbeTest extends TestCase {
         PluginDetector::__test_set_mu_plugin_dir_override( $temp_dir );
         $this->assertFalse( PluginDetector::__test_detect_kinsta_host() );
     }
+
+    /**
+     * WP Engine detector — positive: MU-plugin file exists under override dir.
+     * Spec §6.2 detect_wpe_host().
+     */
+    public function test_detect_wpe_host_when_mu_plugin_exists(): void {
+        $temp_dir = sys_get_temp_dir() . '/aas-wpe-' . uniqid();
+        mkdir( $temp_dir . '/wpengine-common', 0777, true );
+        touch( $temp_dir . '/wpengine-common/plugin.php' );
+        $this->tmp_dirs[] = $temp_dir;
+
+        PluginDetector::__test_set_mu_plugin_dir_override( $temp_dir );
+        $this->assertTrue( PluginDetector::__test_detect_wpe_host() );
+    }
+
+    /**
+     * WP Engine detector — negative: empty dir under override.
+     */
+    public function test_detect_wpe_host_when_mu_plugin_absent(): void {
+        $temp_dir = sys_get_temp_dir() . '/aas-empty-wpe-' . uniqid();
+        mkdir( $temp_dir, 0777, true );
+        $this->tmp_dirs[] = $temp_dir;
+
+        PluginDetector::__test_set_mu_plugin_dir_override( $temp_dir );
+        $this->assertFalse( PluginDetector::__test_detect_wpe_host() );
+    }
 }

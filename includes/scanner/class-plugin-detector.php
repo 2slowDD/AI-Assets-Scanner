@@ -518,6 +518,16 @@ class PluginDetector {
         return $dir !== '' && file_exists( $dir . '/kinsta-mu-plugins/kinsta-mu-plugins.php' );
     }
 
+    /**
+     * Detect WP Engine-hosted WP install via MU-plugin file existence.
+     * WP Engine auto-installs wpengine-common on every WPE WordPress site.
+     * Spec §6.2.
+     */
+    private static function detect_wpe_host(): bool {
+        $dir = self::get_mu_plugin_dir();
+        return $dir !== '' && file_exists( $dir . '/wpengine-common/plugin.php' );
+    }
+
     // --- Test seams (private-method exposure for unit testing) ---
     public static function __test_header_match( array $headers, array $patterns ): bool {
         return self::header_match( $headers, $patterns );
@@ -549,6 +559,9 @@ class PluginDetector {
     }
     public static function __test_detect_kinsta_host(): bool {
         return self::detect_kinsta_host();
+    }
+    public static function __test_detect_wpe_host(): bool {
+        return self::detect_wpe_host();
     }
 
     /**
