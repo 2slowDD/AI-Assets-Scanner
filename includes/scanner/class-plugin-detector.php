@@ -528,6 +528,31 @@ class PluginDetector {
         return $dir !== '' && file_exists( $dir . '/wpengine-common/plugin.php' );
     }
 
+    /**
+     * Resolve Pantheon-env signal. Production reads PANTHEON_ENVIRONMENT and requires
+     * a non-empty/non-null value (per rev-2 Mi1 — empty-string defines must NOT
+     * register as a Pantheon site). Tests override via __test_set_pantheon_env_override().
+     */
+    private static function pantheon_env_defined(): bool {
+        if ( self::$pantheon_env_override !== null ) {
+            return self::$pantheon_env_override;
+        }
+        if ( ! defined( 'PANTHEON_ENVIRONMENT' ) ) {
+            return false;
+        }
+        $val = constant( 'PANTHEON_ENVIRONMENT' );
+        return $val !== '' && $val !== null;
+    }
+
+    /**
+     * Detect Pantheon-hosted WP install via PANTHEON_ENVIRONMENT constant.
+     * MU-plugin path varies across Pantheon deployment generations; the constant
+     * is the canonical fingerprint. Spec §6.2.
+     */
+    private static function detect_pantheon_host(): bool {
+        return self::pantheon_env_defined();
+    }
+
     // --- Test seams (private-method exposure for unit testing) ---
     public static function __test_header_match( array $headers, array $patterns ): bool {
         return self::header_match( $headers, $patterns );
@@ -562,6 +587,9 @@ class PluginDetector {
     }
     public static function __test_detect_wpe_host(): bool {
         return self::detect_wpe_host();
+    }
+    public static function __test_detect_pantheon_host(): bool {
+        return self::detect_pantheon_host();
     }
 
     /**
