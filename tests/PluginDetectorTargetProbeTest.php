@@ -1716,4 +1716,21 @@ class PluginDetectorTargetProbeTest extends TestCase {
         PluginDetector::__test_set_mu_plugin_dir_override( $temp_dir );
         $this->assertFalse( PluginDetector::__test_detect_wpe_host() );
     }
+
+    /**
+     * Pantheon detector — positive: env override set to true.
+     * Spec §6.2 detect_pantheon_host() / pantheon_env_defined().
+     */
+    public function test_detect_pantheon_host_when_env_defined(): void {
+        PluginDetector::__test_set_pantheon_env_override( true );
+        $this->assertTrue( PluginDetector::__test_detect_pantheon_host() );
+    }
+
+    /**
+     * Pantheon detector — negative: env override set to false.
+     */
+    public function test_detect_pantheon_host_when_env_undefined(): void {
+        PluginDetector::__test_set_pantheon_env_override( false );
+        $this->assertFalse( PluginDetector::__test_detect_pantheon_host() );
+    }
 }
