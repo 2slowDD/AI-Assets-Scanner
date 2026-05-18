@@ -4,6 +4,50 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.1 — 2026-05-17
+
+### Added
+
+- **Host-level cache detection (target-side probe).** Three new Class B `OPTIMIZERS` entries detect managed-WP host page caches via response headers:
+  - **Kinsta Page Cache** — matches `x-kinsta-cache` header.
+  - **WP Engine Page Cache** — 4-pattern coverage: `x-cache-group: normal`, `x-cacheable: short`, `x-cacheable: no-cacheable`, `x-powered-by: wp engine`.
+  - **Pantheon Edge Cache** — matches `x-pantheon-styx-hostname` or `x-styx-req-id` (Fastly via Styx).
+
+  Previously these hosts returned silent `no_clue` outcomes despite emitting clean fingerprint headers. AAS now identifies the host and surfaces it in the probe outcome modal. Informational only — AAS's existing unique-query-suffix scan flow auto-bypasses query-aware caches ambiently.
+
+- **Host-level cache detection (operator-side `detect()`).** New `HOST_FINGERPRINTS` table walks per-host detector callables and merges hits into `$result['soft_warn']`:
+  - **Kinsta** — file_exists check on `WPMU_PLUGIN_DIR/kinsta-mu-plugins/kinsta-mu-plugins.php`.
+  - **WP Engine** — file_exists check on `WPMU_PLUGIN_DIR/wpengine-common/plugin.php`.
+  - **Pantheon** — `defined('PANTHEON_ENVIRONMENT')` with non-empty/non-null value check.
+
+  Each soft_warn entry includes a runbook tail (`Manual cache flush: <Dashboard path>`). MU-plugins and hosting-defined constants don't appear in `is_plugin_active()`, so this gap was previously invisible.
+
+### Technical
+
+- **Injectable-override detector pattern.** New private static properties `$mu_plugin_dir_override` + `$pantheon_env_override` allow tests to swap detection state without touching PHP's define-once constants. Production fall-through preserved (overrides default to `null`, helpers fall through to the real `WPMU_PLUGIN_DIR` / `PANTHEON_ENVIRONMENT`).
+
+- **New test seams (public-static):** `__test_set_mu_plugin_dir_override`, `__test_set_pantheon_env_override`, `__test_detect_kinsta_host`, `__test_detect_wpe_host`, `__test_detect_pantheon_host`.
+
+### Testing
+
+- 17 new tests, 146 total in `PluginDetectorTargetProbeTest` (was 129):
+  - 7 new `target_header_fixtures` rows (1 Kinsta + 4 WP Engine + 2 Pantheon).
+  - 6 per-host detector tests (3 positive + 3 negative; same-process via override pattern).
+  - 2 foundation tests (override-setter seam verification).
+  - 1 `@runInSeparateProcess` fall-through test (pantheon_env_defined production path; Mi-r2-3 closure).
+  - 1 integration test verifying `detect()` populates `soft_warn` for hosting.
+- Existing 4/4 `ProbeTargetStackEndpointTest` continues to pass unchanged.
+
+### Known limitations
+
+- **WP Engine behind Cloudflare** — when a WPE site is fronted by Cloudflare, CF can strip `X-Cacheable`, `X-Cache-Group`, and `X-Powered-By` headers before the response reaches the probe. In the worst case all 4 patterns are absent and target-side probe falls back to `no_clue`. Operator-side `HOST_FINGERPRINTS` is a fallback only for THIS operator's install (probing my-site.com from a Kinsta operator install), NOT for cross-stack probing (probing a Cloudflare-fronted-WPE target from any operator).
+
+### Compliance
+
+- P10 wp-compliance re-confirmed: no new SQL surface, no XSS surface, no new escape contract, no nonce/cap surface, no new endpoints, no new remote requests, no new file-write operations. `file_exists()` reads on `WPMU_PLUGIN_DIR`-anchored paths only. `defined()` + `constant()` on internal-constant name only.
+
+---
+
 ## [1.4.0] — 2026-05-17
 
 ### Added — Optimizer Fingerprint Broadening (T1 + T2 + T3 bundled)
