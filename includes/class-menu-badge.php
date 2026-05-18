@@ -86,6 +86,37 @@ class MenuBadge {
         add_action( 'admin_head-toplevel_page_cu-scanner', [ $this, 'mark_seen_on_main_page' ] );
         add_action( 'admin_print_styles',                  [ $this, 'print_inline_css' ] );
         add_action( 'admin_enqueue_scripts',               [ $this, 'enqueue_heartbeat_listener' ] );
+
+        // 1.4.9 — server-side polling via admin_init instead of heartbeat_received.
+        // The heartbeat_received filter is bypassed on this WordPress install
+        // (diagnostic confirmed via 1.4.8-diag: init() + filter_menu_title fire
+        // correctly but filter_heartbeat NEVER fires — another plugin's
+        // wp_ajax_heartbeat override is short-circuiting the apply_filters chain).
+        // admin_init is a WP-core hook fired on every admin request (including
+        // admin-ajax.php), much harder to bypass. Rate-limited to ≥15s between
+        // polls via a transient so we don't hammer Railway when admin_init fires
+        // many times per second on AJAX-heavy pages.
+        add_action( 'admin_init', [ $this, 'maybe_poll_active_job_on_admin_init' ], 99 );
+    }
+
+    /**
+     * 1.4.9 — rate-limited server-side polling driven by admin_init.
+     *
+     * admin_init fires on every admin request — regular page renders + AJAX +
+     * Heartbeat. Without rate limiting, this would poll Railway dozens of times
+     * per minute. The transient `aias_menu_badge_last_poll` caps polling to
+     * once per 15 seconds (matching the previous Heartbeat-driven cadence).
+     */
+    public function maybe_poll_active_job_on_admin_init(): void {
+        $last_poll = (int) get_transient( 'aias_menu_badge_last_poll' );
+        if ( $last_poll + 15 > time() ) {
+            return;
+        }
+        // Set first to avoid races where two near-simultaneous requests both
+        // pass the rate-limit check + double-poll.
+        set_transient( 'aias_menu_badge_last_poll', time(), 60 );
+
+        $this->check_active_job_completion();
     }
 
     /**
