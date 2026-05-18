@@ -141,6 +141,13 @@ class MenuBadge {
             CU_SCANNER_VERSION,
             true
         );
+        // 1.4.4 — localize ajaxurl + nonce for the background active-job poller
+        // in menu-badge.js. Nonce action matches the existing cu_scanner_nonce
+        // used by scanner.js + ScannerAjax::check() (admin/class-scanner-ajax.php:42).
+        wp_localize_script( 'aias-menu-badge', 'aiasMenuBadgeData', [
+            'ajaxurl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( 'cu_scanner_nonce' ),
+        ] );
     }
 
     /**

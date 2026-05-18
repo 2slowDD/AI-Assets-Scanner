@@ -4,6 +4,36 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.4 — 2026-05-18
+
+### Fixed
+
+- **Menu badge appeared only after operator returned to AAS** (architectural follow-up to 1.4.3). The 1.4.3 spec assumed `cu_scanner_history`'s status would flip to `'complete'` as soon as a scan finished server-side, but the flip actually requires the client-side `cu_scanner_build_result` AJAX to fire — which only happens on the AAS scanner page. So when the operator started a scan and navigated to another wp-admin page, the badge never appeared until they returned to AAS, viewed the result, and then navigated away again. The opposite of the intended "ping me when scan finishes" flow.
+- **Fix:** `admin/js/menu-badge.js` now does background active-job polling on every Heartbeat tick. If `sessionStorage.cu_scanner_active_job` is present, the script polls Railway directly (same call shape as `scanner.js:pollProgress`) and, on a terminal status (`'complete'` / `'failed'` / `'killed'` / `'cancelled_timeout'`), fires the appropriate AAS-side AJAX (`cu_scanner_build_result` / `_handle_failure` / `_handle_killed`) to flip the status server-side. Within ~15-30 seconds of scan completion the badge appears next to the AAS menu item — even when the operator is sitting on Dashboard, Posts, or any other wp-admin page.
+- **Bonus UX improvement:** when the operator returns to AAS after a background-completed scan, the page now renders step 4 (results) directly — `cu_scanner_result` is written to localStorage by the background poller, so there's no "scanning..." animation flash + 1-second snap-to-result that operators reported in 1.4.3.
+
+### Technical
+
+- New `wp_localize_script` call in `MenuBadge::enqueue_heartbeat_listener()` exposes `aiasMenuBadgeData = { ajaxurl, nonce }` (nonce action `cu_scanner_nonce`, matching the existing scanner.js usage + `ScannerAjax::check()` validation at `admin/class-scanner-ajax.php:42`).
+- ~70 LOC added to `admin/js/menu-badge.js`: `maybeCheckActiveJob()` + `handleStatus()` + `triggerBuildResult()` + `triggerHandleFailure()` + `triggerHandleKilled()` helpers. No new AJAX endpoints — all reuse existing `cu_scanner_*` actions.
+- `CU_SCANNER_VERSION` 1.4.3 → 1.4.4 cache-busts the JS on next page load.
+
+### Known limitations (accepted)
+
+- **Multi-tab:** `sessionStorage` is per-tab. If the operator starts a scan in Tab A and opens a brand-new Tab B at the wp-admin URL, Tab B has no `cu_scanner_active_job` and won't poll. Tab A still polls normally. Single-tab navigation (operator clicks WP admin menu items in the same tab where AAS lives) is fully covered — that's the case operators actually hit.
+- **Concurrent build_result firing:** if AAS tab is open AND another tab is also polling via menu-badge.js, both can fire `cu_scanner_build_result`. The PHP handler is idempotent — second call on an already-`'complete'` record just re-writes the same data. The `cu_scanner_scan_complete` action hook may fire twice; no known listeners are non-idempotent today.
+
+### Testing
+
+- PHP regression unchanged: 11/11 `MenuBadgeTest` + 146/146 `PluginDetectorTargetProbeTest` + 4/4 `ProbeTargetStackEndpointTest` (no PHP test surface affected; behavior change is JS + 1 line PHP for `wp_localize_script`).
+- Manual smoke AC-HF-1 (start scan, navigate away, badge appears ~15-30s after scan finishes on Railway) and AC-HF-3 (return to AAS post-completion → step 4 renders directly with results, no flash) require operator post-deploy validation.
+
+### Compliance
+
+- P10 wp-compliance re-confirmed: no new SQL, no new AJAX endpoints, no new escape contract, no new input handling. `wp_localize_script` exposes only `ajaxurl` (already a WP-core global) + a nonce — no secrets. AJAX calls from `menu-badge.js` use the same `cu_scanner_nonce` already validated by `ScannerAjax::check()` on every existing handler.
+
+---
+
 ## 1.4.3 — 2026-05-18
 
 ### Added
