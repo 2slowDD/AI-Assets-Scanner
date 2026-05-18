@@ -103,6 +103,19 @@ class MenuBadge {
     }
 
     /**
+     * Heartbeat hook — runs ~every 15s on any wp-admin page.
+     * Returns the current badge state in the response so JS can update the DOM.
+     *
+     * Wire shape: PHP null → JSON null (preserved across heartbeat AJAX
+     * response). JS uses hasOwnProperty.call(response, 'aias_badge') to
+     * distinguish "key absent" from "key present, null". Both paths handled.
+     */
+    public function filter_heartbeat( array $response, array $data ): array {
+        $response['aias_badge'] = $this->get_badge_state();   // 'green' | 'red' | null
+        return $response;
+    }
+
+    /**
      * Returns the most-recent BADGE-TRIGGERING terminal record, walking newest-first.
      * 'complete' and 'failed' trigger the badge; 'cancelled' and 'queued' are skipped.
      */
