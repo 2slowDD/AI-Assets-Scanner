@@ -67,4 +67,36 @@ class MenuBadgeTest extends TestCase {
         $badge = new MenuBadge();
         $this->assertSame( 'red', $badge->get_badge_state() );
     }
+
+    // --- AC-MB-3 + AC-MB-4: complete-seen → null ---
+
+    public function test_complete_seen_returns_null(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [ [ 'job_id' => 'samejobid', 'status' => 'complete' ] ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_last_seen_scan_id', '' )
+            ->andReturn( 'samejobid' );
+
+        $badge = new MenuBadge();
+        $this->assertNull( $badge->get_badge_state() );
+    }
+
+    // --- AC-MB-8: most-recent (newest) wins regardless of older states ---
+
+    public function test_complete_after_failed_returns_green(): void {
+        // History is newest-first (ScanHistory::create_record uses array_unshift).
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [
+                [ 'job_id' => 'newest', 'status' => 'complete' ],
+                [ 'job_id' => 'older',  'status' => 'failed' ],
+            ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_last_seen_scan_id', '' )
+            ->andReturn( '' );
+
+        $badge = new MenuBadge();
+        $this->assertSame( 'green', $badge->get_badge_state() );
+    }
 }
