@@ -73,6 +73,35 @@ class MenuBadge {
         update_option( self::OPTION_LAST_SEEN, $latest_rec['job_id'] );
     }
 
+    public function init(): void {
+        add_filter( 'add_menu_classes',                    [ $this, 'filter_menu_title' ],     10, 1 );
+        add_filter( 'heartbeat_received',                  [ $this, 'filter_heartbeat' ],      10, 2 );
+        add_action( 'admin_head-toplevel_page_cu-scanner', [ $this, 'mark_seen_on_main_page' ] );
+        add_action( 'admin_print_styles',                  [ $this, 'print_inline_css' ] );
+        add_action( 'admin_enqueue_scripts',               [ $this, 'enqueue_heartbeat_listener' ] );
+    }
+
+    /**
+     * WordPress passes the global $menu array (each item is [ $menu_title,
+     * $capability, $menu_slug, $page_title, $css_class, $hookname, $icon_url ]).
+     * We match by $menu_slug at index 2 ('cu-scanner') and append a badge span
+     * to the title HTML if the badge state is non-null.
+     */
+    public function filter_menu_title( $menu ) {
+        $state = $this->get_badge_state();
+        if ( $state === null ) {
+            return $menu;
+        }
+
+        foreach ( $menu as $position => $item ) {
+            if ( isset( $item[2] ) && $item[2] === 'cu-scanner' ) {
+                $menu[ $position ][0] = $item[0] . ' ' . $this->badge_html( $state );
+                break;
+            }
+        }
+        return $menu;
+    }
+
     /**
      * Returns the most-recent BADGE-TRIGGERING terminal record, walking newest-first.
      * 'complete' and 'failed' trigger the badge; 'cancelled' and 'queued' are skipped.
@@ -92,5 +121,10 @@ class MenuBadge {
             $this->history = new ScanHistory();
         }
         return $this->history;
+    }
+
+    private function badge_html( string $state ): string {
+        $cls = esc_attr( 'aias-menu-badge aias-menu-badge--' . $state );
+        return '<span class="' . $cls . '" aria-label="Unseen scan result">!</span>';
     }
 }
