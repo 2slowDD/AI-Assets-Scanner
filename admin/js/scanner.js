@@ -1141,21 +1141,23 @@
                     blocked_reasons: d.blocked_reasons  || {},
                     total_pages:     d.total_pages      || 0,
                 };
-                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData );
+                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData, d.total_pages );
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
                     job_id:        scanJobId,
                     safe_count:    d.safe_count,
                     agg_count:     d.aggressive_count,
                     can_push:      d.can_push,
                     external_only: externalOnly,
+                    total_pages:   d.total_pages || 0,
                     // banner data not persisted \u2014 shown once per live build_result call only.
                 }) );
             });
     }
 
-    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData ) {
+    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned ) {
+        const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
         document.getElementById('cu-result-summary').textContent =
-            `Scan complete. ${safeCount} safe rules, ${aggCount} aggressive rules generated.`;
+            `Scan complete. ${urls} URLs scanned, ${safeCount} safe rules, ${aggCount} aggressive rules generated.`;
         const dlBtn = document.getElementById('cu-btn-download');
         dlBtn.href = ajax + '?action=cu_scanner_download_json&job_id=' + jobId + '&nonce=' + nonce;
         dlBtn.setAttribute('download', 'cu-scanner-' + jobId + '.json');
@@ -1349,7 +1351,7 @@
         try {
             const d = JSON.parse(stored);
             scanJobId = d.job_id;
-            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only );
+            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only, undefined, d.total_pages );
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');
         }
