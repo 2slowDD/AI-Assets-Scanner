@@ -301,6 +301,16 @@ class PluginDetector {
             }
         }
 
+        // Rev-1.4.1 — Operator-side host detection (spec §6.4).
+        // No is_callable guard — HOST_FINGERPRINTS is a private const with
+        // hardcoded [self::class, 'detect_*_host'] callables; always callable
+        // at class load (rev-2 Mi2).
+        foreach ( self::HOST_FINGERPRINTS as $entry ) {
+            if ( call_user_func( $entry['detector'] ) ) {
+                $result['soft_warn'][ $entry['label'] ] = $entry['reason'];
+            }
+        }
+
         // Code Unloader: flag as missing, auto-bypass if >= 1.3.9, soft-block if older
         if ( ! is_plugin_active( self::CU_PLUGIN ) ) {
             $result['cu_missing'] = true;

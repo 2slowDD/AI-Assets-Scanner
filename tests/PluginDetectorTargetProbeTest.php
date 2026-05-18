@@ -1765,4 +1765,41 @@ class PluginDetectorTargetProbeTest extends TestCase {
         // Even though defined() returns true, constant() === '' must reject.
         $this->assertFalse( PluginDetector::__test_detect_pantheon_host() );
     }
+
+    /**
+     * Integration test — detect() walks HOST_FINGERPRINTS and merges hits into soft_warn.
+     * Spec §6.4 + AC-K2.
+     *
+     * Mocks is_plugin_active() → false for all entries to keep existing AUTO_BYPASS /
+     * SOFT_BLOCK / SOFT_WARN / SECURITY_WARN / CU_PLUGIN walks from polluting the result,
+     * isolating the HOST_FINGERPRINTS contribution. Suppressing CU_PLUGIN also avoids
+     * needing get_plugin_data() / admin_url() mocks.
+     */
+    public function test_detect_method_populates_soft_warn_for_hosting(): void {
+        $temp_dir = sys_get_temp_dir() . '/aas-integration-' . uniqid();
+        mkdir( $temp_dir . '/kinsta-mu-plugins', 0777, true );
+        touch( $temp_dir . '/kinsta-mu-plugins/kinsta-mu-plugins.php' );
+        $this->tmp_dirs[] = $temp_dir;
+
+        PluginDetector::__test_set_mu_plugin_dir_override( $temp_dir );
+
+        // Suppress every is_plugin_active() call so we only see HOST_FINGERPRINTS contributions.
+        \WP_Mock::userFunction( 'is_plugin_active' )
+            ->andReturn( false );
+
+        $detector = new PluginDetector();
+        $result   = $detector->detect();
+
+        $this->assertArrayHasKey( 'soft_warn', $result );
+        $this->assertArrayHasKey( 'Kinsta', $result['soft_warn'] );
+        $this->assertStringContainsString( 'Kinsta-hosted WordPress detected', $result['soft_warn']['Kinsta'] );
+        $this->assertStringContainsString( 'MyKinsta → Sites → Cache', $result['soft_warn']['Kinsta'] );
+
+        // Other hosts should NOT have fired (no WPE or Pantheon fixtures in temp_dir).
+        $this->assertArrayNotHasKey( 'WP Engine', $result['soft_warn'] );
+        $this->assertArrayNotHasKey( 'Pantheon', $result['soft_warn'] );
+
+        // cu_missing should be true (CU_PLUGIN is not active per mock).
+        $this->assertTrue( $result['cu_missing'] );
+    }
 }
