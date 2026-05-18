@@ -1247,6 +1247,8 @@ class PluginDetectorTargetProbeTest extends TestCase {
             'WP Engine via x-cacheable short'         => [ 'WP Engine Page Cache', [ 'x-cacheable' => 'SHORT' ] ],
             'WP Engine via x-cacheable no-cacheable'  => [ 'WP Engine Page Cache', [ 'x-cacheable' => 'NO-CACHEABLE' ] ],
             'WP Engine via x-powered-by'              => [ 'WP Engine Page Cache', [ 'x-powered-by' => 'WP Engine' ] ],
+            'Pantheon via x-pantheon-styx-hostname' => [ 'Pantheon Edge Cache', [ 'x-pantheon-styx-hostname' => 'styx-us-a-5fbd9fdf97-p8vd4' ] ],
+            'Pantheon via x-styx-req-id'            => [ 'Pantheon Edge Cache', [ 'x-styx-req-id' => '6d2844fc-5175-11f1-a8d2-3aac305a1b3c' ] ],
         ];
     }
 
