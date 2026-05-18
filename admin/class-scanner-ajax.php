@@ -520,19 +520,36 @@ class ScannerAjax {
             wp_send_json_error( 'Missing job_id or job_token' ); return;
         }
 
-        // Fetch full coverage dataset from Railway server-side.
-        $settings = $this->settings();
         try {
-            $client = new RailwayClient( $settings->get_railway_url(), $settings->get_api_key() );
-            $status = $client->get_status( $job_id, $job_token, 0 );
+            $result = $this->do_build_result( $job_id, $job_token );
         } catch ( \RuntimeException $e ) {
             error_log( '[AI Assets Scanner] build_result: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
             wp_send_json_error( 'Could not retrieve scan data. Check server error logs.' ); return;
         }
+        wp_send_json_success( $result );
+    }
+
+    /**
+     * Build the scan result server-side from Railway coverage data.
+     *
+     * Refactored in 1.4.5 — extracted from the build_result() AJAX handler so
+     * that MenuBadge::check_active_job_completion() (server-side Heartbeat-driven
+     * background polling) can complete a scan without an active AAS-page JS
+     * client. Throws RuntimeException on Railway fetch errors or empty coverage;
+     * returns the same response payload the AJAX handler emits (used both as
+     * wp_send_json_success arg and consumed directly by the Heartbeat path).
+     *
+     * @throws \RuntimeException Railway fetch error or empty coverage data.
+     */
+    public function do_build_result( string $job_id, string $job_token ): array {
+        // Fetch full coverage dataset from Railway server-side.
+        $settings = $this->settings();
+        $client   = new RailwayClient( $settings->get_railway_url(), $settings->get_api_key() );
+        $status   = $client->get_status( $job_id, $job_token, 0 );
 
         $pages_raw = $status['pages'] ?? [];
         if ( empty( $pages_raw ) ) {
-            wp_send_json_error( 'No coverage data in Railway response' ); return;
+            throw new \RuntimeException( 'No coverage data in Railway response' );
         }
 
         $cu_json  = ( new CuJsonBuilder() )->build( $pages_raw );
@@ -612,7 +629,7 @@ class ScannerAjax {
             }
         }
 
-        wp_send_json_success( [
+        return [
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
             'can_push'         => ( new RulePusher() )->can_push(),
@@ -620,7 +637,7 @@ class ScannerAjax {
             'pages_blocked'    => $pages_blocked,
             'blocked_reasons'  => $blocked_reasons,
             'total_pages'      => count( $pages_raw ),
-        ] );
+        ];
     }
 
     /**

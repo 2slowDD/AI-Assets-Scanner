@@ -4,6 +4,35 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.5 — 2026-05-18
+
+### Fixed
+
+- **Menu badge still didn't fire reliably when operator was away from AAS** (architectural pivot after 1.4.4 client-side approach proved unreliable in production). DevTools diagnostic on the Plugins page confirmed menu-badge.js's `maybeCheckActiveJob` polling WAS firing (visible `status?from=0` fetches every ~15s) but **zero `cu_scanner_build_result` calls ever fired** — the chain broke somewhere between Railway response and the terminal-status dispatch in JS, and after multiple iterations the root cause couldn't be reliably reproduced in client diagnostics.
+- **Pivot: 1.4.5 moves the polling to the server side.** Reuses the existing WP Heartbeat channel that's already calling `MenuBadge::filter_heartbeat()` every ~15s. The handler now ALSO checks for an active job (read from the existing `cu_scanner_job_<user_id>` transient set at `class-scanner-ajax.php:389-394`), polls Railway via the existing `RailwayClient::get_status()` (same code path scanner.js uses, but server-to-server — no CORS, no browser-tab-state dependency, no Heartbeat throttling), and on terminal status invokes the refactored-to-be-callable `do_build_result()` method. The badge then appears on the NEXT heartbeat tick (same response cycle) since `aias_badge` is computed from the freshly-updated `cu_scanner_history`.
+- The 1.4.4 client-side `maybeCheckActiveJob` stays as supplemental — no harm if it occasionally fires too; the underlying `do_build_result` is idempotent on already-`complete` records.
+
+### Technical
+
+- **`ScannerAjax::build_result()` refactored** — extracted the Railway-fetch + CuJsonBuilder + ScanHistory update + pages_blocked computation into a new public callable `do_build_result( string $job_id, string $job_token ): array` (~80 LOC moved, throws `RuntimeException` on error, returns the response payload). The AJAX handler now thinly wraps it with nonce + cap check + `wp_send_json_*`. Existing AJAX call path from `scanner.js` is unchanged (same nonce, same response shape, same error semantics).
+- **`MenuBadge::check_active_job_completion()`** new private method called by `filter_heartbeat()` BEFORE returning the badge state. Reads `cu_scanner_job_<user_id>` transient → constructs `RailwayClient` with `Settings::get_api_key()` + `railway_url` from transient → calls `get_status()`. On `'complete'` invokes `ScannerAjax::do_build_result()`; on `'failed'` updates ScanHistory + deletes transient; on `'killed'` / `'cancelled_timeout'` just deletes the transient; on `'queued'` / `'in_progress'` no-ops. Safety net: if `do_build_result` throws (e.g., Railway 410 — job data expired between status poll and coverage fetch), the scan is force-failed and the transient deleted to break the poll loop.
+
+### Testing
+
+- **`MenuBadgeTest` grows from 11 → 13 tests** (~95% coverage of the new method's early-return paths via `filter_heartbeat` integration tests). The Railway-fetch + dispatch paths can't be cleanly unit-tested without significant DI refactoring of `RailwayClient` — they're covered by the operator's MS-AC-HF-1 manual smoke (badge appears while away from AAS).
+- `PluginDetectorTargetProbeTest` 146/146 + `ProbeTargetStackEndpointTest` 4/4 unchanged (no scan-pipeline modification).
+- Existing scanner.js `buildResult` AJAX path verified intact by the refactor's non-breaking signature change (the AJAX handler still reads the same `$_POST['job_id']` + `$_POST['job_token']`, validates the same way, returns the same response shape).
+
+### Why the 1.4.4 client-side approach failed (lesson)
+
+The client-side approach had too many fragile interactions to diagnose reliably without invasive instrumentation: CORS preflight, browser tab focus/Heartbeat throttling, sessionStorage same-tab assumption, Railway response-shape variance between scanner.js's `from=<incremental>` polls vs menu-badge.js's `from=0` polls. Each diagnostic cycle eliminated one but the architecture had too many moving parts. Server-side polling consolidates everything into one PHP method on one well-known WP hook — easy to inspect via `error_log`, no browser variables, no client-state assumptions.
+
+### Compliance
+
+- P10 wp-compliance re-confirmed: refactor is non-breaking (same nonce/cap check, same input validation). New `MenuBadge` method uses `get_transient` + existing `RailwayClient` (already URL-allowlist-validated via `Settings::is_safe_railway_url`) + `wp_remote_get` (via `RailwayClient`). No new SQL, no new AJAX endpoint, no new input handling, no escape contract change. Heartbeat context is already authenticated admin — no new capability surface.
+
+---
+
 ## 1.4.4 — 2026-05-18
 
 ### Fixed

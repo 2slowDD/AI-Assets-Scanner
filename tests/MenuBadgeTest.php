@@ -180,4 +180,46 @@ class MenuBadgeTest extends TestCase {
         $badge = new MenuBadge();
         $badge->mark_seen_on_main_page();
     }
+
+    // --- 1.4.5: server-side scan-completion polling on Heartbeat ---
+    //
+    // These tests verify check_active_job_completion's early-return paths via
+    // filter_heartbeat (which calls it before returning the badge state). If
+    // either early return fails to fire, the production code would instantiate
+    // RailwayClient + Settings, which would error out in the test context
+    // (no WP DB, invalid URL allowlist) — making the test fail loudly. So a
+    // passing test confirms the early-return is correctly short-circuiting.
+
+    public function test_filter_heartbeat_no_transient_skips_railway_poll(): void {
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 0 );
+        WP_Mock::userFunction( 'get_transient' )
+            ->with( 'cu_scanner_job_0' )
+            ->andReturn( false );
+        // Badge-state path still runs after the early return.
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [] );
+
+        $badge  = new MenuBadge();
+        $result = $badge->filter_heartbeat( [], [] );
+
+        $this->assertNull( $result['aias_badge'] );
+    }
+
+    public function test_filter_heartbeat_malformed_transient_skips_railway_poll(): void {
+        // Transient exists but is missing required fields (job_id absent).
+        // Verifies the second early-return clause in check_active_job_completion.
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 0 );
+        WP_Mock::userFunction( 'get_transient' )
+            ->with( 'cu_scanner_job_0' )
+            ->andReturn( [ 'job_token' => 'abc', 'railway_url' => 'https://example' ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [] );
+
+        $badge  = new MenuBadge();
+        $result = $badge->filter_heartbeat( [], [] );
+
+        $this->assertNull( $result['aias_badge'] );
+    }
 }

@@ -111,8 +111,85 @@ class MenuBadge {
      * distinguish "key absent" from "key present, null". Both paths handled.
      */
     public function filter_heartbeat( array $response, array $data ): array {
+        // 1.4.5 — server-side background scan-completion polling. Closes the
+        // 1.4.4 client-side-only architectural gap where menu-badge.js's polling
+        // proved unreliable (zero cu_scanner_build_result calls observed in
+        // production despite the Heartbeat ticks firing). The server-side path
+        // runs in filter_heartbeat (already executing on every wp-admin page
+        // every ~15s), polls Railway via wp_remote_get (no CORS, no tab-state
+        // dependency), and triggers the existing build_result logic when the
+        // scan reaches a terminal state.
+        $this->check_active_job_completion();
+
         $response['aias_badge'] = $this->get_badge_state();   // 'green' | 'red' | null
         return $response;
+    }
+
+    /**
+     * 1.4.5 — server-side scan-completion polling driven by WP Heartbeat.
+     *
+     * Reads the `cu_scanner_job_<user_id>` transient (set by ScannerAjax::submit_job
+     * at L389-394 with {job_id, job_token, bypass_token, railway_url}). If present,
+     * fetches Railway's job status via the existing RailwayClient::get_status. On
+     * terminal status:
+     *   - 'complete' → calls ScannerAjax::do_build_result (the 1.4.5-refactored
+     *     callable extracted from the AJAX handler); on failure, force-fails the
+     *     scan + deletes the transient to break the poll loop.
+     *   - 'failed' → updates ScanHistory + deletes the transient.
+     *   - 'killed' / 'cancelled_timeout' → deletes the transient (the kill path
+     *     was already handled by the orchestrator that issued the kill).
+     *   - 'queued' / 'in_progress' / anything else → no-op, next heartbeat tick re-polls.
+     *
+     * Idempotent: when scanner.js also fires build_result (e.g., operator on AAS),
+     * the second call re-writes the same 'complete' record harmlessly. The transient
+     * is deleted on the first successful build_result so subsequent ticks early-return.
+     */
+    private function check_active_job_completion(): void {
+        $transient_key = 'cu_scanner_job_' . get_current_user_id();
+        $state = get_transient( $transient_key );
+        if ( ! is_array( $state ) ) {
+            return;
+        }
+
+        $job_id      = (string) ( $state['job_id']      ?? '' );
+        $job_token   = (string) ( $state['job_token']   ?? '' );
+        $railway_url = (string) ( $state['railway_url'] ?? '' );
+        if ( $job_id === '' || $job_token === '' || $railway_url === '' ) {
+            return;
+        }
+
+        try {
+            $client = new \CUScanner\Api\RailwayClient( $railway_url, ( new \CUScanner\Settings() )->get_api_key() );
+            $status = $client->get_status( $job_id, $job_token, 0 );
+        } catch ( \RuntimeException $e ) {
+            error_log( '[AI Assets Scanner] menu-badge heartbeat poll: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: Railway exception detail captured server-side only; client receives no notification (Heartbeat response just omits the terminal action).
+            return;
+        }
+
+        $rs = (string) ( $status['status'] ?? '' );
+
+        if ( $rs === 'complete' ) {
+            try {
+                ( new \CUScanner\Admin\ScannerAjax() )->do_build_result( $job_id, $job_token );
+            } catch ( \RuntimeException $e ) {
+                // Build failed (e.g., Railway 410 — job data expired between status
+                // poll and coverage fetch). Force the scan into 'failed' state so the
+                // badge fires red AND the transient is deleted to break the poll loop.
+                error_log( '[AI Assets Scanner] menu-badge build_result: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: forced-failure path; full exception logged for diagnostics.
+                $this->get_history()->update_status( $job_id, 'failed' );
+                delete_transient( $transient_key );
+            }
+            // do_build_result deletes the transient itself on success (scanner-ajax.php:559).
+        } elseif ( $rs === 'failed' ) {
+            $this->get_history()->update_status( $job_id, 'failed' );
+            delete_transient( $transient_key );
+        } elseif ( $rs === 'killed' || $rs === 'cancelled_timeout' ) {
+            // Kill paths are already terminal in ScanHistory via the orchestrator
+            // (ScannerAjax::handle_killed / cancel paths). Just clear the transient
+            // so the polling loop stops; status is already correctly recorded.
+            delete_transient( $transient_key );
+        }
+        // 'queued' / 'in_progress' / unknown → no-op; next heartbeat tick re-polls.
     }
 
     /**
