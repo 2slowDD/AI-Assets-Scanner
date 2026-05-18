@@ -145,19 +145,23 @@ class MenuBadge {
      * is deleted on the first successful build_result so subsequent ticks early-return.
      */
     private function check_active_job_completion(): void {
-        $transient_key = 'cu_scanner_job_' . get_current_user_id();
+        $user_id = get_current_user_id();
+        $transient_key = 'cu_scanner_job_' . $user_id;
         $state = get_transient( $transient_key );
+
+        // 1.4.7-diag — log EVERY heartbeat tick BEFORE the early-return check so
+        // we can distinguish "filter_heartbeat not firing" (zero entries) from
+        // "transient missing" (entries with state=false/null). Was logging AFTER
+        // is_array check in 1.4.6, which produced zero entries in both failure
+        // modes. Spam bounded — operator enables WP_DEBUG_LOG only during active
+        // diagnostic windows.
+        $state_diag = is_array( $state ) ? 'array(' . count( $state ) . ')' : var_export( $state, true );
+        error_log( '[AI Assets Scanner] menu-badge tick: user=' . $user_id . ' transient=' . $state_diag ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+
         if ( ! is_array( $state ) ) {
-            // No active scan — early return silently. This fires on every Heartbeat
-            // tick when no scan is in progress, so don't log here (would spam the log).
+            // No active scan — early return silently.
             return;
         }
-
-        // 1.4.6 — diagnostic logging. Fires only when there's an active scan, so
-        // bounded by scan-in-progress windows. Tracks each Heartbeat-tick checkpoint
-        // so debug.log shows where the chain breaks if the badge ever fails to fire.
-        $user_id = get_current_user_id();
-        error_log( '[AI Assets Scanner] menu-badge tick: transient present (user=' . $user_id . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging for the 1.4.5/1.4.6 server-side polling path; only fires during active scans.
 
         $job_id      = (string) ( $state['job_id']      ?? '' );
         $job_token   = (string) ( $state['job_token']   ?? '' );
