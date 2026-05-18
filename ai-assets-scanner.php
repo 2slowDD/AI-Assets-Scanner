@@ -33,6 +33,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\ScanHistory'      => 'includes/class-scan-history.php',
         'CUScanner\\Api\\WpserviceClient' => 'includes/api/class-wpservice-client.php',
         'CUScanner\\Api\\RailwayClient'   => 'includes/api/class-railway-client.php',
+        'CUScanner\\MenuBadge'           => 'includes/class-menu-badge.php',
         'CUScanner\\Scanner\\PageDiscovery'   => 'includes/scanner/class-page-discovery.php',
         'CUScanner\\Scanner\\PluginDetector'  => 'includes/scanner/class-plugin-detector.php',
         'CUScanner\\Scanner\\BypassManager'   => 'includes/scanner/class-bypass-manager.php',
