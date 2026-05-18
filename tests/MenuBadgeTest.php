@@ -147,4 +147,37 @@ class MenuBadgeTest extends TestCase {
         $badge = new MenuBadge();
         $this->assertSame( 'red', $badge->get_badge_state() );
     }
+
+    // --- AC-MB-3 (mark seen) ---
+
+    public function test_mark_seen_updates_option_when_changed(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [ [ 'job_id' => 'latest', 'status' => 'complete' ] ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_last_seen_scan_id', '' )
+            ->andReturn( 'older' );
+        WP_Mock::userFunction( 'update_option' )
+            ->once()
+            ->with( 'aias_last_seen_scan_id', 'latest' );
+
+        $badge = new MenuBadge();
+        $badge->mark_seen_on_main_page();
+    }
+
+    // --- Minor 6: skip redundant update when value unchanged ---
+
+    public function test_mark_seen_skips_update_when_unchanged(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_history', [] )
+            ->andReturn( [ [ 'job_id' => 'same', 'status' => 'complete' ] ] );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_last_seen_scan_id', '' )
+            ->andReturn( 'same' );
+        // update_option must NOT be called.
+        WP_Mock::userFunction( 'update_option' )->times( 0 );
+
+        $badge = new MenuBadge();
+        $badge->mark_seen_on_main_page();
+    }
 }

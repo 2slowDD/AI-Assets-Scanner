@@ -51,6 +51,29 @@ class MenuBadge {
     }
 
     /**
+     * Mark the most-recent badge-triggering terminal scan as seen.
+     * Called when operator lands on AAS main scanner page (admin_head hook).
+     *
+     * Conditional update_option per d-review Minor 6: skip the write when the
+     * option already matches the latest job_id. WP-core's update_option short-
+     * circuits identical values internally, but the explicit guard removes the
+     * SELECT round-trip too.
+     */
+    public function mark_seen_on_main_page(): void {
+        $latest_rec = $this->most_recent_triggering_record( $this->get_history()->get_all() );
+        if ( $latest_rec === null ) {
+            return;
+        }
+
+        $current = (string) get_option( self::OPTION_LAST_SEEN, '' );
+        if ( $current === $latest_rec['job_id'] ) {
+            return;
+        }
+
+        update_option( self::OPTION_LAST_SEEN, $latest_rec['job_id'] );
+    }
+
+    /**
      * Returns the most-recent BADGE-TRIGGERING terminal record, walking newest-first.
      * 'complete' and 'failed' trigger the badge; 'cancelled' and 'queued' are skipped.
      */
