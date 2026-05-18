@@ -1142,7 +1142,32 @@ class ScannerAjax {
     public function get_badge_state(): void {
         $this->check();
         $state = ( new \CUScanner\MenuBadge() )->run_polling_check_and_get_state();
-        wp_send_json_success( [ 'badge' => $state ] );
+
+        // 1.4.11 — also return a `result` snapshot when state is 'green' so the
+        // JS poller can populate cu_scanner_result in localStorage. Without
+        // this the badge appears but operator-returning-to-AAS sees the default
+        // Step 1 screen because no localStorage entry exists (scanner.js init
+        // at admin/js/scanner.js:1349 reads localStorage to restore Step 4,
+        // and the 1.4.10 server-side build_result path doesn't write it).
+        $result = null;
+        if ( $state === 'green' ) {
+            $records = ( new ScanHistory() )->get_all();
+            foreach ( $records as $rec ) {
+                if ( ( $rec['status'] ?? '' ) === 'complete' ) {
+                    $result = [
+                        'job_id'        => (string) ( $rec['job_id'] ?? '' ),
+                        'safe_count'    => (int) ( $rec['safe_count'] ?? 0 ),
+                        'agg_count'     => (int) ( $rec['aggressive_count'] ?? 0 ),
+                        'can_push'      => ( new \CUScanner\Scanner\RulePusher() )->can_push(),
+                        'external_only' => false,
+                        'total_pages'   => (int) ( $rec['page_count'] ?? 0 ),
+                    ];
+                    break;
+                }
+            }
+        }
+
+        wp_send_json_success( [ 'badge' => $state, 'result' => $result ] );
     }
 
     public function export_history(): void {
