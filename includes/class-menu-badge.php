@@ -74,6 +74,13 @@ class MenuBadge {
     }
 
     public function init(): void {
+        // 1.4.8-diag — log every init() call (proves MenuBadge is instantiated +
+        // hooks registered for THIS request context). If this entry is absent
+        // from debug.log during heartbeat AJAX windows, AdminPages::register()
+        // isn't being called for AJAX requests → likely is_admin() returning
+        // false in that context, or plugins_loaded chain broken.
+        error_log( '[AI Assets Scanner] MenuBadge::init fired (is_admin=' . ( is_admin() ? '1' : '0' ) . ' doing_ajax=' . ( wp_doing_ajax() ? '1' : '0' ) . ' user=' . get_current_user_id() . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+
         add_filter( 'add_menu_classes',                    [ $this, 'filter_menu_title' ],     10, 1 );
         add_filter( 'heartbeat_received',                  [ $this, 'filter_heartbeat' ],      10, 2 );
         add_action( 'admin_head-toplevel_page_cu-scanner', [ $this, 'mark_seen_on_main_page' ] );
@@ -88,6 +95,13 @@ class MenuBadge {
      * to the title HTML if the badge state is non-null.
      */
     public function filter_menu_title( $menu ) {
+        // 1.4.8-diag — log every filter_menu_title call. If this fires but
+        // filter_heartbeat doesn't, the WP-core heartbeat handler is being
+        // bypassed by another plugin (Heartbeat Control, Wordfence, WP Rocket,
+        // etc. replacing wp_ajax_heartbeat with a custom handler that doesn't
+        // call apply_filters('heartbeat_received', ...)).
+        error_log( '[AI Assets Scanner] filter_menu_title fired (doing_ajax=' . ( wp_doing_ajax() ? '1' : '0' ) . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+
         $state = $this->get_badge_state();
         if ( $state === null ) {
             return $menu;
@@ -111,6 +125,14 @@ class MenuBadge {
      * distinguish "key absent" from "key present, null". Both paths handled.
      */
     public function filter_heartbeat( array $response, array $data ): array {
+        // 1.4.8-diag — log every filter_heartbeat call. If this fires, the
+        // heartbeat_received hook is being applied and my callback is in the
+        // chain. Combined with init()/filter_menu_title logs, distinguishes:
+        // (a) hook not registered, (b) hook bypassed by another plugin's
+        // wp_ajax_heartbeat override, (c) hook fires but check_active_job
+        // early-returns.
+        error_log( '[AI Assets Scanner] filter_heartbeat fired (user=' . get_current_user_id() . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+
         // 1.4.5 — server-side background scan-completion polling. Closes the
         // 1.4.4 client-side-only architectural gap where menu-badge.js's polling
         // proved unreliable (zero cu_scanner_build_result calls observed in
