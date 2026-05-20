@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.14 — 2026-05-20
+
+### Fixed
+
+- **Phase 2a broken-device guard: suppress per-device safe emits for a BLOCKED device.** `CuJsonBuilder::combine()` previously emitted the `absent,needed` → safe-desktop and `needed,absent` → safe-mobile rules whenever both Phase 2a flags were on — even when the device whose probe registered "absent" had actually been *blocked* (e.g. `tier1_http_4xx`). A blocked device's assets register wholesale-`absent` as an artifact, and the Phase A visual-diff demote net does not run on a blocked device, so those emits shipped unvalidated wholesale unloads (trigger: x-procad.com flood-emitted 43 safe-desktop unloads off a blocked desktop probe). `build()` now derives a per-device blocked map from each page's `broken_devices` array (untrusted Railway HTTP input — `is_array` guard, `(string)` casts on `device`/`reason`, allowlist `{desktop,mobile}`, non-empty `reason` required; mirrors the existing `class-scanner-ajax.php` walk) and passes it into `combine()`, which suppresses the safe-desktop emit when desktop is blocked and the safe-mobile emit when mobile is blocked. Missing or malformed `broken_devices` is treated as not-blocked (D5 safety — the emit proceeds), so healthy scans and the wpservice.pro EB case are unaffected. All 7 other `combine()` cells are byte-identical regardless of block state.
+
+### Testing
+
+- `CuJsonBuilderTest` +5 cases: blocked-desktop suppresses safe-desktop; blocked-mobile suppresses safe-mobile; control (no `broken_devices`) still emits safe-desktop; non-Phase-2a cells unchanged under a desktop block; malformed/reason-less `broken_devices` treated as not-blocked. 30/30 pass. Pre-existing 15-error baseline unchanged.
+
+---
+
 ## 1.4.13 — 2026-05-20
 
 ### Changed
