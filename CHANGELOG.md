@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.13 — 2026-05-20
+
+### Changed
+
+- **Scanner group names + source labels rebranded "CU Scanner" → "AA Scanner".** Pushed groups now read `AA Scanner — Safe` / `AA Scanner — Aggressive` (and versioned history `AA Scanner — … vN`); the pushed `source_label` is now `AA Scanner` and snapshot rows `AA Scanner Snapshot`. Affects future pushes only — existing rows in a connected Code Unloader DB are renamed by Code Unloader's 1.5.3 migration (Code Unloader ≥ 1.4.7). The internal `CUScanner\Scanner` namespace and `CU_SCANNER_VERSION` constant are unchanged (broader identifier rebrand still deferred).
+
+### Testing
+
+- `CuJsonBuilderTest`, `GroupVersionManagerTest`, `RulePusherTest`, `SnapshotManagerTest` updated to assert the new names; scoped grep confirms zero `CU Scanner` in the four scanner classes + their tests. Pre-existing 15-error baseline unchanged.
+
+---
+
 ## 1.4.12 — 2026-05-20
 
 ### Added
