@@ -92,7 +92,7 @@ class SnapshotManager {
                 'condition_value' => $rule->condition_value ?? null,
                 'condition_invert'=> $rule->condition_invert ?? 0,
                 'label'           => $rule->label ?? null,
-                'source_label'    => 'CU Scanner Snapshot',
+                'source_label'    => 'AA Scanner Snapshot',
             ] );
 
             if ( \is_wp_error( $result ) ) {

@@ -4,8 +4,8 @@ namespace CUScanner\Scanner;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Renames and disables existing CU Scanner groups before a new push,
- * creating a versioned history ("CU Scanner — Safe v1", "v2", …).
+ * Renames and disables existing AA Scanner groups before a new push,
+ * creating a versioned history ("AA Scanner — Safe v1", "v2", …).
  *
  * The UNIQUE constraint on wp_cu_rules includes group_id, so rules in
  * renamed/versioned groups do not block re-inserting the same rules
@@ -18,8 +18,8 @@ class GroupVersionManager {
 
 	/** Base names owned by the scanner — must match exactly what CuJsonBuilder emits. */
 	private const SCANNER_GROUPS = [
-		'CU Scanner — Safe',
-		'CU Scanner — Aggressive',
+		'AA Scanner — Safe',
+		'AA Scanner — Aggressive',
 	];
 
 	public function __construct(

@@ -4,7 +4,7 @@ namespace CUScanner\Scanner;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Pushes CU Scanner rules directly into Code Unloader's database
+ * Pushes AA Scanner rules directly into Code Unloader's database
  * via CodeUnloader\Core\RuleRepository (static API).
  *
  * CU API (v1.4.0):
@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Push sequence:
  *   1. snapshot()            – backup ALL active rules to "Previously active [date]"
- *   2. bump_scanner_groups() – rename+disable old "CU Scanner — Safe/Aggressive"
+ *   2. bump_scanner_groups() – rename+disable old "AA Scanner — Safe/Aggressive"
  *   3. do_push()             – create fresh Safe (enabled) + Aggressive (disabled)
  *   4. commit()              – disable groups that were active before step 1
  */
@@ -138,7 +138,7 @@ class RulePusher {
                 'asset_type'   => $this->normalize_asset_type( $rule['asset_type'] ?? '' ),
                 'device_type'  => $rule['device_type'],
                 'group_id'     => $cu_group_id,
-                'source_label' => $rule['source_label']                    ?? 'CU Scanner',
+                'source_label' => $rule['source_label']                    ?? 'AA Scanner',
             ] );
 
             if ( \is_wp_error( $result ) ) {

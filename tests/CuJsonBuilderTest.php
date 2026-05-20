@@ -107,8 +107,8 @@ class CuJsonBuilderTest extends TestCase {
     public function test_output_has_correct_groups(): void {
         $output = ( new CuJsonBuilder() )->build( [] );
         $this->assertCount( 2, $output['groups'] );
-        $this->assertSame( 'CU Scanner — Safe', $output['groups'][0]['name'] );
-        $this->assertSame( 'CU Scanner — Aggressive', $output['groups'][1]['name'] );
+        $this->assertSame( 'AA Scanner — Safe', $output['groups'][0]['name'] );
+        $this->assertSame( 'AA Scanner — Aggressive', $output['groups'][1]['name'] );
     }
 
     public function test_output_version_field_is_correct(): void {

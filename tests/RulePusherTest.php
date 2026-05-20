@@ -97,18 +97,18 @@ class RulePusherTest extends TestCase {
         \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
 
         FakeRuleRepository::$groups = [
-            [ 'id' => 5, 'name' => 'CU Scanner — Safe',       'enabled' => 0 ],
-            [ 'id' => 6, 'name' => 'CU Scanner — Aggressive', 'enabled' => 0 ],
+            [ 'id' => 5, 'name' => 'AA Scanner — Safe',       'enabled' => 0 ],
+            [ 'id' => 6, 'name' => 'AA Scanner — Aggressive', 'enabled' => 0 ],
         ];
         FakeRuleRepository::$rules = [];
 
         ( new RulePusher( FakeRuleRepository::class ) )->push( $this->full_cu_json() );
 
         $names = array_column( FakeRuleRepository::$groups, 'name' );
-        $this->assertContains( 'CU Scanner — Safe v1',       $names, 'Old Safe group must be versioned' );
-        $this->assertContains( 'CU Scanner — Aggressive v1', $names, 'Old Aggressive group must be versioned' );
-        $this->assertContains( 'CU Scanner — Safe',          $names, 'Fresh Safe group must be created' );
-        $this->assertContains( 'CU Scanner — Aggressive',    $names, 'Fresh Aggressive group must be created' );
+        $this->assertContains( 'AA Scanner — Safe v1',       $names, 'Old Safe group must be versioned' );
+        $this->assertContains( 'AA Scanner — Aggressive v1', $names, 'Old Aggressive group must be versioned' );
+        $this->assertContains( 'AA Scanner — Safe',          $names, 'Fresh Safe group must be created' );
+        $this->assertContains( 'AA Scanner — Aggressive',    $names, 'Fresh Aggressive group must be created' );
     }
 
     public function test_push_creates_safe_group_enabled_and_aggressive_group_disabled(): void {
@@ -125,8 +125,8 @@ class RulePusherTest extends TestCase {
         $safe_group = null;
         $agg_group  = null;
         foreach ( FakeRuleRepository::$groups as $g ) {
-            if ( $g['name'] === 'CU Scanner — Safe' )       { $safe_group = $g; }
-            if ( $g['name'] === 'CU Scanner — Aggressive' ) { $agg_group  = $g; }
+            if ( $g['name'] === 'AA Scanner — Safe' )       { $safe_group = $g; }
+            if ( $g['name'] === 'AA Scanner — Aggressive' ) { $agg_group  = $g; }
         }
 
         $this->assertNotNull( $safe_group, 'Safe group must exist after push' );
@@ -148,7 +148,7 @@ class RulePusherTest extends TestCase {
         $failing_repo::reset();
         $failing_repo::$groups = [
             [ 'id' => 10, 'name' => 'Active Manual', 'enabled' => 1 ],
-            [ 'id' => 11, 'name' => 'CU Scanner — Safe', 'enabled' => 0 ],
+            [ 'id' => 11, 'name' => 'AA Scanner — Safe', 'enabled' => 0 ],
         ];
         $failing_repo::$rules = [
             [ 'id' => 99, 'group_id' => 10, 'url_pattern' => '/home/', 'match_type' => 'exact', 'asset_handle' => 'theme', 'asset_type' => 'css', 'device_type' => 'all', 'label' => null, 'source_label' => 'manual', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
@@ -174,11 +174,11 @@ class RulePusherTest extends TestCase {
     private function minimal_cu_json(): array {
         return [
             'groups' => [
-                [ 'id' => 1, 'name' => 'CU Scanner — Safe',       'description' => '' ],
-                [ 'id' => 2, 'name' => 'CU Scanner — Aggressive', 'description' => '' ],
+                [ 'id' => 1, 'name' => 'AA Scanner — Safe',       'description' => '' ],
+                [ 'id' => 2, 'name' => 'AA Scanner — Aggressive', 'description' => '' ],
             ],
             'rules' => [
-                [ 'url_pattern' => 'https://example.com/home', 'match_type' => 'exact', 'asset_handle' => 'my-js', 'asset_type' => 'js', 'device_type' => 'all', 'group_id' => 1, 'source_label' => 'CU Scanner' ],
+                [ 'url_pattern' => 'https://example.com/home', 'match_type' => 'exact', 'asset_handle' => 'my-js', 'asset_type' => 'js', 'device_type' => 'all', 'group_id' => 1, 'source_label' => 'AA Scanner' ],
             ],
         ];
     }
@@ -186,12 +186,12 @@ class RulePusherTest extends TestCase {
     private function full_cu_json(): array {
         return [
             'groups' => [
-                [ 'id' => 1, 'name' => 'CU Scanner — Safe',       'description' => '' ],
-                [ 'id' => 2, 'name' => 'CU Scanner — Aggressive', 'description' => '' ],
+                [ 'id' => 1, 'name' => 'AA Scanner — Safe',       'description' => '' ],
+                [ 'id' => 2, 'name' => 'AA Scanner — Aggressive', 'description' => '' ],
             ],
             'rules' => [
-                [ 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'group_id' => 1, 'source_label' => 'CU Scanner' ],
-                [ 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-js',  'asset_type' => 'js',  'device_type' => 'all', 'group_id' => 2, 'source_label' => 'CU Scanner' ],
+                [ 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all', 'group_id' => 1, 'source_label' => 'AA Scanner' ],
+                [ 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-js',  'asset_type' => 'js',  'device_type' => 'all', 'group_id' => 2, 'source_label' => 'AA Scanner' ],
             ],
         ];
     }

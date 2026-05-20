@@ -151,7 +151,7 @@ class SnapshotManagerTest extends TestCase {
         $this->assertSame( 'css',     $copied_rule['asset_type'] );
         $this->assertSame( 'desktop', $copied_rule['device_type'] );
         $this->assertSame( 'my label', $copied_rule['label'] );
-        $this->assertSame( 'CU Scanner Snapshot', $copied_rule['source_label'] );
+        $this->assertSame( 'AA Scanner Snapshot', $copied_rule['source_label'] );
     }
 
     public function test_snapshot_includes_ungrouped_rules(): void {
@@ -412,12 +412,12 @@ class SnapshotManagerTest extends TestCase {
         $dup_repo::reset();
         $dup_repo::reset_count();
         $dup_repo::$groups = [
-            [ 'id' => 1, 'name' => 'CU Scanner — Safe',       'enabled' => 1 ],
-            [ 'id' => 2, 'name' => 'CU Scanner — Aggressive', 'enabled' => 1 ],
+            [ 'id' => 1, 'name' => 'AA Scanner — Safe',       'enabled' => 1 ],
+            [ 'id' => 2, 'name' => 'AA Scanner — Aggressive', 'enabled' => 1 ],
         ];
         $dup_repo::$rules = [
-            [ 'id' => 10, 'group_id' => 1, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-script', 'asset_type' => 'js', 'device_type' => 'all', 'label' => null, 'source_label' => 'CU Scanner', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
-            [ 'id' => 11, 'group_id' => 2, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-script', 'asset_type' => 'js', 'device_type' => 'all', 'label' => null, 'source_label' => 'CU Scanner', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+            [ 'id' => 10, 'group_id' => 1, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-script', 'asset_type' => 'js', 'device_type' => 'all', 'label' => null, 'source_label' => 'AA Scanner', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
+            [ 'id' => 11, 'group_id' => 2, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-script', 'asset_type' => 'js', 'device_type' => 'all', 'label' => null, 'source_label' => 'AA Scanner', 'condition_type' => null, 'condition_value' => null, 'condition_invert' => 0 ],
         ];
 
         $manager = new \CUScanner\Scanner\SnapshotManager( $dup_repo::class );
@@ -429,7 +429,7 @@ class SnapshotManagerTest extends TestCase {
         // Verify that the non-duplicate rule was still copied into the snapshot
         $snapshot_rules = array_filter(
             $dup_repo::$rules,
-            fn( $r ) => ( $r['source_label'] ?? '' ) === 'CU Scanner Snapshot'
+            fn( $r ) => ( $r['source_label'] ?? '' ) === 'AA Scanner Snapshot'
         );
         $this->assertCount( 1, $snapshot_rules, 'Exactly one copy of the rule should be in the snapshot — second copy from the other active group is a duplicate within the snapshot group and is skipped' );
     }

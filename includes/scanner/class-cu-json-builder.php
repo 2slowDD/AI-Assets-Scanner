@@ -40,8 +40,8 @@ class CuJsonBuilder {
             'version'     => self::VERSION,
             'exported_at' => gmdate( 'c' ),
             'groups'      => [
-                [ 'id' => self::GROUP_SAFE,       'name' => 'CU Scanner — Safe',       'description' => 'Assets confirmed not loaded on these pages' ],
-                [ 'id' => self::GROUP_AGGRESSIVE, 'name' => 'CU Scanner — Aggressive', 'description' => 'Assets loaded but zero passive coverage. Verify before enabling.' ],
+                [ 'id' => self::GROUP_SAFE,       'name' => 'AA Scanner — Safe',       'description' => 'Assets confirmed not loaded on these pages' ],
+                [ 'id' => self::GROUP_AGGRESSIVE, 'name' => 'AA Scanner — Aggressive', 'description' => 'Assets loaded but zero passive coverage. Verify before enabling.' ],
             ],
             'rules' => $rules,
         ];
@@ -145,7 +145,7 @@ class CuJsonBuilder {
                 'asset_type'   => $this->map_type( $type ),
                 'device_type'  => $device_type,
                 'group_id'     => $group_id,
-                'source_label' => 'CU Scanner',
+                'source_label' => 'AA Scanner',
             ];
         }
         return $rules;
