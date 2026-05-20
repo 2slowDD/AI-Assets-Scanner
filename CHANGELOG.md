@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.5.2 — 2026-05-20
+
+### Fixed
+
+- **Per-URL results table never rendered — `cu_scanner_build_result` returned a 500 (fatal).** `do_build_result()` lives in namespace `CUScanner\Admin` but called the global `AIAS_Scan_Status::build_pages()` without a leading backslash, so PHP resolved it to the non-existent `CUScanner\Admin\AIAS_Scan_Status` and threw `Error: Class not found`. The fatal fired at the very end of `do_build_result()` — *after* the scan-history write — so scans still recorded safe/aggressive counts, but the AJAX response was a 500 HTML error page that the JS couldn't parse as JSON, and the Step-4 table never appeared. The unit tests missed it because they invoke `\AIAS_Scan_Status` from the global test scope, bypassing the namespaced production call site (the "test seam bypasses plumbing" trap). Fixed by qualifying the call as `\AIAS_Scan_Status::build_pages()`, matching the existing `\AIAS_Broken_Banner::on_submit_job()` convention in the same file. PHP-only fix; no asset cache-bust needed.
+
+---
+
 ## 1.5.1 — 2026-05-20
 
 ### Fixed
