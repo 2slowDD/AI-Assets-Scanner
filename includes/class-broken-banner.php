@@ -105,7 +105,7 @@ class AIAS_Broken_Banner {
 	 * 'error' → server-side issue, retry later / check site health.
 	 * 'bot'   → bot-protection or asymmetric stub; default for tier2_* + tier1_zero_bytes + unknown.
 	 */
-	private static function reason_category( string $reason ): string {
+	public static function reason_category( string $reason ): string {
 		switch ( $reason ) {
 			case 'tier1_http_rate_limit':
 				return 'rate';
@@ -159,7 +159,7 @@ class AIAS_Broken_Banner {
 	 * Returns a human-readable phrase for a known blocked-reason key.
 	 * Unknown keys fall through to esc_html() of the raw key.
 	 */
-	private static function reason_phrase( string $reason ): string {
+	public static function reason_phrase( string $reason ): string {
 		switch ( $reason ) {
 			case 'tier2_cf_challenge':
 				return esc_html__( 'Cloudflare challenge', 'ai-assets-scanner' );
