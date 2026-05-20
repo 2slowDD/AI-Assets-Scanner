@@ -576,7 +576,7 @@
 }
 
 /* --- Per-URL results table (Step 4) --- */
-#cu-url-list { margin-top: 16px; }
+#cu-result-url-list { margin-top: 16px; }
 .cu-url-title { margin: 8px 0 2px; font-size: 14px; }
 .cu-url-summary { margin: 0 0 8px; color: #50575e; font-size: 12px; }
 .cu-url-table { border-collapse: collapse; width: 100%; }

@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.12';
+    const SCANNER_JS_VERSION = '1.0.10.13';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1177,7 +1177,7 @@
         renderBrokenBanner( bannerData || {} );
 
         // Per-URL results table (hidden when pages is empty/undefined).
-        renderUrlList( pages, scanId );
+        renderResultUrlList( pages, scanId );
 
         showStep(4);
     }
@@ -1187,19 +1187,19 @@
 
     function cuEscHtml( v ) { var d = document.createElement('div'); d.textContent = ( v == null ? '' : String( v ) ); return d.innerHTML; }
 
-    function renderUrlList( pages, scanId ) {
-        var host = document.getElementById('cu-url-list');
+    function renderResultUrlList( pages, scanId ) {
+        var host = document.getElementById('cu-result-url-list');
         if ( ! host ) { return; }
         if ( ! pages || ! pages.length ) { host.innerHTML = ''; host.style.display = 'none'; return; }
         cuUrlListState.pages  = pages;
         cuUrlListState.scanId = scanId || '';
         cuUrlListState.page   = 0;
         host.style.display = '';
-        renderUrlListPage();
+        renderResultUrlListPage();
     }
 
-    function renderUrlListPage() {
-        var host = document.getElementById('cu-url-list'), st = cuUrlListState;
+    function renderResultUrlListPage() {
+        var host = document.getElementById('cu-result-url-list'), st = cuUrlListState;
         var total = st.pages.length, pageCount = Math.ceil( total / st.perPage );
         var slice = st.pages.slice( st.page * st.perPage, st.page * st.perPage + st.perPage );
         var c = { ok: 0, partial: 0, blocked: 0, error: 0 };
@@ -1223,8 +1223,8 @@
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
           + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Cr.</th><th>S / A / N</th></tr></thead><tbody>' + rows + '</tbody></table>'
           + pager;
-        var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderUrlListPage(); } }; }
-        var next = document.getElementById('cu-url-next'); if ( next ) { next.onclick = function () { if ( st.page < pageCount - 1 ) { st.page++; renderUrlListPage(); } }; }
+        var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }
+        var next = document.getElementById('cu-url-next'); if ( next ) { next.onclick = function () { if ( st.page < pageCount - 1 ) { st.page++; renderResultUrlListPage(); } }; }
     }
 
     /**

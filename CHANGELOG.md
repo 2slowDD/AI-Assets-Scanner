@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.5.1 — 2026-05-20
+
+### Fixed
+
+- **Step-1 discovery list stopped rendering after 1.5.0 (regression).** The 1.5.0 per-URL results table reused the DOM id `cu-url-list` and the JS function name `renderUrlList()` — both already owned by the Step-1 discovered-URL list. Because a later JS function declaration wins for the whole scope, the Step-4 `renderUrlList(pages, scanId)` overrode the discovery renderer, so clicking **Discover** called it with no arguments, hit the empty-guard, and hid the discovered URLs (only the "Re-discover" button remained). Fixed by namespacing the Step-4 feature: the results container is now `#cu-result-url-list`, and its renderers are `renderResultUrlList()` / `renderResultUrlListPage()`. The Step-1 discovery code (`renderUrlList()`, `#cu-url-list`, `.cu-url-list`) is left untouched. Plugin version bumped to 1.5.1 (and internal `SCANNER_JS_VERSION` → 1.0.10.13) so the cached `scanner.js?ver=1.5.0` is busted on redeploy.
+
+---
+
 ## 1.5.0 — 2026-05-20
 
 ### Added
