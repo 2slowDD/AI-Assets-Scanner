@@ -1141,7 +1141,7 @@
                     blocked_reasons: d.blocked_reasons  || {},
                     total_pages:     d.total_pages      || 0,
                 };
-                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData, d.total_pages );
+                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData, d.total_pages, d.pages, d.scan_id );
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
                     job_id:        scanJobId,
                     safe_count:    d.safe_count,
@@ -1149,12 +1149,14 @@
                     can_push:      d.can_push,
                     external_only: externalOnly,
                     total_pages:   d.total_pages || 0,
+                    pages:         d.pages   || [],
+                    scan_id:       d.scan_id || '',
                     // banner data not persisted \u2014 shown once per live build_result call only.
                 }) );
             });
     }
 
-    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned ) {
+    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned, pages, scanId ) {
         const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
         document.getElementById('cu-result-summary').textContent =
             `Scan complete. ${urls} URLs scanned, ${safeCount} safe rules, ${aggCount} aggressive rules generated.`;
@@ -1174,7 +1176,55 @@
         // Subsystem D-4: render broken-banner if pages were blocked.
         renderBrokenBanner( bannerData || {} );
 
+        // Per-URL results table (hidden when pages is empty/undefined).
+        renderUrlList( pages, scanId );
+
         showStep(4);
+    }
+
+    // --- Per-URL results table (Step 4) -------------------------------------
+    var cuUrlListState = { pages: [], scanId: '', page: 0, perPage: 25 };
+
+    function cuEscHtml( v ) { var d = document.createElement('div'); d.textContent = ( v == null ? '' : String( v ) ); return d.innerHTML; }
+
+    function renderUrlList( pages, scanId ) {
+        var host = document.getElementById('cu-url-list');
+        if ( ! host ) { return; }
+        if ( ! pages || ! pages.length ) { host.innerHTML = ''; host.style.display = 'none'; return; }
+        cuUrlListState.pages  = pages;
+        cuUrlListState.scanId = scanId || '';
+        cuUrlListState.page   = 0;
+        host.style.display = '';
+        renderUrlListPage();
+    }
+
+    function renderUrlListPage() {
+        var host = document.getElementById('cu-url-list'), st = cuUrlListState;
+        var total = st.pages.length, pageCount = Math.ceil( total / st.perPage );
+        var slice = st.pages.slice( st.page * st.perPage, st.page * st.perPage + st.perPage );
+        var c = { ok: 0, partial: 0, blocked: 0, error: 0 };
+        st.pages.forEach( function ( p ) { if ( c[ p.status_class ] != null ) { c[ p.status_class ]++; } } );
+        var rows = slice.map( function ( p ) {
+            var san = ( p.status_class === 'error' ) ? '—' : ( 'S' + p.safe + ' A' + p.aggressive + ' N' + p.needed );
+            return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + '">'
+                + '<td>' + cuEscHtml( p.n ) + '</td>'
+                + '<td class="cu-url-cell">' + cuEscHtml( p.url ) + '</td>'
+                + '<td>' + cuEscHtml( p.status_label ) + '</td>'
+                + '<td>' + cuEscHtml( p.credits ) + '</td>'
+                + '<td class="cu-san">' + cuEscHtml( san ) + '</td></tr>';
+        } ).join( '' );
+        var pager = ( pageCount > 1 )
+            ? '<div class="cu-url-pager"><button type="button" class="button" id="cu-url-prev"' + ( st.page === 0 ? ' disabled' : '' ) + '>« Prev</button>'
+              + '<span>Page ' + ( st.page + 1 ) + ' of ' + pageCount + '</span>'
+              + '<button type="button" class="button" id="cu-url-next"' + ( st.page >= pageCount - 1 ? ' disabled' : '' ) + '>Next »</button></div>'
+            : '';
+        host.innerHTML =
+            '<h3 class="cu-url-title">Scan ' + cuEscHtml( st.scanId ) + '</h3>'
+          + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
+          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Cr.</th><th>S / A / N</th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + pager;
+        var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderUrlListPage(); } }; }
+        var next = document.getElementById('cu-url-next'); if ( next ) { next.onclick = function () { if ( st.page < pageCount - 1 ) { st.page++; renderUrlListPage(); } }; }
     }
 
     /**
@@ -1351,7 +1401,7 @@
         try {
             const d = JSON.parse(stored);
             scanJobId = d.job_id;
-            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only, undefined, d.total_pages );
+            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only, undefined, d.total_pages, d.pages, d.scan_id );
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');
         }
