@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.5.3 — 2026-05-20
+
+### Changed
+
+- **Per-URL results table UI polish.** Moved the table below the action buttons and "Run Another Scan" link (it previously sat between the summary line and the buttons). Renamed the credits column header `Cr.` → `Credits`. Reformatted the per-URL asset counts from `S1 A17 N44` to `S:1 A:17 N:44` for readability. JS/view-only change; bumped `SCANNER_JS_VERSION` → 1.0.10.14 and plugin version → 1.5.3 to cache-bust `scanner.js`.
+
+---
+
 ## 1.5.2 — 2026-05-20
 
 ### Fixed
