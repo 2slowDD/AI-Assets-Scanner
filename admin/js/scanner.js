@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.13';
+    const SCANNER_JS_VERSION = '1.0.10.14';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1205,7 +1205,7 @@
         var c = { ok: 0, partial: 0, blocked: 0, error: 0 };
         st.pages.forEach( function ( p ) { if ( c[ p.status_class ] != null ) { c[ p.status_class ]++; } } );
         var rows = slice.map( function ( p ) {
-            var san = ( p.status_class === 'error' ) ? '—' : ( 'S' + p.safe + ' A' + p.aggressive + ' N' + p.needed );
+            var san = ( p.status_class === 'error' ) ? '—' : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed );
             return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + '">'
                 + '<td>' + cuEscHtml( p.n ) + '</td>'
                 + '<td class="cu-url-cell">' + cuEscHtml( p.url ) + '</td>'
@@ -1221,7 +1221,7 @@
         host.innerHTML =
             '<h3 class="cu-url-title">Scan ' + cuEscHtml( st.scanId ) + '</h3>'
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Cr.</th><th>S / A / N</th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th></tr></thead><tbody>' + rows + '</tbody></table>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }
         var next = document.getElementById('cu-url-next'); if ( next ) { next.onclick = function () { if ( st.page < pageCount - 1 ) { st.page++; renderResultUrlListPage(); } }; }
