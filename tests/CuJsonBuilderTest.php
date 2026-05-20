@@ -38,6 +38,41 @@ class CuJsonBuilderTest extends TestCase {
         $this->assertSame( 1, $rules[0]['group_id'] ); // Safe
     }
 
+    public function test_by_page_tallies_and_reconciliation(): void {
+        $pages = [
+            $this->make_page( 'https://x/a', [
+                $this->make_asset( 'h1', 'style',  false, 0.0, false, 0.0 ), // absent,absent -> safe (all)
+                $this->make_asset( 'h2', 'script', true,  0.0, true,  0.0 ), // aggressive,aggressive -> agg (all)
+                $this->make_asset( 'h3', 'style',  true,  0.5, true,  0.5 ), // needed,needed -> no rule
+            ] ),
+            [ 'url' => 'https://x/b', 'status' => 'error', 'assets' => [] ], // skipped by build()
+        ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertArrayHasKey( 'by_page', $output );
+        $this->assertSame( [ 'safe' => 1, 'aggressive' => 1, 'needed' => 1 ], $output['by_page'][0] );
+        $this->assertArrayNotHasKey( 1, $output['by_page'] ); // error page absent from by_page
+        $safe = count( array_filter( $output['rules'], fn( $r ) => 1 === $r['group_id'] ) );
+        $agg  = count( array_filter( $output['rules'], fn( $r ) => 2 === $r['group_id'] ) );
+        $this->assertSame( $safe, array_sum( array_column( $output['by_page'], 'safe' ) ) );
+        $this->assertSame( $agg,  array_sum( array_column( $output['by_page'], 'aggressive' ) ) );
+    }
+
+    public function test_by_page_reconciles_with_phase2a_and_blocked_device(): void {
+        // absent,needed normally emits safe-desktop under Phase 2a — but a BLOCKED
+        // desktop must suppress it; the per-page tally must match that (no drift).
+        $pages = [ [
+            'url'            => 'https://x/c',
+            'status'         => 'done',
+            'broken_devices' => [ [ 'device' => 'desktop', 'reason' => 'tier2_cf_challenge' ] ],
+            'assets'         => [ $this->make_asset( 'h', 'style', false, 0.0, true, 0.5 ) ], // absent,needed
+        ] ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertSame( [ 'safe' => 0, 'aggressive' => 0, 'needed' => 1 ], $output['by_page'][0] );
+        $this->assertCount( 0, $output['rules'] );
+        $this->assertSame( 0, array_sum( array_column( $output['by_page'], 'safe' ) ) );
+    }
+
     public function test_aggressive_aggressive_produces_one_rule_device_all(): void {
         $pages = [ $this->make_page( 'https://site.com/shop/', [
             $this->make_asset( 'slider-js', 'script', true, 0.0, true, 0.0 ),

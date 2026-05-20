@@ -15,8 +15,14 @@ class CuJsonBuilder {
         $combine_asymmetric_absent_enabled = (bool) ( $flags['combine_asymmetric_absent_enabled'] ?? false );
         $visual_diff_enabled               = (bool) ( $flags['visual_diff_enabled'] ?? false );
 
-        $rules = [];
-        foreach ( $pages as $page ) {
+        $rules   = [];
+        $by_page = [];
+        // Index-keyed so $by_page aligns with do_build_result()'s sequence walk
+        // over the SAME $pages_raw (per-URL Step-4 results table). The per-page
+        // S/A/N tally is accumulated here, in the one true rule-emitting pass —
+        // so it can never diverge from the pushed rules (same combine() output,
+        // same Phase-2a + blocked-device flags).
+        foreach ( $pages as $i => $page ) {
             if ( ( $page['status'] ?? '' ) === 'error' ) continue;
             $url_pattern = $this->url_to_pattern( $page['url'] );
             // Phase 2a broken-device guard (spec §3 + AC-G1/G4): a device whose
@@ -27,10 +33,11 @@ class CuJsonBuilder {
             // reason to string, allowlist {desktop,mobile}; missing/malformed →
             // not blocked (D5 safety: emit proceeds). Mirrors scanner-ajax:603-624.
             $blocked = $this->blocked_devices( $page['broken_devices'] ?? null );
+            $s = 0; $a = 0; $n = 0;
             foreach ( $page['assets'] ?? [] as $asset ) {
                 $desktop = $this->classify( $asset['desktop'] );
                 $mobile  = $this->classify( $asset['mobile'] );
-                foreach ( $this->combine(
+                $out = $this->combine(
                     $url_pattern,
                     $asset['handle'],
                     $asset['type'],
@@ -40,10 +47,17 @@ class CuJsonBuilder {
                     $visual_diff_enabled,
                     $blocked['desktop'],
                     $blocked['mobile']
-                ) as $rule ) {
-                    $rules[] = $rule;
+                );
+                if ( empty( $out ) ) {
+                    $n++;
+                } else {
+                    foreach ( $out as $rule ) {
+                        $rules[] = $rule;
+                        if ( self::GROUP_SAFE === $rule['group_id'] ) { $s++; } else { $a++; }
+                    }
                 }
             }
+            $by_page[ $i ] = [ 'safe' => $s, 'aggressive' => $a, 'needed' => $n ];
         }
 
         return [
@@ -54,6 +68,9 @@ class CuJsonBuilder {
                 [ 'id' => self::GROUP_AGGRESSIVE, 'name' => 'AA Scanner — Aggressive', 'description' => 'Assets loaded but zero passive coverage. Verify before enabling.' ],
             ],
             'rules' => $rules,
+            // Per-page S/A/N tallies, keyed by input page index (error pages absent).
+            // Consumed by AIAS_Scan_Status::build_pages() for the Step-4 table.
+            'by_page' => $by_page,
         ];
     }
 
