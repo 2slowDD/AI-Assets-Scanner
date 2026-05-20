@@ -4,6 +4,19 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.4.12 — 2026-05-20
+
+### Added
+
+- **Phase 2a: asymmetric-absent unblock (default-off, Railway-payload-gated).** `CuJsonBuilder::combine()` now emits per-device safe rules for the two asymmetric-absent cell shapes that previously produced no rule: `absent,needed` → safe desktop-only rule; `needed,absent` → safe mobile-only rule. Both emissions are gated behind two flags carried from the Railway scan-result payload: `combine_asymmetric_absent_enabled` AND `visual_diff_enabled` must both be `true`. The structural guard (`visual_diff_enabled`) ensures no per-device safe rule is ever emitted without the Phase A visual-diff demote safety net active. When both flags are absent or `false`, behavior is identical to 1.4.11 (the two cells remain empty). Expected F-MISS recovery: +1–2 safe rules/scan on EB-heavy sites.
+- **`do_build_result()` threads `$status['flags']` into `CuJsonBuilder::build()`.** The Railway HTTP response `flags` field (added by Task 3/5 on the Railway side) is now read and passed through. The field is treated as untrusted input: guarded with `is_array`, and individual flag values receive defensive `(bool)(... ?? false)` casts inside `build()` (D5 safety invariant — missing or non-bool flags default to `false`).
+
+### Testing
+
+- 6 new `CuJsonBuilderTest` PHPUnit tests covering AC-V9a-1/2/3/7 + D5 missing-flags safety invariant + other-cells-unchanged invariant across all flag combos. 25/25 `CuJsonBuilderTest` pass; 10/10 `ScannerAjaxTest` pass; pre-existing 15-error baseline (`FakeRuleRepository::create_group_item()`) unchanged.
+
+---
+
 ## 1.4.11 — 2026-05-18
 
 ### Fixed

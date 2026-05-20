@@ -263,4 +263,100 @@ class CuJsonBuilderTest extends TestCase {
         $this->assertCount( 1, $output['rules'] );
         $this->assertSame( 2, $output['rules'][0]['group_id'] ); // aggressive,aggressive → all,aggressive
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Phase 2a — Asymmetric-absent unblock (AC-V9a-1 / 2 / 3 / 7)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Helper: set bucket directly (authoritative classification field) to
+     * exercise the combine() cell-shape map without going through classify()'s
+     * {loaded, coverage} derivation. Mirrors make_asset_with_bucket() but
+     * omits the loaded/coverage fields to make Phase 2a test intent clear.
+     */
+    private function make_asset_with_buckets( string $handle, string $type, string $desktop_bucket, string $mobile_bucket ): array {
+        return [
+            'handle'  => $handle,
+            'type'    => $type,
+            'desktop' => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => $desktop_bucket ],
+            'mobile'  => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => $mobile_bucket  ],
+        ];
+    }
+
+    /** AC-V9a-1: absent,needed + both flags on → safe desktop-only rule. */
+    public function test_phase2a_absent_needed_with_both_flags_on_emits_safe_desktop(): void {
+        $pages  = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
+        ] ) ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 1, $output['rules'] );
+        $this->assertSame( 'desktop', $output['rules'][0]['device_type'] );
+        $this->assertSame( 1, $output['rules'][0]['group_id'] ); // GROUP_SAFE
+        $this->assertSame( 'eb-block-style', $output['rules'][0]['asset_handle'] );
+    }
+
+    /** AC-V9a-2: needed,absent + both flags on → safe mobile-only rule. */
+    public function test_phase2a_needed_absent_with_both_flags_on_emits_safe_mobile(): void {
+        $pages  = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'wc-blocks-style', 'style', 'needed', 'absent' ),
+        ] ) ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 1, $output['rules'] );
+        $this->assertSame( 'mobile', $output['rules'][0]['device_type'] );
+        $this->assertSame( 1, $output['rules'][0]['group_id'] );
+    }
+
+    /** AC-V9a-3: flag off → asymmetric-absent cells emit no rule. */
+    public function test_phase2a_off_emits_no_rule_for_asymmetric_absent_cells(): void {
+        $pages  = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
+            $this->make_asset_with_buckets( 'wc-blocks-style', 'style', 'needed', 'absent' ),
+        ] ) ];
+        $flags_off = [ 'combine_asymmetric_absent_enabled' => false, 'visual_diff_enabled' => true ];
+        $output    = ( new CuJsonBuilder() )->build( $pages, $flags_off );
+        $this->assertCount( 0, $output['rules'] );
+    }
+
+    /** AC-V9a-7: structural guard — Phase 2a enabled BUT visual_diff off → NO emission. */
+    public function test_phase2a_structural_guard_blocks_emission_when_visual_diff_off(): void {
+        $pages  = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
+        ] ) ];
+        // Phase 2a enabled BUT visual_diff disabled → structural guard NO-OPs Phase 2a
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => false ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 0, $output['rules'] );
+    }
+
+    /** D5 safety invariant: missing flags → both default false → no Phase 2a emission. */
+    public function test_phase2a_missing_flags_default_false_safety_invariant(): void {
+        $pages  = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
+        ] ) ];
+        // Empty flags array → both default to false → no Phase 2a emission
+        // (D5 + Rule 1 untrusted-input safety invariant).
+        $output = ( new CuJsonBuilder() )->build( $pages, [] );
+        $this->assertCount( 0, $output['rules'] );
+    }
+
+    /** Other cells unchanged across all flag combinations. */
+    public function test_phase2a_other_cells_unchanged_across_flag_states(): void {
+        // 'absent,absent' → safe-all (today + Phase 2a, all flag combos)
+        $pages_aa = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'h1', 'style', 'absent', 'absent' ),
+        ] ) ];
+        foreach ( [
+            [ 'combine_asymmetric_absent_enabled' => false, 'visual_diff_enabled' => false ],
+            [ 'combine_asymmetric_absent_enabled' => false, 'visual_diff_enabled' => true ],
+            [ 'combine_asymmetric_absent_enabled' => true,  'visual_diff_enabled' => false ],
+            [ 'combine_asymmetric_absent_enabled' => true,  'visual_diff_enabled' => true ],
+        ] as $flags ) {
+            $output = ( new CuJsonBuilder() )->build( $pages_aa, $flags );
+            $this->assertCount( 1, $output['rules'] );
+            $this->assertSame( 'all', $output['rules'][0]['device_type'] );
+            $this->assertSame( 1, $output['rules'][0]['group_id'] );
+        }
+    }
 }
