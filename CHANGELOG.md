@@ -4,6 +4,19 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.5.4 — 2026-05-20
+
+### Fixed
+
+- **Scan ID display mismatch (Bug 1).** The Step-4 results table (and broken-banner) showed a 16-char scan id (`f6bfc683f8af4bd4`) while the SaaS dashboard and Railway logs use the 12-char canonical form (`f6bfc683f8af`). `do_build_result()` now returns `substr(scan_id, 0, 12)` for display so the operator can cross-reference a scan across AAS / SaaS / Railway.
+- **Per-URL table missing after a background-completed scan (Bug 2).** When the operator navigated away during a scan and returned after it finished, Step 4 restored from a 1.4.11 summary snapshot that predated the per-URL feature, so the table was absent. `do_build_result()` now persists the full Step-4 restore payload (per-URL `pages` + 12-char `scan_id` + counts) to the `aias_last_result` option; `get_badge_state()` returns it verbatim, and `menu-badge.js`'s `triggerBuildResult` localStorage write now carries `pages`/`scan_id` too. Both background-restore paths (JS-driven `triggerBuildResult` and the server-driven badge poller) rebuild the complete results screen on return.
+
+### Housekeeping
+
+- `uninstall.php` now also deletes the `aias_last_result`, `aias_last_seen_scan_id`, and `aias_dismissed_warnings` options (the `aias_*` options previously leaked on plugin deletion).
+
+---
+
 ## 1.5.3 — 2026-05-20
 
 ### Changed

@@ -645,18 +645,40 @@ class ScannerAjax {
             }
         }
 
+        // 12-char scan_id for display: matches the SaaS/Railway canonical id (they
+        // truncate the 16-char submit-time scan_id to 12). Bug-fix (1.5.4).
+        $scan_id_display = substr( $scan_id_complete, 0, 12 );
+
+        // Per-URL Step-4 results table. by_page is keyed by the same $pages_raw
+        // index, so build_pages() joins status/credits with S/A/N tallies cleanly.
+        // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.
+        $pages_payload = \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [] );
+        $can_push      = ( new RulePusher() )->can_push();
+
+        // Persist the full Step-4 restore payload (incl. the per-URL table + 12-char
+        // scan_id) so a BACKGROUND-completed scan can rebuild the complete result screen
+        // on operator return — get_badge_state() returns this verbatim. Field names match
+        // the JS restore contract (scanner.js init). autoload=false (per-scan blob). Bug-fix (1.5.4).
+        update_option( 'aias_last_result', [
+            'job_id'        => $job_id,
+            'safe_count'    => $safe_count,
+            'agg_count'     => $agg_count,
+            'can_push'      => $can_push,
+            'external_only' => false,
+            'total_pages'   => count( $pages_raw ),
+            'scan_id'       => $scan_id_display,
+            'pages'         => $pages_payload,
+        ], false );
+
         return [
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
-            'can_push'         => ( new RulePusher() )->can_push(),
-            'scan_id'          => $scan_id_complete,
+            'can_push'         => $can_push,
+            'scan_id'          => $scan_id_display,
             'pages_blocked'    => $pages_blocked,
             'blocked_reasons'  => $blocked_reasons,
             'total_pages'      => count( $pages_raw ),
-            // Per-URL Step-4 results table. by_page is keyed by the same $pages_raw
-            // index, so build_pages() joins status/credits with S/A/N tallies cleanly.
-            // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.
-            'pages'            => \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [] ),
+            'pages'            => $pages_payload,
         ];
     }
 
@@ -1156,21 +1178,15 @@ class ScannerAjax {
         // Step 1 screen because no localStorage entry exists (scanner.js init
         // at admin/js/scanner.js:1349 reads localStorage to restore Step 4,
         // and the 1.4.10 server-side build_result path doesn't write it).
+        // 1.5.4 — return the full restore payload persisted by do_build_result()
+        // (incl. the per-URL `pages` table + 12-char scan_id) so operator-returning-to-AAS
+        // rebuilds the COMPLETE Step-4 screen, not just summary counts. The JS poller
+        // writes res.data.result verbatim to localStorage (menu-badge.js).
         $result = null;
         if ( $state === 'green' ) {
-            $records = ( new ScanHistory() )->get_all();
-            foreach ( $records as $rec ) {
-                if ( ( $rec['status'] ?? '' ) === 'complete' ) {
-                    $result = [
-                        'job_id'        => (string) ( $rec['job_id'] ?? '' ),
-                        'safe_count'    => (int) ( $rec['safe_count'] ?? 0 ),
-                        'agg_count'     => (int) ( $rec['aggressive_count'] ?? 0 ),
-                        'can_push'      => ( new \CUScanner\Scanner\RulePusher() )->can_push(),
-                        'external_only' => false,
-                        'total_pages'   => (int) ( $rec['page_count'] ?? 0 ),
-                    ];
-                    break;
-                }
+            $stored = get_option( 'aias_last_result', null );
+            if ( is_array( $stored ) && ! empty( $stored['job_id'] ) ) {
+                $result = $stored;
             }
         }
 

@@ -134,7 +134,9 @@
                         agg_count:     res.data.aggressive_count,
                         can_push:      res.data.can_push,
                         external_only: false,
-                        total_pages:   res.data.total_pages || 0
+                        total_pages:   res.data.total_pages || 0,
+                        scan_id:       res.data.scan_id || '',
+                        pages:         res.data.pages || []
                     }));
                 } catch (_storageErr) {
                     // localStorage quota or disabled — non-fatal; the badge

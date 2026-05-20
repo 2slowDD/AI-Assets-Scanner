@@ -28,6 +28,9 @@ $ai_assets_scanner_fixed_options = array(
 	'cu_scanner_active_tokens',
 	'cu_scanner_secret',
 	'cu_scanner_history',
+	'aias_last_result',        // 1.5.4 — background-restore payload (per-URL table + 12-char scan_id).
+	'aias_last_seen_scan_id',  // menu-badge last-seen-scan marker.
+	'aias_dismissed_warnings', // per-scan broken-banner dismissals.
 );
 foreach ( $ai_assets_scanner_fixed_options as $ai_assets_scanner_option_name ) {
 	delete_option( $ai_assets_scanner_option_name );
