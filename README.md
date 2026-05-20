@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.4.13-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.5.3-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
@@ -40,6 +40,7 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **Contact button** — "Get in touch" link in the Step 1 toolbar, right-aligned, for support and bug reports
 - **Cloudflare WAF bypass** — auto-generated Scanner Secret can be used in a Cloudflare WAF Custom Rule so the scanner bypasses Bot Fight Mode without disabling site-wide protection
 - **Heavy-site / bot-block warning banner** — dismissable WP admin notice on the scan-results page when one or both devices were blocked from completing (Cloudflare challenge, Akamai Bot Manager, Imperva WAF, Rocket-Loader stub, asymmetric stub response, or HTTP-level denials). Reason-aware copy explains the cause; mobile rules still ship when only desktop is blocked. Per-scan dismissal stored in `wp_options.aias_dismissed_warnings` and auto-wiped on the next scan submission
+- **Per-URL scan results table (1.5.0)** — the Step-4 results screen lists each scanned URL in its own row: number, URL, status (OK / one-device failure / bot-protection block / error) with status-driven row colors, credits spent, and that URL's safe/aggressive/needed asset counts (S:/A:/N:). 25 rows per page with pagination
 
 ## How it works
 
