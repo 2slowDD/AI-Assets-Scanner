@@ -61,4 +61,33 @@ class AIAS_Scan_Status {
 		}
 		return [ 'class' => 'ok', 'label' => __( 'OK', 'ai-assets-scanner' ), 'credits' => 1 ];
 	}
+
+	/**
+	 * Build the per-URL pages[] payload for the Step-4 table.
+	 *
+	 * @param array $pages_raw Railway pages (the SAME array passed to CuJsonBuilder::build()).
+	 * @param array $by_page   build()'s per-page tallies, keyed by the SAME page index.
+	 * @return array<int,array> Sequential rows; error/absent pages get S/A/N = 0.
+	 */
+	public static function build_pages( array $pages_raw, array $by_page ): array {
+		$rows = [];
+		$n    = 0;
+		foreach ( $pages_raw as $i => $page ) {
+			$n++;
+			$page  = (array) $page;
+			$st    = self::classify( $page );
+			$tally = $by_page[ $i ] ?? [ 'safe' => 0, 'aggressive' => 0, 'needed' => 0 ];
+			$rows[] = [
+				'n'            => $n,
+				'url'          => (string) ( $page['url'] ?? '' ),
+				'status_class' => $st['class'],
+				'status_label' => $st['label'],
+				'credits'      => (int) $st['credits'],
+				'safe'         => (int) ( $tally['safe'] ?? 0 ),
+				'aggressive'   => (int) ( $tally['aggressive'] ?? 0 ),
+				'needed'       => (int) ( $tally['needed'] ?? 0 ),
+			];
+		}
+		return $rows;
+	}
 }
