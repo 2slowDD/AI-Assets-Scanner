@@ -8,7 +8,13 @@ class CuJsonBuilder {
     private const GROUP_SAFE      = 1;
     private const GROUP_AGGRESSIVE = 2;
 
-    public function build( array $pages ): array {
+    public function build( array $pages, array $flags = [] ): array {
+        // Phase 2a — flags carried from the Railway scan-result payload (Option A;
+        // see spec §4.3.1). Per Rule 1, this payload is third-party-API input —
+        // cast defensively; missing/non-bool → false (D5 safety invariant).
+        $combine_asymmetric_absent_enabled = (bool) ( $flags['combine_asymmetric_absent_enabled'] ?? false );
+        $visual_diff_enabled               = (bool) ( $flags['visual_diff_enabled'] ?? false );
+
         $rules = [];
         foreach ( $pages as $page ) {
             if ( ( $page['status'] ?? '' ) === 'error' ) continue;
@@ -16,7 +22,15 @@ class CuJsonBuilder {
             foreach ( $page['assets'] ?? [] as $asset ) {
                 $desktop = $this->classify( $asset['desktop'] );
                 $mobile  = $this->classify( $asset['mobile'] );
-                foreach ( $this->combine( $url_pattern, $asset['handle'], $asset['type'], $desktop, $mobile ) as $rule ) {
+                foreach ( $this->combine(
+                    $url_pattern,
+                    $asset['handle'],
+                    $asset['type'],
+                    $desktop,
+                    $mobile,
+                    $combine_asymmetric_absent_enabled,
+                    $visual_diff_enabled
+                ) as $rule ) {
                     $rules[] = $rule;
                 }
             }
@@ -91,18 +105,32 @@ class CuJsonBuilder {
      * device 'absent' is treated as unreliable and dropped, since Playwright's
      * CSS coverage misses late-injected stylesheets on the cold pass.
      */
-    private function combine( string $pattern, string $handle, string $type, string $desktop, string $mobile ): array {
+    private function combine(
+        string $pattern,
+        string $handle,
+        string $type,
+        string $desktop,
+        string $mobile,
+        bool $combine_asymmetric_absent_enabled = false,
+        bool $visual_diff_enabled = false
+    ): array {
         $safe = self::GROUP_SAFE;
         $agg  = self::GROUP_AGGRESSIVE;
+
+        // Phase 2a structural guard (spec §4.1 + AC-V9a-7): BOTH flags must be
+        // true. visual_diff=false is the safety-net-absent state — refuse the
+        // asymmetric-absent emission unconditionally so we never ship a per-device
+        // safe rule without the Phase A visual-diff demote backstop.
+        $phase2a_effective = $combine_asymmetric_absent_enabled && $visual_diff_enabled;
 
         $map = [
             'absent,absent'         => [['all',     $safe]],
             'absent,aggressive'     => [['mobile',  $agg]],
-            'absent,needed'         => [],
+            'absent,needed'         => $phase2a_effective ? [['desktop', $safe]] : [],
             'aggressive,absent'     => [['desktop', $agg]],
             'aggressive,aggressive' => [['all',     $agg]],
             'aggressive,needed'     => [['desktop', $agg]],
-            'needed,absent'         => [],
+            'needed,absent'         => $phase2a_effective ? [['mobile',  $safe]] : [],
             'needed,aggressive'     => [['mobile',  $agg]],
             'needed,needed'         => [],
         ];

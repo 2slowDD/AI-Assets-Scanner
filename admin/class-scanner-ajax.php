@@ -565,7 +565,10 @@ class ScannerAjax {
             throw new \RuntimeException( 'No coverage data in Railway response' );
         }
 
-        $cu_json  = ( new CuJsonBuilder() )->build( $pages_raw );
+        // Per Rule 1, $status is the Railway HTTP response — untrusted. Guard
+        // with is_array; (bool)(... ?? false) casts inside build() handle the rest.
+        $flags   = isset( $status['flags'] ) && is_array( $status['flags'] ) ? $status['flags'] : [];
+        $cu_json = ( new CuJsonBuilder() )->build( $pages_raw, $flags );
         $json_str = json_encode( $cu_json, JSON_PRETTY_PRINT );
 
         $safe_count = count( array_filter( $cu_json['rules'], fn($r) => $r['group_id'] === 1 ) );
