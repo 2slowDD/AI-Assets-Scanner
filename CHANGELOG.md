@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.5.0 — 2026-05-20
+
+### Added
+
+- **Per-URL results table on the scan results screen (Step 4).** Each scanned URL gets its own row — number, URL, status, credits spent, and S/A/N asset-bucket counts — with status-driven row colors (green OK · yellow one-device failure · orange bot-protection/WAF block · red page error) and 25-per-page pagination. S/A = the safe/aggressive rules generated for that URL (so per-URL counts sum to the scan totals); N = assets left in place. Status, credits, and counts are derived server-side in `do_build_result()` (per-page tallies emitted by `CuJsonBuilder::build()` in its single rule pass + the broken-banner reason taxonomy via `AIAS_Scan_Status`); the table restores on reload from the cached result snapshot.
+
+---
+
 ## 1.4.14 — 2026-05-20
 
 ### Fixed
