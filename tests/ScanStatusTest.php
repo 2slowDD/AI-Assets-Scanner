@@ -37,4 +37,21 @@ final class ScanStatusTest extends TestCase {
         $r = AIAS_Scan_Status::classify( $this->page([ 'broken_devices' => [ [ 'device' => 'mobile', 'is_broken' => true, 'reason' => '' ] ] ]) );
         $this->assertSame( 'ok', $r['class'] );
     }
+    public function test_build_pages_merges_status_and_tallies_by_index(): void {
+        $pages_raw = [
+            [ 'url' => 'https://x/a', 'status' => 'done',  'broken_devices' => [] ],
+            [ 'url' => 'https://x/b', 'status' => 'error', 'broken_devices' => [] ],
+        ];
+        $by_page = [ 0 => [ 'safe' => 5, 'aggressive' => 2, 'needed' => 18 ] ]; // index 1 (error) absent
+        $rows = AIAS_Scan_Status::build_pages( $pages_raw, $by_page );
+        $this->assertCount( 2, $rows );
+        $this->assertSame( 1, $rows[0]['n'] );
+        $this->assertSame( 'https://x/a', $rows[0]['url'] );
+        $this->assertSame( 'ok', $rows[0]['status_class'] );
+        $this->assertSame( [ 5, 2, 18 ], [ $rows[0]['safe'], $rows[0]['aggressive'], $rows[0]['needed'] ] );
+        $this->assertSame( 2, $rows[1]['n'] );
+        $this->assertSame( 'error', $rows[1]['status_class'] );
+        $this->assertSame( 0, $rows[1]['credits'] );
+        $this->assertSame( [ 0, 0, 0 ], [ $rows[1]['safe'], $rows[1]['aggressive'], $rows[1]['needed'] ] ); // error → 0 (render as —)
+    }
 }

@@ -653,6 +653,9 @@ class ScannerAjax {
             'pages_blocked'    => $pages_blocked,
             'blocked_reasons'  => $blocked_reasons,
             'total_pages'      => count( $pages_raw ),
+            // Per-URL Step-4 results table. by_page is keyed by the same $pages_raw
+            // index, so build_pages() joins status/credits with S/A/N tallies cleanly.
+            'pages'            => AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [] ),
         ];
     }
 
