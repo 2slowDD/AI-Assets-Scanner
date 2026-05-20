@@ -655,7 +655,8 @@ class ScannerAjax {
             'total_pages'      => count( $pages_raw ),
             // Per-URL Step-4 results table. by_page is keyed by the same $pages_raw
             // index, so build_pages() joins status/credits with S/A/N tallies cleanly.
-            'pages'            => AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [] ),
+            // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.
+            'pages'            => \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [] ),
         ];
     }
 
