@@ -19,6 +19,14 @@ class CuJsonBuilder {
         foreach ( $pages as $page ) {
             if ( ( $page['status'] ?? '' ) === 'error' ) continue;
             $url_pattern = $this->url_to_pattern( $page['url'] );
+            // Phase 2a broken-device guard (spec §3 + AC-G1/G4): a device whose
+            // probe was BLOCKED registers wholesale-'absent' as an artifact, and
+            // the Phase A visual-diff demote net does NOT run on a blocked device
+            // — so suppress its per-device safe emit. broken_devices is untrusted
+            // third-party (Railway) input (Rule 1): is_array guard, cast device/
+            // reason to string, allowlist {desktop,mobile}; missing/malformed →
+            // not blocked (D5 safety: emit proceeds). Mirrors scanner-ajax:603-624.
+            $blocked = $this->blocked_devices( $page['broken_devices'] ?? null );
             foreach ( $page['assets'] ?? [] as $asset ) {
                 $desktop = $this->classify( $asset['desktop'] );
                 $mobile  = $this->classify( $asset['mobile'] );
@@ -29,7 +37,9 @@ class CuJsonBuilder {
                     $desktop,
                     $mobile,
                     $combine_asymmetric_absent_enabled,
-                    $visual_diff_enabled
+                    $visual_diff_enabled,
+                    $blocked['desktop'],
+                    $blocked['mobile']
                 ) as $rule ) {
                     $rules[] = $rule;
                 }
@@ -105,6 +115,40 @@ class CuJsonBuilder {
      * device 'absent' is treated as unreliable and dropped, since Playwright's
      * CSS coverage misses late-injected stylesheets on the cold pass.
      */
+    /**
+     * Derive a per-device blocked map from a page's `broken_devices` array.
+     *
+     * `broken_devices` is untrusted third-party (Railway) HTTP input (Rule 1):
+     * shape `[{device, is_broken, reason, http_status, body_bytes}]`. A device
+     * counts as blocked when an entry names that device AND carries a non-empty
+     * `reason` (mirrors the scanner-ajax:603-624 walk). Anything missing or
+     * malformed (non-array, no matching device, empty reason) yields NOT blocked
+     * — the D5 safety invariant: when in doubt, let the emit proceed.
+     *
+     * @param mixed $broken_devices Raw value from `$page['broken_devices']`.
+     * @return array{desktop:bool,mobile:bool}
+     */
+    private function blocked_devices( $broken_devices ): array {
+        $blocked = [ 'desktop' => false, 'mobile' => false ];
+        if ( ! is_array( $broken_devices ) ) {
+            return $blocked;
+        }
+        foreach ( $broken_devices as $bd ) {
+            if ( ! is_array( $bd ) ) {
+                continue;
+            }
+            $device = (string) ( $bd['device'] ?? '' );
+            $reason = (string) ( $bd['reason'] ?? '' );
+            if ( '' === $reason ) {
+                continue;
+            }
+            if ( 'desktop' === $device || 'mobile' === $device ) {
+                $blocked[ $device ] = true;
+            }
+        }
+        return $blocked;
+    }
+
     private function combine(
         string $pattern,
         string $handle,
@@ -112,7 +156,9 @@ class CuJsonBuilder {
         string $desktop,
         string $mobile,
         bool $combine_asymmetric_absent_enabled = false,
-        bool $visual_diff_enabled = false
+        bool $visual_diff_enabled = false,
+        bool $desktop_blocked = false,
+        bool $mobile_blocked = false
     ): array {
         $safe = self::GROUP_SAFE;
         $agg  = self::GROUP_AGGRESSIVE;
@@ -126,11 +172,15 @@ class CuJsonBuilder {
         $map = [
             'absent,absent'         => [['all',     $safe]],
             'absent,aggressive'     => [['mobile',  $agg]],
-            'absent,needed'         => $phase2a_effective ? [['desktop', $safe]] : [],
+            // Phase 2a broken-device guard: suppress the per-device safe emit when
+            // the device whose 'absent' reading drove it was BLOCKED (D5 default:
+            // not blocked → emit proceeds). desktop drives absent,needed→safe-desktop;
+            // mobile drives needed,absent→safe-mobile.
+            'absent,needed'         => ( $phase2a_effective && ! $desktop_blocked ) ? [['desktop', $safe]] : [],
             'aggressive,absent'     => [['desktop', $agg]],
             'aggressive,aggressive' => [['all',     $agg]],
             'aggressive,needed'     => [['desktop', $agg]],
-            'needed,absent'         => $phase2a_effective ? [['mobile',  $safe]] : [],
+            'needed,absent'         => ( $phase2a_effective && ! $mobile_blocked ) ? [['mobile',  $safe]] : [],
             'needed,aggressive'     => [['mobile',  $agg]],
             'needed,needed'         => [],
         ];

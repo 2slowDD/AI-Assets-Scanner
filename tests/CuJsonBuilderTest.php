@@ -341,6 +341,91 @@ class CuJsonBuilderTest extends TestCase {
         $this->assertCount( 0, $output['rules'] );
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // Phase 2a broken-device guard (AC-G1 / G3 / G4) — 2026-05-20
+    // Suppress the per-device safe emit for a device whose probe was BLOCKED
+    // (its 'absent' reading is an artifact, not a true negative).
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Helper: page carrying a `broken_devices` array (untrusted Railway shape:
+     * [{device, is_broken, reason, http_status, body_bytes}]).
+     */
+    private function make_page_with_broken_devices( string $url, array $assets, $broken_devices ): array {
+        return [ 'url' => $url, 'status' => 'done', 'assets' => $assets, 'broken_devices' => $broken_devices ];
+    }
+
+    /** AC-G1 (a): desktop blocked + absent,needed + both flags on → NO safe-desktop rule. */
+    public function test_phase2a_guard_suppresses_safe_desktop_when_desktop_blocked(): void {
+        $pages  = [ $this->make_page_with_broken_devices( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
+        ], [ [ 'device' => 'desktop', 'is_broken' => true, 'reason' => 'tier1_http_4xx' ] ] ) ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 0, $output['rules'], 'blocked desktop must suppress the safe-desktop emit' );
+    }
+
+    /** AC-G1 (b): mobile blocked + needed,absent + both flags on → NO safe-mobile rule. */
+    public function test_phase2a_guard_suppresses_safe_mobile_when_mobile_blocked(): void {
+        $pages  = [ $this->make_page_with_broken_devices( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'wc-blocks-style', 'style', 'needed', 'absent' ),
+        ], [ [ 'device' => 'mobile', 'is_broken' => true, 'reason' => 'tier1_http_4xx' ] ] ) ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 0, $output['rules'], 'blocked mobile must suppress the safe-mobile emit' );
+    }
+
+    /** AC-G4 control (c): no broken_devices key + absent,needed → safe-desktop STILL emitted (wpservice EB case). */
+    public function test_phase2a_guard_control_no_broken_devices_still_emits_safe_desktop(): void {
+        $pages  = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
+        ] ) ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 1, $output['rules'], 'no broken_devices → not blocked → emit proceeds (D5)' );
+        $this->assertSame( 'desktop', $output['rules'][0]['device_type'] );
+        $this->assertSame( 1, $output['rules'][0]['group_id'] ); // GROUP_SAFE
+    }
+
+    /** AC-G3 (d): desktop blocked but cells are absent,absent + aggressive,needed → those rules UNCHANGED. */
+    public function test_phase2a_guard_leaves_non_phase2a_cells_unchanged_when_desktop_blocked(): void {
+        $pages  = [ $this->make_page_with_broken_devices( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'safe-all',  'style',  'absent',     'absent' ), // → safe-all
+            $this->make_asset_with_buckets( 'agg-needed', 'script', 'aggressive', 'needed' ), // → aggressive-desktop
+        ], [ [ 'device' => 'desktop', 'is_broken' => true, 'reason' => 'tier1_http_4xx' ] ] ) ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $rules  = $output['rules'];
+        $this->assertCount( 2, $rules, 'guard touches only the two Phase-2a cells' );
+        // absent,absent → all/safe
+        $this->assertSame( 'all', $rules[0]['device_type'] );
+        $this->assertSame( 1, $rules[0]['group_id'] );
+        // aggressive,needed → desktop/aggressive
+        $this->assertSame( 'desktop', $rules[1]['device_type'] );
+        $this->assertSame( 2, $rules[1]['group_id'] );
+    }
+
+    /** AC-G4 (e): malformed broken_devices → treated as not-blocked → emit proceeds (D5 safety). */
+    public function test_phase2a_guard_malformed_broken_devices_treated_as_not_blocked(): void {
+        $flags = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+
+        // (e1) broken_devices is a string, not an array.
+        $pages_str = [ $this->make_page_with_broken_devices( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
+        ], 'broken' ) ];
+        $out_str = ( new CuJsonBuilder() )->build( $pages_str, $flags );
+        $this->assertCount( 1, $out_str['rules'], 'non-array broken_devices → not blocked → emit proceeds' );
+        $this->assertSame( 'desktop', $out_str['rules'][0]['device_type'] );
+
+        // (e2) entry has device but empty/absent reason → not blocked.
+        $pages_noreason = [ $this->make_page_with_broken_devices( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
+        ], [ [ 'device' => 'desktop' ] ] ) ];
+        $out_noreason = ( new CuJsonBuilder() )->build( $pages_noreason, $flags );
+        $this->assertCount( 1, $out_noreason['rules'], 'empty/absent reason → not blocked → emit proceeds' );
+        $this->assertSame( 'desktop', $out_noreason['rules'][0]['device_type'] );
+    }
+
     /** Other cells unchanged across all flag combinations. */
     public function test_phase2a_other_cells_unchanged_across_flag_states(): void {
         // 'absent,absent' → safe-all (today + Phase 2a, all flag combos)
