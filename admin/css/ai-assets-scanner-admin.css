@@ -574,3 +574,17 @@
 @keyframes cu-probe-spin {
     to { transform: rotate(360deg); }
 }
+
+/* --- Per-URL results table (Step 4) --- */
+#cu-url-list { margin-top: 16px; }
+.cu-url-title { margin: 8px 0 2px; font-size: 14px; }
+.cu-url-summary { margin: 0 0 8px; color: #50575e; font-size: 12px; }
+.cu-url-table { border-collapse: collapse; width: 100%; }
+.cu-url-table th, .cu-url-table td { padding: 6px 10px; font-size: 13px; border-bottom: 1px solid #f0f0f1; text-align: left; }
+.cu-url-table td.cu-url-cell { font-family: monospace; word-break: break-all; }
+.cu-url-table td.cu-san { font-family: monospace; white-space: nowrap; }
+.cu-url-table tr.cu-row-ok      { background: #e6f4ea; color: #14532d; box-shadow: inset 3px 0 0 #2e7d32; }
+.cu-url-table tr.cu-row-partial { background: #fdf6e3; color: #6b5300; box-shadow: inset 3px 0 0 #c9a227; }
+.cu-url-table tr.cu-row-blocked { background: #fdece0; color: #7a3e00; box-shadow: inset 3px 0 0 #d97706; }
+.cu-url-table tr.cu-row-error   { background: #fbe9e9; color: #7a1f1f; box-shadow: inset 3px 0 0 #c0392b; }
+.cu-url-pager { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
