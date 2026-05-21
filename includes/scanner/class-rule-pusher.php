@@ -161,11 +161,8 @@ class RulePusher {
                 $repo::delete_rule( $id );
             }
         } else {
-            // Safe group stays enabled (CU default on group creation).
-            // Aggressive group is saved-but-disabled — user enables when ready.
-            if ( $aggressive_group_id !== null ) {
-                $repo::update_group( $aggressive_group_id, [ 'enabled' => 0 ] );
-            }
+            // Both groups active (Safe + Aggressive) — operator's chosen behavior.
+            $this->enable_both_groups( $repo, $safe_group_id, $aggressive_group_id );
         }
 
         return [
@@ -174,6 +171,12 @@ class RulePusher {
             'error_count'      => $error_count,
             'error_message'    => $first_error,
         ];
+    }
+
+    /** Enable both scanner groups (Safe + Aggressive). Idempotent; shared by do_push() + sync(). */
+    private function enable_both_groups( string $repo, ?int $safe_group_id, ?int $aggressive_group_id ): void {
+        if ( $safe_group_id !== null )       { $repo::update_group( $safe_group_id,       [ 'enabled' => 1 ] ); }
+        if ( $aggressive_group_id !== null ) { $repo::update_group( $aggressive_group_id, [ 'enabled' => 1 ] ); }
     }
 
     /**
