@@ -32,6 +32,12 @@ class RulePusher {
         return class_exists( $this->repo );
     }
 
+    /** True if Code Unloader currently has rules in any enabled group (a push would overwrite them). */
+    public function has_active_cu_rules(): bool {
+        if ( ! $this->can_push() ) { return false; }
+        return ( new SnapshotManager( $this->repo ) )->has_active_rules();
+    }
+
     /**
      * Snapshot → version-bump → push → commit (or rollback on failure).
      *

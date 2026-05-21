@@ -4,6 +4,22 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.6.1 — 2026-05-21
+
+### Changed
+
+- **Push to Code Unloader skips the overwrite confirm when there are no active rules to overwrite.** The "This will save and overwrite…" dialog now appears only when Code Unloader actually has active rules; pushing into an empty Code Unloader proceeds immediately. The decision is server-authoritative — `push_to_cu` returns `needs_confirm` based on `RulePusher::has_active_cu_rules()` — so the warning cannot be skipped when rules do exist.
+
+### Added
+
+- **"Found a bug? Get in touch" button on the Step-4 results screen**, right-aligned beside the Download / Push / Sync buttons (previously the contact button appeared only on Step 1).
+
+### Internal
+
+- Added `RulePusher::has_active_cu_rules()`; `SCANNER_JS_VERSION` → 1.0.10.18, plugin → 1.6.1 to cache-bust `scanner.js`.
+
+---
+
 ## 1.6.0 — 2026-05-21
 
 ### Added
