@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.5.7 — 2026-05-20
+
+### Changed
+
+- **Cache-bust for the 1.5.6 "Scan ID:" results-table label.** The label change (results title `Scan <id>` → `Scan ID: <id>`) shipped in 1.5.6 without a version bump, so the deployed `scanner.js?ver=1.5.6` kept serving from cache — a browser hard-refresh didn't help because a CDN/host cache fronts the versioned asset URL. Bumped plugin version → 1.5.7 and `SCANNER_JS_VERSION` → 1.0.10.16 to force a fresh fetch (new `?ver=` URL) and provide a console marker for deploy verification. Version constants only — no behavioral code change.
+
+---
+
 ## 1.5.6 — 2026-05-20
 
 ### Changed
