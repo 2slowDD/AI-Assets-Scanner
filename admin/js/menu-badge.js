@@ -37,8 +37,11 @@
             span.className = cls;
             span.setAttribute('aria-label', 'Unseen scan result');
             span.textContent = '!';
-            link.appendChild(document.createTextNode(' '));
-            link.appendChild(span);
+            // Append INSIDE .wp-menu-name (not the link) so it shares the label's row;
+            // the float:right CSS then lands it at the row's right end (wraps below on overflow),
+            // mirroring WordPress's native update-count bubbles.
+            var nameEl = link.querySelector('.wp-menu-name') || link;
+            nameEl.appendChild(span);
         }
     }
 

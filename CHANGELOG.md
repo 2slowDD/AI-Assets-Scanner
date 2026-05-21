@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.6.2 — 2026-05-21
+
+### Changed
+
+- **Menu completion badge ("!") moved to the right end of the "AI Assets Scanner" menu row** (it previously wrapped to the lower-left). The JS now appends the badge inside `.wp-menu-name` and the CSS floats it right, mirroring WordPress's native update-count bubbles; when the label is too long to share the row it wraps just below. `CU_SCANNER_VERSION` → 1.6.2 to cache-bust `menu-badge.js`.
+
+---
+
 ## 1.6.1 — 2026-05-21
 
 ### Changed
