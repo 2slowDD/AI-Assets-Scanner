@@ -131,15 +131,7 @@ class RulePusher {
         foreach ( $cu_json['rules'] as $rule ) {
             $cu_group_id = $rule['group_id'] === 1 ? $safe_group_id : $aggressive_group_id;
 
-            $result = $repo::create_rule( [
-                'url_pattern'  => $rule['url_pattern'],
-                'match_type'   => $rule['match_type']                      ?? 'exact',
-                'asset_handle' => $rule['asset_handle'] ?? $rule['handle'] ?? '',
-                'asset_type'   => $this->normalize_asset_type( $rule['asset_type'] ?? '' ),
-                'device_type'  => $rule['device_type'],
-                'group_id'     => $cu_group_id,
-                'source_label' => $rule['source_label']                    ?? 'AA Scanner',
-            ] );
+            $result = $repo::create_rule( $this->build_rule_payload( $rule, $cu_group_id ) );
 
             if ( \is_wp_error( $result ) ) {
                 $msg = $result->get_error_message();
@@ -181,6 +173,24 @@ class RulePusher {
             'aggressive_count' => $aggressive_count,
             'error_count'      => $error_count,
             'error_message'    => $first_error,
+        ];
+    }
+
+    /**
+     * Build the create_rule payload from a CuJsonBuilder rule, applying the same
+     * transforms CU stores (normalize_asset_type, match_type/handle/source defaults).
+     * Shared by do_push() AND sync() so Sync's find_duplicate pre-check queries the
+     * identical scope create_rule writes (spec §4.1.4 / §4.4 — R9).
+     */
+    private function build_rule_payload( array $rule, ?int $target_group_id ): array {
+        return [
+            'url_pattern'  => $rule['url_pattern'],
+            'match_type'   => $rule['match_type']                      ?? 'exact',
+            'asset_handle' => $rule['asset_handle'] ?? $rule['handle'] ?? '',
+            'asset_type'   => $this->normalize_asset_type( $rule['asset_type'] ?? '' ),
+            'device_type'  => $rule['device_type'],
+            'group_id'     => $target_group_id,
+            'source_label' => $rule['source_label']                    ?? 'AA Scanner',
         ];
     }
 
