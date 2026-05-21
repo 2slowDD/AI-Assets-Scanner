@@ -288,9 +288,9 @@ class MenuBadge {
      */
     public function print_inline_css(): void {
         echo '<style id="aias-menu-badge-css">'
-            . '.aias-menu-badge { display:inline-block; margin-left:6px; padding:1px 7px; '
+            . '.aias-menu-badge { float:right; margin:7px 0 0 6px; padding:1px 7px; '
             . 'border-radius:10px; color:#fff; font-weight:bold; font-size:11px; '
-            . 'line-height:17px; vertical-align:middle; }'
+            . 'line-height:17px; }'
             . '.aias-menu-badge--green { background:#46b450; }'
             . '.aias-menu-badge--red   { background:#dc3232; }'
             . '</style>';
