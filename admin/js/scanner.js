@@ -1164,12 +1164,15 @@
         dlBtn.setAttribute('download', 'cu-scanner-' + jobId + '.json');
 
         const pushBtn    = document.getElementById('cu-btn-push');
+        const syncBtn    = document.getElementById('cu-btn-sync');
         const pushResult = document.getElementById('cu-push-result');
         if (externalOnly) {
             pushBtn.style.display = 'none';
-            pushResult.innerHTML = '<div class="notice notice-info"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
+            syncBtn.style.display = 'none';
+            pushResult.innerHTML = '<div class="notice notice-info"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push/sync to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
         } else if (canPush) {
             pushBtn.style.display = '';
+            syncBtn.style.display = '';
         }
 
         // Subsystem D-4: render broken-banner if pages were blocked.
@@ -1343,9 +1346,27 @@
         post('cu_scanner_cancel_job').then(() => { showStep(1); });
     });
 
+    // Notify any open Code Unloader admin Rules tab (channel 'code-unloader',
+    // message 'cu.rule.changed', source 'scanner') so it refreshes without reload.
+    function cuNotifyRulesChanged() {
+        try {
+            const msg = { type: 'cu.rule.changed', source: 'scanner', action: 'bulk-create' };
+            if (typeof BroadcastChannel !== 'undefined') {
+                const bc = new BroadcastChannel('code-unloader');
+                bc.postMessage(msg);
+                bc.close();
+            } else {
+                const key = 'cu-bus:code-unloader';
+                localStorage.setItem(key, JSON.stringify({ t: Date.now(), msg: msg }));
+                localStorage.removeItem(key);
+            }
+        } catch (_e) { /* BroadcastChannel/localStorage unavailable — skip silently */ }
+    }
+
     // --- Push to CU ---
 
     document.getElementById('cu-btn-push').addEventListener('click', function () {
+        if ( ! window.confirm('This will save and overwrite your existing Code Unloader rules. Continue?') ) { return; }
         const btn = this;
         btn.disabled = true;
         post('cu_scanner_push_to_cu', { job_id: scanJobId }).then(res => {
@@ -1356,27 +1377,7 @@
                     : '';
                 el.innerHTML = `<div class="notice notice-success"><p>Rules added to Code Unloader: ${esc(res.data.safe_count)} safe, ${esc(res.data.aggressive_count)} aggressive.${errNote}</p></div>`;
 
-                // Notify any open Code Unloader admin Rules tab in this browser
-                // that rules just changed, so it refreshes its list table + count
-                // without manual reload. CU's assets/js/cu-bus.js is the listener;
-                // both halves use channel name 'code-unloader' and message type
-                // 'cu.rule.changed'. Source 'scanner' lets CU distinguish from
-                // its own admin echoes (admin.js filters those out).
-                try {
-                    const msg = { type: 'cu.rule.changed', source: 'scanner', action: 'bulk-create' };
-                    if (typeof BroadcastChannel !== 'undefined') {
-                        const bc = new BroadcastChannel('code-unloader');
-                        bc.postMessage(msg);
-                        bc.close();
-                    } else {
-                        // Storage-event fallback for older browsers — write-then-
-                        // remove so identical-payload emits still trigger 'storage'
-                        // events in other tabs.
-                        const key = 'cu-bus:code-unloader';
-                        localStorage.setItem(key, JSON.stringify({ t: Date.now(), msg: msg }));
-                        localStorage.removeItem(key);
-                    }
-                } catch (_e) { /* BroadcastChannel/localStorage unavailable — skip silently */ }
+                cuNotifyRulesChanged();
             } else {
                 el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
                 btn.disabled = false;
@@ -1384,6 +1385,29 @@
         }).catch(() => {
             const el = document.getElementById('cu-push-result');
             el.innerHTML = `<div class="notice notice-error"><p>Push failed — check server error logs.</p></div>`;
+            btn.disabled = false;
+        });
+    });
+
+    document.getElementById('cu-btn-sync').addEventListener('click', function () {
+        const btn = this;
+        btn.disabled = true;
+        post('cu_scanner_sync_to_cu', { job_id: scanJobId }).then(res => {
+            const el = document.getElementById('cu-push-result');
+            if (res.success) {
+                const d = res.data;
+                const errNote = d.error_count
+                    ? ` (${esc(d.error_count)} errors — first: ${esc(d.error_message)})`
+                    : '';
+                el.innerHTML = `<div class="notice notice-success"><p>Synced to Code Unloader — appended ${esc(d.appended_safe)} safe + ${esc(d.appended_aggressive)} aggressive rules (${esc(d.already_present)} already present).${errNote}</p></div>`;
+                cuNotifyRulesChanged();
+            } else {
+                el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
+                btn.disabled = false;
+            }
+        }).catch(() => {
+            const el = document.getElementById('cu-push-result');
+            el.innerHTML = `<div class="notice notice-error"><p>Sync failed — check server error logs.</p></div>`;
             btn.disabled = false;
         });
     });
