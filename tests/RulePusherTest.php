@@ -111,7 +111,7 @@ class RulePusherTest extends TestCase {
         $this->assertContains( 'AA Scanner — Aggressive',    $names, 'Fresh Aggressive group must be created' );
     }
 
-    public function test_push_creates_safe_group_enabled_and_aggressive_group_disabled(): void {
+    public function test_push_enables_both_safe_and_aggressive_groups(): void {
         \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
         \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
 
@@ -119,7 +119,6 @@ class RulePusherTest extends TestCase {
         FakeRuleRepository::$rules  = [];
 
         $stats = ( new RulePusher( FakeRuleRepository::class ) )->push( $this->full_cu_json() );
-
         $this->assertSame( 0, $stats['error_count'] );
 
         $safe_group = null;
@@ -128,11 +127,10 @@ class RulePusherTest extends TestCase {
             if ( $g['name'] === 'AA Scanner — Safe' )       { $safe_group = $g; }
             if ( $g['name'] === 'AA Scanner — Aggressive' ) { $agg_group  = $g; }
         }
-
         $this->assertNotNull( $safe_group, 'Safe group must exist after push' );
         $this->assertNotNull( $agg_group,  'Aggressive group must exist after push' );
-        $this->assertSame( 1, $safe_group['enabled'],  'Safe group must be enabled' );
-        $this->assertSame( 0, $agg_group['enabled'],   'Aggressive group must be disabled' );
+        $this->assertSame( 1, $safe_group['enabled'], 'Safe group must be enabled' );
+        $this->assertSame( 1, $agg_group['enabled'],  'Aggressive group must be enabled (new behavior)' );
     }
 
     public function test_push_rolls_back_snapshot_when_version_bump_fails(): void {
