@@ -4,6 +4,23 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.6.0 — 2026-05-21
+
+### Added
+
+- **"Sync with Code Unloader" button** on the Step-4 results screen, beside "Push to Code Unloader". Sync *appends* the scan's internal rules to Code Unloader's existing active rules (find-or-create the "AA Scanner — Safe/Aggressive" groups, then add rules) instead of overwriting. Duplicates are skipped via CU's `find_duplicate` and reported separately ("appended X … (Y already present)") — they never enter the active rules list or the count. No confirmation dialog (additive/safe). Hidden for external-only scans; on a mixed scan only internal rules are synced.
+
+### Changed
+
+- **Push to Code Unloader now confirms before overwriting** ("This will save and overwrite your existing Code Unloader rules. Continue?").
+- **Push and Sync now leave BOTH the Safe and Aggressive groups enabled** (Push previously enabled Safe only and left Aggressive disabled).
+
+### Internal
+
+- Extracted `RulePusher::build_rule_payload()` / `enable_both_groups()` and `ScannerAjax::filter_internal_rules()` shared by Push + Sync; `SCANNER_JS_VERSION` → 1.0.10.17, plugin → 1.6.0 to cache-bust `scanner.js`.
+
+---
+
 ## 1.5.7 — 2026-05-20
 
 ### Changed
