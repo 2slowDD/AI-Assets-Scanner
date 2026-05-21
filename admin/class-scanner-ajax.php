@@ -28,6 +28,7 @@ class ScannerAjax {
             'cu_scanner_build_result',
             'cu_scanner_download_json',
             'cu_scanner_push_to_cu',
+            'cu_scanner_sync_to_cu',
             'cu_scanner_check_job',
             'cu_scanner_export_history',
             'cu_scanner_delete_history',
@@ -762,6 +763,22 @@ class ScannerAjax {
         exit;
     }
 
+    /**
+     * Keep only rules whose url_pattern host equals the site home host (www.-stripped).
+     * External rules are dropped. Shared by push_to_cu() and sync_to_cu().
+     */
+    private function filter_internal_rules( array $decoded ): array {
+        $site_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( get_home_url(), PHP_URL_HOST ) ?? '' ) );
+        $decoded['rules'] = array_values( array_filter(
+            $decoded['rules'] ?? [],
+            function ( $rule ) use ( $site_host ) {
+                $rule_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( $rule['url_pattern'] ?? '', PHP_URL_HOST ) ?? '' ) );
+                return $rule_host === $site_host;
+            }
+        ) );
+        return $decoded;
+    }
+
     public function push_to_cu(): void {
         $this->check();
         $job_id = sanitize_text_field( wp_unslash( $_POST['job_id'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
@@ -770,23 +787,30 @@ class ScannerAjax {
         $pusher = new RulePusher();
         if ( ! $pusher->can_push() ) { wp_send_json_error( 'Code Unloader not active' ); return; }
         try {
-            $decoded   = json_decode( $json, true );
-            $site_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( get_home_url(), PHP_URL_HOST ) ?? '' ) );
-            // Strip rules from external URLs — only push rules belonging to this site.
-            // www. prefix is stripped from both sides before comparing.
-            // Download (download_json) serves the full unfiltered JSON.
-            $decoded['rules'] = array_values( array_filter(
-                $decoded['rules'] ?? [],
-                function ( $rule ) use ( $site_host ) {
-                    $rule_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( $rule['url_pattern'] ?? '', PHP_URL_HOST ) ?? '' ) );
-                    return $rule_host === $site_host;
-                }
-            ) );
+            $decoded = $this->filter_internal_rules( json_decode( $json, true ) );
             $summary = $pusher->push( $decoded );
             wp_send_json_success( $summary );
         } catch ( \Throwable $e ) {
             error_log( '[AI Assets Scanner] push_to_cu: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
             wp_send_json_error( 'Push failed. Check server error logs.' );
+        }
+    }
+
+    public function sync_to_cu(): void {
+        $this->check();
+        $job_id = sanitize_text_field( wp_unslash( $_POST['job_id'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $json   = ( new ScanHistory() )->get_json( $job_id );
+        if ( ! $json ) { wp_send_json_error( 'Scan data not found' ); return; }
+        $pusher = new RulePusher();
+        if ( ! $pusher->can_push() ) { wp_send_json_error( 'Code Unloader not active' ); return; }
+        try {
+            $decoded = $this->filter_internal_rules( json_decode( $json, true ) );
+            if ( empty( $decoded['rules'] ) ) { wp_send_json_error( 'No internal rules to sync' ); return; }
+            $summary = $pusher->sync( $decoded );
+            wp_send_json_success( $summary );
+        } catch ( \Throwable $e ) {
+            error_log( '[AI Assets Scanner] sync_to_cu: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: detail withheld from browser, written to server error log only.
+            wp_send_json_error( 'Sync failed. Check server error logs.' );
         }
     }
 
