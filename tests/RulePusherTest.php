@@ -310,6 +310,20 @@ class RulePusherTest extends TestCase {
 
     // -------------------------------------------------------------------------
 
+    public function test_has_active_cu_rules_true_when_enabled_group_has_rules(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        FakeRuleRepository::$groups = [ [ 'id' => 1, 'name' => 'G', 'enabled' => 1 ] ];
+        FakeRuleRepository::$rules  = [ [ 'id' => 9, 'group_id' => 1, 'url_pattern' => '/x/', 'match_type' => 'exact', 'asset_handle' => 'h', 'asset_type' => 'js', 'device_type' => 'all' ] ];
+        $this->assertTrue( ( new RulePusher( FakeRuleRepository::class ) )->has_active_cu_rules() );
+    }
+
+    public function test_has_active_cu_rules_false_when_no_enabled_rules(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        FakeRuleRepository::$groups = [ [ 'id' => 1, 'name' => 'G', 'enabled' => 0 ] ];
+        FakeRuleRepository::$rules  = [ [ 'id' => 9, 'group_id' => 1, 'url_pattern' => '/x/', 'match_type' => 'exact', 'asset_handle' => 'h', 'asset_type' => 'js', 'device_type' => 'all' ] ];
+        $this->assertFalse( ( new RulePusher( FakeRuleRepository::class ) )->has_active_cu_rules() );
+    }
+
     private function minimal_cu_json(): array {
         return [
             'groups' => [

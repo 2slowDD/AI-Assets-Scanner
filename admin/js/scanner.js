@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.17';
+    const SCANNER_JS_VERSION = '1.0.10.18';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1366,17 +1366,30 @@
     // --- Push to CU ---
 
     document.getElementById('cu-btn-push').addEventListener('click', function () {
-        if ( ! window.confirm('This will save and overwrite your existing Code Unloader rules. Continue?') ) { return; }
         const btn = this;
         btn.disabled = true;
-        post('cu_scanner_push_to_cu', { job_id: scanJobId }).then(res => {
+        cuDoPush( btn, false );
+    });
+
+    // Two-phase push: the first call (confirmed=false) lets the server decide whether a
+    // confirm is needed. It returns { needs_confirm: true } WITHOUT pushing only when CU
+    // has active rules to overwrite; an empty CU pushes immediately (no dialog).
+    function cuDoPush( btn, confirmed ) {
+        post('cu_scanner_push_to_cu', { job_id: scanJobId, confirmed: confirmed ? 1 : 0 }).then(res => {
             const el = document.getElementById('cu-push-result');
+            if (res.success && res.data && res.data.needs_confirm) {
+                if (window.confirm('This will save and overwrite your existing Code Unloader rules. Continue?')) {
+                    cuDoPush( btn, true );
+                } else {
+                    btn.disabled = false;
+                }
+                return;
+            }
             if (res.success) {
                 const errNote = res.data.error_count
                     ? ` (${esc(res.data.error_count)} errors — first: ${esc(res.data.error_message)})`
                     : '';
                 el.innerHTML = `<div class="notice notice-success"><p>Rules added to Code Unloader: ${esc(res.data.safe_count)} safe, ${esc(res.data.aggressive_count)} aggressive.${errNote}</p></div>`;
-
                 cuNotifyRulesChanged();
             } else {
                 el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
@@ -1387,7 +1400,7 @@
             el.innerHTML = `<div class="notice notice-error"><p>Push failed — check server error logs.</p></div>`;
             btn.disabled = false;
         });
-    });
+    }
 
     document.getElementById('cu-btn-sync').addEventListener('click', function () {
         const btn = this;

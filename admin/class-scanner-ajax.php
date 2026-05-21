@@ -786,6 +786,12 @@ class ScannerAjax {
         if ( ! $json ) { wp_send_json_error( 'Scan data not found' ); return; }
         $pusher = new RulePusher();
         if ( ! $pusher->can_push() ) { wp_send_json_error( 'Code Unloader not active' ); return; }
+        // Skip the overwrite confirm when CU has no active rules to overwrite (server-authoritative).
+        $confirmed = ! empty( $_POST['confirmed'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        if ( ! $confirmed && $pusher->has_active_cu_rules() ) {
+            wp_send_json_success( [ 'needs_confirm' => true ] );
+            return;
+        }
         try {
             $decoded = $this->filter_internal_rules( json_decode( $json, true ) );
             $summary = $pusher->push( $decoded );
