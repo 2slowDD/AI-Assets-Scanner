@@ -581,7 +581,7 @@
 .cu-url-summary { margin: 0 0 8px; color: #50575e; font-size: 12px; }
 .cu-url-table { border-collapse: collapse; width: 100%; }
 .cu-url-table th, .cu-url-table td { padding: 6px 10px; font-size: 13px; border-bottom: 1px solid #f0f0f1; text-align: left; }
-.cu-url-table td.cu-url-cell { font-family: monospace; word-break: break-all; }
+.cu-url-table td.cu-url-cell { font-family: sans-serif; word-break: break-all; }
 .cu-url-table td.cu-san { font-family: monospace; white-space: nowrap; }
 .cu-url-table tr.cu-row-ok      { background: #e6f4ea; color: #14532d; box-shadow: inset 3px 0 0 #2e7d32; }
 .cu-url-table tr.cu-row-partial { background: #fdf6e3; color: #6b5300; box-shadow: inset 3px 0 0 #c9a227; }
