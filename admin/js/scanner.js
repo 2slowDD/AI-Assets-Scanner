@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.14';
+    const SCANNER_JS_VERSION = '1.0.10.15';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -10,6 +10,7 @@
 
     // --- State ---
     let discoveredUrls = [];   // full set returned by server
+    let discoveryRan   = false; // true once a REAL Discover Pages run completed (distinguishes mixed mode from include-only)
     let selectedUrls   = [];   // checked subset — used for reserve + submit
     let groupedUrls    = {};   // { page: [...], post: [...], other: [...] }
     let activeFilter   = 'all';
@@ -553,6 +554,7 @@
             selectedUrls   = discoveredUrls.slice(); // copy — all selected by default
             totalPages     = discoveredUrls.length;
             activeFilter   = 'all';
+            discoveryRan   = true; // a real discovery completed — mixed-mode include URLs now MERGE, not replace
 
             syncIncludedUrls();
             renderUrlList();
@@ -832,31 +834,28 @@
     // --- Step 2: Reserve + Submit ---
 
     document.getElementById('cu-btn-next-1').addEventListener('click', async function () {
-        // Include-only path: no discovery ran, populate state from textarea.
-        //
-        // FU-NEW-6 rev 2 (2026-05-16): the original condition `discoveredUrls.length === 0`
-        // only fires on the FIRST scan because L829 below sets discoveredUrls = includeList
-        // — making the guard permanently false for any subsequent Start Scan click within
-        // the same page session. That left selectedUrls retaining the prior scan's URLs;
-        // the probe + submit_job AJAX silently sent stale URLs (wrong-target scan).
-        //
-        // Fix: ALSO enter this block when the user is in include-only mode (detected
-        // via `groupedUrls.included !== undefined` — a marker set uniquely by L830
-        // below, NOT set by the Discover Pages flow at L541 which sets groupedUrls
-        // from `res.data.groups`). On the second+ Start Scan click in include-only
-        // mode, this re-reads the textarea and replaces selectedUrls cleanly.
-        //
-        // Discover Pages mode (discoveredUrls populated by L540, groupedUrls without
-        // `included` field) is intentionally untouched: pure-Discover-Pages users keep
-        // their checkbox selections on selectedUrls.
-        const isIncludeOnlyMode = (discoveredUrls.length === 0) || (groupedUrls.included !== undefined);
+        // Mode is keyed on `discoveryRan` (set true only by a completed Discover Pages
+        // run), NOT on `groupedUrls.included`. syncIncludedUrls() sets `included` whenever
+        // ANY include URL exists, so the old `groupedUrls.included !== undefined` marker
+        // mis-flagged MIXED mode (discovery pages selected + an external include URL) as
+        // include-only and REPLACED the selected discovery pages with just the include URL
+        // — operator-reported: only the external URL got scanned. Mixed mode now merges.
+        const isIncludeOnlyMode = !discoveryRan;
         if (isIncludeOnlyMode) {
+            // No real discovery — (re-)read the textarea so a 2nd+ Start Scan click in the
+            // same page session submits the current URLs, not a prior scan's (FU-NEW-6 rev 2).
             const includeList = getIncludedUrls();
             if (includeList.length === 0) return; // nothing to scan
             selectedUrls     = includeList;
             discoveredUrls   = includeList;
             groupedUrls      = { page: [], post: [], other: [], included: includeList };
             totalPages       = includeList.length;
+        } else {
+            // Mixed / Discover mode: merge the include-URL textarea into the selected
+            // discovery pages so BOTH are scanned (union). syncIncludedUrls() keeps the
+            // checked discovery pages on selectedUrls and adds the include URLs.
+            syncIncludedUrls();
+            totalPages = selectedUrls.length;
         }
 
         // FU-NEW-2 Phase 6 — target-stack-aware bypass routing for external URLs.

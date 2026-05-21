@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.5.5 — 2026-05-20
+
+### Fixed
+
+- **Mixed selection (Discover pages + an Include URL) scanned only the Include URL.** When the operator selected pages from the Discover list AND added an external URL in the Include box, the Start Scan handler mis-detected "include-only mode": its `groupedUrls.included !== undefined` check is true whenever any include URL exists (set by `syncIncludedUrls()`), even in mixed mode — so it replaced the selected discovery pages with just the include URL, and only the external URL got scanned. Mode detection now keys on a dedicated `discoveryRan` flag (set only by a completed Discover run). Include-only mode still re-reads the textarea (FU-NEW-6 behavior preserved); mixed/Discover mode now merges the include URLs into the selected pages via `syncIncludedUrls()` (union — all selected URLs are scanned). The external-URL count in the safety modal stays accurate. JS-only; `SCANNER_JS_VERSION` → 1.0.10.15, plugin → 1.5.5 to cache-bust scanner.js.
+
+---
+
 ## 1.5.4 — 2026-05-20
 
 ### Fixed
