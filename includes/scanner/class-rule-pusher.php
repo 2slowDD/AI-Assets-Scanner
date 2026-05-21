@@ -99,6 +99,69 @@ class RulePusher {
         return $stats;
     }
 
+    /**
+     * Append the scan's rules to the existing active CU groups (vs push() which
+     * overwrites). No snapshot, no version-bump — purely additive. Both groups
+     * end enabled. Duplicates are skipped via find_duplicate and reported as
+     * already_present, never counted as appended (spec §4.3 / §4.4 — R9).
+     *
+     * @return array{appended_safe:int,appended_aggressive:int,already_present:int,error_count:int,error_message:string}
+     * @throws \RuntimeException if Code Unloader is not active.
+     */
+    public function sync( array $cu_json ): array {
+        if ( ! $this->can_push() ) {
+            throw new \RuntimeException( 'Code Unloader is not active or RuleRepository class not found.' );
+        }
+        $repo = $this->repo;
+
+        $group_ids = [];
+        foreach ( $cu_json['groups'] as $group_def ) {
+            $gid = $this->find_or_create_group( $repo, $group_def['name'], $group_def['description'] ?? '' );
+            if ( \is_wp_error( $gid ) ) {
+                return [ 'appended_safe' => 0, 'appended_aggressive' => 0, 'already_present' => 0, 'error_count' => 1, 'error_message' => 'Group create failed: ' . $gid->get_error_message() ];
+            }
+            $group_ids[ $group_def['id'] ] = $gid;
+        }
+        $safe_group_id       = $group_ids[1] ?? null;
+        $aggressive_group_id = $group_ids[2] ?? null;
+
+        $appended_safe = 0; $appended_aggressive = 0; $already_present = 0; $error_count = 0; $first_error = '';
+        $inserted_rule_ids = [];
+
+        foreach ( $cu_json['rules'] as $rule ) {
+            $target_group_id = $rule['group_id'] === 1 ? $safe_group_id : $aggressive_group_id;
+            $payload = $this->build_rule_payload( $rule, $target_group_id );
+
+            if ( $repo::find_duplicate( $payload ) !== null ) {
+                $already_present++;
+                continue;
+            }
+
+            $result = $repo::create_rule( $payload );
+            if ( \is_wp_error( $result ) ) {
+                $msg = $result->get_error_message();
+                if ( str_contains( $msg, 'Duplicate entry' ) || str_contains( $msg, 'uniq_rule' ) ) {
+                    $already_present++;
+                    continue;
+                }
+                if ( ! $first_error ) { $first_error = $msg; }
+                $error_count++;
+            } else {
+                $inserted_rule_ids[] = (int) $result;
+                if ( $rule['group_id'] === 1 ) { $appended_safe++; } else { $appended_aggressive++; }
+            }
+        }
+
+        if ( $error_count > 0 ) {
+            foreach ( $inserted_rule_ids as $id ) { $repo::delete_rule( $id ); }
+            return [ 'appended_safe' => 0, 'appended_aggressive' => 0, 'already_present' => $already_present, 'error_count' => $error_count, 'error_message' => $first_error ];
+        }
+
+        $this->enable_both_groups( $repo, $safe_group_id, $aggressive_group_id );
+
+        return [ 'appended_safe' => $appended_safe, 'appended_aggressive' => $appended_aggressive, 'already_present' => $already_present, 'error_count' => 0, 'error_message' => '' ];
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -177,6 +240,20 @@ class RulePusher {
     private function enable_both_groups( string $repo, ?int $safe_group_id, ?int $aggressive_group_id ): void {
         if ( $safe_group_id !== null )       { $repo::update_group( $safe_group_id,       [ 'enabled' => 1 ] ); }
         if ( $aggressive_group_id !== null ) { $repo::update_group( $aggressive_group_id, [ 'enabled' => 1 ] ); }
+    }
+
+    /**
+     * Return the id of the existing un-versioned group with this exact name, or
+     * create it. The bump flow guarantees at most one un-versioned group per base
+     * name; if (abnormally) more than one exists, the highest id (most recent) wins.
+     */
+    private function find_or_create_group( string $repo, string $name, string $description ): int|\WP_Error {
+        $match = null;
+        foreach ( $repo::get_all_groups() as $g ) {
+            if ( $g->name === $name && ( $match === null || (int) $g->id > (int) $match->id ) ) { $match = $g; }
+        }
+        if ( $match !== null ) { return (int) $match->id; }
+        return $repo::create_group( $name, $description );
     }
 
     /**

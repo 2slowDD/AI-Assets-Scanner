@@ -168,6 +168,119 @@ class RulePusherTest extends TestCase {
     }
 
     // -------------------------------------------------------------------------
+    // sync() tests
+    // -------------------------------------------------------------------------
+
+    public function test_sync_creates_groups_and_appends_all_when_none_exist(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        FakeRuleRepository::$groups = [];
+        FakeRuleRepository::$rules  = [];
+
+        $stats = ( new RulePusher( FakeRuleRepository::class ) )->sync( $this->full_cu_json() );
+
+        $this->assertSame( 1, $stats['appended_safe'] );
+        $this->assertSame( 1, $stats['appended_aggressive'] );
+        $this->assertSame( 0, $stats['already_present'] );
+        $this->assertSame( 0, $stats['error_count'] );
+
+        $names = array_column( FakeRuleRepository::$groups, 'name' );
+        $this->assertContains( 'AA Scanner — Safe', $names );
+        $this->assertContains( 'AA Scanner — Aggressive', $names );
+        foreach ( FakeRuleRepository::$groups as $g ) {
+            $this->assertSame( 1, $g['enabled'], $g['name'] . ' must be enabled after sync' );
+        }
+        $this->assertEmpty( array_filter( $names, fn( $n ) => str_contains( $n, ' v' ) || str_starts_with( $n, 'Previously active' ) ) );
+    }
+
+    public function test_sync_appends_into_existing_groups_without_overwriting(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        FakeRuleRepository::$groups = [
+            [ 'id' => 50, 'name' => 'AA Scanner — Safe',       'enabled' => 1 ],
+            [ 'id' => 51, 'name' => 'AA Scanner — Aggressive', 'enabled' => 1 ],
+        ];
+        FakeRuleRepository::$rules = [
+            [ 'id' => 9, 'group_id' => 50, 'url_pattern' => 'https://example.com/old', 'match_type' => 'exact', 'asset_handle' => 'pre-existing', 'asset_type' => 'css', 'device_type' => 'all' ],
+        ];
+
+        $stats = ( new RulePusher( FakeRuleRepository::class ) )->sync( $this->full_cu_json() );
+
+        $this->assertSame( 1, $stats['appended_safe'] );
+        $this->assertSame( 1, $stats['appended_aggressive'] );
+        $patterns = array_column( FakeRuleRepository::$rules, 'url_pattern' );
+        $this->assertContains( 'https://example.com/old', $patterns, 'pre-existing rule must be untouched' );
+        $names = array_column( FakeRuleRepository::$groups, 'name' );
+        $this->assertEmpty( array_filter( $names, fn( $n ) => str_contains( $n, ' v' ) || str_starts_with( $n, 'Previously active' ) ) );
+    }
+
+    public function test_sync_skips_duplicates_and_does_not_count_them(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        FakeRuleRepository::$groups = [
+            [ 'id' => 50, 'name' => 'AA Scanner — Safe',       'enabled' => 1 ],
+            [ 'id' => 51, 'name' => 'AA Scanner — Aggressive', 'enabled' => 1 ],
+        ];
+        FakeRuleRepository::$rules = [
+            [ 'id' => 9, 'group_id' => 50, 'url_pattern' => 'https://example.com/', 'match_type' => 'exact', 'asset_handle' => 'my-css', 'asset_type' => 'css', 'device_type' => 'all' ],
+        ];
+
+        $stats = ( new RulePusher( FakeRuleRepository::class ) )->sync( $this->full_cu_json() );
+
+        $this->assertSame( 0, $stats['appended_safe'], 'duplicate Safe rule must not be counted as appended' );
+        $this->assertSame( 1, $stats['appended_aggressive'], 'new Aggressive rule still appends' );
+        $this->assertSame( 1, $stats['already_present'], 'the duplicate must be counted as already_present' );
+        $this->assertSame( 0, $stats['error_count'] );
+    }
+
+    public function test_sync_re_enables_a_disabled_aggressive_group(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        FakeRuleRepository::$groups = [
+            [ 'id' => 50, 'name' => 'AA Scanner — Safe',       'enabled' => 1 ],
+            [ 'id' => 51, 'name' => 'AA Scanner — Aggressive', 'enabled' => 0 ],
+        ];
+        FakeRuleRepository::$rules = [];
+
+        ( new RulePusher( FakeRuleRepository::class ) )->sync( $this->full_cu_json() );
+
+        $by_name = array_column( FakeRuleRepository::$groups, 'enabled', 'name' );
+        $this->assertSame( 1, $by_name['AA Scanner — Safe'] );
+        $this->assertSame( 1, $by_name['AA Scanner — Aggressive'], 'Sync must re-enable a disabled Aggressive group' );
+    }
+
+    public function test_sync_rollback_deletes_only_this_run_inserts_on_error(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+
+        $failing_repo = new class extends FakeRuleRepository {
+            public static int $n = 0;
+            public static function create_rule( array $data ): int|\WP_Error {
+                self::$n++;
+                if ( self::$n === 2 ) { return new \WP_Error( 'db_error', 'boom' ); }
+                return parent::create_rule( $data );
+            }
+            public static function reset(): void { self::$n = 0; parent::reset(); }
+        };
+        $failing_repo::reset();
+        $failing_repo::$groups = [
+            [ 'id' => 50, 'name' => 'AA Scanner — Safe',       'enabled' => 1 ],
+            [ 'id' => 51, 'name' => 'AA Scanner — Aggressive', 'enabled' => 1 ],
+        ];
+        $failing_repo::$rules = [
+            [ 'id' => 9, 'group_id' => 50, 'url_pattern' => 'https://example.com/keep', 'match_type' => 'exact', 'asset_handle' => 'keep', 'asset_type' => 'css', 'device_type' => 'all' ],
+        ];
+
+        $stats = ( new RulePusher( $failing_repo::class ) )->sync( $this->full_cu_json() );
+
+        $this->assertSame( 1, $stats['error_count'] );
+        $this->assertSame( 0, $stats['appended_safe'] );
+        $this->assertSame( 0, $stats['appended_aggressive'] );
+        $this->assertNotEmpty( $failing_repo::$deleted_rule_ids, 'this-run insert must be rolled back' );
+        $this->assertNotContains( 9, $failing_repo::$deleted_rule_ids, 'pre-existing rule must NOT be deleted' );
+    }
+
+    // -------------------------------------------------------------------------
 
     private function minimal_cu_json(): array {
         return [

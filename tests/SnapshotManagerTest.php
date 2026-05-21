@@ -53,6 +53,23 @@ class FakeRuleRepository {
         return $id;
     }
 
+    public static function find_duplicate( array $data, int $exclude_id = 0 ): ?object {
+        $gid = ( isset( $data['group_id'] ) && $data['group_id'] !== '' && $data['group_id'] !== null ) ? (int) $data['group_id'] : 0;
+        foreach ( self::$rules as $r ) {
+            if ( $exclude_id && (int) ( $r['id'] ?? 0 ) === $exclude_id ) { continue; }
+            $r_gid = ( isset( $r['group_id'] ) && $r['group_id'] !== null ) ? (int) $r['group_id'] : 0;
+            if ( ( $r['url_pattern']  ?? null ) === ( $data['url_pattern']  ?? null )
+              && ( $r['match_type']   ?? null ) === ( $data['match_type']   ?? null )
+              && ( $r['asset_handle'] ?? null ) === ( $data['asset_handle'] ?? null )
+              && ( $r['asset_type']   ?? null ) === ( $data['asset_type']   ?? null )
+              && ( $r['device_type']  ?? null ) === ( $data['device_type']  ?? null )
+              && $r_gid === $gid ) {
+                return (object) $r;
+            }
+        }
+        return null;
+    }
+
     public static function delete_rule( int $id ): bool {
         self::$deleted_rule_ids[] = $id;
         self::$rules = array_values( array_filter( self::$rules, fn( $r ) => $r['id'] !== $id ) );
