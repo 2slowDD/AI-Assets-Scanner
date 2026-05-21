@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.5.6 — 2026-05-20
+
+### Changed
+
+- **Per-URL results table: URL cells render in sans-serif** (was monospace), for a cleaner look consistent with the rest of the table. `.cu-url-table td.cu-url-cell` font-family changed; plugin version → 1.5.6 to cache-bust the stylesheet.
+
+---
+
 ## 1.5.5 — 2026-05-20
 
 ### Fixed
