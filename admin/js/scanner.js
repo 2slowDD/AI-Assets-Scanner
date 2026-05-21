@@ -1218,7 +1218,7 @@
               + '<button type="button" class="button" id="cu-url-next"' + ( st.page >= pageCount - 1 ? ' disabled' : '' ) + '>Next »</button></div>'
             : '';
         host.innerHTML =
-            '<h3 class="cu-url-title">Scan ' + cuEscHtml( st.scanId ) + '</h3>'
+            '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
           + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th></tr></thead><tbody>' + rows + '</tbody></table>'
           + pager;
