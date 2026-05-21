@@ -233,6 +233,34 @@ class RulePusherTest extends TestCase {
         $this->assertSame( 0, $stats['error_count'] );
     }
 
+    public function test_sync_normalizes_asset_type_before_dedup(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        FakeRuleRepository::$groups = [
+            [ 'id' => 50, 'name' => 'AA Scanner — Safe',       'enabled' => 1 ],
+            [ 'id' => 51, 'name' => 'AA Scanner — Aggressive', 'enabled' => 1 ],
+        ];
+        // Stored rule is already normalized to 'css' (the form CU stores).
+        FakeRuleRepository::$rules = [
+            [ 'id' => 9, 'group_id' => 50, 'url_pattern' => 'https://example.com/x', 'match_type' => 'exact', 'asset_handle' => 'styler', 'asset_type' => 'css', 'device_type' => 'all' ],
+        ];
+        // Incoming scan rule is the SAME logical rule but with raw 'style' (normalizes to 'css').
+        $cu_json = [
+            'groups' => [
+                [ 'id' => 1, 'name' => 'AA Scanner — Safe',       'description' => '' ],
+                [ 'id' => 2, 'name' => 'AA Scanner — Aggressive', 'description' => '' ],
+            ],
+            'rules' => [
+                [ 'url_pattern' => 'https://example.com/x', 'match_type' => 'exact', 'asset_handle' => 'styler', 'asset_type' => 'style', 'device_type' => 'all', 'group_id' => 1, 'source_label' => 'AA Scanner' ],
+            ],
+        ];
+
+        $stats = ( new RulePusher( FakeRuleRepository::class ) )->sync( $cu_json );
+
+        $this->assertSame( 0, $stats['appended_safe'], "'style' must normalize to 'css' and match the stored rule (not appended)" );
+        $this->assertSame( 1, $stats['already_present'], 'normalized duplicate must count as already_present' );
+    }
+
     public function test_sync_re_enables_a_disabled_aggressive_group(): void {
         \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
         \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );

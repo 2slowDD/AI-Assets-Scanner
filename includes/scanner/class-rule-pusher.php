@@ -118,6 +118,7 @@ class RulePusher {
         foreach ( $cu_json['groups'] as $group_def ) {
             $gid = $this->find_or_create_group( $repo, $group_def['name'], $group_def['description'] ?? '' );
             if ( \is_wp_error( $gid ) ) {
+                // Group creation precedes rule iteration, so already_present is genuinely 0 here.
                 return [ 'appended_safe' => 0, 'appended_aggressive' => 0, 'already_present' => 0, 'error_count' => 1, 'error_message' => 'Group create failed: ' . $gid->get_error_message() ];
             }
             $group_ids[ $group_def['id'] ] = $gid;
@@ -140,6 +141,7 @@ class RulePusher {
             $result = $repo::create_rule( $payload );
             if ( \is_wp_error( $result ) ) {
                 $msg = $result->get_error_message();
+                // DB-UNIQUE backstop — treat as already_present, not error (find_duplicate can miss the prefix-191 column edge).
                 if ( str_contains( $msg, 'Duplicate entry' ) || str_contains( $msg, 'uniq_rule' ) ) {
                     $already_present++;
                     continue;
