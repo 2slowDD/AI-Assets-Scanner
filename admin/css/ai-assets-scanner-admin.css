@@ -587,4 +587,5 @@
 .cu-url-table tr.cu-row-partial { background: #fdf6e3; color: #6b5300; box-shadow: inset 3px 0 0 #c9a227; }
 .cu-url-table tr.cu-row-blocked { background: #fdece0; color: #7a3e00; box-shadow: inset 3px 0 0 #d97706; }
 .cu-url-table tr.cu-row-error   { background: #fbe9e9; color: #7a1f1f; box-shadow: inset 3px 0 0 #c0392b; }
+.cu-url-table tr.cu-row-skipped { background: #eef1f4; color: #3a4350; box-shadow: inset 3px 0 0 #8a96a3; }
 .cu-url-pager { margin-top: 10px; display: flex; gap: 12px; align-items: center; }

@@ -1204,7 +1204,7 @@
         var host = document.getElementById('cu-result-url-list'), st = cuUrlListState;
         var total = st.pages.length, pageCount = Math.ceil( total / st.perPage );
         var slice = st.pages.slice( st.page * st.perPage, st.page * st.perPage + st.perPage );
-        var c = { ok: 0, partial: 0, blocked: 0, error: 0 };
+        var c = { ok: 0, partial: 0, blocked: 0, error: 0, skipped: 0 };
         st.pages.forEach( function ( p ) { if ( c[ p.status_class ] != null ) { c[ p.status_class ]++; } } );
         var rows = slice.map( function ( p ) {
             var san = ( p.status_class === 'error' ) ? '—' : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed );
