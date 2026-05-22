@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.0 — 2026-05-22
+
+### Added — Origin-unavailable status (Railway scanner companion)
+
+Handle the Railway scanner's new `origin_unavailable` per-page status (a page skipped because the customer origin was down — circuit-breaker tripped). `AIAS_Scan_Status::classify()` now returns a distinct **"Origin unavailable"** / `skipped` row with **0 credits** (previously fell through to a green "OK" row billed 1 credit — silent overbilling for a page that never scanned). Excluded from the billable page count via `ScannerAjax::billable_page_count()` so skipped pages aren't charged; `CuJsonBuilder::build()` skips them in the rule pass; new neutral-grey results-table badge (`.cu-row-skipped`) + JS counter key. `CU_SCANNER_VERSION` → 1.7.0 (cache-bust for the edited `scanner.js` + admin CSS).
+
+---
+
 ## 1.6.2 — 2026-05-21
 
 ### Changed
