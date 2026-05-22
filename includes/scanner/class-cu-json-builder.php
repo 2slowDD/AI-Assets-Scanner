@@ -23,7 +23,7 @@ class CuJsonBuilder {
         // so it can never diverge from the pushed rules (same combine() output,
         // same Phase-2a + blocked-device flags).
         foreach ( $pages as $i => $page ) {
-            if ( ( $page['status'] ?? '' ) === 'error' ) continue;
+            if ( in_array( $page['status'] ?? '', [ 'error', 'origin_unavailable' ], true ) ) continue;
             $url_pattern = $this->url_to_pattern( $page['url'] );
             // Phase 2a broken-device guard (spec §3 + AC-G1/G4): a device whose
             // probe was BLOCKED registers wholesale-'absent' as an artifact, and

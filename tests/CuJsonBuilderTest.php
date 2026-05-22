@@ -461,6 +461,21 @@ class CuJsonBuilderTest extends TestCase {
         $this->assertSame( 'desktop', $out_noreason['rules'][0]['device_type'] );
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // AC-OR-22 — origin_unavailable pages skipped (Task B3)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * A page whose status is 'origin_unavailable' must be skipped entirely —
+     * no entry in by_page (mirrors the 'error' skip at line 26).
+     */
+    public function test_build_skips_origin_unavailable_page(): void {
+        $pages = [ [ 'url' => 'https://x/', 'status' => 'origin_unavailable', 'assets' => [] ] ];
+        $output = ( new CuJsonBuilder() )->build( $pages );
+        $this->assertArrayNotHasKey( 0, $output['by_page'], 'origin_unavailable page must not appear in by_page tally' );
+        $this->assertCount( 0, $output['rules'], 'origin_unavailable page must not produce any rules' );
+    }
+
     /** Other cells unchanged across all flag combinations. */
     public function test_phase2a_other_cells_unchanged_across_flag_states(): void {
         // 'absent,absent' → safe-all (today + Phase 2a, all flag combos)
