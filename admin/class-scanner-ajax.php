@@ -445,6 +445,18 @@ class ScannerAjax {
     }
 
     /**
+     * Count pages that should be billed as credits.
+     * Excludes 'error' (scan error) and 'origin_unavailable' (origin down — page was skipped).
+     *
+     * @param array<int, array<string, mixed>> $pages_raw Per-page status rows from Railway.
+     * @return int Number of billable pages.
+     */
+    public static function billable_page_count( array $pages_raw ): int {
+        $skip = [ 'error', 'origin_unavailable' ];
+        return count( array_filter( $pages_raw, fn( $p ) => ! in_array( $p['status'] ?? '', $skip, true ) ) );
+    }
+
+    /**
      * Core truncation: 80-char cap, ellipsis on overflow. Shared by submit + reserve formatters.
      *
      * @param string $message Raw exception message.
@@ -574,7 +586,7 @@ class ScannerAjax {
 
         $safe_count = count( array_filter( $cu_json['rules'], fn($r) => $r['group_id'] === 1 ) );
         $agg_count  = count( array_filter( $cu_json['rules'], fn($r) => $r['group_id'] === 2 ) );
-        $completed_pages = count( array_filter( $pages_raw, fn($p) => ( $p['status'] ?? '' ) !== 'error' ) );
+        $completed_pages = self::billable_page_count( $pages_raw );
 
         $history = new ScanHistory();
         $history->store_json( $job_id, $json_str );

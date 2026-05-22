@@ -139,4 +139,14 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( 'Could not reserve credits: ' . $exact, $result );
         $this->assertStringEndsNotWith( '…', $result );
     }
+
+    public function test_billable_count_excludes_origin_unavailable(): void {
+        $pages = [
+            [ 'status' => 'done' ],
+            [ 'status' => 'done' ],
+            [ 'status' => 'origin_unavailable' ],   // skipped — must NOT bill
+            [ 'status' => 'error' ],                 // already excluded
+        ];
+        $this->assertSame( 2, ScannerAjax::billable_page_count( $pages ) );
+    }
 }
