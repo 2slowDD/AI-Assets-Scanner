@@ -158,7 +158,7 @@
         <div style="display:flex; gap:16px; margin-top:16px">
             <a id="cu-btn-download" class="button button-primary" href="#">Download CU Import File</a>
             <button id="cu-btn-push" class="button button-primary" style="display:none">Push to Code Unloader</button>
-            <button id="cu-btn-sync" class="button button-secondary" style="display:none">Sync with Code Unloader</button>
+            <button id="cu-btn-sync" class="button button-primary" style="display:none">Sync with Code Unloader</button>
             <a href="https://wpservice.pro/contact/" target="_blank" rel="noopener" class="button button-secondary cu-contact-btn" style="margin-left:auto">Found a bug? Get in touch</a>
         </div>
         <div id="cu-push-result" style="margin-top:12px"></div>
