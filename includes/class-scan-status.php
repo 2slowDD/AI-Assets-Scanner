@@ -13,7 +13,16 @@ class AIAS_Scan_Status {
 	 */
 	public static function classify( array $page ): array {
 		$status  = (string) ( $page['status'] ?? '' );
-		$credits = ( 'error' === $status ) ? 0 : 1;
+
+		if ( 'origin_unavailable' === $status ) {
+			return [
+				'class'   => 'skipped',
+				'label'   => __( 'Origin unavailable', 'ai-assets-scanner' ),
+				'credits' => 0,
+			];
+		}
+
+		$credits = ( 'error' === $status || 'origin_unavailable' === $status ) ? 0 : 1;
 
 		// Affected device = entry naming desktop/mobile with a NON-EMPTY reason
 		// (mirrors CuJsonBuilder::blocked_devices(); is_broken intentionally unused).
