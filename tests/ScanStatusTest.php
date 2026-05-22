@@ -37,6 +37,12 @@ final class ScanStatusTest extends TestCase {
         $r = AIAS_Scan_Status::classify( $this->page([ 'broken_devices' => [ [ 'device' => 'mobile', 'is_broken' => true, 'reason' => '' ] ] ]) );
         $this->assertSame( 'ok', $r['class'] );
     }
+    public function test_origin_unavailable_is_skipped_not_ok_and_zero_credits(): void {
+        $out = AIAS_Scan_Status::classify( [ 'url' => 'https://x/', 'status' => 'origin_unavailable' ] );
+        $this->assertSame( 'skipped', $out['class'] );
+        $this->assertSame( 0, $out['credits'] );
+        $this->assertStringContainsString( 'Origin unavailable', $out['label'] );
+    }
     public function test_build_pages_merges_status_and_tallies_by_index(): void {
         $pages_raw = [
             [ 'url' => 'https://x/a', 'status' => 'done',  'broken_devices' => [] ],
