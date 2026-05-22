@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.1 — 2026-05-22
+
+### Changed
+
+- **Menu completion badge now renders as a centered block below the "AI Assets Scanner" label** instead of floating right (the float wrapped and bled into the next menu row for the long label). It sits in normal flow, so the menu row grows to fit it cleanly.
+- **"Sync with Code Unloader" button restyled to match Download / Push** (`button-primary`, was `button-secondary`).
+
+---
+
 ## 1.7.0 — 2026-05-22
 
 ### Added — Origin-unavailable status (Railway scanner companion)
