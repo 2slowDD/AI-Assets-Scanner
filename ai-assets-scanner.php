@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AI Assets Scanner
  * Description: AI-powered CSS/JS asset scanner by WPservice.pro.
- * Version:     1.7.4
+ * Version:     1.7.8
  * Author:      WPservice.pro
  * Author URI:  https://wpservice.pro/
  * Requires PHP: 8.0
@@ -23,7 +23,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'CU_SCANNER_VERSION', '1.7.4' );
+define( 'CU_SCANNER_VERSION', '1.7.8' );
 define( 'CU_SCANNER_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CU_SCANNER_URL', plugin_dir_url( __FILE__ ) );
 define( 'CU_SCANNER_WPSERVICE_BASE', 'https://wpservice.pro' );
@@ -33,6 +33,8 @@ spl_autoload_register( function ( string $class ): void {
     $map = [
         'CUScanner\\Plugin'           => 'includes/class-plugin.php',
         'CUScanner\\Settings'         => 'includes/class-settings.php',
+        'CUScanner\\DomainNormalizer' => 'includes/class-domain-normalizer.php',
+        'CUScanner\\FreeKeyBootstrap' => 'includes/class-free-key-bootstrap.php',
         'CUScanner\\ScanHistory'      => 'includes/class-scan-history.php',
         'CUScanner\\Api\\WpserviceClient' => 'includes/api/class-wpservice-client.php',
         'CUScanner\\Api\\RailwayClient'   => 'includes/api/class-railway-client.php',
@@ -68,6 +70,25 @@ spl_autoload_register( function ( string $class ): void {
 } );
 
 add_action( 'rest_api_init', [ \CUScanner\Scanner\RestPreflight::class, 'register_routes' ] );
+
+register_activation_hook( __FILE__, function (): void {
+    ( new \CUScanner\FreeKeyBootstrap() )->run();
+} );
+
+add_action( 'admin_init', function (): void {
+    if ( ! current_user_can( 'manage_options' ) ) {
+        return;
+    }
+
+    $settings = new \CUScanner\Settings();
+    if ( '' === $settings->get_api_key() ) {
+        ( new \CUScanner\FreeKeyBootstrap( $settings ) )->run();
+    }
+} );
+
+add_action( 'cu_scanner_free_key_retry', function (): void {
+    ( new \CUScanner\FreeKeyBootstrap() )->run();
+} );
 
 add_action( 'plugins_loaded', function (): void {
     ( new CUScanner\Plugin() )->init();

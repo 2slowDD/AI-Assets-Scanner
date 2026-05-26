@@ -4,6 +4,40 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.8 — 2026-05-26
+
+### Fixed
+
+- **Private updater stale transient cleanup** — removes cached AAS update responses whose `new_version` is already installed, both while WordPress saves update checks and while the Plugins screen reads the existing update transient. This prevents same-version update notices from lingering after a successful update.
+
+---
+
+## 1.7.7 — 2026-05-26
+
+### Fixed
+
+- **Speed Analyzer sidebar copy** — references AI Assets Scanner instead of Code Unloader.
+- **Private updater checksum lookup** — validates stale same-version update packages against the raw manifest checksum, avoiding a misleading "checksum is missing" error when WordPress keeps an old update transient after a successful update.
+
+---
+
+## 1.7.6 — 2026-05-26
+
+### Added
+
+- **Speed Analyzer sidebar card** — adds the same "Measure Your Gains" Speed Analyzer promotion card used by Code Unloader, linking to the WordPress.org Speed Analyzer plugin page.
+
+---
+
+## 1.7.5 — 2026-05-26
+
+### Added
+
+- **Anonymous free API key bootstrap** — empty installs now request a normalized-domain `cusk_Freekey_N` from WPservice on activation, and after SFTP updates on first admin load. If WPservice is temporarily unreachable, the plugin stores `cusk_Freekey_?`, schedules a retry, and blocks scans with a pending-activation message.
+- **Free-key checkout context** — free keys now pass the normalized domain and key into the Buy Credits URL so checkout can convert the free key to a paid key without treating `www` and non-`www` as different sites.
+
+---
+
 ## 1.7.4 — 2026-05-26
 
 ### Changed

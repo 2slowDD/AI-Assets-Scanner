@@ -1,6 +1,8 @@
 <?php
 namespace CUScanner\Api;
 
+use CUScanner\DomainNormalizer;
+
 defined( 'ABSPATH' ) || exit;
 
 class WpserviceClient {
@@ -15,6 +17,14 @@ class WpserviceClient {
 
     public function get_credits(): array {
         return $this->get( '/cu-scanner/v1/credits', [ 'domain' => $this->domain() ] );
+    }
+
+    public function register_free_key( string $current_api_key = '' ): array {
+        return $this->post( '/cu-scanner/v1/free-key/register', [
+            'domain'          => $this->domain(),
+            'current_api_key' => $current_api_key,
+            'plugin_version'  => defined( 'CU_SCANNER_VERSION' ) ? CU_SCANNER_VERSION : '',
+        ] );
     }
 
     /**
@@ -50,7 +60,7 @@ class WpserviceClient {
     }
 
     private function domain(): string {
-        return wp_parse_url( get_home_url(), PHP_URL_HOST ) ?: '';
+        return DomainNormalizer::normalize_url( get_home_url() );
     }
 
     private function post( string $path, array $body ): array {

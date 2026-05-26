@@ -27,6 +27,9 @@
         </div>
     </div>
 
+    <div class="cu-scanner-layout">
+    <main class="cu-scanner-main">
+
     <!-- Step 1: Discovery & Filtering -->
     <div id="step-1" class="cu-step cu-step--active cu-body">
         <div id="cu-plugin-warnings"></div>
@@ -163,7 +166,22 @@
         </div>
         <div id="cu-push-result" style="margin-top:12px"></div>
         <p style="margin-top:16px"><a href="?page=cu-scanner">Run Another Scan</a></p>
-        <div id="cu-result-url-list"></div>
+    <div id="cu-result-url-list"></div>
+    </div>
+
+    </main>
+    <aside class="cu-admin-sidebar">
+        <div class="cu-sidebar-box cu-sidebar-box--cta">
+            <h3 class="cu-sidebar-heading">Measure Your Gains</h3>
+            <p class="cu-sidebar-text">Check by how much AI Assets Scanner improved your pages with our Speed Analyzer plugin.</p>
+            <a href="https://wordpress.org/plugins/speed-analyzer/" target="_blank" rel="noopener noreferrer" class="cu-sidebar-sa-link">
+                <img src="<?php echo esc_url( CU_SCANNER_URL . 'admin/images/iconSA-256x256.png' ); ?>" alt="Speed Analyzer" class="cu-sidebar-sa-icon">
+            </a>
+            <a href="https://wordpress.org/plugins/speed-analyzer/" target="_blank" rel="noopener noreferrer" class="button button-primary cu-sidebar-btn">
+                Get Speed Analyzer
+            </a>
+        </div>
+    </aside>
     </div>
 
 </div>

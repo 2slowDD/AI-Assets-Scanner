@@ -29,6 +29,44 @@ class Settings {
         update_option( 'cu_scanner_api_key', $key );
     }
 
+    public function is_free_key( string $key ): bool {
+        return (bool) preg_match( '/^cusk_Freekey_[1-9][0-9]*$/', $key );
+    }
+
+    public function is_pending_free_key( string $key ): bool {
+        return 'cusk_Freekey_?' === $key;
+    }
+
+    public function has_pending_free_key(): bool {
+        return $this->is_pending_free_key( $this->get_api_key() );
+    }
+
+    public function set_pending_free_key(): void {
+        $this->set_api_key( 'cusk_Freekey_?' );
+        update_option( 'cu_scanner_free_key_pending', '1', false );
+    }
+
+    public function clear_pending_free_key(): void {
+        delete_option( 'cu_scanner_free_key_pending' );
+    }
+
+    public function get_buy_credits_url( ?string $api_key = null ): string {
+        $api_key = $api_key ?? $this->get_api_key();
+        $base    = ( defined( 'CU_SCANNER_WPSERVICE_BASE' ) ? CU_SCANNER_WPSERVICE_BASE : 'https://wpservice.pro' )
+            . '/our-products/ai-assets-scanner/';
+
+        if ( ! $this->is_free_key( $api_key ) ) {
+            return $base . '#cu-pricing-inner';
+        }
+
+        $query = http_build_query( [
+            'cu_free_key' => $api_key,
+            'cu_domain'   => DomainNormalizer::normalize_url( get_home_url() ),
+        ] );
+
+        return $base . '?' . $query . '#cu-pricing-inner';
+    }
+
     public function get_railway_url(): string {
         return (string) get_option( 'cu_scanner_railway_url', '' );
     }
