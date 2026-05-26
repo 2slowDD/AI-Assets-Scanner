@@ -1,0 +1,22 @@
+{
+    "schema":  1,
+    "plugin":  "ai-assets-scanner",
+    "slug":  "ai-assets-scanner",
+    "name":  "AI Assets Scanner",
+    "channel":  "stable",
+    "published":  true,
+    "version":  "1.7.3",
+    "requires_wp":  "6.2",
+    "tested_wp":  "7.0",
+    "requires_php":  "8.0",
+    "requires_code_unloader":  "1.4.4",
+    "download_url":  "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.3/ai-assets-scanner.zip",
+    "sha256":  "680687a5c24519da70dc2b4eade4230f1b9d94b79df4d9af7e74d8b1e70401ad",
+    "signature":  "",
+    "released_at":  "2026-05-26T00:00:00Z",
+    "changelog_url":  "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.3/changelog.html",
+    "sections":  {
+                     "description":  "AI-powered CSS/JS asset scanner for WordPress.",
+                     "changelog":  "Version 1.7.3 cleans up README feature copy, removes inaccurate rating/review metadata, uses the AAS logo in WordPress update screens, and ships a ZIP with WordPress-compatible path separators and the ai-assets-scanner root folder."
+                 }
+}

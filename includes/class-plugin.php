@@ -8,9 +8,12 @@ use CUScanner\Scanner\BypassHandler;
 use CUScanner\Admin\AdminPages;
 use CUScanner\Admin\SettingsAjax;
 use CUScanner\Admin\ScannerAjax;
+use CUScanner\Admin\PrivateUpdater;
 
 class Plugin {
     public function init(): void {
+        ( new PrivateUpdater( plugin_basename( CU_SCANNER_DIR . 'ai-assets-scanner.php' ), CU_SCANNER_VERSION ) )->register();
+
         if ( is_admin() ) {
             ( new AdminPages() )->register();
             ( new SettingsAjax() )->register();

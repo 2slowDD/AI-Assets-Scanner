@@ -4,6 +4,24 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.3 — 2026-05-26
+
+### Changed
+
+- **README feature list cleanup** removes older/superseded implementation-detail bullets and support/UI entries that no longer belong in the top-level feature list.
+- **Plugin dashboard metadata cleanup** removes the rating and review count from the AAS plugin row until accurate public review data exists.
+
+---
+
+## 1.7.2 — 2026-05-26
+
+### Added
+
+- **Private update channel support** for `updates.wpservice.pro`, including WordPress update metadata, plugin details metadata, and SHA256 package verification before update installation.
+- **Plugin dashboard metadata row** now matches the private-plugin information style used by Code Unloader, including View details, updated date, rating/review summary, requirements, tested-up-to value, and status.
+
+---
+
 ## 1.7.1 — 2026-05-22
 
 ### Changed
