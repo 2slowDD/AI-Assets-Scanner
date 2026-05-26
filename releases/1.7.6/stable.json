@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.6",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.6/ai-assets-scanner.zip",
+  "sha256": "cca68a35431a95393e758ccf24130a73db8551bac40f98d28c28a5a064884d3a",
+  "signature": "",
+  "released_at": "2026-05-26T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.6/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.6 adds the Speed Analyzer Measure Your Gains sidebar card, linking to the WordPress.org Speed Analyzer plugin page."
+  }
+}

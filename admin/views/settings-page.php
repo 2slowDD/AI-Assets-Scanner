@@ -25,6 +25,7 @@
         // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template file included within a class method; variables are local to method scope, not global.
         $settings  = new CUScanner\Settings();
         $api_key   = $settings->get_api_key();
+        $buy_url   = $settings->get_buy_credits_url( $api_key );
         $len       = mb_strlen( $api_key );
         $masked    = ( $len > 12 )
             ? mb_substr( $api_key, 0, 6 ) . str_repeat( '•', $len - 12 ) . mb_substr( $api_key, -6 )
@@ -45,6 +46,9 @@
                                autocomplete="off"
                                class="regular-text" placeholder="cusk_..." />
                         <p class="description">Get your API key from <a href="https://wpservice.pro" target="_blank">wpservice.pro</a></p>
+                        <?php if ( $settings->is_pending_free_key( $api_key ) ) : ?>
+                            <p class="description">Free API key activation is pending. Please try again later.</p>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <tr>
@@ -68,7 +72,7 @@
                                 </svg>
                                 Refresh
                             </button>
-                            <a href="https://wpservice.pro/our-products/ai-assets-scanner/#cu-pricing-inner" target="_blank" class="button button-primary cu-balance-btn">+ Buy Credits</a>
+                            <a href="<?php echo esc_url( $buy_url ); ?>" target="_blank" class="button button-primary cu-balance-btn">+ Buy Credits</a>
                         </div>
                     </td>
                 </tr>

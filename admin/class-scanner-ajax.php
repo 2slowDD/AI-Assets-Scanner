@@ -118,6 +118,10 @@ class ScannerAjax {
         $settings   = $this->settings();
         $page_count = absint( $_POST['page_count'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
         if ( $page_count < 1 ) { wp_send_json_error( 'Invalid page count' ); return; }
+        if ( $settings->has_pending_free_key() ) {
+            wp_send_json_error( 'Free API key activation is pending. Please try again later.' );
+            return;
+        }
         try {
             $client = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $settings->get_api_key() );
             $result = $client->reserve_job( $page_count );

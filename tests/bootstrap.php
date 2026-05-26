@@ -39,6 +39,8 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Admin\\ScannerAjax'        => 'admin/class-scanner-ajax.php',
         'CUScanner\\Plugin'                   => 'includes/class-plugin.php',
         'CUScanner\\Settings'                 => 'includes/class-settings.php',
+        'CUScanner\\DomainNormalizer'         => 'includes/class-domain-normalizer.php',
+        'CUScanner\\FreeKeyBootstrap'         => 'includes/class-free-key-bootstrap.php',
         'CUScanner\\ScanHistory'              => 'includes/class-scan-history.php',
         'CUScanner\\Api\\WpserviceClient'     => 'includes/api/class-wpservice-client.php',
         'CUScanner\\Api\\RailwayClient'       => 'includes/api/class-railway-client.php',

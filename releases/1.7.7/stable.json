@@ -1,0 +1,22 @@
+{
+    "schema":  1,
+    "plugin":  "ai-assets-scanner",
+    "slug":  "ai-assets-scanner",
+    "name":  "AI Assets Scanner",
+    "channel":  "stable",
+    "published":  true,
+    "version":  "1.7.7",
+    "requires_wp":  "6.2",
+    "tested_wp":  "7.0",
+    "requires_php":  "8.0",
+    "requires_code_unloader":  "1.4.4",
+    "download_url":  "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.7/ai-assets-scanner.zip",
+    "sha256":  "3507cdf21376de10cbb2ef4acb7ce6c745660def04d6a2b25f926f0e3240fcf7",
+    "signature":  "",
+    "released_at":  "2026-05-26T00:00:00Z",
+    "changelog_url":  "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.7/changelog.html",
+    "sections":  {
+                     "description":  "AI-powered CSS/JS asset scanner for WordPress.",
+                     "changelog":  "Version 1.7.7 corrects the Speed Analyzer sidebar copy and improves checksum validation for stale same-version WordPress update transients."
+                 }
+}

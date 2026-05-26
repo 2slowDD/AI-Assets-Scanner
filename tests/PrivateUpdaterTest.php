@@ -61,6 +61,45 @@ class PrivateUpdaterTest extends TestCase {
         $this->assertArrayNotHasKey( self::PLUGIN_FILE, $result->response );
     }
 
+    public function test_update_check_removes_stale_same_version_response(): void {
+        PrivateUpdater::set_manifest_for_testing( [
+            'published'    => true,
+            'version'      => '1.7.7',
+            'download_url' => 'https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.7/ai-assets-scanner.zip',
+            'sha256'       => str_repeat( 'e', 64 ),
+        ] );
+
+        $updater   = new PrivateUpdater( self::PLUGIN_FILE, '1.7.7' );
+        $transient = (object) [
+            'response' => [
+                self::PLUGIN_FILE => (object) [
+                    'new_version' => '1.7.7',
+                    'package'     => 'https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.7/ai-assets-scanner.zip',
+                ],
+            ],
+        ];
+
+        $result = $updater->filter_update_transient( $transient );
+
+        $this->assertArrayNotHasKey( self::PLUGIN_FILE, $result->response );
+    }
+
+    public function test_existing_update_transient_removes_stale_same_version_response_without_manifest_fetch(): void {
+        $updater   = new PrivateUpdater( self::PLUGIN_FILE, '1.7.7' );
+        $transient = (object) [
+            'response' => [
+                self::PLUGIN_FILE => (object) [
+                    'new_version' => '1.7.7',
+                    'package'     => 'https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.7/ai-assets-scanner.zip',
+                ],
+            ],
+        ];
+
+        $result = $updater->filter_existing_update_transient( $transient );
+
+        $this->assertArrayNotHasKey( self::PLUGIN_FILE, $result->response );
+    }
+
     public function test_row_meta_matches_private_plugin_dashboard_information(): void {
         $updater = new PrivateUpdater( self::PLUGIN_FILE, '1.7.3' );
         WP_Mock::userFunction( 'esc_url' )->andReturnUsing( fn( $value ) => htmlspecialchars( $value, ENT_QUOTES ) );
@@ -118,5 +157,35 @@ class PrivateUpdaterTest extends TestCase {
         $this->assertInstanceOf( \WP_Error::class, $result );
         $this->assertSame( 'aias_checksum_mismatch', $result->get_error_code() );
         $this->assertFileDoesNotExist( $tmp );
+    }
+
+    public function test_checksum_validation_allows_stale_same_version_update_transient(): void {
+        $package_body = 'official-package';
+        $expected_sha = hash( 'sha256', $package_body );
+
+        PrivateUpdater::set_manifest_for_testing( [
+            'published'    => true,
+            'version'      => '1.7.6',
+            'download_url' => 'https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.6/ai-assets-scanner.zip',
+            'sha256'       => $expected_sha,
+        ] );
+
+        $tmp = tempnam( sys_get_temp_dir(), 'aas-package-' );
+        file_put_contents( $tmp, $package_body );
+
+        WP_Mock::userFunction( 'download_url' )->andReturn( $tmp );
+
+        $updater = new PrivateUpdater( self::PLUGIN_FILE, '1.7.6' );
+        $result  = $updater->filter_pre_download(
+            false,
+            'https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.6/ai-assets-scanner.zip',
+            null,
+            [ 'plugin' => self::PLUGIN_FILE ]
+        );
+
+        $this->assertSame( $tmp, $result );
+        $this->assertFileExists( $tmp );
+
+        unlink( $tmp );
     }
 }

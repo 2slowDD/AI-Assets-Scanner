@@ -28,6 +28,7 @@ class PrivateUpdater {
 
     public function register(): void {
         add_filter( 'pre_set_site_transient_update_plugins', [ $this, 'filter_update_transient' ] );
+        add_filter( 'site_transient_update_plugins', [ $this, 'filter_existing_update_transient' ] );
         add_filter( 'plugins_api', [ $this, 'filter_plugin_information' ], 10, 3 );
         add_filter( 'plugin_row_meta', [ $this, 'filter_plugin_row_meta' ], 10, 2 );
         add_filter( 'upgrader_pre_download', [ $this, 'filter_pre_download' ], 10, 4 );
@@ -40,6 +41,7 @@ class PrivateUpdater {
         if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
             $transient->response = [];
         }
+        $this->remove_stale_response( $transient );
 
         $manifest = $this->get_publishable_manifest();
         if ( null === $manifest ) {
@@ -48,6 +50,13 @@ class PrivateUpdater {
 
         $transient->response[ $this->plugin_file ] = $this->build_update_object( $manifest );
         return $transient;
+    }
+
+    public function filter_existing_update_transient( mixed $transient ): mixed {
+        if ( ! is_object( $transient ) ) {
+            return $transient;
+        }
+        return $this->remove_stale_response( $transient );
     }
 
     public function filter_plugin_information( mixed $result, string $action, object $args ): mixed {
@@ -144,6 +153,22 @@ class PrivateUpdater {
         return $manifest;
     }
 
+    private function remove_stale_response( object $transient ): object {
+        if ( ! isset( $transient->response ) || ! is_array( $transient->response ) ) {
+            return $transient;
+        }
+        if ( ! isset( $transient->response[ $this->plugin_file ] ) || ! is_object( $transient->response[ $this->plugin_file ] ) ) {
+            return $transient;
+        }
+
+        $new_version = $transient->response[ $this->plugin_file ]->new_version ?? null;
+        if ( is_string( $new_version ) && ! version_compare( $new_version, $this->current_version, '>' ) ) {
+            unset( $transient->response[ $this->plugin_file ] );
+        }
+
+        return $transient;
+    }
+
     private function get_manifest(): ?array {
         if ( null !== self::$manifest_for_testing ) {
             return self::$manifest_for_testing;
@@ -204,8 +229,15 @@ class PrivateUpdater {
     }
 
     private function expected_checksum_for_package( string $package ): string {
-        $manifest = $this->get_publishable_manifest();
-        if ( null === $manifest || (string) $manifest['download_url'] !== $package ) {
+        $manifest = $this->get_manifest();
+        if (
+            null === $manifest
+            || empty( $manifest['published'] )
+            || empty( $manifest['download_url'] )
+            || (string) $manifest['download_url'] !== $package
+            || empty( $manifest['sha256'] )
+            || ! $this->is_valid_sha256( (string) $manifest['sha256'] )
+        ) {
             return '';
         }
         return strtolower( (string) $manifest['sha256'] );

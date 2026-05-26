@@ -53,6 +53,12 @@ class SettingsAjax {
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Forbidden', 403 );
 
         $settings = new Settings();
+        if ( $settings->has_pending_free_key() ) {
+            ( new \CUScanner\FreeKeyBootstrap() )->run();
+            if ( $settings->has_pending_free_key() ) {
+                wp_send_json_error( 'Free API key activation is pending. Please try again later.' );
+            }
+        }
         try {
             $client  = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $settings->get_api_key() );
             $balance = $client->get_credits();
