@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.4 — 2026-05-26
+
+### Changed
+
+- **Bot-block / rate-limit / error warning copy on the scan-results banner** — "The mobile rules…" replaced with "The rules from the unblocked device…" so the phrasing is correct regardless of which device was actually blocked. Surfaced when an operator scan blocked **mobile** on `flyingpress.com` (the previous wording assumed desktop was always the blocked device). No behavior change. PHP banner (`includes/class-broken-banner.php` — 3 strings) + admin JS (`admin/js/scanner.js` — 3 strings) both updated; translation domains preserved, `esc_html__` wrappers preserved.
+
+---
+
 ## 1.7.3 — 2026-05-26
 
 ### Changed
