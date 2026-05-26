@@ -2,9 +2,12 @@
 /**
  * Plugin Name: AI Assets Scanner
  * Description: AI-powered CSS/JS asset scanner by WPservice.pro.
- * Version:     1.7.1
+ * Version:     1.7.3
+ * Author:      WPservice.pro
+ * Author URI:  https://wpservice.pro/
  * Requires PHP: 8.0
  * Requires at least: 6.2
+ * Tested up to: 7.0
  * Text Domain: AI-Assets-Scanner
  * License:     Proprietary source-available
  */
@@ -20,7 +23,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'CU_SCANNER_VERSION', '1.7.1' );
+define( 'CU_SCANNER_VERSION', '1.7.3' );
 define( 'CU_SCANNER_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CU_SCANNER_URL', plugin_dir_url( __FILE__ ) );
 define( 'CU_SCANNER_WPSERVICE_BASE', 'https://wpservice.pro' );
@@ -53,6 +56,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Admin\\AdminPages'        => 'admin/class-admin-pages.php',
         'CUScanner\\Admin\\SettingsAjax'      => 'admin/class-settings-ajax.php',
         'CUScanner\\Admin\\ScannerAjax'       => 'admin/class-scanner-ajax.php',
+        'CUScanner\\Admin\\PrivateUpdater'    => 'includes/admin/class-private-updater.php',
         'CUScanner\\Scanner\\RestPreflight'       => 'includes/scanner/class-rest-preflight.php',
         'CUScanner\\Admin\\OptimizerStateNotices' => 'includes/admin/class-optimizer-state-notices.php',
         'AIAS_Broken_Banner'                     => 'includes/class-broken-banner.php',

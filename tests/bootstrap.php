@@ -5,6 +5,7 @@ define( 'ABSPATH', '/fake/wp/' );
 define( 'WP_PLUGIN_DIR', '/fake/wp/wp-content/plugins' );
 define( 'CU_SCANNER_DIR', dirname( __DIR__ ) . '/' );
 define( 'CU_SCANNER_VERSION', '1.0.0' );
+define( 'CU_SCANNER_URL', 'https://example.test/wp-content/plugins/ai-assets-scanner/' );
 define( 'CU_SCANNER_WPSERVICE_URL', 'https://api.wpservice.pro' );
 defined( 'HOUR_IN_SECONDS' ) || define( 'HOUR_IN_SECONDS', 3600 );
 
@@ -60,6 +61,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\Strategies\\HummingbirdBypass'        => 'includes/scanner/strategies/class-hummingbird-bypass.php',
         'CUScanner\\Scanner\\RestPreflight'       => 'includes/scanner/class-rest-preflight.php',
         'CUScanner\\Admin\\OptimizerStateNotices' => 'includes/admin/class-optimizer-state-notices.php',
+        'CUScanner\\Admin\\PrivateUpdater'        => 'includes/admin/class-private-updater.php',
         'AIAS_Broken_Banner'                     => 'includes/class-broken-banner.php',
         'AIAS_Scan_Status'                       => 'includes/class-scan-status.php',
     ];
