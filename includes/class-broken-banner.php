@@ -137,20 +137,20 @@ class AIAS_Broken_Banner {
 		if ( count( $categories ) === 1 ) {
 			if ( $categories[0] === 'rate' ) {
 				return esc_html__(
-					'Your server rate-limited the scanner. The mobile rules (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.',
+					'Your server rate-limited the scanner. The rules from the unblocked device (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.',
 					'ai-assets-scanner'
 				);
 			}
 			if ( $categories[0] === 'error' ) {
 				return esc_html__(
-					'Your server returned an error or didn\'t respond. The mobile rules (if any) are complete and safe to apply. Try again later, or check site health.',
+					'Your server returned an error or didn\'t respond. The rules from the unblocked device (if any) are complete and safe to apply. Try again later, or check site health.',
 					'ai-assets-scanner'
 				);
 			}
 		}
 
 		return esc_html__(
-			'Your bot protection denied the scanner. The mobile rules are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.',
+			'Your bot protection denied the scanner. The rules from the unblocked device are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.',
 			'ai-assets-scanner'
 		);
 	}
