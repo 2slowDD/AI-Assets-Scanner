@@ -1288,11 +1288,11 @@
         const categories = [...new Set( Object.keys(reasons).map(reasonCategory) )];
         let action;
         if ( categories.length === 1 && categories[0] === 'rate' ) {
-            action = 'Your server rate-limited the scanner. The mobile rules (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.';
+            action = 'Your server rate-limited the scanner. The rules from the unblocked device (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.';
         } else if ( categories.length === 1 && categories[0] === 'error' ) {
-            action = 'Your server returned an error or didn\'t respond. The mobile rules (if any) are complete and safe to apply. Try again later, or check site health.';
+            action = 'Your server returned an error or didn\'t respond. The rules from the unblocked device (if any) are complete and safe to apply. Try again later, or check site health.';
         } else {
-            action = 'Your bot protection denied the scanner. The mobile rules are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.';
+            action = 'Your bot protection denied the scanner. The rules from the unblocked device are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.';
         }
 
         const copy = bits.map(esc).join(' ') + reasonClause + ' ' + esc(action);
