@@ -8,11 +8,11 @@ class PluginDetector {
     private const AUTO_BYPASS = [
         'wp-rocket/wp-rocket.php'     => [ 'WP Rocket',   [ 'nowprocket' ] ],
         'autoptimize/autoptimize.php' => [ 'Autoptimize', [ 'ao_noptimize=1' ] ],
+        'litespeed-cache/litespeed-cache.php' => [ 'LiteSpeed Cache', [ 'LSCWP_CTRL=before_optm' ] ],
     ];
 
     private const SOFT_BLOCK = [
         'nitropack/nitropack.php'                                    => [ 'NitroPack',       'Delays JS loading and strips CSS server-side. Disable optimization features before scanning.' ],
-        'litespeed-cache/litespeed-cache.php'                        => [ 'LiteSpeed Cache', 'CSS/JS optimization active. Disable minification in LiteSpeed settings before scanning.' ],
         'hummingbird-performance/wp-hummingbird.php'                 => [ 'Hummingbird',     'Asset optimization active. Disable before scanning.' ],
         'w3-total-cache/w3-total-cache.php'                          => [ 'W3 Total Cache',  'Minification may be active. Disable JS/CSS minification before scanning.' ],
         'swift-performance-lite/swift-performance-lite.php'          => [ 'Swift Performance', 'Asset optimization active. Disable before scanning.' ],

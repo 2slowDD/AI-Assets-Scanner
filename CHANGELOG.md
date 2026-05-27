@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.10 — 2026-05-27
+
+### Fixed
+
+- **LiteSpeed Cache scan warning** — treats LiteSpeed Cache as an automatic bypass via `LSCWP_CTRL=before_optm` instead of requiring the operator to confirm a minification warning. The scan URL already runs before LiteSpeed optimization, so the warning checkbox is no longer shown for LiteSpeed-only cases.
+
+---
+
 ## 1.7.9 — 2026-05-27
 
 ### Fixed
