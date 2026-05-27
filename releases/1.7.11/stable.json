@@ -1,0 +1,22 @@
+{
+    "schema":  1,
+    "plugin":  "ai-assets-scanner",
+    "slug":  "ai-assets-scanner",
+    "name":  "AI Assets Scanner",
+    "channel":  "stable",
+    "published":  true,
+    "version":  "1.7.11",
+    "requires_wp":  "6.2",
+    "tested_wp":  "7.0",
+    "requires_php":  "8.0",
+    "requires_code_unloader":  "1.4.4",
+    "download_url":  "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.11/ai-assets-scanner.zip",
+    "sha256":  "a09226beb2e4f8d3c8b9ddfbe87790aa23885faedf76b1defc38642e07e79bb5",
+    "signature":  "",
+    "released_at":  "2026-05-27T00:00:00Z",
+    "changelog_url":  "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.11/changelog.html",
+    "sections":  {
+                     "description":  "AI-powered CSS/JS asset scanner for WordPress.",
+                     "changelog":  "Version 1.7.11 preserves an existing saved API key across plugin deletion and reinstall, while keeping free-key auto-registration for truly empty first-time installs."
+                 }
+}

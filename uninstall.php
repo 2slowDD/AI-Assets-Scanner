@@ -3,10 +3,10 @@
  * Uninstall handler — removes plugin options and transients on plugin deletion.
  *
  * Triggered by WordPress when the user deletes the plugin from the Plugins
- * screen. Removes every `cu_scanner_*` option (the encrypted HTTP-auth blob,
- * plaintext API key, scanner secret, active bypass tokens, scan history, and
- * per-job snapshot options) plus any plugin-prefixed transients still in the
- * options table.
+ * screen. Preserves the saved API key so reinstalling the plugin can resume an
+ * existing active key instead of auto-registering a different free key. Removes
+ * other plugin options and any plugin-prefixed transients still in the options
+ * table.
  *
  * File-scope variables use the `ai_assets_scanner_` plugin prefix (derived
  * from the plugin Text Domain `AI-Assets-Scanner`) even though the option
@@ -22,7 +22,6 @@ if ( ! current_user_can( 'delete_plugins' ) ) {
 }
 
 $ai_assets_scanner_fixed_options = array(
-	'cu_scanner_api_key',
 	'cu_scanner_railway_url',
 	'cu_scanner_http_auth',
 	'cu_scanner_active_tokens',
