@@ -29,6 +29,17 @@ class PluginDetectorTest extends TestCase {
         $this->assertArrayHasKey( 'autoptimize', $result['auto_bypass'] );
     }
 
+    public function test_litespeed_is_auto_bypassed_without_soft_block(): void {
+        WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'litespeed-cache/litespeed-cache.php' )->andReturn( true );
+        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
+
+        $result = ( new PluginDetector() )->detect();
+        $this->assertArrayHasKey( 'litespeed-cache', $result['auto_bypass'] );
+        $this->assertContains( 'LSCWP_CTRL=before_optm', $result['auto_bypass']['litespeed-cache'] );
+        $this->assertArrayNotHasKey( 'LiteSpeed Cache', $result['soft_block'] );
+    }
+
     public function test_detects_nitropack_as_soft_block(): void {
         WP_Mock::userFunction( 'is_plugin_active' )
             ->with( 'nitropack/nitropack.php' )->andReturn( true );
