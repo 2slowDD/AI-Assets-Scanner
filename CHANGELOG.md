@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.11 — 2026-05-27
+
+### Fixed
+
+- **API key persistence across reinstall** — plugin uninstall now preserves the saved `cu_scanner_api_key`, so an existing active key is reused after reinstall. Truly empty first-time installs still auto-register the next free API key.
+
+---
+
 ## 1.7.10 — 2026-05-27
 
 ### Fixed
