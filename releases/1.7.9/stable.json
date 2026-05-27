@@ -1,0 +1,22 @@
+{
+    "schema":  1,
+    "plugin":  "ai-assets-scanner",
+    "slug":  "ai-assets-scanner",
+    "name":  "AI Assets Scanner",
+    "channel":  "stable",
+    "published":  true,
+    "version":  "1.7.9",
+    "requires_wp":  "6.2",
+    "tested_wp":  "7.0",
+    "requires_php":  "8.0",
+    "requires_code_unloader":  "1.4.4",
+    "download_url":  "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.9/ai-assets-scanner.zip",
+    "sha256":  "e7505795139d93dd6ded6b1a4a64d88389ae7340f3d5d196bee2a84d2d6c9844",
+    "signature":  "",
+    "released_at":  "2026-05-27T00:00:00Z",
+    "changelog_url":  "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.9/changelog.html",
+    "sections":  {
+                     "description":  "AI-powered CSS/JS asset scanner for WordPress.",
+                     "changelog":  "Version 1.7.9 fixes fresh free-key installs by caching and self-healing the Railway worker URL before scan reservation."
+                 }
+}

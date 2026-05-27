@@ -94,6 +94,75 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( 42, $captured['balance'] );
     }
 
+    public function test_reserve_job_hydrates_missing_railway_url_before_reserving(): void {
+        $this->mockCheck();
+        $_POST['page_count'] = '1';
+
+        WP_Mock::userFunction( 'absint' )->andReturnUsing( function ( $value ) {
+            return max( 0, (int) $value );
+        } );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_api_key', '' )
+            ->andReturn( 'cusk_Freekey_10' );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_railway_url', '' )
+            ->andReturn( '' );
+        WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://www.example.com' );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( string $url, ?int $component = null ) {
+            $parts = parse_url( $url );
+            if ( null === $component ) {
+                return $parts;
+            }
+            $map = [
+                PHP_URL_SCHEME => 'scheme',
+                PHP_URL_HOST   => 'host',
+                PHP_URL_PORT   => 'port',
+                PHP_URL_USER   => 'user',
+                PHP_URL_PASS   => 'pass',
+            ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'wp_remote_post' )->andReturnUsing( function ( string $url ) {
+            if ( str_contains( $url, '/cu-scanner/v1/auth' ) ) {
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'body'     => '{"railway_url":"https://cu-scanner-railway-production.up.railway.app","balance":3}',
+                ];
+            }
+            if ( str_contains( $url, '/cu-scanner/v1/jobs/reserve' ) ) {
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'body'     => '{"job_token":"plain-token","balance_after":2}',
+                ];
+            }
+            return [ 'response' => [ 'code' => 404 ], 'body' => '{"message":"not found"}' ];
+        } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( array $response ) {
+            return (int) ( $response['response']['code'] ?? 0 );
+        } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( array $response ) {
+            return (string) ( $response['body'] ?? '' );
+        } );
+        WP_Mock::userFunction( 'update_option' )
+            ->with( 'cu_scanner_railway_url', 'https://cu-scanner-railway-production.up.railway.app' )
+            ->once();
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 11 );
+        WP_Mock::userFunction( 'set_transient' )
+            ->with( 'cu_scanner_pending_token_11', 'plain-token', 3600 )
+            ->once();
+
+        $captured = null;
+        WP_Mock::userFunction( 'wp_send_json_success' )
+            ->once()
+            ->andReturnUsing( function ( $data ) use ( &$captured ) { $captured = $data; } );
+
+        ( new ScannerAjax() )->reserve_job();
+
+        unset( $_POST['page_count'] );
+        $this->assertConditionsMet();
+        $this->assertSame( [ 'reserved' => true, 'job_token' => 'plain-token' ], $captured );
+    }
+
     public function test_format_submit_error_detail_short_message_is_untruncated(): void {
         $result = ScannerAjax::format_submit_error_detail( 'Railway HTTP 401: no such token' );
         $this->assertSame( 'Scan submission failed: Railway HTTP 401: no such token', $result );

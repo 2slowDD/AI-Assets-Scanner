@@ -49,6 +49,36 @@ class ScannerAjax {
 
     private function settings(): Settings { return new Settings(); }
 
+    private function ensure_railway_url( Settings $settings, string $api_key ): string {
+        $railway_url = $settings->get_railway_url();
+        if ( Settings::is_safe_railway_url( $railway_url ) ) {
+            return $railway_url;
+        }
+
+        if ( '' === $api_key || $settings->is_pending_free_key( $api_key ) ) {
+            return '';
+        }
+
+        $auth        = ( new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key ) )->authenticate();
+        $railway_url = (string) ( $auth['railway_url'] ?? '' );
+        if ( '' === $railway_url ) {
+            throw new \RuntimeException( 'SaaS auth response did not include Railway URL.' );
+        }
+
+        $settings->set_railway_url( $railway_url );
+        return $railway_url;
+    }
+
+    private function release_reserved_job( string $api_key, string $job_token ): void {
+        if ( '' === $api_key || '' === $job_token ) {
+            return;
+        }
+
+        try {
+            ( new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key ) )->release_credits( $job_token );
+        } catch ( \RuntimeException ) {}
+    }
+
     public function detect_plugins(): void {
         $this->check();
         $plugins = ( new PluginDetector() )->detect();
@@ -123,7 +153,9 @@ class ScannerAjax {
             return;
         }
         try {
-            $client = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $settings->get_api_key() );
+            $api_key = $settings->get_api_key();
+            $this->ensure_railway_url( $settings, $api_key );
+            $client = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key );
             $result = $client->reserve_job( $page_count );
             set_transient( 'cu_scanner_pending_token_' . get_current_user_id(), $result['job_token'], 3600 );
             wp_send_json_success( [ 'reserved' => true, 'job_token' => $result['job_token'] ] );
@@ -141,13 +173,34 @@ class ScannerAjax {
         \AIAS_Broken_Banner::on_submit_job();
 
         $settings    = $this->settings();
-        $railway_url = $settings->get_railway_url();
         $api_key     = $settings->get_api_key();
         $job_token   = sanitize_text_field( wp_unslash( $_POST['job_token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
         $urls_raw    = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['urls'] ?? [] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
 
-        if ( ! $railway_url || ! $job_token || empty( $urls_raw ) ) {
-            wp_send_json_error( 'Missing required fields' ); return;
+        try {
+            $railway_url = $this->ensure_railway_url( $settings, $api_key );
+        } catch ( \RuntimeException $e ) {
+            $this->release_reserved_job( $api_key, $job_token );
+            error_log( '[AI Assets Scanner] submit_job railway_url: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: no secrets, only auth/allowlist failure detail for diagnosis.
+            wp_send_json_error( self::format_submit_error_detail( $e->getMessage() ) );
+            return;
+        }
+
+        $missing = [];
+        if ( ! $railway_url ) {
+            $missing[] = 'railway_url';
+        }
+        if ( ! $job_token ) {
+            $missing[] = 'job_token';
+        }
+        if ( empty( $urls_raw ) ) {
+            $missing[] = 'urls';
+        }
+        if ( $missing ) {
+            $this->release_reserved_job( $api_key, $job_token );
+            error_log( '[AI Assets Scanner] submit_job missing required fields: ' . implode( ',', $missing ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: field names only, no credentials or URLs.
+            wp_send_json_error( 'Missing required fields: ' . implode( ', ', $missing ) );
+            return;
         }
 
         // Detect plugins, build bypass params
@@ -406,9 +459,7 @@ class ScannerAjax {
             ] );
         } catch ( \RuntimeException $e ) {
             $bypass->delete_all_tokens();
-            try {
-                ( new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key ) )->release_credits( $job_token );
-            } catch ( \RuntimeException ) {}
+            $this->release_reserved_job( $api_key, $job_token );
             error_log( '[AI Assets Scanner] submit_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: full exception detail to server log; truncated user-visible detail via format_submit_error_detail().
             wp_send_json_error( self::format_submit_error_detail( $e->getMessage() ) );
         }

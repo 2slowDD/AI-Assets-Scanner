@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.9 — 2026-05-27
+
+### Fixed
+
+- **Free-key fresh-install scan start** — anonymous free-key activation now also caches the Railway worker URL returned by WPservice auth, and the scan start flow self-heals a missing cached Railway URL before reserving credits. If submit validation still fails after a reservation, AAS releases the reserved SaaS job token instead of leaving a stuck running job with no Railway heartbeat.
+
+---
+
 ## 1.7.8 — 2026-05-26
 
 ### Fixed

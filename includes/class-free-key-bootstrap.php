@@ -35,6 +35,11 @@ class FreeKeyBootstrap {
             if ( $this->settings->is_free_key( $api_key ) ) {
                 $this->settings->set_api_key( $api_key );
                 $this->settings->clear_pending_free_key();
+                try {
+                    $this->cache_railway_url( $api_key );
+                } catch ( \RuntimeException $e ) {
+                    self::schedule_retry();
+                }
             }
         } catch ( \RuntimeException $e ) {
             if ( '' === $current ) {
@@ -56,5 +61,19 @@ class FreeKeyBootstrap {
         }
         return new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $current_key );
     }
-}
 
+    private function cache_railway_url( string $api_key ): void {
+        $client = $this->make_client( $api_key );
+        if ( ! method_exists( $client, 'authenticate' ) ) {
+            return;
+        }
+
+        $auth        = $client->authenticate();
+        $railway_url = (string) ( $auth['railway_url'] ?? '' );
+        if ( '' === $railway_url ) {
+            throw new \RuntimeException( 'SaaS auth response did not include Railway URL.' );
+        }
+
+        $this->settings->set_railway_url( $railway_url );
+    }
+}
