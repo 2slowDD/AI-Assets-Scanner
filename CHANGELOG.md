@@ -4,6 +4,17 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.14 — 2026-05-30
+
+### Changed
+
+- **"ET candidate" column tooltip is now discoverable + instant** — a "?" help marker beside the header opens a styled tooltip on hover/focus, replacing the undiscoverable, ~1s-delayed native browser title.
+- **Top "Run Another Scan" hidden on short result lists** — when fewer than 10 URLs were scanned, only the bottom "Run Another Scan" shows; the top button's space is reserved (`visibility:hidden`) so the layout does not shift (no CLS).
+
+UI only — no scan-behavior, credit, or rule-output change. Touched: `admin/js/scanner.js`, `admin/css/ai-assets-scanner-admin.css`.
+
+---
+
 ## 1.7.13 — 2026-05-30
 
 ### Changed
