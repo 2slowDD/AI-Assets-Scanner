@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.12 — 2026-05-30
+
+### Added
+
+- **"ET-candidate" column in the Step-4 results table** — a new rightmost flag column (`yes` / `—`) marking pages whose rule yield was cut short by the scan's probe time budget (a `deadline_bail` occurred) **and** that scanned cleanly on both devices. Surfaces the pages whose safe/aggressive results could improve with more probe time — a visibility aid only; it changes nothing about which rules ship. The flag reads a new per-page `deadline_bail_count` field from the scanner result, using an `ok`-only allowlist (`partial` / `error` / `blocked` / `skipped` pages never flag — bot/WAF-blocked pages are excluded by design). Touched: `includes/class-scan-status.php` (flag computed in `build_pages()`), `admin/js/scanner.js` (column render). Pairs with the CU Scanner Railway `deadline_bail_count` result field shipped the same day.
+
+---
+
 ## 1.7.11 — 2026-05-27
 
 ### Fixed
