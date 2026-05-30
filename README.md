@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.7.11-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.7.12-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
@@ -30,7 +30,7 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **Optimizer fingerprint broadening (1.4.0)** — three additive Tier 1+2+3 changes to the target-stack probe. **Tier 1**: 9 OPTIMIZERS entries gained source/live-confirmed `target_headers` patterns (FlyingPress `x-flying-press-cache/-source`, Hummingbird `hummingbird-cache`, Swift `swift3:`, NitroPack `x-nitro-cache-from/-rev`, LiteSpeed `x-litespeed-cache-control`, W3TC `x-w3tc-cdn` + `x-powered-by: w3 total cache`, Breeze `x-breeze-*`, SG Optimizer `sg-f-cache`, WP Rocket `x-rocket-nginx-bypass`); 1 phantom pattern removed (WP Fastest Cache `x-cache: wpfc-` — no PHP `header()` emission in source). **Tier 2**: new optional `target_body_pattern` PCRE field on every OPTIMIZER + `extract_non_text_zones()` helper that strips visible body text (preserves head, comments, scripts, styles, noscript, safe attributes incl. `name`/`content`) before regex matching. The helper is hoisted once-per-probe before the OPTIMIZERS loop (load-bearing per AC-T2-6 spy — ~14× cost reduction vs naive per-plugin invocation). **Tier 3**: Pass-2 widening drops the prior 8KB-tail restriction in favor of a full-body scan up to the existing 2MB `limit_response_size` cap — closes the dead zone between 32KB head and 8KB tail where mid-body asset paths (e.g. flying-press `<script src>` at byte 125,954 on flyingpress.com) were previously invisible. Closes the silent-`no_clue` detection gap that prompted the release
 - **Cloudflare WAF bypass** — auto-generated Scanner Secret can be used in a Cloudflare WAF Custom Rule so the scanner bypasses Bot Fight Mode without disabling site-wide protection
 - **Heavy-site / bot-block warning banner** — dismissable WP admin notice on the scan-results page when one or both devices were blocked from completing (Cloudflare challenge, Akamai Bot Manager, Imperva WAF, Rocket-Loader stub, asymmetric stub response, or HTTP-level denials). Reason-aware copy explains the cause; the rules from the unblocked device still ship when only one device is blocked (either desktop or mobile). Per-scan dismissal stored in `wp_options.aias_dismissed_warnings` and auto-wiped on the next scan submission
-- **Per-URL scan results table (1.5.0)** — the Step-4 results screen lists each scanned URL in its own row: number, URL, status (OK / one-device failure / bot-protection block / error) with status-driven row colors, credits spent, and that URL's safe/aggressive/needed asset counts (S:/A:/N:). 25 rows per page with pagination
+- **Per-URL scan results table (1.5.0)** — the Step-4 results screen lists each scanned URL in its own row: number, URL, status (OK / one-device failure / bot-protection block / error) with status-driven row colors, credits spent, and that URL's safe/aggressive/needed asset counts (S:/A:/N:), plus an **ET-candidate** flag column (1.7.12) marking clean pages whose rule yield was cut short by the scan's probe time budget. 25 rows per page with pagination
 
 ## How it works
 
