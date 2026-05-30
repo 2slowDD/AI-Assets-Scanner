@@ -1213,7 +1213,8 @@
                 + '<td class="cu-url-cell">' + cuEscHtml( p.url ) + '</td>'
                 + '<td>' + cuEscHtml( p.status_label ) + '</td>'
                 + '<td>' + cuEscHtml( p.credits ) + '</td>'
-                + '<td class="cu-san">' + cuEscHtml( san ) + '</td></tr>';
+                + '<td class="cu-san">' + cuEscHtml( san ) + '</td>'
+                + '<td>' + cuEscHtml( p.et_candidate ? 'yes' : '—' ) + '</td></tr>';
         } ).join( '' );
         var pager = ( pageCount > 1 )
             ? '<div class="cu-url-pager"><button type="button" class="button" id="cu-url-prev"' + ( st.page === 0 ? ' disabled' : '' ) + '>« Prev</button>'
@@ -1223,7 +1224,7 @@
         host.innerHTML =
             '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th>ET</th></tr></thead><tbody>' + rows + '</tbody></table>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }
         var next = document.getElementById('cu-url-next'); if ( next ) { next.onclick = function () { if ( st.page < pageCount - 1 ) { st.page++; renderResultUrlListPage(); } }; }
