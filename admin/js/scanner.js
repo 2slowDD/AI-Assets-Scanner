@@ -1194,6 +1194,15 @@
         // Per-URL results table (hidden when pages is empty/undefined).
         renderResultUrlList( pages, scanId );
 
+        // Top "Run Another Scan" is redundant on a short results list. Hide it for
+        // <10 scanned URLs, but RESERVE its space (visibility:hidden, not display:none)
+        // so the content below does not shift (no CLS). Bottom button always shows.
+        var topRescan = document.querySelector('#step-4 .cu-rescan-row');
+        if (topRescan) {
+            var scannedCount = Array.isArray(pages) ? pages.length : ((typeof urlsScanned === 'number') ? urlsScanned : 0);
+            topRescan.style.visibility = (scannedCount < 10) ? 'hidden' : 'visible';
+        }
+
         showStep(4);
     }
 
@@ -1237,7 +1246,7 @@
         host.innerHTML =
             '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th title="ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.">ET candidate</th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th>ET candidate <span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }
         var next = document.getElementById('cu-url-next'); if ( next ) { next.onclick = function () { if ( st.page < pageCount - 1 ) { st.page++; renderResultUrlListPage(); } }; }
