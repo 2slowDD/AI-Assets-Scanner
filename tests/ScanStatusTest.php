@@ -60,4 +60,59 @@ final class ScanStatusTest extends TestCase {
         $this->assertSame( 0, $rows[1]['credits'] );
         $this->assertSame( [ 0, 0, 0 ], [ $rows[1]['safe'], $rows[1]['aggressive'], $rows[1]['needed'] ] ); // error → 0 (render as —)
     }
+    public function test_et_candidate_ok_with_bail_flags_true(): void {
+        $rows = AIAS_Scan_Status::build_pages(
+            [ [ 'url' => 'https://x/', 'status' => 'done', 'broken_devices' => [], 'deadline_bail_count' => 2 ] ],
+            []
+        );
+        $this->assertTrue( $rows[0]['et_candidate'] ); // ok + count>0 → yes (AC-ET-5)
+    }
+    public function test_et_candidate_ok_no_bail_is_false(): void {
+        $rows = AIAS_Scan_Status::build_pages(
+            [ [ 'url' => 'https://x/', 'status' => 'done', 'broken_devices' => [], 'deadline_bail_count' => 0 ] ],
+            []
+        );
+        $this->assertFalse( $rows[0]['et_candidate'] ); // ok + count 0 → — (AC-ET-10)
+    }
+    public function test_et_candidate_partial_excluded_even_with_bail(): void {
+        $rows = AIAS_Scan_Status::build_pages(
+            [ [ 'url' => 'https://x/', 'status' => 'done',
+                'broken_devices' => [ [ 'device' => 'mobile', 'reason' => 'tier1_http_rate_limit' ] ],
+                'deadline_bail_count' => 3 ] ],
+            []
+        );
+        $this->assertFalse( $rows[0]['et_candidate'] ); // partial → — (ok-only; AC-ET-6)
+    }
+    public function test_et_candidate_blocked_excluded_even_with_bail(): void {
+        $rows = AIAS_Scan_Status::build_pages(
+            [ [ 'url' => 'https://x/', 'status' => 'done',
+                'broken_devices' => [ [ 'device' => 'desktop', 'reason' => 'tier2_cf_challenge' ] ],
+                'deadline_bail_count' => 5 ] ],
+            []
+        );
+        $this->assertFalse( $rows[0]['et_candidate'] ); // blocked (WAF do-NOT) → — even with count>0 (AC-ET-8)
+    }
+    public function test_et_candidate_error_excluded(): void {
+        $rows = AIAS_Scan_Status::build_pages(
+            [ [ 'url' => 'https://x/', 'status' => 'error',
+                'broken_devices' => [ [ 'device' => 'desktop', 'reason' => 'tier1_http_5xx' ] ],
+                'deadline_bail_count' => 4 ] ],
+            []
+        );
+        $this->assertFalse( $rows[0]['et_candidate'] ); // error → — (AC-ET-7)
+    }
+    public function test_et_candidate_skipped_excluded(): void {
+        $rows = AIAS_Scan_Status::build_pages(
+            [ [ 'url' => 'https://x/', 'status' => 'origin_unavailable' ] ],
+            []
+        );
+        $this->assertFalse( $rows[0]['et_candidate'] ); // skipped, no field → — (AC-ET-9)
+    }
+    public function test_et_candidate_missing_field_is_false_backfill_safe(): void {
+        $rows = AIAS_Scan_Status::build_pages(
+            [ [ 'url' => 'https://x/', 'status' => 'done', 'broken_devices' => [] ] ], // no deadline_bail_count
+            []
+        );
+        $this->assertFalse( $rows[0]['et_candidate'] ); // historical scan → — (AC-ET-11), no PHP warning
+    }
 }
