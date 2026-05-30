@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.13 — 2026-05-30
+
+### Changed
+
+- **Results table: "ET" column renamed to "ET candidate"** with a hover tooltip ("ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads").
+- **"Run Another Scan" is now a secondary button**, shown both above and below the per-URL results table (previously a single text link).
+- **Second "Start Scan →" button** at the top of the discovered URL list (Step 1), mirroring the existing bottom one — easier to start a scan from a long list. Both share one submit path.
+
+Cosmetic UI only — no scan-behavior, credit, or rule-output change. Touched: `admin/js/scanner.js`, `admin/views/scanner-page.php`.
+
+---
+
 ## 1.7.12 — 2026-05-30
 
 ### Added

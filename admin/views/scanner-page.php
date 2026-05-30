@@ -62,6 +62,11 @@
 
         <!-- URL list area (hidden until discovery completes) -->
         <div id="cu-url-list-area" style="display:none">
+            <!-- Top "Start Scan" — mirrors the bottom button; appears once URLs are selected (after Discover) -->
+            <div class="cu-action-row cu-action-row--top">
+                <div class="cu-spacer"></div>
+                <button id="cu-btn-next-1-top" class="button button-primary" style="display:none">Start Scan &rarr;</button>
+            </div>
             <!-- Filter bar (counts populated by JS) -->
             <div class="cu-filter-bar" id="cu-filter-bar">
                 <span class="cu-filter-pill is-active" data-filter="all"   id="cu-pill-all">All</span>
@@ -165,8 +170,15 @@
             <a href="https://wpservice.pro/contact/" target="_blank" rel="noopener" class="button button-secondary cu-contact-btn" style="margin-left:auto">Found a bug? Get in touch</a>
         </div>
         <div id="cu-push-result" style="margin-top:12px"></div>
-        <p style="margin-top:16px"><a href="?page=cu-scanner">Run Another Scan</a></p>
+        <!-- Run Another Scan — secondary button, mirrored above + below the results table.
+             (Batch B will add a "Rescan ET Candidates" button beside each.) -->
+        <div class="cu-rescan-row" style="margin-top:16px; display:flex; gap:12px; align-items:center">
+            <button type="button" class="button button-secondary cu-btn-run-another">Run Another Scan</button>
+        </div>
     <div id="cu-result-url-list"></div>
+        <div class="cu-rescan-row" style="margin-top:16px; display:flex; gap:12px; align-items:center">
+            <button type="button" class="button button-secondary cu-btn-run-another">Run Another Scan</button>
+        </div>
     </div>
 
     </main>
