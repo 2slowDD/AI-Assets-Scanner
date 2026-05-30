@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.12",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.12/ai-assets-scanner.zip",
+  "sha256": "863c02121e205549840f5a1e2202a5e4182d00248e9502b4784723a1a82a56d1",
+  "signature": "",
+  "released_at": "2026-05-30T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.12/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.12 adds the \"ET-candidate\" column to the Step-4 results table — a yes/— flag marking pages whose rule yield was cut short by the scan's probe time budget (display-only; ok-only allowlist, bot/WAF-blocked and errored pages excluded)."
+  }
+}
