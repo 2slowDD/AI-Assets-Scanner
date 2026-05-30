@@ -448,8 +448,10 @@
     function updateStartScanGate() {
         const overrides  = document.querySelectorAll('.cu-soft-block-override');
         const allChecked = Array.from(overrides).every(cb => cb.checked);
-        const btn = document.getElementById('cu-btn-next-1');
-        if (btn) btn.disabled = !allChecked;
+        ['cu-btn-next-1', 'cu-btn-next-1-top'].forEach(function (id) {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = !allChecked;
+        });
     }
 
     // --- Include URLs helpers ---
@@ -466,11 +468,13 @@
     }
 
     function updateStartScanVisibility() {
-        const btn = document.getElementById('cu-btn-next-1');
-        if (!btn) return;
         const hasIncluded   = getIncludedUrls().length > 0;
         const hasDiscovered = discoveredUrls.length > 0;
-        btn.style.display = (hasIncluded || hasDiscovered) ? '' : 'none';
+        const disp = (hasIncluded || hasDiscovered) ? '' : 'none';
+        ['cu-btn-next-1', 'cu-btn-next-1-top'].forEach(function (id) {
+            const btn = document.getElementById(id);
+            if (btn) btn.style.display = disp;
+        });
     }
 
     function syncIncludedUrls() {
@@ -832,6 +836,15 @@
     }
 
     // --- Step 2: Reserve + Submit ---
+
+    // Top "Start Scan" button (above the URL list) mirrors the bottom one —
+    // delegate to the same handler so there is a single submit path.
+    (function () {
+        var topBtn = document.getElementById('cu-btn-next-1-top');
+        if (topBtn) topBtn.addEventListener('click', function () {
+            document.getElementById('cu-btn-next-1').click();
+        });
+    })();
 
     document.getElementById('cu-btn-next-1').addEventListener('click', async function () {
         // Mode is keyed on `discoveryRan` (set true only by a completed Discover Pages
@@ -1224,7 +1237,7 @@
         host.innerHTML =
             '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th>ET</th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th title="ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.">ET candidate</th></tr></thead><tbody>' + rows + '</tbody></table>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }
         var next = document.getElementById('cu-url-next'); if ( next ) { next.onclick = function () { if ( st.page < pageCount - 1 ) { st.page++; renderResultUrlListPage(); } }; }
@@ -1426,9 +1439,13 @@
         });
     });
 
-    // --- "Run Another Scan" clears stored result ---
-    document.querySelector('#step-4 a[href="?page=cu-scanner"]').addEventListener('click', () => {
-        localStorage.removeItem('cu_scanner_result');
+    // --- "Run Another Scan" buttons (above + below the results table) clear the
+    // stored result and reload to a fresh Step 1 (buttons don't navigate natively). ---
+    document.querySelectorAll('#step-4 .cu-btn-run-another').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            localStorage.removeItem('cu_scanner_result');
+            window.location.href = '?page=cu-scanner';
+        });
     });
 
     // --- Init: restore Step 4 if a completed result is stored ---
