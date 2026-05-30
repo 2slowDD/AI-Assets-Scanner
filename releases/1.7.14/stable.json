@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.14",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.14/ai-assets-scanner.zip",
+  "sha256": "cb432e6823d5a528d6c737ae69086db3a54d8795adb256229954d429759e8c58",
+  "signature": "",
+  "released_at": "2026-05-30T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.14/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.14 is a UI-polish release: the 'ET candidate' results column gains a discoverable '?' tooltip (instant, replacing the delayed native title), and the top 'Run Another Scan' button is hidden on result lists with fewer than 10 URLs (its space reserved to avoid layout shift). No scan-behavior, credit, or rule-output change."
+  }
+}
