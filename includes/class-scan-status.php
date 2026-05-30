@@ -86,6 +86,7 @@ class AIAS_Scan_Status {
 			$page  = (array) $page;
 			$st    = self::classify( $page );
 			$tally = $by_page[ $i ] ?? [ 'safe' => 0, 'aggressive' => 0, 'needed' => 0 ];
+			$bail  = isset( $page['deadline_bail_count'] ) ? (int) $page['deadline_bail_count'] : 0;
 			$rows[] = [
 				'n'            => $n,
 				'url'          => (string) ( $page['url'] ?? '' ),
@@ -95,6 +96,9 @@ class AIAS_Scan_Status {
 				'safe'         => (int) ( $tally['safe'] ?? 0 ),
 				'aggressive'   => (int) ( $tally['aggressive'] ?? 0 ),
 				'needed'       => (int) ( $tally['needed'] ?? 0 ),
+				// FU-AAS-ET-CANDIDATE-COLUMN: ok-only allowlist. Positive `=== 'ok'` (NOT `!== 'error'`)
+				// — also excludes partial/blocked/skipped per the do-NOT.
+				'et_candidate' => ( $bail > 0 && 'ok' === $st['class'] ),
 			];
 		}
 		return $rows;
