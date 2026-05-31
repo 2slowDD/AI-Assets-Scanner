@@ -835,13 +835,15 @@
         const numEl      = document.getElementById('cu-credit-num');
         const desEl      = document.getElementById('cu-credit-deselected');
         const selected   = selectedUrls.length;
+        const etCount    = extraTimeUrls.filter(u => selectedUrls.includes(u)).length; // only count ET on SELECTED URLs
+        const totalCredits = selected + etCount;
         const total      = discoveredUrls.length + includedUrls.length;
         const deselected = total - selected;
 
         if (!badge) return;
         badge.style.display = '';
         if (notice) notice.style.display = '';
-        numEl.textContent = selected;
+        numEl.textContent = totalCredits;
 
         if (deselected > 0) {
             desEl.textContent = `(${deselected} deselected)`;
@@ -856,7 +858,7 @@
             if (availableBalance !== null) {
                 balNumEl.textContent = availableBalance;
                 balBadge.style.display = '';
-                if (availableBalance < selected) {
+                if (availableBalance < totalCredits) {
                     balBadge.classList.add('cu-credit-badge--low');
                 } else {
                     balBadge.classList.remove('cu-credit-badge--low');
