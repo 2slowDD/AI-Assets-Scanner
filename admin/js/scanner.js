@@ -1243,6 +1243,12 @@
             topRescan.style.visibility = (scannedCount < 10) ? 'hidden' : 'visible';
         }
 
+        // Reveal "Rescan ET Candidates" (both rows) when at least one ET candidate exists.
+        var hasEtCandidate = Array.isArray(pages) && pages.some(function (p) { return p && p.et_candidate; });
+        if (hasEtCandidate) {
+            document.querySelectorAll('#step-4 .cu-btn-rescan-et').forEach(function (btn) { btn.style.display = ''; });
+        }
+
         showStep(4);
     }
 
@@ -1534,6 +1540,18 @@
         });
     });
 
+    // --- "Rescan ET Candidates" — stash the checked ET URLs in sessionStorage and
+    // reload to a fresh Step 1, where primeRescanEt() picks them up (Extra Time
+    // pre-checked). No-op when nothing is checked. ---
+    document.querySelectorAll('#step-4 .cu-btn-rescan-et').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var urls = Array.from(cuUrlListState.etChecked);
+            if (!urls.length) { return; }
+            sessionStorage.setItem('cu_scanner_rescan_et', JSON.stringify(urls));
+            window.location.href = '?page=cu-scanner';
+        });
+    });
+
     // --- Init: restore Step 4 if a completed result is stored ---
     (function () {
         const stored = localStorage.getItem('cu_scanner_result');
@@ -1545,6 +1563,32 @@
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');
         }
+    }());
+
+    // --- "Rescan ET Candidates" prime — runs AFTER the Step-4 restore above so its
+    // showStep(1) wins when both a stored result and a pending rescan exist. Loads the
+    // checked ET URLs into Step 1 in Discover/merge mode (discoveryRan=true), each
+    // selected, each with Extra Time PRE-CHECKED, badge = count×2, ready for Start Scan.
+    (function primeRescanEt() {
+        var raw = sessionStorage.getItem('cu_scanner_rescan_et');
+        if (!raw) return;
+        sessionStorage.removeItem('cu_scanner_rescan_et');
+        var etUrls = []; try { etUrls = JSON.parse(raw) || []; } catch (e) { return; }
+        if (!etUrls.length) return;
+        // Stale Step-4 result would bounce the user back to Step 4 on a later reload; clear it.
+        localStorage.removeItem('cu_scanner_result');
+        discoveredUrls = etUrls;
+        groupedUrls    = { page: [], post: [], other: [], included: etUrls };
+        selectedUrls   = etUrls.slice();
+        extraTimeUrls  = etUrls.slice();   // Extra Time PRE-CHECKED (the payoff)
+        totalPages     = etUrls.length;
+        activeFilter   = 'all';
+        discoveryRan   = true;             // mixed/merge mode — NOT include-only
+        renderUrlList();
+        updateCreditBadge();
+        document.getElementById('cu-url-list-area').style.display = 'block';
+        updateStartScanVisibility();
+        showStep(1);
     }());
 
     // --- Resume in-progress scan on page return ---
