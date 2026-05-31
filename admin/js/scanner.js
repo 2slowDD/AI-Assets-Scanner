@@ -760,6 +760,9 @@
         const pill = e.target.closest('.cu-filter-pill');
         if (!pill) return;
 
+        if (pill.id === 'cu-btn-et-all')  { setAllExtraTimeInFilter(true);  return; }
+        if (pill.id === 'cu-btn-et-none') { setAllExtraTimeInFilter(false); return; }
+
         if (pill.id === 'cu-btn-select-all') {
             setAllInFilter(true);
             return;
@@ -801,6 +804,25 @@
             if (checked) selectedUrls = selectedUrls.concat(urls);
             updateGroupCheckbox(type);
             updateGroupToggleLink(type);
+        });
+        updateCreditBadge();
+    }
+
+    function setAllExtraTimeInFilter(on) {
+        // Mirror setAllInFilter — operate on the same URL set the active filter covers.
+        const types = activeFilter === 'all'
+            ? ['page', 'post', 'other', 'included']
+            : [activeFilter];
+
+        types.forEach(type => {
+            const urls = groupedUrls[type] || [];
+            // The ET checkbox carries data-url (not data-type); scope by URL membership
+            // in this group — the same set setAllInFilter operates on.
+            document.querySelectorAll('.cu-et-cb').forEach(cb => {
+                if (urls.includes(cb.dataset.url)) cb.checked = on;
+            });
+            extraTimeUrls = extraTimeUrls.filter(u => !urls.includes(u));
+            if (on) extraTimeUrls = extraTimeUrls.concat(urls);
         });
         updateCreditBadge();
     }
