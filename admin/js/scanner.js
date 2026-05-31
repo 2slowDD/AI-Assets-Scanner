@@ -12,6 +12,7 @@
     let discoveredUrls = [];   // full set returned by server
     let discoveryRan   = false; // true once a REAL Discover Pages run completed (distinguishes mixed mode from include-only)
     let selectedUrls   = [];   // checked subset — used for reserve + submit
+    let extraTimeUrls = []; // FU-AAS-EXTRA-TIME — URLs the operator marked for Extra Time
     let groupedUrls    = {};   // { page: [...], post: [...], other: [...] }
     let activeFilter   = 'all';
     let scanJobId        = null;
@@ -628,7 +629,9 @@
                 if (!isChecked) row.classList.add('is-deselected');
                 const badge = type === 'included' ? ' <span class="cu-included-badge">[included]</span>' : '';
                 row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${esc(url)}" data-type="${esc(type)}"${isChecked ? ' checked' : ''}>
-                    <span class="cu-url-text">${esc(url)}</span>${badge}`;
+                    <span class="cu-url-text">${esc(url)}</span>${badge}
+                    <label class="cu-et-label"><input type="checkbox" class="cu-et-cb" data-url="${esc(url)}"${extraTimeUrls.includes(url) ? ' checked' : ''}>
+                    Extra Time <span class="cu-help" tabindex="0" aria-label="Extra Time gives the worker more time on this URL — likely more unloads — and costs an additional credit."><span class="cu-help-box">Extra Time means more time for the worker to go through this URL, but it costs an additional credit.</span></span></label>`;
                 row.style.display = idx < 20 ? '' : 'none';
                 groupDiv.appendChild(row);
             });
@@ -659,6 +662,7 @@
         list.querySelectorAll('.cu-row-cb').forEach(cb => {
             cb.addEventListener('change', onRowCheckboxChange);
         });
+        list.querySelectorAll('.cu-et-cb').forEach(cb => { cb.addEventListener('change', onEtRowCheckboxChange); });
     }
 
     // --- Checkbox logic ---
@@ -714,6 +718,13 @@
 
         updateGroupCheckbox(e.target.dataset.type);
         updateGroupToggleLink(e.target.dataset.type);
+        updateCreditBadge();
+    }
+
+    function onEtRowCheckboxChange(e) {
+        const url = e.target.dataset.url;
+        if (e.target.checked) { if (!extraTimeUrls.includes(url)) extraTimeUrls.push(url); }
+        else { extraTimeUrls = extraTimeUrls.filter(u => u !== url); }
         updateCreditBadge();
     }
 
