@@ -147,6 +147,7 @@ class ScannerAjax {
         $this->check();
         $settings   = $this->settings();
         $page_count = absint( $_POST['page_count'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $extra_time_count = absint( $_POST['extra_time_count'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
         if ( $page_count < 1 ) { wp_send_json_error( 'Invalid page count' ); return; }
         if ( $settings->has_pending_free_key() ) {
             wp_send_json_error( 'Free API key activation is pending. Please try again later.' );
@@ -156,7 +157,7 @@ class ScannerAjax {
             $api_key = $settings->get_api_key();
             $this->ensure_railway_url( $settings, $api_key );
             $client = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key );
-            $result = $client->reserve_job( $page_count );
+            $result = $client->reserve_job( $page_count, $extra_time_count );
             set_transient( 'cu_scanner_pending_token_' . get_current_user_id(), $result['job_token'], 3600 );
             wp_send_json_success( [ 'reserved' => true, 'job_token' => $result['job_token'] ] );
         } catch ( \RuntimeException $e ) {
