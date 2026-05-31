@@ -4,6 +4,20 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.15 — 2026-05-31
+
+### Added
+
+- **Extra Time (ET) — opt a URL into a longer probe budget for +1 credit.** A new per-URL toggle lets you re-run any URL with Extra Time so the worker spends more time on it (typically yielding more unloads), at the cost of one additional credit.
+  - **Step 1 (Discover):** each URL row gains an "Extra Time" checkbox; bulk "Extra Time: all …" filters toggle every URL in the active group/filter at once. The credit badge reflects the surcharge (each ET-selected URL counts as +1 credit on top of its scan credit).
+  - **Step 4 (Results):** the per-URL results table gains an "Extra Time" column with a live checkbox on every **ET-candidate** row (paging-safe — selections persist across pages), plus an "Extra Time: all ET candidates" master toggle.
+  - **Rescan ET Candidates:** a new button beside "Run Another Scan" (shown when the result has ≥1 ET candidate) reloads Step 1 pre-loaded with exactly the checked ET URLs — each selected and **Extra Time pre-checked** — ready to start a focused, more-thorough rescan.
+  - The ET count is threaded through the reserve payload (AAS → SaaS) so the extra credits are reserved and charged correctly.
+
+Touched: `admin/js/scanner.js`, `admin/views/scanner-page.php`.
+
+---
+
 ## 1.7.14 — 2026-05-30
 
 ### Changed
