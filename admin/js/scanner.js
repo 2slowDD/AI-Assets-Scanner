@@ -1247,7 +1247,7 @@
     }
 
     // --- Per-URL results table (Step 4) -------------------------------------
-    var cuUrlListState = { pages: [], scanId: '', page: 0, perPage: 25 };
+    var cuUrlListState = { pages: [], scanId: '', page: 0, perPage: 25, etChecked: new Set() };
 
     function cuEscHtml( v ) { var d = document.createElement('div'); d.textContent = ( v == null ? '' : String( v ) ); return d.innerHTML; }
 
@@ -1258,6 +1258,11 @@
         cuUrlListState.pages  = pages;
         cuUrlListState.scanId = scanId || '';
         cuUrlListState.page   = 0;
+        // Seed ET-checkbox state ONCE from et_candidate rows (first render only).
+        // Pagination re-renders host.innerHTML each page change; the persistent Set
+        // is what survives across pages, so it must be seeded here, not per-page.
+        cuUrlListState.etChecked = new Set();
+        pages.forEach( function ( p ) { if ( p.et_candidate ) { cuUrlListState.etChecked.add( p.url ); } } );
         host.style.display = '';
         renderResultUrlListPage();
     }
@@ -1276,7 +1281,10 @@
                 + '<td>' + cuEscHtml( p.status_label ) + '</td>'
                 + '<td>' + cuEscHtml( p.credits ) + '</td>'
                 + '<td class="cu-san">' + cuEscHtml( san ) + '</td>'
-                + '<td>' + cuEscHtml( p.et_candidate ? 'yes' : '—' ) + '</td></tr>';
+                + '<td>' + cuEscHtml( p.et_candidate ? 'yes' : '—' ) + '</td>'
+                + '<td>' + ( p.et_candidate
+                    ? '<input type="checkbox" class="cu-et-result-cb" data-url="' + esc( p.url ) + '"' + ( st.etChecked.has( p.url ) ? ' checked' : '' ) + '>'
+                    : '—' ) + '</td></tr>';
         } ).join( '' );
         var pager = ( pageCount > 1 )
             ? '<div class="cu-url-pager"><button type="button" class="button" id="cu-url-prev"' + ( st.page === 0 ? ' disabled' : '' ) + '>« Prev</button>'
@@ -1286,10 +1294,39 @@
         host.innerHTML =
             '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th>ET candidate <span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th>ET candidate <span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></th><th>Extra Time <span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<p class="cu-et-result-all-row"><label><input type="checkbox" id="cu-et-result-all"> Extra Time: all ET candidates</label></p>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }
         var next = document.getElementById('cu-url-next'); if ( next ) { next.onclick = function () { if ( st.page < pageCount - 1 ) { st.page++; renderResultUrlListPage(); } }; }
+        // Per-row ET checkbox → mutate the persistent Set (by data-url) so the choice
+        // survives pagination re-renders.
+        host.querySelectorAll('.cu-et-result-cb').forEach( function ( cb ) {
+            cb.addEventListener('change', function () {
+                var url = cb.getAttribute('data-url');
+                if ( cb.checked ) { st.etChecked.add( url ); } else { st.etChecked.delete( url ); }
+                syncEtResultAll();
+            } );
+        } );
+        // All-on/off → toggle every ET-candidate URL across ALL pages (iterate st.pages,
+        // not just the visible slice), then re-sync the visible checkboxes.
+        var allCb = document.getElementById('cu-et-result-all');
+        if ( allCb ) {
+            allCb.addEventListener('change', function () {
+                st.pages.forEach( function ( p ) {
+                    if ( ! p.et_candidate ) { return; }
+                    if ( allCb.checked ) { st.etChecked.add( p.url ); } else { st.etChecked.delete( p.url ); }
+                } );
+                host.querySelectorAll('.cu-et-result-cb').forEach( function ( cb ) { cb.checked = allCb.checked; } );
+            } );
+            syncEtResultAll();
+        }
+        // Reflect the master checkbox state: checked only when every ET candidate is in the Set.
+        function syncEtResultAll() {
+            if ( ! allCb ) { return; }
+            var etTotal = st.pages.filter( function ( p ) { return p.et_candidate; } ).length;
+            allCb.checked = ( etTotal > 0 && st.etChecked.size >= etTotal );
+        }
     }
 
     /**
