@@ -218,4 +218,44 @@ class ScannerAjaxTest extends TestCase {
         ];
         $this->assertSame( 2, ScannerAjax::billable_page_count( $pages ) );
     }
+
+    // FU-AAS-EXTRA-TIME (UI Task 4) — per-URL extra_time flag threaded into the job payload.
+
+    public function test_build_pages_array_threads_extra_time_flag(): void {
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( string $url, ?int $component = null ) {
+            $parts = parse_url( $url );
+            return ( PHP_URL_HOST === $component ) ? ( $parts['host'] ?? null ) : $parts;
+        } );
+
+        $et_set = array_flip( [ 'https://x/b' ] );
+        $pages  = ScannerAjax::__test_build_pages_array(
+            [ 'https://x/a', 'https://x/b' ], [], [], 'https://x/', $et_set
+        );
+
+        $this->assertFalse( $pages[0]['extra_time'], 'URL not in ET set → false' );
+        $this->assertTrue(  $pages[1]['extra_time'], 'URL in ET set → true' );
+    }
+
+    /**
+     * The reshaping array_map in submit_job() hardcodes a fixed key set
+     * (url/bypass_token/bypass_suffixes). An extra_time key added only in
+     * build_pages_array() is SILENTLY DROPPED there unless the map carries it.
+     * This test is RED until the reshape carries extra_time through.
+     */
+    public function test_reshape_page_specs_carries_extra_time_through(): void {
+        $specs = [
+            [ 'url' => 'https://x/a', 'bypass_suffixes' => [], 'extra_time' => false ],
+            [ 'url' => 'https://x/b', 'bypass_suffixes' => [], 'extra_time' => true ],
+        ];
+        $build_scan_url = static fn( string $u, array $s ): string => $u;
+        $pages = ScannerAjax::__test_reshape_page_specs( $specs, $build_scan_url, 'tok' );
+
+        $this->assertArrayHasKey( 'extra_time', $pages[0], 'reshape must carry extra_time' );
+        $this->assertFalse( $pages[0]['extra_time'] );
+        $this->assertTrue(  $pages[1]['extra_time'] );
+        // Existing keys preserved.
+        $this->assertSame( 'https://x/a', $pages[0]['url'] );
+        $this->assertSame( 'tok', $pages[0]['bypass_token'] );
+        $this->assertSame( [], $pages[0]['bypass_suffixes'] );
+    }
 }

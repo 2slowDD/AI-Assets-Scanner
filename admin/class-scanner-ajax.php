@@ -177,6 +177,13 @@ class ScannerAjax {
         $job_token   = sanitize_text_field( wp_unslash( $_POST['job_token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
         $urls_raw    = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['urls'] ?? [] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
 
+        // FU-AAS-EXTRA-TIME (UI Task 4) — per-URL Extra Time flag. JS sends the
+        // subset of selected URLs the operator marked for Extra Time. Sanitize as
+        // URLs (same recognized sanitizer as $urls_raw), then array_flip into a
+        // membership set so build_pages_array() can stamp each page spec.
+        $et_urls_raw = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['extra_time_urls'] ?? [] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
+        $et_set      = array_flip( $et_urls_raw );
+
         try {
             $railway_url = $this->ensure_railway_url( $settings, $api_key );
         } catch ( \RuntimeException $e ) {
@@ -254,7 +261,7 @@ class ScannerAjax {
 
         $home_url    = home_url();
         $home_host   = wp_parse_url( $home_url, PHP_URL_HOST );
-        $page_specs  = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url );
+        $page_specs  = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url, $et_set );
 
         // Force URL scheme to match the current admin request's protocol. Sitemaps
         // and WP_Query can emit http URLs even on https-served sites (option drift,
@@ -324,14 +331,7 @@ class ScannerAjax {
             return $with_old . $sep . implode( '&', $append );
         };
 
-        $pages = array_map(
-            static fn( array $spec ): array => [
-                'url'             => $build_scan_url( $spec['url'], $spec['bypass_suffixes'] ),
-                'bypass_token'    => $token,
-                'bypass_suffixes' => $spec['bypass_suffixes'],
-            ],
-            $page_specs
-        );
+        $pages = self::reshape_page_specs( $page_specs, $build_scan_url, $token );
 
         $payload = [
             'pages'          => $pages,
@@ -1174,10 +1174,12 @@ class ScannerAjax {
      * @param string[]            $host_bypass           Host-detected bypass suffixes (today's array).
      * @param array<string,array> $target_bypass_per_url Per-URL bypass map from probe response (keyed by URL).
      * @param string              $home_url              Site's home URL (for internal/external classification).
-     * @return array<int,array{url:string,bypass_suffixes:array}>
+     * @param array<string,mixed> $et_set                FU-AAS-EXTRA-TIME — array_flip'd membership set of Extra-Time URLs.
+     * @return array<int,array{url:string,bypass_suffixes:array,extra_time:bool}>
      */
     private static function build_pages_array( array $selected_urls, array $host_bypass,
-                                                array $target_bypass_per_url, string $home_url ): array {
+                                                array $target_bypass_per_url, string $home_url,
+                                                array $et_set = [] ): array {
         $home_host = strtolower( preg_replace( '/^www\./i', '',
             wp_parse_url( $home_url, PHP_URL_HOST ) ?: '' ) );
         $pages = [];
@@ -1202,10 +1204,36 @@ class ScannerAjax {
             $pages[] = [
                 'url'             => $url,
                 'bypass_suffixes' => $bypass_suffixes,
+                // FU-AAS-EXTRA-TIME — flag this page for Extra Time if the operator
+                // marked its URL. Carried through reshape_page_specs() into pages[].
+                'extra_time'      => isset( $et_set[ $url ] ),
                 // bypass_token attached downstream where the token is built.
             ];
         }
         return $pages;
+    }
+
+    /**
+     * Reshape page specs (from build_pages_array) into the final pages[] payload
+     * sent to RailwayClient::submit_job. This is the hardcoded-key seam: any key
+     * NOT named here is silently dropped, so FU-AAS-EXTRA-TIME's extra_time flag
+     * must be carried through explicitly.
+     *
+     * @param array<int,array{url:string,bypass_suffixes:array,extra_time?:bool}> $page_specs
+     * @param callable $build_scan_url fn( string $url, array $bypass_suffixes ): string
+     * @param string   $token          Bypass token attached to every page.
+     * @return array<int,array{url:string,bypass_token:string,bypass_suffixes:array,extra_time:bool}>
+     */
+    private static function reshape_page_specs( array $page_specs, callable $build_scan_url, string $token ): array {
+        return array_map(
+            static fn( array $spec ): array => [
+                'url'             => $build_scan_url( $spec['url'], $spec['bypass_suffixes'] ),
+                'bypass_token'    => $token,
+                'bypass_suffixes' => $spec['bypass_suffixes'],
+                'extra_time'      => $spec['extra_time'] ?? false,
+            ],
+            $page_specs
+        );
     }
 
     /**
@@ -1242,8 +1270,12 @@ class ScannerAjax {
         return self::strip_to_whitelist( $r );
     }
     public static function __test_build_pages_array( array $selected_urls, array $host_bypass,
-                                                      array $target_bypass_per_url, string $home_url ): array {
-        return self::build_pages_array( $selected_urls, $host_bypass, $target_bypass_per_url, $home_url );
+                                                      array $target_bypass_per_url, string $home_url,
+                                                      array $et_set = [] ): array {
+        return self::build_pages_array( $selected_urls, $host_bypass, $target_bypass_per_url, $home_url, $et_set );
+    }
+    public static function __test_reshape_page_specs( array $page_specs, callable $build_scan_url, string $token ): array {
+        return self::reshape_page_specs( $page_specs, $build_scan_url, $token );
     }
     public static function __test_capture_target_stack_summary( $post_value ): ?array {
         return self::capture_target_stack_summary( $post_value );
