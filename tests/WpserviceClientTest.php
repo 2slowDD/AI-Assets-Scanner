@@ -57,6 +57,49 @@ class WpserviceClientTest extends TestCase {
         $this->assertSame( 'tok-abc', $result['job_token'] );
     }
 
+    public function test_reserve_job_forwards_extra_time_count_in_post_body(): void {
+        // FU-AAS-EXTRA-TIME — the AAS middle-hop must forward extra_time_count
+        // (the "M" of the N+M reserve gate) to the SaaS /jobs/reserve endpoint.
+        $captured = null;
+        WP_Mock::userFunction( 'wp_remote_post' )
+            ->with( 'https://wpservice.pro/wp-json/cu-scanner/v1/jobs/reserve', \Mockery::on( function ( array $args ) use ( &$captured ): bool {
+                $captured = json_decode( $args['body'], true );
+                return true;
+            } ) )
+            ->once()
+            ->andReturn( [] );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( json_encode( [ 'job_token' => 'tok-et' ] ) );
+
+        $result = $this->client->reserve_job( 7, 3 );
+
+        $this->assertSame( 'tok-et', $result['job_token'] );
+        $this->assertSame( 7, $captured['page_count'] );
+        $this->assertArrayHasKey( 'extra_time_count', $captured );
+        $this->assertSame( 3, $captured['extra_time_count'] );
+    }
+
+    public function test_reserve_job_defaults_extra_time_count_to_zero_when_omitted(): void {
+        // Backward-compat: callers that omit the ET arg must produce a 0, so the
+        // SaaS N+M gate behaves identically to the legacy N-only path.
+        $captured = null;
+        WP_Mock::userFunction( 'wp_remote_post' )
+            ->with( 'https://wpservice.pro/wp-json/cu-scanner/v1/jobs/reserve', \Mockery::on( function ( array $args ) use ( &$captured ): bool {
+                $captured = json_decode( $args['body'], true );
+                return true;
+            } ) )
+            ->once()
+            ->andReturn( [] );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( json_encode( [ 'job_token' => 'tok-default' ] ) );
+
+        $this->client->reserve_job( 10 );
+
+        $this->assertSame( 0, $captured['extra_time_count'] );
+    }
+
     public function test_reserve_job_throws_on_402(): void {
         WP_Mock::userFunction( 'wp_remote_post' )->andReturn( [] );
         WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );

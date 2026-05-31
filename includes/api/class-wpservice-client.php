@@ -30,10 +30,11 @@ class WpserviceClient {
     /**
      * @throws \RuntimeException with message 'Insufficient credits' on 402
      */
-    public function reserve_job( int $page_count ): array {
+    public function reserve_job( int $page_count, int $extra_time_count = 0 ): array {
         return $this->post( '/cu-scanner/v1/jobs/reserve', [
-            'page_count' => $page_count,
-            'domain'     => $this->domain(),
+            'page_count'       => $page_count,
+            'extra_time_count' => max( 0, $extra_time_count ),
+            'domain'           => $this->domain(),
         ] );
     }
 

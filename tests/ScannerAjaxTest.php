@@ -163,6 +163,72 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( [ 'reserved' => true, 'job_token' => 'plain-token' ], $captured );
     }
 
+    public function test_reserve_job_forwards_extra_time_count_from_post_to_reserve_body(): void {
+        // FU-AAS-EXTRA-TIME — end-to-end: the AJAX handler must read
+        // $_POST['extra_time_count'] and forward it through WpserviceClient into
+        // the SaaS /jobs/reserve POST body (the "M" of the N+M reserve gate).
+        $this->mockCheck();
+        $_POST['page_count']       = '4';
+        $_POST['extra_time_count'] = '2';
+
+        WP_Mock::userFunction( 'absint' )->andReturnUsing( function ( $value ) {
+            return max( 0, (int) $value );
+        } );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_api_key', '' )
+            ->andReturn( 'cusk_Freekey_10' );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_railway_url', '' )
+            ->andReturn( 'https://cu-scanner-railway-production.up.railway.app' );
+        WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://www.example.com' );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( string $url, ?int $component = null ) {
+            $parts = parse_url( $url );
+            if ( null === $component ) {
+                return $parts;
+            }
+            $map = [
+                PHP_URL_SCHEME => 'scheme',
+                PHP_URL_HOST   => 'host',
+                PHP_URL_PORT   => 'port',
+                PHP_URL_USER   => 'user',
+                PHP_URL_PASS   => 'pass',
+            ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+
+        $reserve_body = null;
+        WP_Mock::userFunction( 'wp_remote_post' )->andReturnUsing( function ( string $url, array $args ) use ( &$reserve_body ) {
+            if ( str_contains( $url, '/cu-scanner/v1/jobs/reserve' ) ) {
+                $reserve_body = json_decode( $args['body'], true );
+                return [
+                    'response' => [ 'code' => 200 ],
+                    'body'     => '{"job_token":"plain-token","balance_after":2}',
+                ];
+            }
+            return [ 'response' => [ 'code' => 404 ], 'body' => '{"message":"not found"}' ];
+        } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( array $response ) {
+            return (int) ( $response['response']['code'] ?? 0 );
+        } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( array $response ) {
+            return (string) ( $response['body'] ?? '' );
+        } );
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 11 );
+        WP_Mock::userFunction( 'set_transient' )
+            ->with( 'cu_scanner_pending_token_11', 'plain-token', 3600 )
+            ->once();
+        WP_Mock::userFunction( 'wp_send_json_success' )->once();
+
+        ( new ScannerAjax() )->reserve_job();
+
+        unset( $_POST['page_count'], $_POST['extra_time_count'] );
+        $this->assertConditionsMet();
+        $this->assertIsArray( $reserve_body );
+        $this->assertSame( 4, $reserve_body['page_count'] );
+        $this->assertArrayHasKey( 'extra_time_count', $reserve_body );
+        $this->assertSame( 2, $reserve_body['extra_time_count'] );
+    }
+
     public function test_format_submit_error_detail_short_message_is_untruncated(): void {
         $result = ScannerAjax::format_submit_error_detail( 'Railway HTTP 401: no such token' );
         $this->assertSame( 'Scan submission failed: Railway HTTP 401: no such token', $result );
