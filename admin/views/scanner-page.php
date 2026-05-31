@@ -75,6 +75,9 @@
                 <span class="cu-filter-pill"           data-filter="other" id="cu-pill-other" style="display:none">Other</span>
                 <span class="cu-filter-pill"           data-filter="included" id="cu-pill-included" style="display:none">Included</span>
                 <span class="cu-filter-divider">|</span>
+                <span class="cu-filter-pill cu-filter-action" id="cu-btn-et-all">&#9745; Extra Time: all</span>
+                <span class="cu-filter-pill cu-filter-action" id="cu-btn-et-none">&#9744; Extra Time: none</span>
+                <span class="cu-filter-divider">|</span>
                 <span class="cu-filter-pill cu-filter-action" id="cu-btn-select-all">&#9745; Select all</span>
                 <span class="cu-filter-pill cu-filter-action" id="cu-btn-deselect-all">&#9744; Deselect all</span>
             </div>
