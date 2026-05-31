@@ -964,14 +964,18 @@
         // Scroll to the top so the operator sees the scanning progress UI
         // instead of being stuck at the bottom of the long URL selection list.
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        // Use selectedUrls.length — only charge for URLs that will actually be scanned
-        post('cu_scanner_reserve_job', { page_count: selectedUrls.length })
+        // FU-AAS-EXTRA-TIME — only ET URLs that are actually selected count toward billing/payload.
+        const etSelected = extraTimeUrls.filter(u => selectedUrls.includes(u));
+        // Use selectedUrls.length — only charge for URLs that will actually be scanned.
+        // extra_time_count drives the SaaS reserve gate (N pages + M extra-time = N+M credits).
+        post('cu_scanner_reserve_job', { page_count: selectedUrls.length, extra_time_count: etSelected.length })
             .then(res => {
                 if (!res.success) { showStep(1); alert('Error: ' + res.data); return; }
                 const job_token = res.data.job_token;
                 post('cu_scanner_submit_job', {
                     urls: selectedUrls,
                     job_token,
+                    extra_time_urls: etSelected,
                     target_bypass_per_url: targetBypassPerUrl,
                     target_stack_summary: targetStackSummary,
                 })
@@ -994,6 +998,7 @@
                                 urls: selectedUrls,
                                 job_token: job_token,
                                 class_c_consent_given: '1',
+                                extra_time_urls: etSelected,
                                 target_bypass_per_url: targetBypassPerUrl,
                                 target_stack_summary: targetStackSummary,
                             });
