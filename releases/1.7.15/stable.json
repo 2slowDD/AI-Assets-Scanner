@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.15",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.15/ai-assets-scanner.zip",
+  "sha256": "3243f4bfc47ac2c05aa6571567457b45b11cfd7854633d55545daa9bac584de6",
+  "signature": "",
+  "released_at": "2026-05-31T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.15/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.15 adds Extra Time: opt any URL into a longer probe budget for +1 credit. Step 1 gains a per-URL Extra Time toggle, bulk Extra-Time filters, and a +1/ET credit badge. Step 4 gains per-URL Extra Time checkboxes (paging-safe) with an all-on/off toggle, plus a 'Rescan ET Candidates' button that reloads Step 1 with the checked ET URLs pre-selected and Extra Time pre-checked. The Extra Time count is reserved and charged through the SaaS (N+M). When a flagged URL runs out of probe time, the scanning service spawns a fresh-budget continuation job to recover more unloads. The continuation feature is off by default on the scanning service until enabled."
+  }
+}
