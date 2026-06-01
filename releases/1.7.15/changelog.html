@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI Assets Scanner 1.7.15</title>
+</head>
+<body>
+  <h1>AI Assets Scanner 1.7.15</h1>
+  <p>Released May 31, 2026.</p>
+  <h2>Added — Extra Time</h2>
+  <ul>
+    <li>Opt any URL into a longer probe budget for <strong>+1 credit</strong>. <strong>Step 1</strong> gains a per-URL "Extra Time" checkbox, bulk "Extra Time: all" filters, and a credit badge that counts +1 per Extra-Time-selected URL.</li>
+    <li><strong>Step 4</strong> results gain an "Extra Time" column with a checkbox on every ET-candidate row (selections persist across pages) and an "all ET candidates" toggle.</li>
+    <li>A new <strong>"Rescan ET Candidates"</strong> button reloads Step 1 pre-loaded with the checked ET URLs — each selected and Extra Time pre-checked — ready for a focused, more-thorough rescan.</li>
+    <li>The Extra Time count is reserved and charged through the SaaS (reserve N+M). When a flagged URL runs out of probe time, the scanning service spawns a fresh-budget continuation job to recover more unloads.</li>
+  </ul>
+  <p>The continuation feature on the scanning service is off by default until enabled.</p>
+</body>
+</html>
