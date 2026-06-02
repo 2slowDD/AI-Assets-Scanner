@@ -4,6 +4,21 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.17 — 2026-06-02
+
+### Fixed
+
+- **Extra-Time "?" tooltip on the Step-1 URL list** — clicking the help icon no longer toggles the row's Extra-Time checkbox (the `?` was nested inside the `<label>`; it is now a sibling), and its tooltip now renders on hover instead of being clipped (the URL list no longer clips overflow; the rounded corners are preserved by rounding the first/last rows). The same `.cu-help` marker already worked on the Step-4 results header.
+- **Per-URL "Credits" column under-counted Extra-Time URLs** — a URL that ran (and was billed for) an Extra-Time continuation now shows its base credit **+1**, matching the amount actually charged. Relies on the companion Railway worker stamping `extra_time_charged` on the page result; older scans without the field show base credits only (backfill-safe, no warning).
+
+### Added
+
+- **The post-scan Extra-Time view now survives WordPress-admin navigation** — after "Rescan ET Candidates", leaving the scanner page and returning restores the ET URL list (with your selections) instead of discarding it, the same way the Step-4 results already persist. Stored client-side only (`localStorage`); cleared when you Start Scan or Run Another.
+
+UI + per-URL credit display only — no scan-behavior, rule-output, or billing change. Touched: `admin/js/scanner.js`, `admin/css/ai-assets-scanner-admin.css`, `includes/class-scan-status.php`.
+
+---
+
 ## 1.7.16 — 2026-06-02
 
 ### Fixed

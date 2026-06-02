@@ -115,4 +115,60 @@ final class ScanStatusTest extends TestCase {
         );
         $this->assertFalse( $rows[0]['et_candidate'] ); // historical scan → — (AC-ET-11), no PHP warning
     }
+
+    // FU-AAS-ET-CREDIT-DISPLAY (2026-06-02) — per-URL Credits column must reflect the +1
+    // Extra-Time charge. Railway stamps `extra_time_charged` on pages that ran a billed ET
+    // continuation (1:1 with the scan-level et_ran SaaS charges); classify() adds the +1.
+    public function test_extra_time_charged_done_adds_one_credit(): void {
+        $r = AIAS_Scan_Status::classify( $this->page([ 'extra_time_charged' => true ]) );
+        $this->assertSame( 'ok', $r['class'] );
+        $this->assertSame( 2, $r['credits'] ); // base 1 + ET 1 = the amount SaaS billed
+    }
+    public function test_no_extra_time_charged_done_is_one_credit(): void {
+        $r = AIAS_Scan_Status::classify( $this->page([ 'extra_time_charged' => false ]) );
+        $this->assertSame( 1, $r['credits'] );
+    }
+    public function test_extra_time_charged_partial_adds_one_credit(): void {
+        $r = AIAS_Scan_Status::classify( $this->page([
+            'broken_devices'     => [ [ 'device' => 'mobile', 'reason' => 'tier1_http_rate_limit' ] ],
+            'extra_time_charged' => true,
+        ]) );
+        $this->assertSame( 'partial', $r['class'] );
+        $this->assertSame( 2, $r['credits'] );
+    }
+    public function test_extra_time_charged_blocked_adds_one_credit(): void {
+        $r = AIAS_Scan_Status::classify( $this->page([
+            'broken_devices'     => [ [ 'device' => 'desktop', 'reason' => 'tier2_cf_challenge' ] ],
+            'extra_time_charged' => true,
+        ]) );
+        $this->assertSame( 'blocked', $r['class'] );
+        $this->assertSame( 2, $r['credits'] ); // base 1 (done) + ET 1
+    }
+    public function test_extra_time_charged_error_shows_et_credit_only(): void {
+        // An ET continuation that ran but finished 'error': SaaS billed the +1 (et_ran), base 0.
+        $r = AIAS_Scan_Status::classify( $this->page([
+            'status'             => 'error',
+            'broken_devices'     => [ [ 'device' => 'desktop', 'reason' => 'tier1_http_5xx' ] ],
+            'extra_time_charged' => true,
+        ]) );
+        $this->assertSame( 'error', $r['class'] );
+        $this->assertSame( 1, $r['credits'] ); // base 0 + ET 1
+    }
+    public function test_origin_unavailable_ignores_extra_time_charged(): void {
+        $r = AIAS_Scan_Status::classify( [ 'url' => 'https://x/', 'status' => 'origin_unavailable', 'extra_time_charged' => true ] );
+        $this->assertSame( 'skipped', $r['class'] );
+        $this->assertSame( 0, $r['credits'] ); // origin never runs a continuation → never ET-charged
+    }
+    public function test_build_pages_threads_extra_time_charged_to_credits(): void {
+        $rows = AIAS_Scan_Status::build_pages(
+            [ [ 'url' => 'https://x/', 'status' => 'done', 'broken_devices' => [], 'extra_time_charged' => true ] ],
+            []
+        );
+        $this->assertSame( 2, $rows[0]['credits'] );
+    }
+    public function test_missing_extra_time_charged_is_backfill_safe(): void {
+        // Historical scan / older Railway worker: no field → base credit only, no PHP warning.
+        $r = AIAS_Scan_Status::classify( $this->page([]) );
+        $this->assertSame( 1, $r['credits'] );
+    }
 }
