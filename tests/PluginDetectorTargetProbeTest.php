@@ -1912,4 +1912,58 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertSame( 'probe_failed', $r['outcome'] );
         $this->assertSame( 2, $call_count );
     }
+
+    /**
+     * AC-EPR-6 — a positive detection (class_a_clean) is cached for 24h (86400s).
+     */
+    public function test_epr6_positive_outcome_cached_24h() {
+        $captured_ttl = null;
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturn( [ 'response' => [ 'code' => 200 ], 'headers' => [ 'x-wp-rocket-cache' => 'HIT' ], 'body' => '' ] );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( [ 'x-wp-rocket-cache' => 'HIT' ] );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn(
+            '<html><head><meta name="generator" content="WordPress 6.4"></head><body>wp-content/</body></html>'
+        );
+        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v, $ttl ) use ( &$captured_ttl ) {
+            $captured_ttl = $ttl; return true;
+        } );
+
+        $r = PluginDetector::probe_target_stack( 'https://wprocket.example.com/', null, 12 );
+        $this->assertSame( 'class_a_clean', $r['outcome'] );
+        $this->assertSame( 86400, $captured_ttl );
+    }
+
+    /**
+     * AC-EPR-7 — a negative/indeterminate outcome (non_wordpress) is cached for 15 min (900s).
+     */
+    public function test_epr7_negative_outcome_cached_15min() {
+        $captured_ttl = null;
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturn( [ 'response' => [ 'code' => 200 ], 'headers' => [], 'body' => '' ] );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( [] );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( '<html><head><title>x</title></head><body>not wp</body></html>' );
+        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v, $ttl ) use ( &$captured_ttl ) {
+            $captured_ttl = $ttl; return true;
+        } );
+
+        $r = PluginDetector::probe_target_stack( 'https://plain.example.com/', null, 12 );
+        $this->assertSame( 'non_wordpress', $r['outcome'] );
+        $this->assertSame( 900, $captured_ttl );
+    }
 }

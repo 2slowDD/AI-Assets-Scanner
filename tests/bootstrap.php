@@ -7,7 +7,9 @@ define( 'CU_SCANNER_DIR', dirname( __DIR__ ) . '/' );
 define( 'CU_SCANNER_VERSION', '1.0.0' );
 define( 'CU_SCANNER_URL', 'https://example.test/wp-content/plugins/ai-assets-scanner/' );
 define( 'CU_SCANNER_WPSERVICE_URL', 'https://api.wpservice.pro' );
-defined( 'HOUR_IN_SECONDS' ) || define( 'HOUR_IN_SECONDS', 3600 );
+defined( 'HOUR_IN_SECONDS' )   || define( 'HOUR_IN_SECONDS',   3600 );
+defined( 'DAY_IN_SECONDS' )    || define( 'DAY_IN_SECONDS',    86400 );
+defined( 'MINUTE_IN_SECONDS' ) || define( 'MINUTE_IN_SECONDS', 60 );
 
 if ( ! class_exists( 'WP_Error' ) ) {
     class WP_Error {

@@ -940,7 +940,13 @@ class PluginDetector {
 
         $result['probed_url_1'] = $url;
         $result['cache_hit']    = false;
-        set_transient( $cache_key, $result, 24 * HOUR_IN_SECONDS );
+        // Tiered TTL: cache stable POSITIVE detections for 24h; cache negative/indeterminate
+        // verdicts (non_wordpress / no_clue / probe_failed) for only 15 min so a transient block
+        // (rate-limit, bot-challenge, momentary WAF) self-heals on the next scan instead of being
+        // pinned for a day. Positive set is an allowlist → any unknown outcome gets the short TTL.
+        $positive = in_array( $result['outcome'], [ 'class_a_clean', 'class_bc_only', 'hybrid_a_plus_bc' ], true );
+        $ttl      = $positive ? DAY_IN_SECONDS : 15 * MINUTE_IN_SECONDS;
+        set_transient( $cache_key, $result, $ttl );
         return $result;
     }
 }
