@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI Assets Scanner 1.7.16</title>
+</head>
+<body>
+  <h1>AI Assets Scanner 1.7.16</h1>
+  <p>Released June 2, 2026.</p>
+  <h2>Fixed — external target-stack probe robustness</h2>
+  <ul>
+    <li>The external target-stack probe now sends a browser <code>Accept</code> header. Some origin WAFs reject a request that has no <code>Accept</code> header with <strong>HTTP 415</strong>; the probe now gets a usable response instead of a rejection.</li>
+    <li>A rejected or errored probe (any 4xx) is now reported as <strong>&ldquo;probe failed&rdquo;</strong> instead of being mislabeled <strong>&ldquo;not WordPress&rdquo;</strong>, so a blocked probe no longer silently suppresses the optimizer bypass on a real WordPress target.</li>
+    <li>Negative / indeterminate probe verdicts are cached for <strong>15 minutes</strong> (instead of 24 hours), so a transient block &mdash; a rate limit or a bot challenge &mdash; self-heals on the next scan rather than being pinned for a day.</li>
+  </ul>
+  <p>Same-site scans are unaffected: they detect optimizers via local plugin introspection, not the external HTTP probe.</p>
+</body>
+</html>
