@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.16",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.16/ai-assets-scanner.zip",
+  "sha256": "adc9c35f63c51b2e241587fa2d13c47d7c45db1457391600a105047b9b731d6d",
+  "signature": "",
+  "released_at": "2026-06-02T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.16/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.16 hardens the external target-stack probe. It sends a browser Accept header so origin WAFs that reject header-poor requests with HTTP 415 now return a usable response. A rejected or errored probe (any 4xx) is reported as 'probe failed' instead of being mislabeled 'not WordPress', so a blocked probe no longer suppresses the optimizer bypass on a real WordPress target. Negative or indeterminate probe verdicts are cached for 15 minutes (instead of 24 hours) so a transient block (a rate limit or bot challenge) self-heals on the next scan. Same-site scans are unaffected; they use local plugin detection, not the external HTTP probe."
+  }
+}
