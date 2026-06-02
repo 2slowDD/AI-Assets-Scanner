@@ -1837,4 +1837,79 @@ class PluginDetectorTargetProbeTest extends TestCase {
             $captured_args['headers']['Accept']
         );
     }
+
+    // -----------------------------------------------------------------
+    // AC-EPR-2/2b/3/8/9 — 4xx-reject resolves to probe_failed at resolution step.
+    // -----------------------------------------------------------------
+
+    /**
+     * AC-EPR-2 — a 415 reject (no recovery) resolves to probe_failed, NOT non_wordpress.
+     */
+    public function test_epr2_http_415_resolves_probe_failed() {
+        $this->stub_probe_response( 415, [], '<html><head><title>415</title></head><body>Unsupported Media Type</body></html>' );
+        $r = PluginDetector::probe_target_stack( 'https://waf.example.com/', null, 12 );
+        $this->assertSame( 'probe_failed', $r['outcome'] );
+        $this->assertStringContainsString( '415', (string) $r['reason'] );
+        $this->assertSame( [], $r['bypass_suffixes'] );
+    }
+
+    /**
+     * AC-EPR-2b — a generic 4xx reject (404) also resolves to probe_failed (reason!==null rule).
+     */
+    public function test_epr2b_http_404_resolves_probe_failed() {
+        $this->stub_probe_response( 404, [], 'Not Found' );
+        $r = PluginDetector::probe_target_stack( 'https://gone.example.com/', null, 12 );
+        $this->assertSame( 'probe_failed', $r['outcome'] );
+        $this->assertStringContainsString( '404', (string) $r['reason'] );
+    }
+
+    /**
+     * AC-EPR-3 — HTTP 406 (Accept-negotiation reject) resolves to probe_failed.
+     */
+    public function test_epr3_http_406_resolves_probe_failed() {
+        $this->stub_probe_response( 406, [], 'Not Acceptable' );
+        $r = PluginDetector::probe_target_stack( 'https://strict.example.com/', null, 12 );
+        $this->assertSame( 'probe_failed', $r['outcome'] );
+        $this->assertStringContainsString( '406', (string) $r['reason'] );
+    }
+
+    /**
+     * AC-EPR-8 — a healthy 2xx-but-not-WP response (reason=null) still resolves to non_wordpress.
+     */
+    public function test_epr8_healthy_non_wp_resolves_non_wordpress() {
+        $this->stub_probe_response( 200, [], '<html><head><title>Plain</title></head><body>not wp</body></html>' );
+        $r = PluginDetector::probe_target_stack( 'https://plain.example.com/', null, 12 );
+        $this->assertSame( 'non_wordpress', $r['outcome'] );
+    }
+
+    /**
+     * AC-EPR-9 — retry preserved: 4xx on url1 still triggers the url2 fallback (2 calls); when url2
+     * is also a reject, the final resolves to probe_failed (reclassify is at resolution, not the
+     * per-attempt status check).
+     */
+    public function test_epr9_4xx_both_urls_tries_fallback_then_probe_failed() {
+        $call_count = 0;
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$call_count ) {
+                $call_count++;
+                return [ 'response' => [ 'code' => 415 ], 'headers' => [], 'body' => '415' ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturnUsing( function ( $r ) { return $r['response']['code']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+
+        $r = PluginDetector::probe_target_stack( 'https://u1.example/', 'https://u2.example/', 12 );
+        $this->assertSame( 'probe_failed', $r['outcome'] );
+        $this->assertSame( 2, $call_count );
+    }
 }
