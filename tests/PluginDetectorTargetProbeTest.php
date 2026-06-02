@@ -1802,4 +1802,39 @@ class PluginDetectorTargetProbeTest extends TestCase {
         // cu_missing should be true (CU_PLUGIN is not active per mock).
         $this->assertTrue( $result['cu_missing'] );
     }
+
+    /**
+     * AC-EPR-1 — the probe request carries a browser-style Accept header.
+     */
+    public function test_epr1_probe_sends_accept_header() {
+        $captured_args = null;
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( [ 'x-wp-rocket-cache' => 'HIT' ] );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn(
+            '<html><head><meta name="generator" content="WordPress 6.4"></head><body>wp-content/</body></html>'
+        );
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing( function ( $url, $args ) use ( &$captured_args ) {
+            $captured_args = $args;
+            return [ 'response' => [ 'code' => 200 ], 'headers' => [], 'body' => '' ];
+        } );
+
+        PluginDetector::probe_target_stack( 'https://example.com/', null, 12 );
+
+        $this->assertIsArray( $captured_args );
+        $this->assertArrayHasKey( 'headers', $captured_args );
+        $this->assertArrayHasKey( 'Accept', $captured_args['headers'] );
+        $this->assertSame(
+            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            $captured_args['headers']['Accept']
+        );
+    }
 }

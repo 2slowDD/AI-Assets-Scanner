@@ -744,6 +744,9 @@ class PluginDetector {
 
         $request_headers = [
             'User-Agent' => 'CU-Scanner-Probe/1.0 (target-stack-detection)',
+            // Browser-style Accept. Some origin WAFs return 415 to requests with no Accept (or
+            // Accept: */*); sending a real Accept yields a usable response instead of a reject.
+            'Accept'     => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         ];
         if ( $use_range ) {
             $request_headers['Range'] = 'bytes=0-32767';
