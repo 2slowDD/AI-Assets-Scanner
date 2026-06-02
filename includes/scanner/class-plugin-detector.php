@@ -925,9 +925,17 @@ class PluginDetector {
             $result = $final;
         }
 
-        // Resolve transient 'inconclusive' to 'no_clue' / 'non_wordpress' per §5.4 step 4.
+        // Resolve transient 'inconclusive' per §5.4 step 4. A non-null reason means the probe was
+        // rejected/errored (4xx, etc.) — resolve to 'probe_failed' (an honest "couldn't read the
+        // site"), NOT a positive 'non_wordpress' claim. A null reason is a healthy response with no
+        // signal → genuine no_clue/non_wordpress (unchanged). This is downstream of the url2-fallback
+        // + Pass-2 logic, so 4xx retry behavior is preserved.
         if ( $result['outcome'] === 'inconclusive' ) {
-            $result['outcome'] = $result['is_wordpress'] ? 'no_clue' : 'non_wordpress';
+            if ( ( $result['reason'] ?? null ) !== null ) {
+                $result['outcome'] = 'probe_failed';
+            } else {
+                $result['outcome'] = $result['is_wordpress'] ? 'no_clue' : 'non_wordpress';
+            }
         }
 
         $result['probed_url_1'] = $url;
