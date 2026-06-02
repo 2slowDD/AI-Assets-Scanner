@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.16 — 2026-06-02
+
+### Fixed
+
+- **Probe: send a browser `Accept` header on the external target-stack probe** — some origin WAFs return HTTP 415 to header-poor requests; adding the standard browser Accept header prevents false negatives on those stacks.
+- **Probe: honest rejection classification** — a rejected/errored probe (4xx) now resolves to "probe failed" instead of "not WordPress", so a blocked probe is reported honestly and does not suppress the bypass on a real WordPress target.
+- **Probe: tiered cache TTL** — negative/indeterminate probe verdicts are now cached for 15 min (vs 24 h for positive detections) so a transient block (rate-limit / bot-challenge) self-heals on the next scan.
+
+Touched: `includes/scanner/class-plugin-detector.php`.
+
+---
+
 ## 1.7.15 — 2026-05-31
 
 ### Added
