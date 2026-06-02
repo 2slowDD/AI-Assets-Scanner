@@ -22,7 +22,14 @@ class AIAS_Scan_Status {
 			];
 		}
 
-		$credits = ( 'error' === $status || 'origin_unavailable' === $status ) ? 0 : 1;
+		// FU-AAS-ET-CREDIT-DISPLAY (2026-06-02): Railway stamps `extra_time_charged` on pages that
+		// ran a billed Extra-Time continuation (1:1 with the scan-level et_ran SaaS charges). Add the
+		// +1 so the per-URL Credits column matches the amount billed. The flag arrives from the
+		// (untrusted) Railway status response — coerce to a 0/1 int; it only ever produces an int credit.
+		$et_credit = empty( $page['extra_time_charged'] ) ? 0 : 1;
+		// Base done-credit: 1 for any completed page (ok/partial/blocked), 0 for error (origin_unavailable
+		// already returned above). Final per-URL credit = base + ET.
+		$credits = ( 'error' === $status ) ? $et_credit : ( 1 + $et_credit );
 
 		// Affected device = entry naming desktop/mobile with a NON-EMPTY reason
 		// (mirrors CuJsonBuilder::blocked_devices(); is_broken intentionally unused).
@@ -57,7 +64,7 @@ class AIAS_Scan_Status {
 			return [
 				'class'   => 'error',
 				'label'   => $first ? sprintf( __( 'Error: %s', 'ai-assets-scanner' ), $first ) : __( 'Error', 'ai-assets-scanner' ),
-				'credits' => 0,
+				'credits' => $credits,
 			];
 		}
 		if ( ! empty( $affected ) ) {
@@ -65,10 +72,10 @@ class AIAS_Scan_Status {
 			return [
 				'class'   => 'partial',
 				'label'   => sprintf( /* translators: 1 device, 2 reason */ __( '%1$s failed: %2$s', 'ai-assets-scanner' ), ucfirst( $device ), AIAS_Broken_Banner::reason_phrase( $affected[ $device ] ) ),
-				'credits' => 1,
+				'credits' => $credits,
 			];
 		}
-		return [ 'class' => 'ok', 'label' => __( 'OK', 'ai-assets-scanner' ), 'credits' => 1 ];
+		return [ 'class' => 'ok', 'label' => __( 'OK', 'ai-assets-scanner' ), 'credits' => $credits ];
 	}
 
 	/**

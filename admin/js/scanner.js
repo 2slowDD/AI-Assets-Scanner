@@ -13,6 +13,7 @@
     let discoveryRan   = false; // true once a REAL Discover Pages run completed (distinguishes mixed mode from include-only)
     let selectedUrls   = [];   // checked subset — used for reserve + submit
     let extraTimeUrls = []; // FU-AAS-EXTRA-TIME — URLs the operator marked for Extra Time
+    let etCarryOver   = false; // FU-AAS-ET-VIEW-PERSIST — true while showing the post-scan ET carry-over Step-1 view
     let groupedUrls    = {};   // { page: [...], post: [...], other: [...] }
     let activeFilter   = 'all';
     let scanJobId        = null;
@@ -560,6 +561,7 @@
             totalPages     = discoveredUrls.length;
             activeFilter   = 'all';
             discoveryRan   = true; // a real discovery completed — mixed-mode include URLs now MERGE, not replace
+            clearEtCarryOver();    // FU-AAS-ET-VIEW-PERSIST — a fresh discovery exits the ET carry-over view
 
             syncIncludedUrls();
             renderUrlList();
@@ -631,7 +633,7 @@
                 row.innerHTML = `<input type="checkbox" class="cu-row-cb" data-url="${esc(url)}" data-type="${esc(type)}"${isChecked ? ' checked' : ''}>
                     <span class="cu-url-text">${esc(url)}</span>${badge}
                     <label class="cu-et-label"><input type="checkbox" class="cu-et-cb" data-url="${esc(url)}"${extraTimeUrls.includes(url) ? ' checked' : ''}>
-                    Extra Time <span class="cu-help" tabindex="0" aria-label="Extra Time gives the worker more time on this URL — likely more unloads — and costs an additional credit."><span class="cu-help-box">Extra Time means more time for the worker to go through this URL, but it costs an additional credit.</span></span></label>`;
+                    Extra Time</label><span class="cu-help" tabindex="0" aria-label="Extra Time gives the worker more time on this URL — likely more unloads — and costs an additional credit."><span class="cu-help-box">Extra Time means more time for the worker to go through this URL, but it costs an additional credit.</span></span>`;
                 row.style.display = idx < 20 ? '' : 'none';
                 groupDiv.appendChild(row);
             });
@@ -726,6 +728,25 @@
         if (e.target.checked) { if (!extraTimeUrls.includes(url)) extraTimeUrls.push(url); }
         else { extraTimeUrls = extraTimeUrls.filter(u => u !== url); }
         updateCreditBadge();
+    }
+
+    // FU-AAS-ET-VIEW-PERSIST — snapshot/clear the post-scan ET carry-over view so it survives
+    // WP-admin navigation (mirrors the Step-4 cu_scanner_result restore). saveEtCarryOver()
+    // no-ops outside that view (etCarryOver gate), so it is safe to call from updateCreditBadge().
+    function saveEtCarryOver() {
+        if (!etCarryOver) return;
+        try {
+            localStorage.setItem('cu_scanner_et_carry_over', JSON.stringify({
+                discoveredUrls: discoveredUrls,
+                groupedUrls:    groupedUrls,
+                selectedUrls:   selectedUrls,
+                extraTimeUrls:  extraTimeUrls,
+            }));
+        } catch (_e) {}
+    }
+    function clearEtCarryOver() {
+        etCarryOver = false;
+        try { localStorage.removeItem('cu_scanner_et_carry_over'); } catch (_e) {}
     }
 
     function updateGroupCheckbox(type) {
@@ -830,6 +851,7 @@
     // --- Credit badge ---
 
     function updateCreditBadge() {
+        saveEtCarryOver(); // FU-AAS-ET-VIEW-PERSIST — persists the ET carry-over view (no-op otherwise)
         const badge      = document.getElementById('cu-credit-badge');
         const notice     = document.getElementById('cu-bot-notice');
         const numEl      = document.getElementById('cu-credit-num');
@@ -1025,6 +1047,7 @@
                             job_token:   scanJobToken,
                             railway_url: railwayUrl,
                         }) );
+                        clearEtCarryOver(); // FU-AAS-ET-VIEW-PERSIST — scan started; resume Step 3 on return, not the ET view
                         showStep(3);
                         startPolling();
                     })
@@ -1536,6 +1559,7 @@
     document.querySelectorAll('#step-4 .cu-btn-run-another').forEach(function (btn) {
         btn.addEventListener('click', function () {
             localStorage.removeItem('cu_scanner_result');
+            localStorage.removeItem('cu_scanner_et_carry_over'); // FU-AAS-ET-VIEW-PERSIST — reset to a fresh Step 1
             window.location.href = '?page=cu-scanner';
         });
     });
@@ -1584,9 +1608,36 @@
         totalPages     = etUrls.length;
         activeFilter   = 'all';
         discoveryRan   = true;             // mixed/merge mode — NOT include-only
+        etCarryOver    = true;             // FU-AAS-ET-VIEW-PERSIST — this IS the carry-over view
+        renderUrlList();
+        updateCreditBadge();               // persists the view via saveEtCarryOver()
+        document.getElementById('cu-url-list-area').style.display = 'block';
+        updateStartScanVisibility();
+        showStep(1);
+    }());
+
+    // --- FU-AAS-ET-VIEW-PERSIST: restore the ET carry-over view on a later page return ---
+    // Mirrors the Step-4 restore IIFE above. Runs AFTER primeRescanEt so a just-primed rescan
+    // (etCarryOver already true) wins; a stored Step-4 result also takes precedence.
+    (function restoreEtCarryOver() {
+        if (etCarryOver) return;                                // primeRescanEt already built it
+        if (localStorage.getItem('cu_scanner_result')) return;  // Step-4 result wins
+        var raw = localStorage.getItem('cu_scanner_et_carry_over');
+        if (!raw) return;
+        var d; try { d = JSON.parse(raw); } catch (e) { localStorage.removeItem('cu_scanner_et_carry_over'); return; }
+        if (!d || !Array.isArray(d.discoveredUrls) || !d.discoveredUrls.length) return;
+        discoveredUrls = d.discoveredUrls;
+        groupedUrls    = (d.groupedUrls && typeof d.groupedUrls === 'object') ? d.groupedUrls : { page: [], post: [], other: [], included: d.discoveredUrls };
+        selectedUrls   = Array.isArray(d.selectedUrls) ? d.selectedUrls : d.discoveredUrls.slice();
+        extraTimeUrls  = Array.isArray(d.extraTimeUrls) ? d.extraTimeUrls : [];
+        totalPages     = discoveredUrls.length;
+        activeFilter   = 'all';
+        discoveryRan   = true;
+        etCarryOver    = true;
         renderUrlList();
         updateCreditBadge();
-        document.getElementById('cu-url-list-area').style.display = 'block';
+        var area = document.getElementById('cu-url-list-area');
+        if (area) area.style.display = 'block';
         updateStartScanVisibility();
         showStep(1);
     }());

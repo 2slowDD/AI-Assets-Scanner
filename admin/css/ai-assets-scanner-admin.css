@@ -276,8 +276,22 @@
 .cu-url-list {
     border: 1px solid #dcdcde;
     border-radius: 5px;
-    overflow: hidden;
+    /* overflow:hidden removed (FU-AAS-ET-TOOLTIP-STEP1) so the per-row Extra-Time "?"
+       tooltip (.cu-help-box) can escape the list; rounded corners are preserved by
+       rounding the first/last children below instead of clipping the container. */
     margin-bottom: 14px;
+}
+/* Container no longer clips, so round the visible top/bottom inner corners — otherwise the
+   dark group-header and last row poke past the 5px border. Scopes to the first/last group
+   (the single-group ET carry-over view + the default 'all' view). */
+.cu-url-list > div:first-child .cu-group-header {
+    border-top-left-radius: 5px;
+    border-top-right-radius: 5px;
+}
+.cu-url-list > div:last-child > .cu-url-row:last-child,
+.cu-url-list > div:last-child > .cu-url-more:last-child {
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
 }
 
 /* Group header row */
