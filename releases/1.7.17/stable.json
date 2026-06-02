@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.17",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.17/ai-assets-scanner.zip",
+  "sha256": "c31760ad6901c00834fc26b966107e15758235b7d31d4f90e260bff0338c4b0b",
+  "signature": "",
+  "released_at": "2026-06-02T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.17/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.17 fixes three Extra-Time UI issues. The Step-1 Extra-Time \"?\" help icon no longer toggles the Extra-Time checkbox when clicked and now shows its tooltip on hover. The post-scan Extra-Time view (Rescan ET Candidates) now survives WordPress-admin navigation: leaving the scanner page and returning restores the Extra-Time URL list with your selections, the same way the results screen already persists. The per-URL Credits column on the results table now shows the correct base+1 credit for URLs that ran a billed Extra-Time continuation, matching the amount charged (older scans without the data show base credits only). Display and UI only; no scan-behavior or billing change."
+  }
+}
