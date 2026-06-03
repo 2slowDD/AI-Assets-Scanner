@@ -125,4 +125,79 @@ class PluginDetectorRedirectTest extends TestCase {
     public function test_extract_canonical_null_when_absent(): void {
         $this->assertNull( PluginDetector::__test_extract_canonical( '<p>no canonical</p>', 'https://x.com/' ) );
     }
+
+    // -------------------------------------------------------------------------
+    // AC-RC-1 — attach_resolution: same-site redirect is used as resolved_url
+    // -------------------------------------------------------------------------
+
+    public function test_resolution_same_site(): void {
+        $this->stub_wp_parse_url();
+        $r = PluginDetector::__test_attach_resolution(
+            'https://cloudways.com',
+            [ 'redirect_final' => 'https://www.cloudways.com/en' ]
+        );
+        $this->assertSame( 'https://www.cloudways.com/en', $r['resolved_url'] );
+        $this->assertSame( 'redirect_final', $r['resolution_source'] );
+        $this->assertSame( 'https://cloudways.com', $r['submitted_url'] );
+    }
+
+    // -------------------------------------------------------------------------
+    // AC-RC-3 — attach_resolution: cross-domain redirect is rejected
+    // -------------------------------------------------------------------------
+
+    public function test_resolution_cross_domain_reject(): void {
+        $this->stub_wp_parse_url();
+        $r = PluginDetector::__test_attach_resolution(
+            'https://example.com',
+            [ 'redirect_final' => 'https://partner.com/x' ]
+        );
+        $this->assertSame( 'https://example.com', $r['resolved_url'] );
+        $this->assertSame( 'cross_domain_reject', $r['resolution_source'] );
+    }
+
+    // -------------------------------------------------------------------------
+    // AC-RC-1 (no-redirect branch) — redirect_final same as $url → source=none
+    // -------------------------------------------------------------------------
+
+    public function test_resolution_no_redirect(): void {
+        $this->stub_wp_parse_url();
+        $r = PluginDetector::__test_attach_resolution(
+            'https://x.com/p',
+            [ 'redirect_final' => 'https://x.com/p' ]
+        );
+        $this->assertSame( 'https://x.com/p', $r['resolved_url'] );
+        $this->assertSame( 'none', $r['resolution_source'] );
+    }
+
+    // -------------------------------------------------------------------------
+    // AC-RC-12 — host-cache hit for a DIFFERENT path must NOT serve stale resolved_url
+    // -------------------------------------------------------------------------
+
+    public function test_cache_cross_path_does_not_leak_resolution(): void {
+        $this->stub_wp_parse_url();
+
+        // Simulate a pre-seeded transient for https://host.com:443 that resolved /en.
+        $stored = [
+            'outcome'           => 'non_wordpress',
+            'detected'          => [],
+            'bypass_suffixes'   => [],
+            'submitted_url'     => 'https://host.com',
+            'resolved_url'      => 'https://www.host.com/en',
+            'resolution_source' => 'redirect_final',
+        ];
+        $expected_key = 'cu_scanner_target_stack_v2_' . md5( 'https://host.com:443' );
+
+        WP_Mock::userFunction( 'get_transient' )->andReturnUsing(
+            function ( string $key ) use ( $expected_key, $stored ) {
+                return $key === $expected_key ? $stored : false;
+            }
+        );
+
+        $r = PluginDetector::probe_target_stack( 'https://host.com/pricing' );
+
+        $this->assertTrue( $r['cache_hit'] );
+        // resolved_url must be the CURRENT request URL, not the cached /en
+        $this->assertSame( 'https://host.com/pricing', $r['resolved_url'] );
+        $this->assertSame( 'none', $r['resolution_source'] );
+    }
 }
