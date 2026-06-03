@@ -934,6 +934,11 @@
         const externalUrls = selectedUrls.filter(isExternalUrl);
         let targetBypassPerUrl = {};
         let targetStackSummary = null;
+        // AC-RC-8a — per-URL resolved-URL map (mirrors targetBypassPerUrl). Populated
+        // from the probe response; maps each submitted URL to its post-redirect resolved
+        // URL (or itself when no redirect). We scan the resolved URL but carry the
+        // original submitted URL through to the server for honest attribution.
+        let resolvedByUrl = {};
 
         if (externalUrls.length > 0) {
             // 1.3.4 (2026-05-16) — Pre-probe external-URL safety gate (restores the
@@ -974,6 +979,11 @@
             }
             targetBypassPerUrl = probeResult.data.suggested_bypass_per_url || {};
             targetStackSummary = probeResult.data.per_host_results || [];
+            // AC-RC-8a — store resolved_url per submitted URL (default to identity).
+            const respResolved = probeResult.data.resolved_per_url || {};
+            externalUrls.forEach(function (submittedUrl) {
+                resolvedByUrl[submittedUrl] = respResolved[submittedUrl] || submittedUrl;
+            });
 
             if (probeResult.data.warning_needed) {
                 const userConfirmed = await showProbeOutcomeDialog(probeResult.data);
@@ -995,7 +1005,11 @@
                 if (!res.success) { showStep(1); alert('Error: ' + res.data); return; }
                 const job_token = res.data.job_token;
                 post('cu_scanner_submit_job', {
-                    urls: selectedUrls,
+                    // AC-RC-8a — scan the resolved URL, carry the original submitted URL.
+                    // submitted_urls[] is index-aligned with urls[] (both mapped from the
+                    // same selectedUrls array in the same order).
+                    urls: selectedUrls.map(u => resolvedByUrl[u] || u),
+                    submitted_urls: selectedUrls,
                     job_token,
                     extra_time_urls: etSelected,
                     target_bypass_per_url: targetBypassPerUrl,
@@ -1017,7 +1031,9 @@
                                 return;
                             }
                             const retry = await post('cu_scanner_submit_job', {
-                                urls: selectedUrls,
+                                // AC-RC-8a — same resolved/submitted threading as above.
+                                urls: selectedUrls.map(u => resolvedByUrl[u] || u),
+                                submitted_urls: selectedUrls,
                                 job_token: job_token,
                                 class_c_consent_given: '1',
                                 extra_time_urls: etSelected,

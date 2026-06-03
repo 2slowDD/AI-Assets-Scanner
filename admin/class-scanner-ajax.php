@@ -260,9 +260,26 @@ class ScannerAjax {
             $target_bypass_per_url[ $clean_url ] = $clean_suffixes;
         }
 
+        // AC-RC-8a — per-URL submitted_url map. JS sends a parallel submitted_urls[]
+        // array, index-aligned with urls[]: urls[i] is the RESOLVED (post-redirect)
+        // scan URL, submitted_urls[i] is the ORIGINAL URL the operator entered. We zip
+        // them by index into a (resolved-URL → submitted-URL) map keyed the same way
+        // build_pages_array() iterates ($urls_raw), so the lookup mirrors
+        // $target_bypass_per_url[$url]. Flat scalar array → esc_url_raw per element is a
+        // recognized outermost sanitizer (wp-compliance Rule 24).
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map esc_url_raw.
+        $submitted_urls_raw    = array_map( 'esc_url_raw', wp_unslash( (array) ( $_POST['submitted_urls'] ?? [] ) ) );
+        $submitted_url_per_url = [];
+        foreach ( $urls_raw as $i => $resolved_url ) {
+            $orig = $submitted_urls_raw[ $i ] ?? '';
+            if ( $resolved_url !== '' && $orig !== '' ) {
+                $submitted_url_per_url[ $resolved_url ] = $orig;
+            }
+        }
+
         $home_url    = home_url();
         $home_host   = wp_parse_url( $home_url, PHP_URL_HOST );
-        $page_specs  = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url, $et_set );
+        $page_specs  = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url, $et_set, $submitted_url_per_url );
 
         // Force URL scheme to match the current admin request's protocol. Sitemaps
         // and WP_Query can emit http URLs even on https-served sites (option drift,
@@ -1085,6 +1102,26 @@ class ScannerAjax {
             }
         }
 
+        // AC-RC-8a — build per-URL resolved-URL map (mirrors $suggested_bypass_per_url).
+        // PluginDetector::probe_target_stack returns resolved_url/submitted_url for the
+        // exact URL it probed ($url1 per host). Resolution is URL-specific, so we honor
+        // the probe's resolved_url ONLY for the matching submitted URL; every other URL
+        // on that host (and any URL the probe didn't resolve) maps to itself (identity).
+        // Built BEFORE strip_to_whitelist() below, which would otherwise drop these
+        // non-whitelisted fields. JS threads this map back as submitted_urls[] on submit.
+        $resolved_per_url = [];
+        foreach ( $by_host as $host => $host_urls ) {
+            $r = self::find_result_for_host( $per_host_results, $host );
+            $probe_submitted = is_string( $r['submitted_url'] ?? null ) ? $r['submitted_url'] : '';
+            $probe_resolved  = is_string( $r['resolved_url']  ?? null ) ? $r['resolved_url']  : '';
+            foreach ( $host_urls as $u ) {
+                // Identity default; override only for the exact URL the probe resolved.
+                $resolved_per_url[ $u ] = ( $u === $probe_submitted && $probe_resolved !== '' )
+                    ? $probe_resolved
+                    : $u;
+            }
+        }
+
         // Determine warning_needed (any host has outcome other than class_a_clean).
         $warning_needed = false;
         foreach ( $per_host_results as $r ) {
@@ -1102,6 +1139,7 @@ class ScannerAjax {
             'data'    => [
                 'per_host_results'         => $per_host_results,
                 'suggested_bypass_per_url' => $suggested_bypass_per_url,
+                'resolved_per_url'         => $resolved_per_url,
                 'warning_needed'           => $warning_needed,
                 'summary'                  => [
                     'uniform_outcome'   => self::is_uniform_outcome( $per_host_results ),
@@ -1171,16 +1209,19 @@ class ScannerAjax {
      * Note: bypass_token is attached downstream where the token is built — this helper
      * focuses solely on the per-URL bypass_suffixes decision (the load-bearing §4.2 rule).
      *
-     * @param string[]            $selected_urls         Raw selected URLs.
+     * @param string[]            $selected_urls         Raw selected URLs (already resolved — the URL we scan).
      * @param string[]            $host_bypass           Host-detected bypass suffixes (today's array).
      * @param array<string,array> $target_bypass_per_url Per-URL bypass map from probe response (keyed by URL).
      * @param string              $home_url              Site's home URL (for internal/external classification).
      * @param array<string,mixed> $et_set                FU-AAS-EXTRA-TIME — array_flip'd membership set of Extra-Time URLs.
-     * @return array<int,array{url:string,bypass_suffixes:array,extra_time:bool}>
+     * @param array<string,string> $submitted_url_per_url AC-RC-8a — resolved-URL → original-submitted-URL map.
+     *                                                     Mirrors $target_bypass_per_url: keyed by the (resolved)
+     *                                                     scan URL, defaults to the URL itself when absent.
+     * @return array<int,array{url:string,bypass_suffixes:array,extra_time:bool,submitted_url:string}>
      */
     private static function build_pages_array( array $selected_urls, array $host_bypass,
                                                 array $target_bypass_per_url, string $home_url,
-                                                array $et_set = [] ): array {
+                                                array $et_set = [], array $submitted_url_per_url = [] ): array {
         $home_host = strtolower( preg_replace( '/^www\./i', '',
             wp_parse_url( $home_url, PHP_URL_HOST ) ?: '' ) );
         $pages = [];
@@ -1208,6 +1249,11 @@ class ScannerAjax {
                 // FU-AAS-EXTRA-TIME — flag this page for Extra Time if the operator
                 // marked its URL. Carried through reshape_page_specs() into pages[].
                 'extra_time'      => isset( $et_set[ $url ] ),
+                // AC-RC-8a — original operator-submitted URL (pre-redirect-resolution).
+                // $url here is the RESOLVED scan URL; submitted_url preserves what the
+                // operator actually entered so downstream attribution stays honest.
+                // Defaults to $url when the probe found no redirect (identity).
+                'submitted_url'   => $submitted_url_per_url[ $url ] ?? $url,
                 // bypass_token attached downstream where the token is built.
             ];
         }
@@ -1220,10 +1266,10 @@ class ScannerAjax {
      * NOT named here is silently dropped, so FU-AAS-EXTRA-TIME's extra_time flag
      * must be carried through explicitly.
      *
-     * @param array<int,array{url:string,bypass_suffixes:array,extra_time?:bool}> $page_specs
+     * @param array<int,array{url:string,bypass_suffixes:array,extra_time?:bool,submitted_url?:string}> $page_specs
      * @param callable $build_scan_url fn( string $url, array $bypass_suffixes ): string
      * @param string   $token          Bypass token attached to every page.
-     * @return array<int,array{url:string,bypass_token:string,bypass_suffixes:array,extra_time:bool}>
+     * @return array<int,array{url:string,bypass_token:string,bypass_suffixes:array,extra_time:bool,submitted_url:string}>
      */
     private static function reshape_page_specs( array $page_specs, callable $build_scan_url, string $token ): array {
         return array_map(
@@ -1232,6 +1278,10 @@ class ScannerAjax {
                 'bypass_token'    => $token,
                 'bypass_suffixes' => $spec['bypass_suffixes'],
                 'extra_time'      => $spec['extra_time'] ?? false,
+                // AC-RC-8a — original submitted URL. This is the hardcoded-key seam:
+                // any key not named here is silently dropped, so submitted_url must be
+                // carried through explicitly. Falls back to the (resolved) url.
+                'submitted_url'   => $spec['submitted_url'] ?? $spec['url'],
             ],
             $page_specs
         );
@@ -1272,8 +1322,8 @@ class ScannerAjax {
     }
     public static function __test_build_pages_array( array $selected_urls, array $host_bypass,
                                                       array $target_bypass_per_url, string $home_url,
-                                                      array $et_set = [] ): array {
-        return self::build_pages_array( $selected_urls, $host_bypass, $target_bypass_per_url, $home_url, $et_set );
+                                                      array $et_set = [], array $submitted_url_per_url = [] ): array {
+        return self::build_pages_array( $selected_urls, $host_bypass, $target_bypass_per_url, $home_url, $et_set, $submitted_url_per_url );
     }
     public static function __test_reshape_page_specs( array $page_specs, callable $build_scan_url, string $token ): array {
         return self::reshape_page_specs( $page_specs, $build_scan_url, $token );

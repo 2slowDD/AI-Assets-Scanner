@@ -116,6 +116,57 @@ class SubmitJobPayloadTest extends TestCase {
     }
 
     /**
+     * AC-RC-8a — build_pages_array threads the resolved scan URL through `url` while
+     * preserving the original operator-submitted URL in `submitted_url`.
+     *
+     * The submitted_url map is keyed by the RESOLVED URL (build_pages_array iterates the
+     * resolved $selected_urls), exactly as submit_job zips urls[]→submitted_urls[] by index.
+     */
+    public function test_build_pages_array_carries_submitted_url() {
+        WP_Mock::userFunction( 'do_action' )->andReturn( null );
+
+        // urls[] is already the resolved URL; submitted_urls[] is the original.
+        $resolved  = 'https://www.cloudways.com/en';
+        $submitted = 'https://cloudways.com';
+
+        $pages = ScannerAjax::__test_build_pages_array(
+            [ $resolved ],                       // selected (resolved) URLs
+            [ 'nowprocket' ],                    // host bypass
+            [],                                  // target bypass map
+            'https://wpservice.pro',             // home url (so the URL is external)
+            [],                                  // et_set
+            [ $resolved => $submitted ]          // AC-RC-8a resolved→submitted map
+        );
+
+        $this->assertCount( 1, $pages );
+        $this->assertSame( $resolved,  $pages[0]['url'],
+            'Page url MUST be the resolved (post-redirect) scan URL' );
+        $this->assertSame( $submitted, $pages[0]['submitted_url'],
+            'Page submitted_url MUST be the original operator-submitted URL' );
+    }
+
+    /**
+     * AC-RC-8a (identity) — when no resolution map entry exists for a URL (probe found
+     * no redirect), submitted_url falls back to the URL itself.
+     */
+    public function test_build_pages_array_submitted_url_defaults_to_identity() {
+        WP_Mock::userFunction( 'do_action' )->andReturn( null );
+
+        $pages = ScannerAjax::__test_build_pages_array(
+            [ 'https://wpservice.pro/page1/' ],
+            [ 'nowprocket' ],
+            [],
+            'https://wpservice.pro',
+            [],
+            []   // empty resolved→submitted map
+        );
+
+        $this->assertSame( 'https://wpservice.pro/page1/', $pages[0]['url'] );
+        $this->assertSame( 'https://wpservice.pro/page1/', $pages[0]['submitted_url'],
+            'submitted_url defaults to the URL itself when no resolution map entry exists' );
+    }
+
+    /**
      * AC-N2-10 — target_stack_summary blob is captured from $_POST and forwarded to SaaS.
      * Tests the helper that captures + sanitizes the blob before SaaS post.
      */
