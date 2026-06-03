@@ -938,7 +938,9 @@
         // from the probe response; maps each submitted URL to its post-redirect resolved
         // URL (or itself when no redirect). We scan the resolved URL but carry the
         // original submitted URL through to the server for honest attribution.
-        let resolvedByUrl = {};
+        // NOTE: declared at IIFE scope (see resolvedByUrl declaration near cuUrlListState) so
+        // renderResultUrlListPage() — a sibling fn — can read it. Reset (not redeclared) per scan.
+        resolvedByUrl = {};
 
         if (externalUrls.length > 0) {
             // 1.3.4 (2026-05-16) — Pre-probe external-URL safety gate (restores the
@@ -1293,6 +1295,11 @@
 
     // --- Per-URL results table (Step 4) -------------------------------------
     var cuUrlListState = { pages: [], scanId: '', page: 0, perPage: 25, etChecked: new Set() };
+    // AC-RC-8b — resolved→submitted map, IIFE-scoped so both the submit handler (which
+    // populates it from the probe response) and renderResultUrlListPage() (which reads it
+    // for the "← resolved from" note) can see it. Was previously let-scoped inside the submit
+    // handler → ReferenceError in renderResultUrlListPage → Step-4 render threw on every scan.
+    var resolvedByUrl = {};
 
     function cuEscHtml( v ) { var d = document.createElement('div'); d.textContent = ( v == null ? '' : String( v ) ); return d.innerHTML; }
 
@@ -1322,7 +1329,7 @@
         // resolvedByUrl map. Only populated during a live scan; gracefully absent when
         // results are restored from localStorage after a page reload.
         var submittedByResolved = {};
-        if ( resolvedByUrl ) {
+        if ( typeof resolvedByUrl !== 'undefined' && resolvedByUrl ) {
             Object.keys( resolvedByUrl ).forEach( function ( submitted ) {
                 var resolved = resolvedByUrl[ submitted ];
                 if ( resolved && resolved !== submitted ) {

@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.19 — 2026-06-03
+
+### Fixed
+
+- **Hotfix: Step-4 results stuck on "Scanning…"** — 1.7.18 introduced a JavaScript scope error. The per-URL resolved-URL map (`resolvedByUrl`) was declared inside the submit handler but read by the Step-4 results renderer (a sibling function), throwing a `ReferenceError` that aborted the Step-3 → Step-4 transition on **every** scan (redirecting or not — clean same-host scans included). `resolvedByUrl` is now declared at shared (IIFE) scope, and the renderer guards the access, so results render normally. No change to scan behavior, rules, or billing. Touched: `admin/js/scanner.js`.
+
 ## 1.7.18 — 2026-06-03
 
 ### Added
