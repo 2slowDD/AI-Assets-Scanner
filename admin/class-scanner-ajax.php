@@ -50,7 +50,8 @@ class ScannerAjax {
     private function settings(): Settings { return new Settings(); }
 
     private function ratchet_enabled(): bool {
-        return (bool) get_option( 'cu_scanner_ratchet_enabled', false );
+        // Default-ON (beta). Opt-out kill switch: set the option to a falsy value (0 / false).
+        return (bool) get_option( 'cu_scanner_ratchet_enabled', true );
     }
 
     private function ensure_railway_url( Settings $settings, string $api_key ): string {
