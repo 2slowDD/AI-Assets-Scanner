@@ -237,6 +237,35 @@ class SubmitJobPayloadTest extends TestCase {
         $this->assertCount( 1, $captured );
         $this->assertSame( 'pinadventures.com', $captured[0]['host'] );
         $this->assertSame( 'class_bc_only', $captured[0]['outcome'] );
+        // FU-TSS-DETECTED — string-shaped detected entries pass through as names.
+        $this->assertSame( [ 'Breeze (body)' ], $captured[0]['detected'] );
+    }
+
+    /**
+     * FU-TSS-DETECTED (2026-06-03) — the probe sends `detected` as an array of OBJECTS
+     * ({name,class,bypass_query,source}), not strings. The capture helper must extract the
+     * optimizer name; casting the object via (string) corrupts it to "Array" + emits a
+     * PHP "Array to string conversion" warning. The original fixture was string-only and
+     * never asserted `detected`, which is why the object-shape bug shipped silently.
+     */
+    public function test_capture_target_stack_summary_object_shape_detected() {
+        $post_data = [
+            [
+                'host'      => 'siranovicpipes.com',
+                'outcome'   => 'class_a_clean',
+                'cache_hit' => false,
+                'detected'  => [
+                    [ 'name' => 'LiteSpeed Cache', 'class' => 'A_star', 'bypass_query' => 'LSCWP_CTRL=before_optm', 'source' => 'header' ],
+                ],
+            ],
+        ];
+
+        $captured = ScannerAjax::__test_capture_target_stack_summary( $post_data );
+
+        $this->assertNotNull( $captured );
+        $this->assertCount( 1, $captured );
+        // The optimizer NAME must survive — not the literal "Array".
+        $this->assertSame( [ 'LiteSpeed Cache' ], $captured[0]['detected'] );
     }
 
     /**
