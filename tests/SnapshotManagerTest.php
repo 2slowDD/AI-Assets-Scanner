@@ -53,6 +53,36 @@ class FakeRuleRepository {
         return $id;
     }
 
+    /**
+     * Mirror of CodeUnloader\Core\RuleRepository::create_group_item().
+     *
+     * Snapshot rows (cu_group_items in the real DB) are modeled here inside
+     * self::$rules with their group_id set to the snapshot group. Dedupes within
+     * the group by rule identity (mirrors find_duplicate_group_item): a duplicate
+     * returns the existing id WITHOUT inserting — the same rule identity can exist
+     * in multiple active groups, but only one snapshot row fits per group scope.
+     *
+     * IDs start at 1000 to stay clear of active-rule ids (200+) and group ids (100+).
+     */
+    public static function create_group_item( int $group_id, array $snapshot ): int|\WP_Error {
+        foreach ( self::$rules as $r ) {
+            if ( (int) ( $r['group_id'] ?? 0 ) === $group_id
+              && ( $r['url_pattern']         ?? null )  === ( $snapshot['url_pattern']         ?? null )
+              && ( $r['match_type']          ?? null )  === ( $snapshot['match_type']          ?? null )
+              && ( $r['asset_handle']        ?? null )  === ( $snapshot['asset_handle']        ?? null )
+              && ( $r['asset_type']          ?? null )  === ( $snapshot['asset_type']          ?? null )
+              && ( $r['device_type']         ?? 'all' ) === ( $snapshot['device_type']         ?? 'all' )
+              && (int) ( $r['condition_invert'] ?? 0 )  === (int) ( $snapshot['condition_invert'] ?? 0 )
+              && ( $r['condition_type']       ?? null ) === ( $snapshot['condition_type']       ?? null )
+              && ( $r['condition_value']      ?? null ) === ( $snapshot['condition_value']      ?? null ) ) {
+                return (int) $r['id']; // duplicate within snapshot group → return existing id, no insert
+            }
+        }
+        $id = count( self::$rules ) + 1000;
+        self::$rules[] = array_merge( $snapshot, [ 'id' => $id, 'group_id' => $group_id ] );
+        return $id;
+    }
+
     public static function find_duplicate( array $data, int $exclude_id = 0 ): ?object {
         $gid = ( isset( $data['group_id'] ) && $data['group_id'] !== '' && $data['group_id'] !== null ) ? (int) $data['group_id'] : 0;
         foreach ( self::$rules as $r ) {
@@ -84,6 +114,17 @@ class FakeRuleRepository {
     }
 
     public static function delete_group( int $id ): bool {
+        // Mirror RuleRepository::delete_group() cascade: remove the group's snapshot
+        // rows (cu_group_items) before deleting the group itself. In this fake those
+        // rows live in self::$rules keyed by group_id; deleting them records their ids
+        // in $deleted_rule_ids so rollback()'s delete_group() cleans the partial snapshot.
+        $item_ids = array_column(
+            array_filter( self::$rules, fn( $r ) => (int) ( $r['group_id'] ?? 0 ) === $id ),
+            'id'
+        );
+        foreach ( $item_ids as $rid ) {
+            static::delete_rule( (int) $rid );
+        }
         self::$deleted_group_ids[] = $id;
         self::$groups = array_values( array_filter( self::$groups, fn( $g ) => $g['id'] !== $id ) );
         return true;
@@ -214,18 +255,19 @@ class SnapshotManagerTest extends TestCase {
         $this->assertInstanceOf( \WP_Error::class, $result );
     }
 
-    public function test_snapshot_rollback_cleans_up_partial_copy_on_create_rule_failure(): void {
+    public function test_snapshot_rollback_cleans_up_partial_copy_on_create_group_item_failure(): void {
         \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
 
-        // Create a repo variant where the second create_rule() call fails
+        // snapshot() writes snapshot rows via create_group_item() (not create_rule()),
+        // so inject the failure there: the second create_group_item() call fails.
         $failing_repo = new class extends FakeRuleRepository {
             public static int $call_count = 0;
-            public static function create_rule( array $data ): int|\WP_Error {
+            public static function create_group_item( int $group_id, array $snapshot ): int|\WP_Error {
                 self::$call_count++;
                 if ( self::$call_count >= 2 ) {
                     return new \WP_Error( 'db_error', 'Second insert failed' );
                 }
-                return parent::create_rule( $data );
+                return parent::create_group_item( $group_id, $snapshot );
             }
             public static function reset(): void {
                 self::$call_count = 0;
