@@ -577,6 +577,63 @@ class RatchetMergerTest extends TestCase {
         $this->assertCount( 1, $matching, 'rule already in R_et must not be duplicated' );
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // url_to_pattern parity: RatchetMerger must stay byte-identical with
+    // CuJsonBuilder — both are private copies; if one drifts, merge() silently
+    // mis-aligns keys and restore/drop decisions break for all assets.
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * For each URL in a representative corpus, the url_pattern that
+     * RatchetMerger derives MUST equal the url_pattern CuJsonBuilder
+     * emits in its built rules[0].
+     *
+     * Failure means the two copies have diverged and merge() will
+     * never find a match between rescan keys and R_orig keys.
+     */
+    public function test_url_pattern_parity_with_cujsonbuilder(): void {
+        $corpus = [
+            'root'            => 'https://s.com/',
+            'trailing-slash'  => 'https://s.com/about/',
+            'query-string'    => 'https://s.com/p?ver=2',
+            'uppercase'       => 'HTTPS://S.COM/Path',
+            'no-trailing'     => 'https://s.com/x/y',
+        ];
+
+        // One safe-safe asset that will always produce a rule from CuJsonBuilder.
+        $safe_asset = [
+            'handle'  => 'parity-h',
+            'type'    => 'style',
+            'desktop' => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => 'aggressive' ],
+            'mobile'  => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => 'aggressive' ],
+        ];
+
+        $builder = new \CUScanner\Scanner\CuJsonBuilder();
+        $merger  = new RatchetMerger();
+
+        foreach ( $corpus as $label => $url ) {
+            $built = $builder->build( [
+                [ 'url' => $url, 'status' => 'done', 'assets' => [ $safe_asset ] ],
+            ] );
+
+            $this->assertNotEmpty(
+                $built['rules'],
+                "CuJsonBuilder produced no rules for URL [{$label}]: {$url}"
+            );
+
+            $cujson_pattern  = $built['rules'][0]['url_pattern'];
+            $merger_pattern  = $merger->__test_url_to_pattern( $url );
+
+            $this->assertSame(
+                $cujson_pattern,
+                $merger_pattern,
+                "url_to_pattern DRIFT detected for [{$label}]: {$url}\n" .
+                "  CuJsonBuilder : {$cujson_pattern}\n" .
+                "  RatchetMerger : {$merger_pattern}"
+            );
+        }
+    }
+
     /**
      * merge() return passes through recollapse: desktop+mobile same group → 'all'.
      */

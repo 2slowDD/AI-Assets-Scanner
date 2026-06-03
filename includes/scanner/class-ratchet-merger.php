@@ -18,6 +18,9 @@ class RatchetMerger {
     // Anything not in this map → 'validated' (fail-closed).
     // ─────────────────────────────────────────────────────────────────────
 
+    /** Wire sentinel value for a rescued asset — mirrors verifier.js rebuildFinalAsset(). */
+    private const RESCUED_SENTINEL = 0.001;
+
     private const FAILSAFE_DEMOTE_CLASS = [
         'aggressive_goto_exhausted' => 'benign',
         'control_probe_failed'      => 'benign',
@@ -178,7 +181,7 @@ class RatchetMerger {
             }
 
             // Per-asset state.
-            $demote_class_page = $page['demote_class'] ?? null; // page-level fallback (not used in spec, ignored)
+            // page-level 'demote_class' is not part of the §3.4 policy — per-asset demote_class is used instead.
             foreach ( $page['assets'] ?? [] as $a ) {
                 $handle      = (string) ( $a['handle'] ?? '' );
                 $type        = $this->map_type( (string) ( $a['type'] ?? '' ) );
@@ -187,7 +190,7 @@ class RatchetMerger {
                 foreach ( [ 'desktop', 'mobile' ] as $dev ) {
                     $dev_data = $a[ $dev ] ?? [];
                     $coverage = (float) ( $dev_data['coverage'] ?? 0.0 );
-                    $covered  = $coverage > 0.001; // real positive coverage (exclude RESCUED_SENTINEL)
+                    $covered  = $coverage > self::RESCUED_SENTINEL; // real positive coverage (exclude RESCUED_SENTINEL)
                     // Demoted = verifier demoted this device's reading:
                     // bucket='needed' AND coverage is the RESCUED_SENTINEL wire value (0 < cov <= 0.001)
                     // OR bucket='needed' and coverage=0 (no coverage at all but classified as needed).
@@ -225,6 +228,7 @@ class RatchetMerger {
 
     /**
      * Demotion-aware union: R_et ∪ selected(R_orig).
+     * Implements a 7-step policy (see Step 1–7 annotations inline).
      *
      * @param array $r_orig_rules CU rule arrays from the original scan.
      * @param array $rescan_pages Pages array from the ET rescan.
@@ -294,6 +298,18 @@ class RatchetMerger {
 
         // Step 7: dedupe (resolve group_id conflicts) then recollapse device pairs.
         return $this->recollapse( $this->dedupe_resolve_conflicts( $final ) );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Test seams (used only in unit tests — do NOT call from production code)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Test seam: exposes url_to_pattern() for the parity test.
+     * @internal
+     */
+    public function __test_url_to_pattern( string $url ): string {
+        return $this->url_to_pattern( $url );
     }
 
     // ─────────────────────────────────────────────────────────────────────
