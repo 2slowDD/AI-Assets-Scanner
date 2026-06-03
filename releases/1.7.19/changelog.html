@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI Assets Scanner 1.7.19</title>
+</head>
+<body>
+  <h1>AI Assets Scanner 1.7.19</h1>
+  <p>Released June 3, 2026.</p>
+  <h2>Fixed &mdash; hotfix for 1.7.18</h2>
+  <ul>
+    <li><strong>Step-4 results no longer stuck on the &ldquo;Scanning&hellip;&rdquo; animation.</strong> The 1.7.18 release introduced a JavaScript scope error: the per-URL resolved-URL map was declared inside the submit handler but read by the results renderer, throwing a reference error that aborted the transition to the results screen on <strong>every</strong> scan (clean same-host scans included). The map is now declared at shared scope and the renderer guards the access, so results render normally again.</li>
+  </ul>
+  <p>No change to scan behavior, rules, or billing.</p>
+</body>
+</html>
