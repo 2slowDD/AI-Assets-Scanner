@@ -739,6 +739,8 @@ class PluginDetector {
                 'probed_url'          => $url,
                 'probe_duration_ms'   => 0,
                 'protocol_downgrade'  => false,
+                'redirect_final'      => null,
+                'canonical_link'      => null,
             ];
         }
 
@@ -778,6 +780,8 @@ class PluginDetector {
                 'probed_url'          => $url,
                 'probe_duration_ms'   => $duration_ms,
                 'protocol_downgrade'  => false,
+                'redirect_final'      => null,
+                'canonical_link'      => null,
             ];
         }
 
@@ -800,6 +804,8 @@ class PluginDetector {
                 'probed_url'          => $url,
                 'probe_duration_ms'   => $duration_ms,
                 'protocol_downgrade'  => false,
+                'redirect_final'      => null,
+                'canonical_link'      => null,
             ];
         }
 
@@ -814,6 +820,8 @@ class PluginDetector {
                 'probed_url'          => $url,
                 'probe_duration_ms'   => $duration_ms,
                 'protocol_downgrade'  => false,
+                'redirect_final'      => null,
+                'canonical_link'      => null,
             ];
         }
 
@@ -867,6 +875,8 @@ class PluginDetector {
             'probed_url'          => $url,
             'probe_duration_ms'   => $duration_ms,
             'protocol_downgrade'  => false,
+            'redirect_final'      => self::extract_final_url( $response ),
+            'canonical_link'      => self::extract_canonical_link( $body, self::extract_final_url( $response ) ?? $url ),
         ];
     }
 
@@ -887,6 +897,33 @@ class PluginDetector {
     }
     /** @internal test seam */
     public static function __test_same_site( string $a, string $b ): bool { return self::same_site( $a, $b ); }
+
+    /** Final URL after redirects from a wp_remote_get result. Null on any structural miss (AC-RC-6). */
+    private static function extract_final_url( $response ): ?string {
+        if ( ! is_array( $response ) || empty( $response['http_response'] ) ) return null;
+        $hr = $response['http_response'];
+        if ( ! is_object( $hr ) || ! method_exists( $hr, 'get_response_object' ) ) return null;
+        $ro = $hr->get_response_object();
+        $url = is_object( $ro ) && isset( $ro->url ) ? (string) $ro->url : '';
+        return $url !== '' ? $url : null;
+    }
+
+    /** First <link rel=canonical>, absolutized against $base (never null base). Logged-only in v1. */
+    private static function extract_canonical_link( string $body, string $base ): ?string {
+        if ( $body === '' || ! preg_match( '/<link[^>]+rel=["\']?canonical["\']?[^>]*>/i', $body, $m ) ) return null;
+        if ( ! preg_match( '/href=["\']([^"\']+)["\']/i', $m[0], $h ) ) return null;
+        $href = trim( $h[1] );
+        if ( $href === '' ) return null;
+        if ( preg_match( '#^https?://#i', $href ) ) return $href;
+        $b = wp_parse_url( $base );
+        if ( empty( $b['scheme'] ) || empty( $b['host'] ) ) return null;
+        $origin = $b['scheme'] . '://' . $b['host'] . ( isset( $b['port'] ) ? ':' . $b['port'] : '' );
+        return $href[0] === '/' ? $origin . $href : $origin . '/' . ltrim( $href, '/' );
+    }
+
+    /** @internal seams */
+    public static function __test_extract_final_url( $r ): ?string { return self::extract_final_url( $r ); }
+    public static function __test_extract_canonical( string $b, string $base ): ?string { return self::extract_canonical_link( $b, $base ); }
 
     /**
      * Public wrapper — 2-attempt probe with 24h per-host transient cache.
