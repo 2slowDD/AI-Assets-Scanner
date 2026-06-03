@@ -52,6 +52,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\BypassManager'   => 'includes/scanner/class-bypass-manager.php',
         'CUScanner\\Scanner\\OptimizerState'  => 'includes/scanner/class-optimizer-state.php',
         'CUScanner\\Scanner\\CuJsonBuilder'   => 'includes/scanner/class-cu-json-builder.php',
+        'CUScanner\\Scanner\\RatchetMerger'   => 'includes/scanner/class-ratchet-merger.php',
         'CUScanner\\Scanner\\RulePusher'      => 'includes/scanner/class-rule-pusher.php',
         'CUScanner\\Scanner\\SnapshotManager' => 'includes/scanner/class-snapshot-manager.php',
         'CUScanner\\Scanner\\GroupVersionManager' => 'includes/scanner/class-group-version-manager.php',
