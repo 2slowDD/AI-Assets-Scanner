@@ -926,6 +926,44 @@ class PluginDetector {
     public static function __test_extract_canonical( string $b, string $base ): ?string { return self::extract_canonical_link( $b, $base ); }
 
     /**
+     * Given the original-submitted $url and a winning probe $result, attach
+     * resolved_url / submitted_url / resolution_source.
+     * Same-site redirect (www-variant accepted) → resolved_url = redirect_final.
+     * Cross-domain redirect → rejected, resolved_url stays $url (resolution_source = cross_domain_reject).
+     * No redirect / same URL → resolved_url = $url (resolution_source = none).
+     */
+    private static function attach_resolution( string $url, array $result ): array {
+        $cand = $result['redirect_final'] ?? null;
+        if ( $cand && self::same_site( $url, $cand ) && $cand !== $url ) {
+            $result['resolved_url']      = $cand;
+            $result['resolution_source'] = 'redirect_final';
+        } else {
+            $result['resolved_url']      = $url;
+            $result['resolution_source'] = ( $cand && ! self::same_site( $url, $cand ) ) ? 'cross_domain_reject' : 'none';
+        }
+        $result['submitted_url'] = $url;
+        return $result;
+    }
+    /** @internal test seam */
+    public static function __test_attach_resolution( string $url, array $r ): array { return self::attach_resolution( $url, $r ); }
+
+    /** Emit a debug-mode resolution log line (WP_DEBUG-gated). */
+    private static function debug_log_resolution( array $r ): void {
+        if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+            return;
+        }
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side debug log; never rendered to browser.
+        error_log( 'cu_scanner.resolution ' . wp_json_encode( [
+            'submitted_url'     => $r['submitted_url']      ?? null,
+            'redirect_final'    => $r['redirect_final']     ?? null,
+            'canonical_link'    => $r['canonical_link']     ?? null,
+            'resolved_url'      => $r['resolved_url']       ?? null,
+            'resolution_source' => $r['resolution_source']  ?? null,
+            'cache_hit'         => $r['cache_hit']          ?? false,
+        ] ) );
+    }
+
+    /**
      * Public wrapper — 2-attempt probe with 24h per-host transient cache.
      * Cache key includes scheme + port to avoid collision (spec §5.3 + d-review M5).
      */
@@ -934,11 +972,20 @@ class PluginDetector {
         $scheme = strtolower( $parts['scheme'] ?? 'https' );
         $host   = strtolower( $parts['host']   ?? '' );
         $port   = (string) ( $parts['port']    ?? ( $scheme === 'http' ? '80' : '443' ) );
-        $cache_key = 'cu_scanner_target_stack_' . md5( $scheme . '://' . $host . ':' . $port );
+        $cache_key = 'cu_scanner_target_stack_v2_' . md5( $scheme . '://' . $host . ':' . $port );
 
         $cached = get_transient( $cache_key );
         if ( $cached !== false && is_array( $cached ) ) {
-            $cached['cache_hit'] = true;
+            if ( ( $cached['submitted_url'] ?? null ) === $url && isset( $cached['resolved_url'] ) ) {
+                // Exact same URL previously resolved — honor cached resolved_url as-is.
+            } else {
+                // Host-cache hit for a DIFFERENT path (or a pre-feature entry without resolved_url).
+                // Do NOT reuse the stale resolved_url — compute fresh for this URL.
+                $cached['resolved_url']      = $url;
+                $cached['resolution_source'] = 'none';
+            }
+            $cached['submitted_url'] = $url;
+            $cached['cache_hit']     = true;
             return $cached;
         }
 
@@ -995,6 +1042,12 @@ class PluginDetector {
 
         $result['probed_url_1'] = $url;
         $result['cache_hit']    = false;
+
+        // Attach resolved_url / submitted_url / resolution_source against the ORIGINAL $url.
+        // Must run before set_transient so resolution is persisted in the cache entry.
+        $result = self::attach_resolution( $url, $result );
+        self::debug_log_resolution( $result );
+
         // Tiered TTL: cache stable POSITIVE detections for 24h; cache negative/indeterminate
         // verdicts (non_wordpress / no_clue / probe_failed) for only 15 min so a transient block
         // (rate-limit, bot-challenge, momentary WAF) self-heals on the next scan instead of being
