@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI Assets Scanner 1.7.18</title>
+</head>
+<body>
+  <h1>AI Assets Scanner 1.7.18</h1>
+  <p>Released June 3, 2026.</p>
+  <h2>Added &mdash; redirect-to-canonical URL resolution</h2>
+  <ul>
+    <li><strong>Bare-domain and redirecting URLs now scan correctly.</strong> When a submitted URL server-redirects to its canonical address on the same registrable domain (e.g. a bare domain redirecting to its <code>www</code> host or a language path, like <code>example.com</code> &rarr; <code>www.example.com/en</code>), the scanner now follows the redirect and analyses the resolved page instead of the redirect gateway. Previously such targets could return a near-empty result.</li>
+    <li><strong>Transparency on the results table.</strong> Each scanned row shows the resolved URL with a small &ldquo;&larr; resolved from &lt;your submitted URL&gt;&rdquo; note when the two differ.</li>
+    <li><strong>Safe by design.</strong> Cross-domain redirects are never followed &mdash; if a URL redirects off its own registrable domain, the submitted URL is scanned as-is. Your reserved and billed domain is unchanged.</li>
+  </ul>
+  <p>Resolution and display only &mdash; no rule-output or billing change.</p>
+</body>
+</html>
