@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.19",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.19/ai-assets-scanner.zip",
+  "sha256": "c122fb4e1475d186da0830becacbc2978fb1f43ae5c9c4a78a9215849c38dc7d",
+  "signature": "",
+  "released_at": "2026-06-03T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.19/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.19 is a hotfix for 1.7.18. The 1.7.18 release introduced a JavaScript scope error that left the Step-4 results screen stuck on the Scanning animation for every scan (clean same-host scans included): the per-URL resolved-URL map was declared inside the submit handler but read by the results renderer, throwing a reference error that aborted the transition to the results screen. The map is now declared at shared scope and the renderer guards the access, so results render normally again. No change to scan behavior, rules, or billing."
+  }
+}
