@@ -302,21 +302,32 @@ class ScannerAjaxTest extends TestCase {
         $this->assertTrue(  $pages[1]['extra_time'], 'URL in ET set → true' );
     }
 
+    public function test_ratchet_enabled_defaults_on_in_beta(): void {
+        // Default-ON (beta): absent option → get_option returns the `true` default.
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_ratchet_enabled', true )
+            ->andReturn( true );
+
+        $this->assertTrue( ( new ScannerAjax() )->__test_ratchet_enabled() );
+        $this->assertConditionsMet();
+    }
+
+    public function test_ratchet_enabled_opt_out_when_option_false(): void {
+        // Opt-out kill switch: option set to a falsy value → disabled.
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_ratchet_enabled', true )
+            ->andReturn( false );
+
+        $this->assertFalse( ( new ScannerAjax() )->__test_ratchet_enabled() );
+        $this->assertConditionsMet();
+    }
+
     /**
      * The reshaping array_map in submit_job() hardcodes a fixed key set
      * (url/bypass_token/bypass_suffixes). An extra_time key added only in
      * build_pages_array() is SILENTLY DROPPED there unless the map carries it.
      * This test is RED until the reshape carries extra_time through.
      */
-    public function test_ratchet_enabled_returns_false_by_default(): void {
-        WP_Mock::userFunction( 'get_option' )
-            ->with( 'cu_scanner_ratchet_enabled', false )
-            ->once()
-            ->andReturn( false );
-
-        $this->assertFalse( ( new ScannerAjax() )->__test_ratchet_enabled() );
-        $this->assertConditionsMet();
-    }
 
     public function test_reshape_page_specs_carries_extra_time_through(): void {
         $specs = [
@@ -400,7 +411,7 @@ class ScannerAjaxTest extends TestCase {
      */
     public function test_b2_no_persist_when_ratchet_disabled(): void {
         WP_Mock::userFunction( 'get_option' )
-            ->with( 'cu_scanner_ratchet_enabled', false )
+            ->with( 'cu_scanner_ratchet_enabled', true )
             ->andReturn( false );
 
         $pages_raw = [

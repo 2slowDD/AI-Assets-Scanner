@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.22b — 2026-06-03
+
+### Changed — ET Result Ratchet now default-ON (beta)
+
+The ET Result Ratchet (added 1.7.21 behind the default-off `cu_scanner_ratchet_enabled` option) is now **on by default**. After "Rescan ET Candidates", the result is unioned with the original scan's rules with no setup needed; an original rule is restored only when the rescan dropped it benignly, never when the rescan validated it as page-breaking. The option is retained as an opt-out kill switch — set `cu_scanner_ratchet_enabled` to a falsy value (`0` / `false`) to disable. No other behavior change. (Beta build — `b` suffix per the current beta-versioning scheme.) Touched: `admin/class-scanner-ajax.php`.
+
 ## 1.7.21 — 2026-06-03
 
 ### Added
