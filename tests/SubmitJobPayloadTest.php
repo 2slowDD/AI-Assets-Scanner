@@ -167,6 +167,61 @@ class SubmitJobPayloadTest extends TestCase {
     }
 
     /**
+     * AC-RC-8b — submitted_url survives reshape_page_specs (the hardcoded-key seam).
+     *
+     * Regression-locks the carry-through documented in the FU-AAS-EXTRA-TIME scar:
+     * a key omitted from reshape's explicit array literal is silently dropped.
+     * Asserts both the carry path (submitted_url present in spec) and the fallback
+     * path (submitted_url absent → ?? $spec['url']).
+     */
+    public function test_reshape_page_specs_carries_submitted_url() {
+        $identity_build_scan_url = static fn( string $url, array $suffixes ): string => $url;
+        $token = 'test-bypass-token';
+
+        // --- carry path: submitted_url present in spec ---
+        $resolved  = 'https://www.cloudways.com/en';
+        $submitted = 'https://cloudways.com';
+
+        $result = ScannerAjax::__test_reshape_page_specs(
+            [
+                [
+                    'url'             => $resolved,
+                    'bypass_suffixes' => [ 'nowprocket' ],
+                    'extra_time'      => false,
+                    'submitted_url'   => $submitted,
+                ],
+            ],
+            $identity_build_scan_url,
+            $token
+        );
+
+        $this->assertCount( 1, $result );
+        $this->assertSame( $resolved,  $result[0]['url'],
+            'url must be the resolved scan URL after reshape' );
+        $this->assertSame( $submitted, $result[0]['submitted_url'],
+            'submitted_url must survive reshape_page_specs carry-through' );
+
+        // --- fallback path: no submitted_url in spec → defaults to url ---
+        $url_only = 'https://wpservice.pro/page1/';
+
+        $result2 = ScannerAjax::__test_reshape_page_specs(
+            [
+                [
+                    'url'             => $url_only,
+                    'bypass_suffixes' => [],
+                    // submitted_url intentionally absent — tests the ?? $spec['url'] path
+                ],
+            ],
+            $identity_build_scan_url,
+            $token
+        );
+
+        $this->assertCount( 1, $result2 );
+        $this->assertSame( $url_only, $result2[0]['submitted_url'],
+            'submitted_url must fall back to url when absent from spec (?? $spec[\'url\'] path)' );
+    }
+
+    /**
      * AC-N2-10 — target_stack_summary blob is captured from $_POST and forwarded to SaaS.
      * Tests the helper that captures + sanitizes the blob before SaaS post.
      */
