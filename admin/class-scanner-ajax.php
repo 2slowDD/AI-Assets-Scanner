@@ -661,7 +661,7 @@ class ScannerAjax {
         $cu_json = ( new CuJsonBuilder() )->build( $pages_raw, $flags );
 
         // B2 — persist R_orig on non-ET scans so a subsequent ET rescan can ratchet against it.
-        if ( ! $this->is_et_rescan( $pages_raw ) ) {
+        if ( $this->ratchet_enabled() && ! $this->is_et_rescan( $pages_raw ) ) {
             $this->persist_r_orig( $cu_json, $pages_raw );
         }
 
@@ -1466,6 +1466,7 @@ class ScannerAjax {
     public function __test_ratchet_enabled(): bool { return $this->ratchet_enabled(); }
     public function __test_is_et_rescan( array $pages_raw ): bool { return $this->is_et_rescan( $pages_raw ); }
     public function __test_persist_r_orig( array $cu_json, array $pages_raw ): void { $this->persist_r_orig( $cu_json, $pages_raw ); }
+    public function __test_should_persist_r_orig( array $pages_raw ): bool { return $this->ratchet_enabled() && ! $this->is_et_rescan( $pages_raw ); }
     public function __test_r_orig_matches( $r_orig, array $pages_raw ): bool { return $this->r_orig_matches( $r_orig, $pages_raw ); }
     public function __test_recompute_by_page( array $rules, array $pages_raw, array $orig_by_page ): array { return $this->recompute_by_page( $rules, $pages_raw, $orig_by_page ); }
 

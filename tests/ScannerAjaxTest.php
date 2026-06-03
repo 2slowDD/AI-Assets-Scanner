@@ -395,6 +395,23 @@ class ScannerAjaxTest extends TestCase {
     }
 
     /**
+     * B2 — ratchet_enabled=false: __test_should_persist_r_orig returns false,
+     * so persist_r_orig (and therefore set_transient) must never be called.
+     */
+    public function test_b2_no_persist_when_ratchet_disabled(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_ratchet_enabled', false )
+            ->andReturn( false );
+
+        $pages_raw = [
+            [ 'url' => 'https://s.com/p', 'status' => 'done', 'assets' => [] ],
+        ];
+
+        $ajax = new ScannerAjax();
+        $this->assertFalse( $ajax->__test_should_persist_r_orig( $pages_raw ), 'ratchet disabled → should_persist_r_orig false' );
+    }
+
+    /**
      * B3 — ratchet_enabled=false: no merge fires even on ET rescan.
      * is_et_rescan + r_orig_matches helpers exercised via seams; confirm
      * that r_orig_matches returns false when transient is false.
