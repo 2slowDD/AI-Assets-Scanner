@@ -308,6 +308,16 @@ class ScannerAjaxTest extends TestCase {
      * build_pages_array() is SILENTLY DROPPED there unless the map carries it.
      * This test is RED until the reshape carries extra_time through.
      */
+    public function test_ratchet_enabled_returns_false_by_default(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_ratchet_enabled', false )
+            ->once()
+            ->andReturn( false );
+
+        $this->assertFalse( ( new ScannerAjax() )->__test_ratchet_enabled() );
+        $this->assertConditionsMet();
+    }
+
     public function test_reshape_page_specs_carries_extra_time_through(): void {
         $specs = [
             [ 'url' => 'https://x/a', 'bypass_suffixes' => [], 'extra_time' => false ],

@@ -49,6 +49,10 @@ class ScannerAjax {
 
     private function settings(): Settings { return new Settings(); }
 
+    private function ratchet_enabled(): bool {
+        return (bool) get_option( 'cu_scanner_ratchet_enabled', false );
+    }
+
     private function ensure_railway_url( Settings $settings, string $api_key ): string {
         $railway_url = $settings->get_railway_url();
         if ( Settings::is_safe_railway_url( $railway_url ) ) {
@@ -1323,6 +1327,9 @@ class ScannerAjax {
         }
         return empty( $out ) ? null : $out;
     }
+
+    // --- Test seams (public; call into private helpers for unit testing) ---
+    public function __test_ratchet_enabled(): bool { return $this->ratchet_enabled(); }
 
     // --- Test seams (public static; call into private static helpers for unit testing) ---
     public static function __test_group_urls_by_host( array $urls ): array {
