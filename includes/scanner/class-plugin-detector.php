@@ -871,6 +871,24 @@ class PluginDetector {
     }
 
     /**
+     * Fail-closed: same host, or differ only by a leading "www." (no eTLD+1).
+     *
+     * Returns true iff (case-insensitive) the two URLs share the same host, or
+     * one host is exactly "www." prepended to the other. Multi-part TLDs (e.g.
+     * foo.co.uk vs bar.co.uk) are intentionally rejected — no eTLD+1 / last-two-
+     * labels logic, which would fail OPEN on ccSLDs.
+     */
+    private static function same_site( string $submitted, string $candidate ): bool {
+        $hs = strtolower( (string) ( wp_parse_url( $submitted, PHP_URL_HOST ) ?? '' ) );
+        $hc = strtolower( (string) ( wp_parse_url( $candidate, PHP_URL_HOST ) ?? '' ) );
+        if ( $hs === '' || $hc === '' ) return false;
+        if ( $hs === $hc ) return true;
+        return ( 'www.' . $hs === $hc ) || ( 'www.' . $hc === $hs );
+    }
+    /** @internal test seam */
+    public static function __test_same_site( string $a, string $b ): bool { return self::same_site( $a, $b ); }
+
+    /**
      * Public wrapper — 2-attempt probe with 24h per-host transient cache.
      * Cache key includes scheme + port to avoid collision (spec §5.3 + d-review M5).
      */
