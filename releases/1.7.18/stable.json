@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.18",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.18/ai-assets-scanner.zip",
+  "sha256": "6192620a955d680671d687bcd985e877b2a71d37e50096727f02a4df9fbaa66f",
+  "signature": "",
+  "released_at": "2026-06-03T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.18/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.18 adds automatic same-site redirect resolution when you submit a URL to scan. If a submitted URL server-redirects to its canonical address on the same registrable domain (for example a bare domain redirecting to its www host or a language path, like example.com to www.example.com/en), the scanner now follows that redirect and scans the resolved page instead of the redirect gateway, so redirecting and bare-domain targets are analysed correctly instead of returning a near-empty result. The results table shows the resolved URL with a small \"resolved from <your submitted URL>\" note for transparency. Cross-domain redirects are never followed (the submitted URL is scanned as-is), and your reserved and billed domain is unchanged. Resolution and display only; no billing change."
+  }
+}
