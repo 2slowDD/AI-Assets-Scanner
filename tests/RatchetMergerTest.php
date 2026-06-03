@@ -634,6 +634,112 @@ class RatchetMergerTest extends TestCase {
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // recovered_by_pattern — B4
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * AC-ETR-B4-1 — recovered_by_pattern: benign demotion restore → count 1 for that pattern.
+     *
+     * One R_orig desktop rule benignly demoted (not in R_et) → recovered_by_pattern[$pat] === 1.
+     */
+    public function test_recovered_by_pattern_benign_restore_counts_one(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h', 'desktop', 2, 'css', $pat ) ];
+        $rescan_pages = [
+            $this->page_with_asset(
+                $pat,
+                'h',
+                'style',
+                [
+                    'bucket_desktop' => 'needed',
+                    'bucket_mobile'  => 'needed',
+                    'cov_desktop'    => 0.001,
+                    'cov_mobile'     => 0.001,
+                    'demote_class'   => 'benign',
+                ]
+            ),
+        ];
+        $merger = new RatchetMerger();
+        $merger->merge( $r_orig, $rescan_pages );
+
+        $this->assertArrayHasKey(
+            $pat,
+            $merger->recovered_by_pattern,
+            'recovered_by_pattern must contain the restored pattern'
+        );
+        $this->assertSame(
+            1,
+            $merger->recovered_by_pattern[ $pat ],
+            'one benign-restored leg must yield count 1'
+        );
+    }
+
+    /**
+     * AC-ETR-B4-2 — recovered_by_pattern: validated demotion → 0 (pattern absent).
+     */
+    public function test_recovered_by_pattern_validated_drop_yields_zero(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h', 'desktop', 2, 'css', $pat ) ];
+        $rescan_pages = [
+            $this->page_with_asset(
+                $pat,
+                'h',
+                'style',
+                [
+                    'bucket_desktop' => 'needed',
+                    'bucket_mobile'  => 'needed',
+                    'cov_desktop'    => 0.001,
+                    'cov_mobile'     => 0.001,
+                    'demote_class'   => 'validated',
+                ]
+            ),
+        ];
+        $merger = new RatchetMerger();
+        $merger->merge( $r_orig, $rescan_pages );
+
+        $this->assertSame(
+            0,
+            $merger->recovered_by_pattern[ $pat ] ?? 0,
+            'validated drop must not increment recovered_by_pattern'
+        );
+    }
+
+    /**
+     * AC-ETR-B4-3 — recovered_by_pattern resets between merge() calls.
+     *
+     * First call restores a rule; second call on a clean scenario must not
+     * carry over the count from the first call.
+     */
+    public function test_recovered_by_pattern_resets_between_calls(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h', 'desktop', 2, 'css', $pat ) ];
+        $rescan_benign = [
+            $this->page_with_asset(
+                $pat, 'h', 'style',
+                [ 'bucket_desktop' => 'needed', 'bucket_mobile' => 'needed',
+                  'cov_desktop' => 0.001, 'cov_mobile' => 0.001, 'demote_class' => 'benign' ]
+            ),
+        ];
+        // Second call: validated drop — should reset the count from the first call.
+        $rescan_validated = [
+            $this->page_with_asset(
+                $pat, 'h', 'style',
+                [ 'bucket_desktop' => 'needed', 'bucket_mobile' => 'needed',
+                  'cov_desktop' => 0.001, 'cov_mobile' => 0.001, 'demote_class' => 'validated' ]
+            ),
+        ];
+        $merger = new RatchetMerger();
+        $merger->merge( $r_orig, $rescan_benign );   // count = 1
+        $merger->merge( $r_orig, $rescan_validated ); // must reset → count = 0
+
+        $this->assertSame(
+            0,
+            $merger->recovered_by_pattern[ $pat ] ?? 0,
+            'second merge() call must reset recovered_by_pattern from prior call'
+        );
+    }
+
     /**
      * merge() return passes through recollapse: desktop+mobile same group → 'all'.
      */

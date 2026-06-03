@@ -568,4 +568,115 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( 0, $by_page[0]['aggressive'], 'zero rules → aggressive=0' );
         $this->assertSame( 3, $by_page[0]['needed'],     'needed preserved from orig' );
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // B4 — ratchet_recovered in pages_payload
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * B4 — ratchet ran + benign restore: pages_payload row for the matching
+     * page must have ratchet_recovered >= 1.
+     *
+     * Exercises the __test_inject_ratchet_recovered seam to isolate B4 logic
+     * from Railway/do_build_result I/O.
+     */
+    public function test_b4_ratchet_recovered_stamped_when_ratchet_ran(): void {
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( string $url, ?int $component = null ) {
+            $parts = parse_url( $url );
+            if ( null === $component ) { return $parts; }
+            $map = [ PHP_URL_SCHEME => 'scheme', PHP_URL_HOST => 'host', PHP_URL_PATH => 'path' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+
+        $pat = 'https://s.com/p';
+
+        // R_orig: one benign-demoted rule.
+        $r_orig_rules = [
+            [
+                'url_pattern'  => $pat,
+                'asset_handle' => 'orig-h',
+                'asset_type'   => 'css',
+                'device_type'  => 'desktop',
+                'group_id'     => 1,
+                'match_type'   => 'exact',
+                'source_label' => 'AA Scanner',
+            ],
+        ];
+        $rescan_pages = [
+            [
+                'url'                => $pat,
+                'status'             => 'done',
+                'extra_time_charged' => true,
+                'assets'             => [
+                    [
+                        'handle'       => 'orig-h',
+                        'type'         => 'style',
+                        'demote_class' => 'benign',
+                        'desktop'      => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                        'mobile'       => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                    ],
+                ],
+            ],
+        ];
+
+        // Run merge — this populates recovered_by_pattern.
+        $merger = new \CUScanner\Scanner\RatchetMerger();
+        $merger->merge( $r_orig_rules, $rescan_pages );
+
+        // Simulate pages_payload as built by AIAS_Scan_Status::build_pages.
+        $pages_payload = [
+            [
+                'n'            => 1,
+                'url'          => $pat,
+                'status_class' => 'ok',
+                'status_label' => 'Done',
+                'credits'      => 1,
+                'safe'         => 1,
+                'aggressive'   => 0,
+                'needed'       => 0,
+                'et_candidate' => false,
+            ],
+        ];
+
+        // Stamp ratchet_recovered via the seam.
+        $ajax   = new ScannerAjax();
+        $result = $ajax->__test_inject_ratchet_recovered( $pages_payload, $rescan_pages, $merger );
+
+        $this->assertArrayHasKey( 'ratchet_recovered', $result[0], 'ratchet_recovered key must be present' );
+        $this->assertGreaterThanOrEqual( 1, $result[0]['ratchet_recovered'], 'restored rule → ratchet_recovered >= 1' );
+    }
+
+    /**
+     * B4 — ratchet did NOT run (merger null): ratchet_recovered is absent / 0
+     * on all page rows.
+     *
+     * When $merger === null the production code skips the stamp loop entirely,
+     * so pages rows simply lack the key (treated as 0 by JS).
+     */
+    public function test_b4_ratchet_recovered_absent_when_ratchet_did_not_run(): void {
+        $pages_payload = [
+            [
+                'n'            => 1,
+                'url'          => 'https://s.com/p',
+                'status_class' => 'ok',
+                'status_label' => 'Done',
+                'credits'      => 1,
+                'safe'         => 2,
+                'aggressive'   => 1,
+                'needed'       => 0,
+                'et_candidate' => false,
+            ],
+        ];
+
+        // $merger = null → stamp loop does not run → key absent.
+        $ajax   = new ScannerAjax();
+        $result = $ajax->__test_inject_ratchet_recovered(
+            $pages_payload,
+            [ [ 'url' => 'https://s.com/p', 'status' => 'done', 'assets' => [] ] ],
+            null
+        );
+
+        $recovered = $result[0]['ratchet_recovered'] ?? 0;
+        $this->assertSame( 0, $recovered, 'no ratchet → ratchet_recovered must be 0/absent' );
+    }
 }
