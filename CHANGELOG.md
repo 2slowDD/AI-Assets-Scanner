@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.21 — 2026-06-03
+
+### Added
+
+- **ET Result Ratchet — a Rescan never ships fewer rules than the original (default-OFF, `cu_scanner_ratchet_enabled`)** — "Rescan ET Candidates" is a fresh scan that *replaced* the original result, so a rescan that derailed (control-probe / goto failsafe → A:0) or whose fresh baseline simply converged lower could deliver **fewer** unload rules than the first scan. Behind the default-OFF `cu_scanner_ratchet_enabled` option, an ET rescan now **unions** its result with the original scan's rules: `final = rescan_rules ∪ {original rules the rescan dropped *benignly*}`. An original rule is re-included only when the rescan dropped it for a benign reason (ran out of time / derailed) — **never** when the rescan validated it as page-breaking (visual-diff / solo-confirm / a whole-page failsafe), so page-breakage (F-DEG) is protected, **including the zero-coverage animation-CSS class** (a rule that breaks the page despite 0 measured coverage). Per-device-correct (`device_type='all'` rules are normalized to desktop/mobile legs, merged, then re-collapsed); aggressive rules are never silently downgraded to safe on a benign rescan. Consumes the companion CU Scanner Railway worker's per-asset `demote_class` + per-page `failsafe_demote` fields. The original scan's rule keys are stashed in a 60-minute user transient and used only when the **same URL set** is rescanned (staleness-guarded). Step-4 shows a "↩ +N" badge on pages where the ratchet restored rules. **Pure addition — flag-OFF is a no-op** (no transient write, no merge); billing/credits unchanged. New `includes/scanner/class-ratchet-merger.php`; touched `admin/class-scanner-ajax.php`, `admin/js/scanner.js`. Spec/plan: CU product-docs `04-development/2026-06-03-et-result-ratchet-demotion-aware-union-design.md` (Rev 2) + `…-implementation-plan.md`.
+
+---
+
 ## 1.7.20 — 2026-06-03
 
 ### Fixed
