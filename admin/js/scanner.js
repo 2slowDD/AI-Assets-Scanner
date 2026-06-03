@@ -1318,11 +1318,26 @@
         var slice = st.pages.slice( st.page * st.perPage, st.page * st.perPage + st.perPage );
         var c = { ok: 0, partial: 0, blocked: 0, error: 0, skipped: 0 };
         st.pages.forEach( function ( p ) { if ( c[ p.status_class ] != null ) { c[ p.status_class ]++; } } );
+        // AC-RC-8b — build reverse map (resolved → submitted) from the probe-session
+        // resolvedByUrl map. Only populated during a live scan; gracefully absent when
+        // results are restored from localStorage after a page reload.
+        var submittedByResolved = {};
+        if ( resolvedByUrl ) {
+            Object.keys( resolvedByUrl ).forEach( function ( submitted ) {
+                var resolved = resolvedByUrl[ submitted ];
+                if ( resolved && resolved !== submitted ) {
+                    submittedByResolved[ resolved ] = submitted;
+                }
+            } );
+        }
         var rows = slice.map( function ( p ) {
             var san = ( p.status_class === 'error' ) ? '—' : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed );
+            var origUrl = submittedByResolved[ p.url ];
+            var urlCell = cuEscHtml( p.url )
+                + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' );
             return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + '">'
                 + '<td>' + cuEscHtml( p.n ) + '</td>'
-                + '<td class="cu-url-cell">' + cuEscHtml( p.url ) + '</td>'
+                + '<td class="cu-url-cell">' + urlCell + '</td>'
                 + '<td>' + cuEscHtml( p.status_label ) + '</td>'
                 + '<td>' + cuEscHtml( p.credits ) + '</td>'
                 + '<td class="cu-san">' + cuEscHtml( san ) + '</td>'
