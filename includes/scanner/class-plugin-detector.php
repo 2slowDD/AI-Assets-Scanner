@@ -949,7 +949,7 @@ class PluginDetector {
 
     /** Emit a debug-mode resolution log line (WP_DEBUG-gated). */
     private static function debug_log_resolution( array $r ): void {
-        if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG ) ) {
+        if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) ) {
             return;
         }
         // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side debug log; never rendered to browser.
@@ -976,11 +976,9 @@ class PluginDetector {
 
         $cached = get_transient( $cache_key );
         if ( $cached !== false && is_array( $cached ) ) {
-            if ( ( $cached['submitted_url'] ?? null ) === $url && isset( $cached['resolved_url'] ) ) {
-                // Exact same URL previously resolved — honor cached resolved_url as-is.
-            } else {
-                // Host-cache hit for a DIFFERENT path (or a pre-feature entry without resolved_url).
-                // Do NOT reuse the stale resolved_url — compute fresh for this URL.
+            // Host-keyed cache: resolution is URL-specific, so honor cached resolved_url ONLY for the exact
+            // same submitted URL. Different path (or pre-feature entry) → reset to the current URL.
+            if ( ( $cached['submitted_url'] ?? null ) !== $url || ! isset( $cached['resolved_url'] ) ) {
                 $cached['resolved_url']      = $url;
                 $cached['resolution_source'] = 'none';
             }
