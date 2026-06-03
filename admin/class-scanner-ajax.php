@@ -667,11 +667,14 @@ class ScannerAjax {
 
         // B3 — ET-ratchet merge: replace cu_json['rules'] + recompute by_page BEFORE store_json.
         // This ensures the stored JSON (read verbatim by push_to_cu) reflects merged rules.
+        // $merger is kept in scope so recovered_by_pattern is available for the pages_payload below.
+        $merger = null;
         if ( $this->ratchet_enabled() && $this->is_et_rescan( $pages_raw ) ) {
             $r_orig = get_transient( 'cu_scanner_r_orig_' . get_current_user_id() );
             if ( $this->r_orig_matches( $r_orig, $pages_raw ) ) {
                 $orig_by_page       = $cu_json['by_page'];
-                $cu_json['rules']   = ( new \CUScanner\Scanner\RatchetMerger() )->merge( $r_orig['rules'], $pages_raw, $flags );
+                $merger             = new \CUScanner\Scanner\RatchetMerger();
+                $cu_json['rules']   = $merger->merge( $r_orig['rules'], $pages_raw, $flags );
                 $cu_json['by_page'] = $this->recompute_by_page( $cu_json['rules'], $pages_raw, $orig_by_page );
             }
         }
@@ -760,6 +763,19 @@ class ScannerAjax {
         // index, so build_pages() joins status/credits with S/A/N tallies cleanly.
         // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.
         $pages_payload = \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [] );
+
+        // B4 — stamp each page row with ratchet_recovered (int ≥ 0).
+        // When the ratchet ran, $merger->recovered_by_pattern is keyed by url_pattern;
+        // derive the same pattern for each page and look up the count.
+        // When the ratchet did not run ($merger === null), all rows get 0.
+        if ( null !== $merger ) {
+            foreach ( $pages_payload as $idx => &$row ) {
+                $pat = $merger->__test_url_to_pattern( (string) ( $pages_raw[ $idx ]['url'] ?? '' ) );
+                $row['ratchet_recovered'] = (int) ( $merger->recovered_by_pattern[ $pat ] ?? 0 );
+            }
+            unset( $row );
+        }
+
         $can_push      = ( new RulePusher() )->can_push();
 
         // Persist the full Step-4 restore payload (incl. the per-URL table + 12-char
@@ -1469,6 +1485,26 @@ class ScannerAjax {
     public function __test_should_persist_r_orig( array $pages_raw ): bool { return $this->ratchet_enabled() && ! $this->is_et_rescan( $pages_raw ); }
     public function __test_r_orig_matches( $r_orig, array $pages_raw ): bool { return $this->r_orig_matches( $r_orig, $pages_raw ); }
     public function __test_recompute_by_page( array $rules, array $pages_raw, array $orig_by_page ): array { return $this->recompute_by_page( $rules, $pages_raw, $orig_by_page ); }
+
+    /**
+     * B4 test seam: exposes the ratchet_recovered stamp loop so tests can exercise
+     * it in isolation without triggering do_build_result's Railway I/O.
+     *
+     * @param array                                       $pages_payload Pages payload rows (by reference internally; returns stamped copy).
+     * @param array                                       $pages_raw     Raw Railway pages (used for url→pattern derivation).
+     * @param \CUScanner\Scanner\RatchetMerger|null       $merger        Merger instance after merge(), or null if ratchet did not run.
+     * @return array Stamped pages_payload.
+     */
+    public function __test_inject_ratchet_recovered( array $pages_payload, array $pages_raw, ?\CUScanner\Scanner\RatchetMerger $merger ): array {
+        if ( null !== $merger ) {
+            foreach ( $pages_payload as $idx => &$row ) {
+                $pat = $merger->__test_url_to_pattern( (string) ( $pages_raw[ $idx ]['url'] ?? '' ) );
+                $row['ratchet_recovered'] = (int) ( $merger->recovered_by_pattern[ $pat ] ?? 0 );
+            }
+            unset( $row );
+        }
+        return $pages_payload;
+    }
 
     // --- Test seams (public static; call into private static helpers for unit testing) ---
     public static function __test_group_urls_by_host( array $urls ): array {

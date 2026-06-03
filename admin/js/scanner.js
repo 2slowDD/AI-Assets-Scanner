@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.18';
+    const SCANNER_JS_VERSION = '1.0.10.19';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1338,7 +1338,9 @@
             } );
         }
         var rows = slice.map( function ( p ) {
-            var san = ( p.status_class === 'error' ) ? '—' : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed );
+            var san = ( p.status_class === 'error' ) ? '—'
+                : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed
+                    + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' ) );
             var origUrl = submittedByResolved[ p.url ];
             var urlCell = cuEscHtml( p.url )
                 + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' );
@@ -1347,7 +1349,7 @@
                 + '<td class="cu-url-cell">' + urlCell + '</td>'
                 + '<td>' + cuEscHtml( p.status_label ) + '</td>'
                 + '<td>' + cuEscHtml( p.credits ) + '</td>'
-                + '<td class="cu-san">' + cuEscHtml( san ) + '</td>'
+                + '<td class="cu-san">' + san + '</td>'
                 + '<td>' + cuEscHtml( p.et_candidate ? 'yes' : '—' ) + '</td>'
                 + '<td>' + ( p.et_candidate
                     ? '<input type="checkbox" class="cu-et-result-cb" data-url="' + esc( p.url ) + '"' + ( st.etChecked.has( p.url ) ? ' checked' : '' ) + '>'

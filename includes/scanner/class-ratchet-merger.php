@@ -21,6 +21,16 @@ class RatchetMerger {
     /** Wire sentinel value for a rescued asset — mirrors verifier.js rebuildFinalAsset(). */
     private const RESCUED_SENTINEL = 0.001;
 
+    /**
+     * Per-pattern count of rules RESTORED from R_orig by the last merge() call.
+     * Keyed by url_pattern; value = number of per-device rule legs re-included
+     * from R_orig that were NOT already present in R_et.
+     * Populated by merge(); reset at the start of each merge() call.
+     *
+     * @var array<string,int>
+     */
+    public array $recovered_by_pattern = [];
+
     private const FAILSAFE_DEMOTE_CLASS = [
         'aggressive_goto_exhausted' => 'benign',
         'control_probe_failed'      => 'benign',
@@ -236,6 +246,9 @@ class RatchetMerger {
      * @return array Final merged CU rule array (recollapsed).
      */
     public function merge( array $r_orig_rules, array $rescan_pages, array $flags = [] ): array {
+        // Reset per-merge state.
+        $this->recovered_by_pattern = [];
+
         // Step 1: build R_et via CuJsonBuilder and explode to per-device legs.
         $r_et_raw = ( new CuJsonBuilder() )->build( $rescan_pages, $flags )['rules'];
         $r_et     = $this->explode_all( $r_et_raw );
@@ -270,6 +283,7 @@ class RatchetMerger {
             if ( isset( $state['failsafe'][ $page_pattern ] ) ) {
                 if ( 'benign' === $state['failsafe'][ $page_pattern ] ) {
                     $final[] = $r; // Restore.
+                    $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
                 }
                 // validated → drop (do nothing).
                 continue;
@@ -281,6 +295,7 @@ class RatchetMerger {
             if ( null === $asset_state ) {
                 // Rescan never addressed this asset/page — treat as benign absent → restore.
                 $final[] = $r;
+                $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
                 continue;
             }
 
@@ -292,6 +307,7 @@ class RatchetMerger {
             $dc = $asset_state['demote_class'];
             if ( 'benign' === $dc ) {
                 $final[] = $r; // Restore.
+                $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
             }
             // 'validated' OR null/unknown → fail-closed → drop.
         }
