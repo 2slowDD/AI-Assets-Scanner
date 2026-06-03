@@ -736,3 +736,4 @@
 .cu-url-table tr.cu-row-error   { background: #fbe9e9; color: #7a1f1f; box-shadow: inset 3px 0 0 #c0392b; }
 .cu-url-table tr.cu-row-skipped { background: #eef1f4; color: #3a4350; box-shadow: inset 3px 0 0 #8a96a3; }
 .cu-url-pager { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
+.cu-resolved-note { font-size: 11px; color: #787c82; font-style: italic; }

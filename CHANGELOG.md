@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.18 — 2026-06-03
+
+### Added
+
+- **Step-4 results show resolved URL with origin note** — when a submitted URL was redirected before scanning, the Step-4 table now shows the resolved (scanned) URL with a muted "← resolved from \<submitted\>" note inline. Available on live post-scan views; gracefully absent when results are restored from localStorage after a page reload (AC-RC-8b). Touched: `admin/js/scanner.js`, `admin/css/ai-assets-scanner-admin.css`.
+
+---
+
 ## 1.7.17 — 2026-06-02
 
 ### Fixed
