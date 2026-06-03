@@ -659,6 +659,23 @@ class ScannerAjax {
         // with is_array; (bool)(... ?? false) casts inside build() handle the rest.
         $flags   = isset( $status['flags'] ) && is_array( $status['flags'] ) ? $status['flags'] : [];
         $cu_json = ( new CuJsonBuilder() )->build( $pages_raw, $flags );
+
+        // B2 — persist R_orig on non-ET scans so a subsequent ET rescan can ratchet against it.
+        if ( ! $this->is_et_rescan( $pages_raw ) ) {
+            $this->persist_r_orig( $cu_json, $pages_raw );
+        }
+
+        // B3 — ET-ratchet merge: replace cu_json['rules'] + recompute by_page BEFORE store_json.
+        // This ensures the stored JSON (read verbatim by push_to_cu) reflects merged rules.
+        if ( $this->ratchet_enabled() && $this->is_et_rescan( $pages_raw ) ) {
+            $r_orig = get_transient( 'cu_scanner_r_orig_' . get_current_user_id() );
+            if ( $this->r_orig_matches( $r_orig, $pages_raw ) ) {
+                $orig_by_page       = $cu_json['by_page'];
+                $cu_json['rules']   = ( new \CUScanner\Scanner\RatchetMerger() )->merge( $r_orig['rules'], $pages_raw, $flags );
+                $cu_json['by_page'] = $this->recompute_by_page( $cu_json['rules'], $pages_raw, $orig_by_page );
+            }
+        }
+
         $json_str = json_encode( $cu_json, JSON_PRETTY_PRINT );
 
         $safe_count = count( array_filter( $cu_json['rules'], fn($r) => $r['group_id'] === 1 ) );
@@ -1328,8 +1345,129 @@ class ScannerAjax {
         return empty( $out ) ? null : $out;
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // ET Result Ratchet helpers (B2 + B3)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * True iff any page in $pages_raw has `extra_time_charged` truthy.
+     * ET is per-page, not per-scan; treat the whole scan as an ET rescan
+     * if at least one page consumed an ET continuation.
+     *
+     * @param array $pages_raw Per-page Railway result rows.
+     * @return bool
+     */
+    private function is_et_rescan( array $pages_raw ): bool {
+        foreach ( $pages_raw as $page ) {
+            if ( ! empty( $page['extra_time_charged'] ) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * B2 — Persist R_orig (per-rule identity keys + scanned URL set) to a
+     * user-scoped transient so a subsequent ET rescan can merge against it.
+     * Called only on non-ET scans, after CuJsonBuilder::build() returns.
+     *
+     * @param array $cu_json   Built CU JSON (rules + by_page).
+     * @param array $pages_raw Per-page Railway result rows (for URL set).
+     */
+    private function persist_r_orig( array $cu_json, array $pages_raw ): void {
+        $keys = [];
+        foreach ( $cu_json['rules'] as $r ) {
+            $keys[] = [
+                'url_pattern'  => $r['url_pattern'],
+                'asset_handle' => $r['asset_handle'],
+                'asset_type'   => $r['asset_type'],
+                'device_type'  => $r['device_type'],
+                'group_id'     => $r['group_id'],
+            ];
+        }
+        $urls = array_values( array_unique( array_column( $pages_raw, 'url' ) ) );
+        set_transient(
+            'cu_scanner_r_orig_' . get_current_user_id(),
+            [ 'urls' => $urls, 'rules' => $keys ],
+            HOUR_IN_SECONDS
+        );
+    }
+
+    /**
+     * AC-ETR-9 — staleness guard: the transient is valid and covers the same
+     * URL set as the current ET rescan.
+     *
+     * @param mixed $r_orig     Value returned by get_transient().
+     * @param array $pages_raw  Per-page Railway result rows for this rescan.
+     * @return bool True iff $r_orig is usable for the merge.
+     */
+    private function r_orig_matches( $r_orig, array $pages_raw ): bool {
+        if ( ! is_array( $r_orig ) || empty( $r_orig['rules'] ) || ! isset( $r_orig['urls'] ) ) {
+            return false;
+        }
+        $orig_url_set = array_flip( $r_orig['urls'] );
+        foreach ( array_column( $pages_raw, 'url' ) as $url ) {
+            if ( ! isset( $orig_url_set[ $url ] ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Recompute the by_page tally from merged rules so the Step-4 S/A/N
+     * counts reflect the post-merge rule set.
+     *
+     * Invariant: array_sum(column safe) === count(rules group_id 1),
+     *            array_sum(column aggressive) === count(rules group_id 2).
+     *
+     * Strategy: derive each page's url_pattern the same way CuJsonBuilder
+     * does (via RatchetMerger's __test_url_to_pattern, which is byte-identical),
+     * then group merged rules by url_pattern and count per page.
+     * `needed` is preserved from $orig_by_page — recomputing it would require
+     * re-walking the full asset list which is not available here, and the spec
+     * permits preserving the original needed count.
+     *
+     * @param array $rules        Merged CU rule array (recollapsed).
+     * @param array $pages_raw    Per-page Railway result rows (index-aligned with by_page).
+     * @param array $orig_by_page by_page from the pre-merge CuJsonBuilder::build() output.
+     * @return array New by_page array keyed by original page index.
+     */
+    private function recompute_by_page( array $rules, array $pages_raw, array $orig_by_page ): array {
+        // Build a count map: url_pattern → [safe => N, aggressive => M].
+        $merger   = new \CUScanner\Scanner\RatchetMerger();
+        $rule_map = [];
+        foreach ( $rules as $r ) {
+            $pat = $r['url_pattern'];
+            if ( ! isset( $rule_map[ $pat ] ) ) {
+                $rule_map[ $pat ] = [ 'safe' => 0, 'aggressive' => 0 ];
+            }
+            if ( 1 === $r['group_id'] ) {
+                $rule_map[ $pat ]['safe']++;
+            } else {
+                $rule_map[ $pat ]['aggressive']++;
+            }
+        }
+
+        // Walk pages_raw by index; derive pattern per page; look up counts.
+        $by_page = [];
+        foreach ( $pages_raw as $i => $page ) {
+            $pat    = $merger->__test_url_to_pattern( $page['url'] ?? '' );
+            $safe   = $rule_map[ $pat ]['safe']       ?? 0;
+            $agg    = $rule_map[ $pat ]['aggressive'] ?? 0;
+            // Preserve original needed count — not affected by merge.
+            $needed = $orig_by_page[ $i ]['needed'] ?? 0;
+            $by_page[ $i ] = [ 'safe' => $safe, 'aggressive' => $agg, 'needed' => $needed ];
+        }
+        return $by_page;
+    }
+
     // --- Test seams (public; call into private helpers for unit testing) ---
     public function __test_ratchet_enabled(): bool { return $this->ratchet_enabled(); }
+    public function __test_is_et_rescan( array $pages_raw ): bool { return $this->is_et_rescan( $pages_raw ); }
+    public function __test_persist_r_orig( array $cu_json, array $pages_raw ): void { $this->persist_r_orig( $cu_json, $pages_raw ); }
+    public function __test_r_orig_matches( $r_orig, array $pages_raw ): bool { return $this->r_orig_matches( $r_orig, $pages_raw ); }
+    public function __test_recompute_by_page( array $rules, array $pages_raw, array $orig_by_page ): array { return $this->recompute_by_page( $rules, $pages_raw, $orig_by_page ); }
 
     // --- Test seams (public static; call into private static helpers for unit testing) ---
     public static function __test_group_urls_by_host( array $urls ): array {
