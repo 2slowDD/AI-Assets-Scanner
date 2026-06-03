@@ -8,7 +8,9 @@ All notable changes to AI Assets Scanner are documented here.
 
 ### Added
 
+- **Redirect-canonical URL resolution on submit** — before sending a URL to the Railway worker, the plugin now follows same-site HTTP redirects and picks up `<link rel="canonical">` to resolve the true scan target. The resolved URL is what gets scanned and reserved against (the reserve domain is unchanged — billing still uses the submitted URL's host). Resolution is cached in a short-lived transient to avoid a cold probe on every scan. If no redirect or canonical is found the submitted URL is used unchanged. Touched: `includes/scanner/class-plugin-detector.php`.
 - **Step-4 results show resolved URL with origin note** — when a submitted URL was redirected before scanning, the Step-4 table now shows the resolved (scanned) URL with a muted "← resolved from \<submitted\>" note inline. Available on live post-scan views; gracefully absent when results are restored from localStorage after a page reload (AC-RC-8b). Touched: `admin/js/scanner.js`, `admin/css/ai-assets-scanner-admin.css`.
+- **Worker redirect-drift log** — the Railway worker now emits a `DEBUG=1`-gated `runvp_final_url` debug event after each page navigation, capturing the requested URL vs the browser's actual final URL after redirects. Flagless safety net for detecting redirect-drift between what was submitted and what Playwright ended up on. Touched: `src/analysis/page-analyzer.js`.
 
 ---
 
