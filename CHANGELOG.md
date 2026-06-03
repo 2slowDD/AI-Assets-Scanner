@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.20 — 2026-06-03
+
+### Fixed
+
+- **Telemetry: `target_stack_summary.detected` corrupted to `["Array"]`** — `capture_target_stack_summary()` cast each probe `detected` entry (an object `{name, class, …}`) with `(string) $d`, which emitted a PHP `Array to string conversion` warning and forwarded the literal `"Array"` instead of the optimizer name to the SaaS job payload. The helper now extracts the optimizer name (`$d['name']`) with an `is_array` guard (legacy string entries still pass through) and drops empties. Telemetry-only — no effect on scan behavior, bypass routing, rules, or billing. Pre-existing since FU-NEW-2 (Phase 5); surfaced via `WP_DEBUG_LOG`. Touched: `admin/class-scanner-ajax.php` (+ object-shape regression test in `tests/SubmitJobPayloadTest.php`).
+
 ## 1.7.19 — 2026-06-03
 
 ### Fixed

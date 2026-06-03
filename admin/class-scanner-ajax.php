@@ -1303,8 +1303,19 @@ class ScannerAjax {
             if ( empty( $entry['host'] ) || empty( $entry['outcome'] ) ) continue;
             $out[] = [
                 'host'      => sanitize_text_field( (string) $entry['host'] ),
+                // FU-TSS-DETECTED — the probe sends each detected entry as an object
+                // {name,class,bypass_query,source}; extract the optimizer name (tolerating
+                // legacy string entries). Casting the object via (string) corrupted it to
+                // "Array" + emitted a PHP warning. Per WP-compliance #27, every leaf of this
+                // untrusted $_POST map is validated (drop nameless entries) + text-sanitized.
                 'detected'  => isset( $entry['detected'] ) && is_array( $entry['detected'] )
-                    ? array_values( array_map( static fn( $d ) => sanitize_text_field( (string) $d ), $entry['detected'] ) )
+                    ? array_values( array_filter( array_map(
+                        static function ( $d ) {
+                            $name = is_array( $d ) ? ( $d['name'] ?? '' ) : $d;
+                            return sanitize_text_field( (string) $name );
+                        },
+                        $entry['detected']
+                    ), static fn( $n ) => '' !== $n ) )
                     : [],
                 'outcome'   => sanitize_text_field( (string) $entry['outcome'] ),
                 'cache_hit' => ! empty( $entry['cache_hit'] ),
