@@ -8,6 +8,19 @@ class CuJsonBuilder {
     private const GROUP_SAFE      = 1;
     private const GROUP_AGGRESSIVE = 2;
 
+    // Phase 2a asymmetric-absent → per-device safe emit. DISABLED 2026-06-04.
+    // An ET-rescan desktop cold-pass can spuriously report a present+used asset
+    // as 'absent' on ONE device (scan 9fabc6ec8edc: 18 site-wide scripts —
+    // jquery-migrate, woocommerce, wc-add-to-cart, … — flipped needed→absent on
+    // desktop vs a clean non-ET baseline). A single-device 'absent' emit then
+    // ships an UNVALIDATED safe-unload of a live asset (desktop F-DEG); the
+    // Phase-2a visual-diff backstop can't catch it because the worker believes
+    // the asset is absent and never tests unloading it. Restores the 2026-04-25
+    // invariant: only 'absent,absent' (BOTH devices confirm) yields a Safe rule.
+    // Flip back to true only after the worker ET desktop-pass reliability fix
+    // (FU-ET-DESKTOP-ABSENT) lands and proves a clean per-device desktop read.
+    private const PHASE2A_ASYMMETRIC_SAFE_ENABLED = false;
+
     public function build( array $pages, array $flags = [] ): array {
         // Phase 2a — flags carried from the Railway scan-result payload (Option A;
         // see spec §4.3.1). Per Rule 1, this payload is third-party-API input —
@@ -193,11 +206,11 @@ class CuJsonBuilder {
             // the device whose 'absent' reading drove it was BLOCKED (D5 default:
             // not blocked → emit proceeds). desktop drives absent,needed→safe-desktop;
             // mobile drives needed,absent→safe-mobile.
-            'absent,needed'         => ( $phase2a_effective && ! $desktop_blocked ) ? [['desktop', $safe]] : [],
+            'absent,needed'         => ( self::PHASE2A_ASYMMETRIC_SAFE_ENABLED && $phase2a_effective && ! $desktop_blocked ) ? [['desktop', $safe]] : [],
             'aggressive,absent'     => [['desktop', $agg]],
             'aggressive,aggressive' => [['all',     $agg]],
             'aggressive,needed'     => [['desktop', $agg]],
-            'needed,absent'         => ( $phase2a_effective && ! $mobile_blocked ) ? [['mobile',  $safe]] : [],
+            'needed,absent'         => ( self::PHASE2A_ASYMMETRIC_SAFE_ENABLED && $phase2a_effective && ! $mobile_blocked ) ? [['mobile',  $safe]] : [],
             'needed,aggressive'     => [['mobile',  $agg]],
             'needed,needed'         => [],
         ];

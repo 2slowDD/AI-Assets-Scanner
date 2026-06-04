@@ -318,30 +318,11 @@ class CuJsonBuilderTest extends TestCase {
         ];
     }
 
-    /** AC-V9a-1: absent,needed + both flags on → safe desktop-only rule. */
-    public function test_phase2a_absent_needed_with_both_flags_on_emits_safe_desktop(): void {
-        $pages  = [ $this->make_page( 'https://site.com/', [
-            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
-        ] ) ];
-        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
-        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
-        $this->assertCount( 1, $output['rules'] );
-        $this->assertSame( 'desktop', $output['rules'][0]['device_type'] );
-        $this->assertSame( 1, $output['rules'][0]['group_id'] ); // GROUP_SAFE
-        $this->assertSame( 'eb-block-style', $output['rules'][0]['asset_handle'] );
-    }
-
-    /** AC-V9a-2: needed,absent + both flags on → safe mobile-only rule. */
-    public function test_phase2a_needed_absent_with_both_flags_on_emits_safe_mobile(): void {
-        $pages  = [ $this->make_page( 'https://site.com/', [
-            $this->make_asset_with_buckets( 'wc-blocks-style', 'style', 'needed', 'absent' ),
-        ] ) ];
-        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
-        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
-        $this->assertCount( 1, $output['rules'] );
-        $this->assertSame( 'mobile', $output['rules'][0]['device_type'] );
-        $this->assertSame( 1, $output['rules'][0]['group_id'] );
-    }
+    // AC-V9a-1 / AC-V9a-2 (asymmetric-absent EMITS a safe rule) removed 2026-06-04:
+    // the asymmetric emit is now disabled (PHASE2A_ASYMMETRIC_SAFE_ENABLED=false).
+    // The reverted behavior is covered by test_asymmetric_absent_needed_emits_no_rule_*
+    // / test_asymmetric_needed_absent_emits_no_rule_* / test_multi_asymmetric_absent_*.
+    // Restore these ACs when the worker ET desktop-pass fix (FU-ET-DESKTOP-ABSENT) re-enables it.
 
     /** AC-V9a-3: flag off → asymmetric-absent cells emit no rule. */
     public function test_phase2a_off_emits_no_rule_for_asymmetric_absent_cells(): void {
@@ -374,6 +355,51 @@ class CuJsonBuilderTest extends TestCase {
         // (D5 + Rule 1 untrusted-input safety invariant).
         $output = ( new CuJsonBuilder() )->build( $pages, [] );
         $this->assertCount( 0, $output['rules'] );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // 2026-06-04 — Asymmetric-absent REVERTED to dual-device-confirmation.
+    // An ET-rescan desktop cold-pass can spuriously report a present+used asset
+    // as 'absent' on ONE device (scan 9fabc6ec8edc: 18 site-wide scripts —
+    // jquery-migrate, woocommerce, wc-add-to-cart, … — flipped needed→absent on
+    // desktop vs a clean non-ET baseline). A single-device 'absent' emit ships an
+    // UNVALIDATED safe-unload of a live asset (desktop F-DEG); the visual-diff
+    // backstop can't catch it because the worker believes the asset is absent.
+    // Restores the 2026-04-25 invariant: only absent,absent (BOTH devices
+    // confirm) may yield a Safe rule. Re-enable the Phase-2a asymmetric emit only
+    // after the worker ET desktop-pass reliability fix (FU-ET-DESKTOP-ABSENT) lands.
+    // ─────────────────────────────────────────────────────────────────────
+
+    /** Regression (scan 9fabc6ec8edc): absent,needed + both flags on + no broken devices → NO rule. */
+    public function test_asymmetric_absent_needed_emits_no_rule_after_2026_06_04_revert(): void {
+        $pages  = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'jquery-migrate', 'script', 'absent', 'needed' ),
+        ] ) ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 0, $output['rules'], 'asymmetric absent,needed must NOT emit a safe rule (single-device absent unreliable)' );
+    }
+
+    /** Mirror: needed,absent + both flags on → NO rule. */
+    public function test_asymmetric_needed_absent_emits_no_rule_after_2026_06_04_revert(): void {
+        $pages  = [ $this->make_page( 'https://site.com/', [
+            $this->make_asset_with_buckets( 'wc-blocks-style', 'style', 'needed', 'absent' ),
+        ] ) ];
+        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 0, $output['rules'] );
+    }
+
+    /** Production repro: a page where the ET desktop pass spuriously dropped many
+     *  present+used assets to absent,needed must yield S:0 (not the buggy S:N). */
+    public function test_multi_asymmetric_absent_yields_zero_safe_after_revert(): void {
+        $handles = [ 'jquery-migrate', 'woocommerce', 'wc-add-to-cart', 'wc-jquery-blockui', 'generate-menu' ];
+        $assets  = array_map( fn( $h ) => $this->make_asset_with_buckets( $h, 'script', 'absent', 'needed' ), $handles );
+        $pages   = [ $this->make_page( 'https://site.com/', $assets ) ];
+        $flags   = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
+        $output  = ( new CuJsonBuilder() )->build( $pages, $flags );
+        $this->assertCount( 0, $output['rules'] );
+        $this->assertSame( [ 'safe' => 0, 'aggressive' => 0, 'needed' => 5 ], $output['by_page'][0] );
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -410,17 +436,9 @@ class CuJsonBuilderTest extends TestCase {
         $this->assertCount( 0, $output['rules'], 'blocked mobile must suppress the safe-mobile emit' );
     }
 
-    /** AC-G4 control (c): no broken_devices key + absent,needed → safe-desktop STILL emitted (wpservice EB case). */
-    public function test_phase2a_guard_control_no_broken_devices_still_emits_safe_desktop(): void {
-        $pages  = [ $this->make_page( 'https://site.com/', [
-            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
-        ] ) ];
-        $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
-        $output = ( new CuJsonBuilder() )->build( $pages, $flags );
-        $this->assertCount( 1, $output['rules'], 'no broken_devices → not blocked → emit proceeds (D5)' );
-        $this->assertSame( 'desktop', $output['rules'][0]['device_type'] );
-        $this->assertSame( 1, $output['rules'][0]['group_id'] ); // GROUP_SAFE
-    }
+    // AC-G4 control (c) removed 2026-06-04: with the asymmetric emit disabled,
+    // a clean no-broken-devices absent,needed page emits nothing (covered by
+    // test_asymmetric_absent_needed_emits_no_rule_after_2026_06_04_revert).
 
     /** AC-G3 (d): desktop blocked but cells are absent,absent + aggressive,needed → those rules UNCHANGED. */
     public function test_phase2a_guard_leaves_non_phase2a_cells_unchanged_when_desktop_blocked(): void {
@@ -440,26 +458,11 @@ class CuJsonBuilderTest extends TestCase {
         $this->assertSame( 2, $rules[1]['group_id'] );
     }
 
-    /** AC-G4 (e): malformed broken_devices → treated as not-blocked → emit proceeds (D5 safety). */
-    public function test_phase2a_guard_malformed_broken_devices_treated_as_not_blocked(): void {
-        $flags = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
-
-        // (e1) broken_devices is a string, not an array.
-        $pages_str = [ $this->make_page_with_broken_devices( 'https://site.com/', [
-            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
-        ], 'broken' ) ];
-        $out_str = ( new CuJsonBuilder() )->build( $pages_str, $flags );
-        $this->assertCount( 1, $out_str['rules'], 'non-array broken_devices → not blocked → emit proceeds' );
-        $this->assertSame( 'desktop', $out_str['rules'][0]['device_type'] );
-
-        // (e2) entry has device but empty/absent reason → not blocked.
-        $pages_noreason = [ $this->make_page_with_broken_devices( 'https://site.com/', [
-            $this->make_asset_with_buckets( 'eb-block-style', 'style', 'absent', 'needed' ),
-        ], [ [ 'device' => 'desktop' ] ] ) ];
-        $out_noreason = ( new CuJsonBuilder() )->build( $pages_noreason, $flags );
-        $this->assertCount( 1, $out_noreason['rules'], 'empty/absent reason → not blocked → emit proceeds' );
-        $this->assertSame( 'desktop', $out_noreason['rules'][0]['device_type'] );
-    }
+    // AC-G4 (e) malformed-broken-devices test removed 2026-06-04: it asserted the
+    // not-blocked → emit path, which is now always no-emit (asymmetric disabled).
+    // The blocked_devices() malformed-input parser is exercised again when the
+    // emit is re-enabled (FU-ET-DESKTOP-ABSENT). The blocked-suppression tests
+    // (test_phase2a_guard_suppresses_safe_*) remain and still assert 0 rules.
 
     // ─────────────────────────────────────────────────────────────────────
     // AC-OR-22 — origin_unavailable pages skipped (Task B3)

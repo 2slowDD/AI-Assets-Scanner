@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.23b — 2026-06-04
+
+### Fixed — ET rescan shipped bogus per-device "safe" rules (desktop F-DEG)
+
+A "Rescan ET Candidates" run could show a large jump in **Safe** rules on the Step-4 table (e.g. speed-analyzer S:0 → **S:19**) that, if applied, would unload assets the page actively uses on **desktop** (`jquery-migrate`, `woocommerce`, `wc-add-to-cart`, …) — a desktop-breakage (F-DEG) risk. Root cause: the ET rescan's desktop coverage pass can spuriously report a present, used asset as **absent** on one device (verified on scan `9fabc6ec8edc`: 18 site-wide scripts flipped `needed→absent` on desktop vs a clean non-ET baseline of the same page), and the Phase-2a asymmetric-absent rule then converted each single-device `absent` into an **unvalidated** per-device "safe" unload. The ET Result Ratchet was **not** the cause — it faithfully unions the builder's output; disabling `cu_scanner_ratchet_enabled` does not change the count.
+
+The Phase-2a asymmetric-absent → per-device-safe emit is now **disabled** (`CuJsonBuilder::PHASE2A_ASYMMETRIC_SAFE_ENABLED = false`), restoring the 2026-04-25 dual-device-confirmation invariant: only an asset confirmed **absent on BOTH devices** (`absent,absent`) yields a Safe rule. Aggressive rules and every other device-pair cell are unchanged. A worker-side follow-up (`FU-ET-DESKTOP-ABSENT`) will root-cause why the ET rescan's desktop pass drops present-asset readings; the asymmetric emit can be re-enabled once a clean per-device desktop read is proven. (Beta build.) Touched: `includes/scanner/class-cu-json-builder.php` (+ regression tests in `tests/CuJsonBuilderTest.php`).
+
 ## 1.7.22b — 2026-06-03
 
 ### Changed — ET Result Ratchet now default-ON (beta)
