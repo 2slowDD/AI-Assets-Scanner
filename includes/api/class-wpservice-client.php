@@ -27,6 +27,15 @@ class WpserviceClient {
         ] );
     }
 
+    public function claim_paid_key( string $current_api_key, string $claim_token ): array {
+        return $this->post( '/cu-scanner/v1/free-key/claim-paid', [
+            'domain'          => $this->domain(),
+            'current_api_key' => $current_api_key,
+            'claim_token'     => $claim_token,
+            'plugin_version'  => defined( 'CU_SCANNER_VERSION' ) ? CU_SCANNER_VERSION : '',
+        ] );
+    }
+
     /**
      * @throws \RuntimeException with message 'Insufficient credits' on 402
      */

@@ -55,6 +55,11 @@ class FreeKeyBootstrap {
         }
     }
 
+    public static function should_run_from_admin( Settings $settings ): bool {
+        $current = $settings->get_api_key();
+        return '' === $current || $settings->is_pending_free_key( $current );
+    }
+
     private function make_client( string $current_key ): object {
         if ( $this->client_factory ) {
             return ( $this->client_factory )( $current_key );

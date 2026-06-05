@@ -60,8 +60,34 @@ class SettingsAjax {
             }
         }
         try {
-            $client  = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $settings->get_api_key() );
+            $api_key = $settings->get_api_key();
+            $updated = false;
+
+            if ( $settings->is_free_key( $api_key ) ) {
+                try {
+                    $claim = ( new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key ) )
+                        ->claim_paid_key( $api_key, $settings->get_paid_key_claim_token() );
+                    $claimed_key = sanitize_text_field( (string) ( $claim['api_key'] ?? '' ) );
+                    if ( '' !== $claimed_key && ! $settings->is_free_key( $claimed_key ) && ! $settings->is_pending_free_key( $claimed_key ) ) {
+                        $settings->set_api_key( $claimed_key );
+                        $api_key = $claimed_key;
+                        $updated = true;
+                    }
+                } catch ( \RuntimeException $e ) {
+                    // Paid-key claim is best-effort; balance fetch below reports the current key state.
+                }
+            }
+
+            $client  = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key );
             $balance = $client->get_credits();
+            if ( $updated ) {
+                $auth = $client->authenticate();
+                if ( ! empty( $auth['railway_url'] ) ) {
+                    $settings->set_railway_url( $auth['railway_url'] );
+                }
+                $balance = [ 'balance' => (int) ( $auth['balance'] ?? ( $balance['balance'] ?? 0 ) ) ];
+            }
+            $balance['api_key_updated'] = $updated;
             wp_send_json_success( $balance );
         } catch ( \RuntimeException $e ) {
             wp_send_json_error( $e->getMessage() );

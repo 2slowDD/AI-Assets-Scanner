@@ -58,11 +58,21 @@
                 .then(r => r.json())
                 .then(res => {
                     setBalance(res.success ? res.data.balance : '—');
+                    if (res.success && res.data.api_key_updated) {
+                        showMsg('Your paid AAS Scanner API key was received and saved. Credit balance: ' + res.data.balance, 'success');
+                        if (apiKeyInput) {
+                            apiKeyInput.value = 'Saved paid key';
+                            apiKeyInput.dataset.masked = '1';
+                        }
+                    }
                 });
         });
 
         // Auto-refresh balance on page load
         refresh.click();
+        window.addEventListener('focus', function () {
+            refresh.click();
+        });
 
         const copyBtn = document.getElementById('cu-copy-secret');
         if (copyBtn) {
