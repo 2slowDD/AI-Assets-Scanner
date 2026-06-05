@@ -125,4 +125,15 @@ class FreeKeyBootstrapTest extends TestCase {
         $bootstrap->run();
         $this->assertTrue( true );
     }
+
+    public function test_admin_bootstrap_should_retry_empty_or_pending_free_key_only(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_api_key', '' )
+            ->andReturn( '', 'cusk_Freekey_?', 'cusk_Freekey_10', 'cusk_paid_key' );
+
+        $this->assertTrue( FreeKeyBootstrap::should_run_from_admin( new \CUScanner\Settings() ) );
+        $this->assertTrue( FreeKeyBootstrap::should_run_from_admin( new \CUScanner\Settings() ) );
+        $this->assertFalse( FreeKeyBootstrap::should_run_from_admin( new \CUScanner\Settings() ) );
+        $this->assertFalse( FreeKeyBootstrap::should_run_from_admin( new \CUScanner\Settings() ) );
+    }
 }

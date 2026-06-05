@@ -4,6 +4,26 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.25b - 2026-06-05
+
+### Fixed - Free key activation retry
+
+- AAS now retries free-key activation from wp-admin when the stored key is the pending placeholder, not only when the API key field is empty.
+- This helps a fresh install recover automatically if the first activation request to WPservice.pro was missed or temporarily unavailable.
+- Updated the README badge and plugin version display to 1.7.25b.
+
+---
+
+## 1.7.24b — 2026-06-05
+
+### Fixed — Paid key handoff after checkout
+
+- After buying credits from AAS settings, AAS can now save the paid API key automatically once checkout completes.
+- The settings-page balance refresh now updates the local key and cached service URL when the paid key is available.
+- The settings page also retries this check when the browser tab regains focus, covering the normal flow where checkout opens in a new tab and the user returns to AAS settings.
+
+---
+
 ## 1.7.23b — 2026-06-04
 
 ### Fixed — ET rescan shipped bogus per-device "safe" rules (desktop F-DEG)

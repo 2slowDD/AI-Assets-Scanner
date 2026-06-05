@@ -29,6 +29,17 @@ class Settings {
         update_option( 'cu_scanner_api_key', $key );
     }
 
+    public function get_paid_key_claim_token(): string {
+        $token = (string) get_option( 'cu_scanner_paid_key_claim_token', '' );
+        if ( preg_match( '/^[a-f0-9]{64}$/', $token ) ) {
+            return $token;
+        }
+
+        $token = bin2hex( random_bytes( 32 ) );
+        update_option( 'cu_scanner_paid_key_claim_token', $token, false );
+        return $token;
+    }
+
     public function is_free_key( string $key ): bool {
         return (bool) preg_match( '/^cusk_Freekey_[1-9][0-9]*$/', $key );
     }
@@ -60,8 +71,9 @@ class Settings {
         }
 
         $query = http_build_query( [
-            'cu_free_key' => $api_key,
-            'cu_domain'   => DomainNormalizer::normalize_url( get_home_url() ),
+            'cu_free_key'    => $api_key,
+            'cu_domain'      => DomainNormalizer::normalize_url( get_home_url() ),
+            'cu_claim_token' => $this->get_paid_key_claim_token(),
         ] );
 
         return $base . '?' . $query . '#cu-pricing-inner';

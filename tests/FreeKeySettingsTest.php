@@ -27,12 +27,15 @@ class FreeKeySettingsTest extends TestCase {
 
     public function test_buy_credits_url_includes_context_for_free_key(): void {
         WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://www.Example.com/site' );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_paid_key_claim_token', '' )
+            ->andReturn( str_repeat( 'a', 64 ) );
 
         $settings = new Settings();
         $url      = $settings->get_buy_credits_url( 'cusk_Freekey_12' );
 
         $this->assertStringContainsString( 'cu_free_key=cusk_Freekey_12', $url );
         $this->assertStringContainsString( 'cu_domain=example.com', $url );
+        $this->assertStringContainsString( 'cu_claim_token=' . str_repeat( 'a', 64 ), $url );
     }
 }
-
