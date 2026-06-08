@@ -1102,7 +1102,7 @@
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'cu-queue-banner';
-            banner.className = 'notice notice-info';
+            banner.className = 'notice notice-info inline';
             banner.style.marginTop = '10px';
             const progressBar = document.getElementById('cu-progress-bar');
             if (progressBar && progressBar.parentNode) {
@@ -1263,7 +1263,7 @@
         if (externalOnly) {
             pushBtn.style.display = 'none';
             syncBtn.style.display = 'none';
-            pushResult.innerHTML = '<div class="notice notice-info"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push/sync to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
+            pushResult.innerHTML = '<div class="notice notice-info inline"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push/sync to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
         } else if (canPush) {
             pushBtn.style.display = '';
             syncBtn.style.display = '';
@@ -1467,7 +1467,7 @@
         const copy = bits.map(esc).join(' ') + reasonClause + ' ' + esc(action);
 
         area.innerHTML =
-            '<div class="notice notice-warning aias-broken-banner" data-scan-id="' + esc(scanId) + '">' +
+            '<div class="notice notice-warning inline aias-broken-banner" data-scan-id="' + esc(scanId) + '">' +
             '<p><strong>\u26a0 Some pages couldn\'t be fully scanned</strong></p>' +
             '<p>' + copy + '</p>' +
             '<p><button type="button" class="button aias-dismiss-banner">Got it \u2014 don\'t show again for this scan</button></p>' +
