@@ -31,6 +31,15 @@ class RatchetMerger {
      */
     public array $recovered_by_pattern = [];
 
+    /**
+     * Structured decision trail of the last merge() call — diagnostic only,
+     * read by the AAS boundary for WP_DEBUG_LOG-gated logging. Never alters
+     * merge output. Shape: [ 'counts'=>[], 'outcomes'=>[outcome=>int], 'handles'=>[ {...} ] ].
+     *
+     * @var array<string,mixed>
+     */
+    public array $last_merge_diag = [];
+
     private const FAILSAFE_DEMOTE_CLASS = [
         'aggressive_goto_exhausted' => 'benign',
         'control_probe_failed'      => 'benign',
@@ -248,6 +257,7 @@ class RatchetMerger {
     public function merge( array $r_orig_rules, array $rescan_pages, array $flags = [] ): array {
         // Reset per-merge state.
         $this->recovered_by_pattern = [];
+        $this->last_merge_diag      = [ 'counts' => [], 'outcomes' => [], 'handles' => [] ];
 
         // Step 1: build R_et via CuJsonBuilder and explode to per-device legs.
         $r_et_raw = ( new CuJsonBuilder() )->build( $rescan_pages, $flags )['rules'];
@@ -270,47 +280,56 @@ class RatchetMerger {
 
         // Step 6: walk R_orig and selectively restore rules not already in R_et.
         foreach ( $orig as $r ) {
-            $ikey    = $this->identity_key( $r );
+            $ikey = $this->identity_key( $r );
             if ( isset( $r_et_keys[ $ikey ] ) ) {
-                // Already in R_et — skip (no duplicate).
+                $this->record_diag( $r, 'in_r_et', null, null );
                 continue;
             }
 
-            // Determine the page url_pattern for this rule.
             $page_pattern = $r['url_pattern'];
 
-            // Check whole-page failsafe first.
             if ( isset( $state['failsafe'][ $page_pattern ] ) ) {
-                if ( 'benign' === $state['failsafe'][ $page_pattern ] ) {
-                    $final[] = $r; // Restore.
+                $fs = $state['failsafe'][ $page_pattern ];
+                if ( 'benign' === $fs ) {
+                    $final[] = $r;
                     $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
+                    $this->record_diag( $r, 'failsafe_benign', null, 'benign' );
+                } else {
+                    $this->record_diag( $r, 'failsafe_validated', null, 'validated' );
                 }
-                // validated → drop (do nothing).
                 continue;
             }
 
-            // Per-asset policy.
             $asset_state = $state['asset'][ $ikey ] ?? null;
 
             if ( null === $asset_state ) {
-                // Rescan never addressed this asset/page — treat as benign absent → restore.
                 $final[] = $r;
                 $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
+                $this->record_diag( $r, 'absent_restore', null, null );
                 continue;
             }
 
             if ( $asset_state['covered'] ) {
-                // Asset is genuinely in use — drop.
+                $this->record_diag( $r, 'covered_drop', $asset_state['demote_class'], null );
                 continue;
             }
 
             $dc = $asset_state['demote_class'];
             if ( 'benign' === $dc ) {
-                $final[] = $r; // Restore.
+                $final[] = $r;
                 $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
+                $this->record_diag( $r, 'benign_restore', $dc, null );
+            } else {
+                $this->record_diag( $r, ( 'validated' === $dc ) ? 'validated_drop' : 'null_drop', $dc, null );
             }
-            // 'validated' OR null/unknown → fail-closed → drop.
         }
+
+        $this->last_merge_diag['counts'] = [
+            'r_et'      => count( $r_et ),
+            'r_orig'    => count( $orig ),
+            'recovered' => array_sum( $this->recovered_by_pattern ),
+            'final'     => count( $final ),
+        ];
 
         // Step 7: dedupe (resolve group_id conflicts) then recollapse device pairs.
         return $this->recollapse( $this->dedupe_resolve_conflicts( $final ) );
@@ -362,5 +381,27 @@ class RatchetMerger {
             'script' => 'js',
             default  => $type,
         };
+    }
+
+    /**
+     * Append one Step-6 decision to the diagnostic trail. Diagnostic only.
+     *
+     * @param array       $r              Exploded per-device R_orig rule.
+     * @param string      $outcome        One of the eight Step-6 outcomes.
+     * @param string|null $demote_class   Per-asset demote_class (null on non-per-asset branches).
+     * @param string|null $failsafe_class Page-level failsafe class (only on failsafe outcomes).
+     */
+    private function record_diag( array $r, string $outcome, ?string $demote_class, ?string $failsafe_class ): void {
+        $this->last_merge_diag['outcomes'][ $outcome ] =
+            ( $this->last_merge_diag['outcomes'][ $outcome ] ?? 0 ) + 1;
+        $this->last_merge_diag['handles'][] = [
+            'handle'         => $r['asset_handle'],
+            'type'           => $r['asset_type'],
+            'device'         => $r['device_type'],
+            'url_pattern'    => $r['url_pattern'],
+            'outcome'        => $outcome,
+            'demote_class'   => $demote_class,
+            'failsafe_class' => $failsafe_class,
+        ];
     }
 }
