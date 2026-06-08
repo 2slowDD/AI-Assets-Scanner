@@ -740,6 +740,86 @@ class RatchetMergerTest extends TestCase {
         );
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // AC-1 — last_merge_diag decision trail
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * AC-1 — last_merge_diag records every Step-6 outcome with lossless per-branch fields.
+     */
+    public function test_ac1_last_merge_diag_records_outcomes_and_fields(): void {
+        $merger = new RatchetMerger();
+        $pat    = 'https://x.com/p';
+
+        // R_orig: four aggressive rules on one page + one rule on a failsafe page.
+        // device_type='all' so each explodes to 2 per-device legs (×2 entries in diag).
+        $r_orig = [
+            $this->rule( 'h_benign',    'all', 2, 'css', $pat ),               // → benign_restore
+            $this->rule( 'h_validated', 'all', 2, 'css', $pat ),               // → validated_drop
+            $this->rule( 'h_covered',   'all', 2, 'css', $pat ),               // → covered_drop
+            $this->rule( 'h_absent',    'all', 2, 'css', $pat ),               // → absent_restore (not in rescan assets)
+            $this->rule( 'h_fs',        'all', 2, 'css', 'https://x.com/fs' ), // → failsafe_benign
+        ];
+
+        // Rescan page: 3 assets present (benign/validated/covered), h_absent omitted.
+        $rescan_page = [
+            'url'    => $pat,
+            'status' => 'done',
+            'assets' => [
+                [
+                    'handle'      => 'h_benign',
+                    'type'        => 'style',
+                    'desktop'     => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                    'mobile'      => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                    'demote_class' => 'benign',
+                ],
+                [
+                    'handle'      => 'h_validated',
+                    'type'        => 'style',
+                    'desktop'     => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                    'mobile'      => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                    'demote_class' => 'validated',
+                ],
+                [
+                    'handle'  => 'h_covered',
+                    'type'    => 'style',
+                    'desktop' => [ 'loaded' => true, 'coverage' => 0.44, 'bucket' => 'needed' ],
+                    'mobile'  => [ 'loaded' => true, 'coverage' => 0.44, 'bucket' => 'needed' ],
+                    // no demote_class — covered
+                ],
+            ],
+        ];
+        // Failsafe page (benign trigger) with no assets.
+        $fs_page = $this->page_failsafe( 'https://x.com/fs', 'control_probe_failed', [] );
+
+        $merger->merge( $r_orig, [ $rescan_page, $fs_page ] );
+        $diag = $merger->last_merge_diag;
+
+        // Per-outcome tally (each R_orig rule is 'all' → exploded to 2 device legs).
+        $this->assertSame( 2, $diag['outcomes']['benign_restore']  ?? 0 );
+        $this->assertSame( 2, $diag['outcomes']['validated_drop']  ?? 0 );
+        $this->assertSame( 2, $diag['outcomes']['covered_drop']    ?? 0 );
+        $this->assertSame( 2, $diag['outcomes']['absent_restore']  ?? 0 );
+        $this->assertSame( 2, $diag['outcomes']['failsafe_benign'] ?? 0 );
+
+        // Counts present and coherent.
+        $this->assertArrayHasKey( 'counts', $diag );
+        $this->assertSame( 10, $diag['counts']['r_orig'] );         // 5 rules × 2 legs
+        $this->assertSame( 10, count( $diag['handles'] ) );         // one entry per walked leg
+
+        // Lossless per-branch fields.
+        $byHandle = [];
+        foreach ( $diag['handles'] as $h ) {
+            $byHandle[ $h['handle'] ][] = $h;
+        }
+        $this->assertSame( 'benign', $byHandle['h_benign'][0]['demote_class'] );
+        $this->assertNull( $byHandle['h_benign'][0]['failsafe_class'] );
+        $this->assertNull( $byHandle['h_absent'][0]['demote_class'] );
+        $this->assertSame( 'benign', $byHandle['h_fs'][0]['failsafe_class'] );
+        $this->assertNull( $byHandle['h_fs'][0]['demote_class'] );
+        $this->assertSame( 'failsafe_benign', $byHandle['h_fs'][0]['outcome'] );
+    }
+
     /**
      * merge() return passes through recollapse: desktop+mobile same group → 'all'.
      */
