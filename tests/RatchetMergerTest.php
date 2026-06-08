@@ -829,25 +829,20 @@ class RatchetMergerTest extends TestCase {
     }
 
     /**
-     * AC-1 companion — closes the 3 remaining outcome branches:
-     * in_r_et, failsafe_validated, null_drop.
+     * AC-1 companion (Scenario A) — in_r_et outcome.
      *
-     * Together with test_ac1_last_merge_diag_records_outcomes_and_fields all
-     * eight Step-6 outcomes are now asserted via last_merge_diag.
+     * h_in_ret is aggressive on both devices in the rescan → CuJsonBuilder
+     * emits url_pattern|h_in_ret|css|all/2 → explodes to desktop+mobile.
+     * R_orig carries the same handle/type/url_pattern → both exploded legs
+     * land in r_et_keys → outcome = in_r_et.
      */
-    public function test_ac1_last_merge_diag_missing_three_outcomes(): void {
-        $merger = new RatchetMerger();
-
-        // ── Scenario A: in_r_et ──────────────────────────────────────────
-        // h_in_ret is aggressive on both devices in the rescan → CuJsonBuilder
-        // emits url_pattern|h_in_ret|css|all/2 → explodes to desktop+mobile.
-        // R_orig carries the same handle/type/url_pattern → both exploded legs
-        // land in r_et_keys → outcome = in_r_et.
+    public function test_ac1_in_r_et_outcome(): void {
+        $merger  = new RatchetMerger();
         $pat_ret = 'https://y.com/ret';
-        $r_orig_ret = [
+        $r_orig  = [
             $this->rule( 'h_in_ret', 'all', 2, 'css', $pat_ret ),
         ];
-        $rescan_ret = [
+        $rescan = [
             [
                 'url'    => $pat_ret,
                 'status' => 'done',
@@ -859,39 +854,45 @@ class RatchetMergerTest extends TestCase {
                 ] ],
             ],
         ];
-        $merger->merge( $r_orig_ret, $rescan_ret );
-        $diag_ret = $merger->last_merge_diag;
+        $merger->merge( $r_orig, $rescan );
+        $diag = $merger->last_merge_diag;
 
-        $this->assertGreaterThanOrEqual( 1, $diag_ret['outcomes']['in_r_et'] ?? 0,
+        $this->assertGreaterThanOrEqual( 1, $diag['outcomes']['in_r_et'] ?? 0,
             'in_r_et must appear in outcomes when orig rule is already in R_et' );
         $by_ret = [];
-        foreach ( $diag_ret['handles'] as $h ) {
+        foreach ( $diag['handles'] as $h ) {
             if ( $h['handle'] === 'h_in_ret' ) {
                 $by_ret[] = $h;
             }
         }
         $this->assertNotEmpty( $by_ret, 'h_in_ret must appear in handles[]' );
-        $this->assertSame( 'in_r_et',  $by_ret[0]['outcome'] );
+        $this->assertSame( 'in_r_et', $by_ret[0]['outcome'] );
         $this->assertNull( $by_ret[0]['demote_class'],   'in_r_et: demote_class must be null' );
         $this->assertNull( $by_ret[0]['failsafe_class'], 'in_r_et: failsafe_class must be null' );
+    }
 
-        // ── Scenario B: failsafe_validated ───────────────────────────────
-        // Page with failsafe_demote='visual_unattributable' (→ 'validated').
-        // R_orig has a rule for that page NOT in R_et (no aggressive asset for it).
+    /**
+     * AC-1 companion (Scenario B) — failsafe_validated outcome.
+     *
+     * Page with failsafe_demote='visual_unattributable' (→ 'validated').
+     * R_orig has a rule for that page NOT in R_et (no aggressive asset for it).
+     */
+    public function test_ac1_failsafe_validated_outcome(): void {
+        $merger  = new RatchetMerger();
         $pat_fsv = 'https://y.com/fsv';
-        $r_orig_fsv = [
+        $r_orig  = [
             $this->rule( 'h_fsv', 'all', 2, 'css', $pat_fsv ),
         ];
-        $rescan_fsv = [
+        $rescan = [
             $this->page_failsafe( $pat_fsv, 'visual_unattributable', [] ),
         ];
-        $merger->merge( $r_orig_fsv, $rescan_fsv );
-        $diag_fsv = $merger->last_merge_diag;
+        $merger->merge( $r_orig, $rescan );
+        $diag = $merger->last_merge_diag;
 
-        $this->assertGreaterThanOrEqual( 1, $diag_fsv['outcomes']['failsafe_validated'] ?? 0,
+        $this->assertGreaterThanOrEqual( 1, $diag['outcomes']['failsafe_validated'] ?? 0,
             'failsafe_validated must appear in outcomes for a validated-trigger failsafe page' );
         $by_fsv = [];
-        foreach ( $diag_fsv['handles'] as $h ) {
+        foreach ( $diag['handles'] as $h ) {
             if ( $h['handle'] === 'h_fsv' ) {
                 $by_fsv[] = $h;
             }
@@ -902,42 +903,49 @@ class RatchetMergerTest extends TestCase {
             'failsafe_validated: failsafe_class must be "validated"' );
         $this->assertNull( $by_fsv[0]['demote_class'],
             'failsafe_validated: demote_class must be null' );
+    }
 
-        // ── Scenario C: null_drop ────────────────────────────────────────
-        // Asset is demoted (bucket='needed', coverage=0.001 sentinel) but
-        // has NO demote_class → dc=null → neither benign nor validated → null_drop.
+    /**
+     * AC-1 companion (Scenario C) — unknown_drop outcome.
+     *
+     * Asset is demoted (bucket='needed', coverage=0.001 sentinel) but has NO
+     * demote_class → dc=null → neither benign nor validated → unknown_drop
+     * (unrecognised/missing demote_class, fail-closed).
+     */
+    public function test_ac1_unknown_drop_outcome(): void {
+        $merger = new RatchetMerger();
         $pat_nd = 'https://y.com/nd';
-        $r_orig_nd = [
-            $this->rule( 'h_null_drop', 'desktop', 2, 'css', $pat_nd ),
+        $r_orig = [
+            $this->rule( 'h_unknown_drop', 'desktop', 2, 'css', $pat_nd ),
         ];
-        $rescan_nd = [
+        $rescan = [
             [
                 'url'    => $pat_nd,
                 'status' => 'done',
                 'assets' => [ [
-                    'handle'  => 'h_null_drop',
+                    'handle'  => 'h_unknown_drop',
                     'type'    => 'style',
                     'desktop' => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
                     'mobile'  => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
-                    // intentionally no 'demote_class' → null_drop
+                    // intentionally no 'demote_class' → unknown_drop
                 ] ],
             ],
         ];
-        $merger->merge( $r_orig_nd, $rescan_nd );
-        $diag_nd = $merger->last_merge_diag;
+        $merger->merge( $r_orig, $rescan );
+        $diag = $merger->last_merge_diag;
 
-        $this->assertGreaterThanOrEqual( 1, $diag_nd['outcomes']['null_drop'] ?? 0,
-            'null_drop must appear in outcomes when demote_class is absent' );
+        $this->assertGreaterThanOrEqual( 1, $diag['outcomes']['unknown_drop'] ?? 0,
+            'unknown_drop must appear in outcomes when demote_class is absent' );
         $by_nd = [];
-        foreach ( $diag_nd['handles'] as $h ) {
-            if ( $h['handle'] === 'h_null_drop' ) {
+        foreach ( $diag['handles'] as $h ) {
+            if ( $h['handle'] === 'h_unknown_drop' ) {
                 $by_nd[] = $h;
             }
         }
-        $this->assertNotEmpty( $by_nd, 'h_null_drop must appear in handles[]' );
-        $this->assertSame( 'null_drop',  $by_nd[0]['outcome'] );
-        $this->assertNull( $by_nd[0]['demote_class'],   'null_drop: demote_class must be null' );
-        $this->assertNull( $by_nd[0]['failsafe_class'], 'null_drop: failsafe_class must be null' );
+        $this->assertNotEmpty( $by_nd, 'h_unknown_drop must appear in handles[]' );
+        $this->assertSame( 'unknown_drop', $by_nd[0]['outcome'] );
+        $this->assertNull( $by_nd[0]['demote_class'],   'unknown_drop: demote_class must be null' );
+        $this->assertNull( $by_nd[0]['failsafe_class'], 'unknown_drop: failsafe_class must be null' );
     }
 
     /**
