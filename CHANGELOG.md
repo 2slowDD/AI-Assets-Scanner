@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.26b - 2026-06-08
+
+### Added — ET ratchet decision-trail diagnostic (observability)
+
+- `WP_DEBUG_LOG`-gated logging of the ET Result Ratchet: the R_orig persist, the gate decision (ratchet enabled / is-ET-rescan / R_orig present / URL-set match), and the per-handle merge outcome (restore/drop + reason). Off in production; no behaviour change.
+- Lets an operator diagnose ET-rescan rule-retention questions (e.g. why an A:N→A:0 drop happened) by reading `wp-content/debug.log` — previously the ratchet was a black box.
+
+---
+
 ## 1.7.25b - 2026-06-05
 
 ### Fixed - Free key activation retry
