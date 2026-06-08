@@ -694,8 +694,11 @@ class ScannerAjax {
         $flags   = isset( $status['flags'] ) && is_array( $status['flags'] ) ? $status['flags'] : [];
         $cu_json = ( new CuJsonBuilder() )->build( $pages_raw, $flags );
 
+        $is_et   = $this->is_et_rescan( $pages_raw );
+        $enabled = $this->ratchet_enabled();
+
         // B2 — persist R_orig on non-ET scans so a subsequent ET rescan can ratchet against it.
-        if ( $this->ratchet_enabled() && ! $this->is_et_rescan( $pages_raw ) ) {
+        if ( $enabled && ! $is_et ) {
             $this->persist_r_orig( $cu_json, $pages_raw );
             $this->log_ratchet_diag( 'persist', [
                 'rules' => count( $cu_json['rules'] ),
@@ -705,15 +708,14 @@ class ScannerAjax {
 
         // B3 — ET-ratchet merge: replace cu_json['rules'] + recompute by_page BEFORE store_json.
         // Diagnostic trail (WP_DEBUG_LOG-gated) records the gate decision + merge outcome.
+        // $merger is kept in scope so recovered_by_pattern is available for the pages_payload below (B4).
         $merger  = null;
-        $is_et   = $this->is_et_rescan( $pages_raw );
-        $enabled = $this->ratchet_enabled();
         if ( $enabled && $is_et ) {
             $r_orig  = get_transient( 'cu_scanner_r_orig_' . get_current_user_id() );
             $matches = $this->r_orig_matches( $r_orig, $pages_raw );
             $this->log_ratchet_diag( 'gate', [
-                'ratchet_enabled' => true,
-                'is_et_rescan'    => true,
+                'ratchet_enabled' => $enabled,
+                'is_et_rescan'    => $is_et,
                 'r_orig'          => is_array( $r_orig ) && ! empty( $r_orig['rules'] )
                                        ? count( $r_orig['rules'] ) : 'absent',
                 'r_orig_matches'  => $matches,
