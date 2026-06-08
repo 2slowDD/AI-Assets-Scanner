@@ -197,7 +197,6 @@ class BypassHandler {
 	}
 
 	private static function is_debug_build(): bool {
-		return defined( 'WP_DEBUG' ) && WP_DEBUG
-			&& defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG;
+		return cu_scanner_debug_enabled();
 	}
 }

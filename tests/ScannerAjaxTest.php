@@ -773,4 +773,21 @@ class ScannerAjaxTest extends TestCase {
         );
         $this->assertTrue( $pages4[0]['extra_time'], 'identity submitted_url still matches' );
     }
+
+    /**
+     * AC-DG-1 — the AAS debug gate is OFF by default (CU_SCANNER_DEBUG undefined in test env).
+     */
+    public function test_ac_dg_1_debug_gate_off_by_default(): void {
+        require_once dirname( __DIR__ ) . '/includes/debug.php';
+        $this->assertFalse( cu_scanner_debug_enabled(), 'CU_SCANNER_DEBUG undefined → gate false' );
+    }
+
+    /**
+     * AC-DG-2 — ratchet_debug_enabled() now routes through the AAS gate (off by default).
+     */
+    public function test_ac_dg_2_ratchet_debug_routes_through_gate(): void {
+        require_once dirname( __DIR__ ) . '/includes/debug.php';
+        $ajax = new ScannerAjax();
+        $this->assertFalse( $ajax->__test_ratchet_debug_enabled(), 'ratchet diagnostic gated off by default' );
+    }
 }
