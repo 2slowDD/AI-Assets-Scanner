@@ -1013,7 +1013,7 @@
                     urls: selectedUrls.map(u => resolvedByUrl[u] || u),
                     submitted_urls: selectedUrls,
                     job_token,
-                    extra_time_urls: etSelected,
+                    extra_time_urls: etSelected.map(u => resolvedByUrl[u] || u),
                     target_bypass_per_url: targetBypassPerUrl,
                     target_stack_summary: targetStackSummary,
                 })
@@ -1038,7 +1038,7 @@
                                 submitted_urls: selectedUrls,
                                 job_token: job_token,
                                 class_c_consent_given: '1',
-                                extra_time_urls: etSelected,
+                                extra_time_urls: etSelected.map(u => resolvedByUrl[u] || u),
                                 target_bypass_per_url: targetBypassPerUrl,
                                 target_stack_summary: targetStackSummary,
                             });

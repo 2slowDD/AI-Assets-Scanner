@@ -727,4 +727,43 @@ class ScannerAjaxTest extends TestCase {
         $ajax = new ScannerAjax();
         $this->assertFalse( $ajax->__test_ratchet_debug_enabled() );
     }
+
+    /**
+     * AC-ET1-1 — build_pages_array stamps extra_time=true when the ET selection
+     * was keyed on the ORIGINAL url but the page is scanned under its RESOLVED url
+     * (the resolved-vs-unresolved mismatch that broke the heavy-site ET ratchet).
+     */
+    public function test_ac_et1_1_extra_time_matches_via_submitted_url_backstop(): void {
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( string $url, ?int $component = null ) {
+            $parts = parse_url( $url );
+            return ( PHP_URL_HOST === $component ) ? ( $parts['host'] ?? null ) : $parts;
+        } );
+
+        $ajax = new ScannerAjax();
+        $resolved  = 'https://getkush.cc/';
+        $original  = 'https://getkush.cc';
+        $pages = $ajax->__test_build_pages_array(
+            [ $resolved ],                 // selected_urls = RESOLVED (what we scan)
+            [],                            // host_bypass
+            [],                            // target_bypass_per_url
+            'https://example.org',         // home_url (different host → external path)
+            [ $original => 0 ],            // et_set keyed on the ORIGINAL (array_flip shape)
+            [ $resolved => $original ]     // submitted_url_per_url: resolved → original
+        );
+        $this->assertCount( 1, $pages );
+        $this->assertTrue( $pages[0]['extra_time'], 'extra_time must be true via the submitted_url backstop' );
+
+        // Control: a normal match (et_set keyed on the same url, no resolution) still works.
+        $pages2 = $ajax->__test_build_pages_array(
+            [ $resolved ], [], [], 'https://example.org',
+            [ $resolved => 0 ], []
+        );
+        $this->assertTrue( $pages2[0]['extra_time'], 'direct match still works' );
+
+        // Control: a URL NOT in et_set stays false.
+        $pages3 = $ajax->__test_build_pages_array(
+            [ $resolved ], [], [], 'https://example.org', [], []
+        );
+        $this->assertFalse( $pages3[0]['extra_time'], 'non-ET url stays false' );
+    }
 }
