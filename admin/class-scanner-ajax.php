@@ -62,7 +62,7 @@ class ScannerAjax {
         if ( ! $this->ratchet_debug_enabled() ) {
             return;
         }
-        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional WP_DEBUG_LOG-gated server-side diagnostic; no secrets (asset handles/URLs only), withheld from browser.
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional CU_SCANNER_DEBUG-gated server-side diagnostic; no secrets (asset handles/URLs only), withheld from browser.
         error_log( '[AI Assets Scanner][ratchet][' . $phase . '] ' . wp_json_encode( $data ) );
     }
 
