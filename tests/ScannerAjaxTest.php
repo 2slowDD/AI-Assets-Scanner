@@ -765,5 +765,12 @@ class ScannerAjaxTest extends TestCase {
             [ $resolved ], [], [], 'https://example.org', [], []
         );
         $this->assertFalse( $pages3[0]['extra_time'], 'non-ET url stays false' );
+
+        // Control: identity submitted_url (no redirect) + url in et_set → still true, no double-anything.
+        $pages4 = $ajax->__test_build_pages_array(
+            [ $resolved ], [], [], 'https://example.org',
+            [ $resolved => 0 ], [ $resolved => $resolved ]
+        );
+        $this->assertTrue( $pages4[0]['extra_time'], 'identity submitted_url still matches' );
     }
 }
