@@ -55,8 +55,7 @@ class ScannerAjax {
     }
 
     private function ratchet_debug_enabled(): bool {
-        return defined( 'WP_DEBUG' ) && WP_DEBUG
-            && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG;
+        return cu_scanner_debug_enabled();
     }
 
     private function log_ratchet_diag( string $phase, array $data ): void {
@@ -1083,7 +1082,9 @@ class ScannerAjax {
         $zip = new \ZipArchive();
         $rc  = $zip->open( $tmp_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE );
         if ( $rc !== true ) {
-            error_log( '[AI Assets Scanner] ZipArchive::open failed: ' . $rc ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
+            if ( cu_scanner_debug_enabled() ) {
+                error_log( '[AI Assets Scanner] ZipArchive::open failed: ' . $rc ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
+            }
             wp_delete_file( $tmp_path );
             return false;
         }
@@ -1124,7 +1125,9 @@ class ScannerAjax {
         $zip->addFromString( 'README.txt', $readme );
 
         if ( $zip->close() !== true ) {
-            error_log( '[AI Assets Scanner] ZipArchive::close failed' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
+            if ( cu_scanner_debug_enabled() ) {
+                error_log( '[AI Assets Scanner] ZipArchive::close failed' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug logging only.
+            }
             wp_delete_file( $tmp_path );
             return false;
         }

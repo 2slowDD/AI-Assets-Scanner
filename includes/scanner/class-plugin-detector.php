@@ -947,9 +947,9 @@ class PluginDetector {
     /** @internal test seam */
     public static function __test_attach_resolution( string $url, array $r ): array { return self::attach_resolution( $url, $r ); }
 
-    /** Emit a debug-mode resolution log line (WP_DEBUG-gated). */
+    /** Emit a debug-mode resolution log line (CU_SCANNER_DEBUG-gated). */
     private static function debug_log_resolution( array $r ): void {
-        if ( ! ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) ) {
+        if ( ! cu_scanner_debug_enabled() ) {
             return;
         }
         // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side debug log; never rendered to browser.

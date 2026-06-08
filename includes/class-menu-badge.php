@@ -79,7 +79,7 @@ class MenuBadge {
         // from debug.log during heartbeat AJAX windows, AdminPages::register()
         // isn't being called for AJAX requests → likely is_admin() returning
         // false in that context, or plugins_loaded chain broken.
-        error_log( '[AI Assets Scanner] MenuBadge::init fired (is_admin=' . ( is_admin() ? '1' : '0' ) . ' doing_ajax=' . ( wp_doing_ajax() ? '1' : '0' ) . ' user=' . get_current_user_id() . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+        self::dbg( '[AI Assets Scanner] MenuBadge::init fired (is_admin=' . ( is_admin() ? '1' : '0' ) . ' doing_ajax=' . ( wp_doing_ajax() ? '1' : '0' ) . ' user=' . get_current_user_id() . ')' );
 
         add_filter( 'add_menu_classes',                    [ $this, 'filter_menu_title' ],     10, 1 );
         add_filter( 'heartbeat_received',                  [ $this, 'filter_heartbeat' ],      10, 2 );
@@ -146,7 +146,7 @@ class MenuBadge {
         // bypassed by another plugin (Heartbeat Control, Wordfence, WP Rocket,
         // etc. replacing wp_ajax_heartbeat with a custom handler that doesn't
         // call apply_filters('heartbeat_received', ...)).
-        error_log( '[AI Assets Scanner] filter_menu_title fired (doing_ajax=' . ( wp_doing_ajax() ? '1' : '0' ) . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+        self::dbg( '[AI Assets Scanner] filter_menu_title fired (doing_ajax=' . ( wp_doing_ajax() ? '1' : '0' ) . ')' );
 
         $state = $this->get_badge_state();
         if ( $state === null ) {
@@ -177,7 +177,7 @@ class MenuBadge {
         // (a) hook not registered, (b) hook bypassed by another plugin's
         // wp_ajax_heartbeat override, (c) hook fires but check_active_job
         // early-returns.
-        error_log( '[AI Assets Scanner] filter_heartbeat fired (user=' . get_current_user_id() . ')' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+        self::dbg( '[AI Assets Scanner] filter_heartbeat fired (user=' . get_current_user_id() . ')' );
 
         // 1.4.5 — server-side background scan-completion polling. Closes the
         // 1.4.4 client-side-only architectural gap where menu-badge.js's polling
@@ -224,7 +224,7 @@ class MenuBadge {
         // modes. Spam bounded — operator enables WP_DEBUG_LOG only during active
         // diagnostic windows.
         $state_diag = is_array( $state ) ? 'array(' . count( $state ) . ')' : var_export( $state, true );
-        error_log( '[AI Assets Scanner] menu-badge tick: user=' . $user_id . ' transient=' . $state_diag ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+        self::dbg( '[AI Assets Scanner] menu-badge tick: user=' . $user_id . ' transient=' . $state_diag );
 
         if ( ! is_array( $state ) ) {
             // No active scan — early return silently.
@@ -235,7 +235,7 @@ class MenuBadge {
         $job_token   = (string) ( $state['job_token']   ?? '' );
         $railway_url = (string) ( $state['railway_url'] ?? '' );
         if ( $job_id === '' || $job_token === '' || $railway_url === '' ) {
-            error_log( '[AI Assets Scanner] menu-badge tick: transient malformed (missing job_id/token/railway_url)' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+            self::dbg( '[AI Assets Scanner] menu-badge tick: transient malformed (missing job_id/token/railway_url)' );
             return;
         }
 
@@ -248,13 +248,13 @@ class MenuBadge {
         }
 
         $rs = (string) ( $status['status'] ?? '' );
-        error_log( '[AI Assets Scanner] menu-badge tick: Railway status=' . $rs . ' job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+        self::dbg( '[AI Assets Scanner] menu-badge tick: Railway status=' . $rs . ' job=' . $job_id );
 
         if ( $rs === 'complete' ) {
-            error_log( '[AI Assets Scanner] menu-badge: firing do_build_result for job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+            self::dbg( '[AI Assets Scanner] menu-badge: firing do_build_result for job=' . $job_id );
             try {
                 ( new \CUScanner\Admin\ScannerAjax() )->do_build_result( $job_id, $job_token );
-                error_log( '[AI Assets Scanner] menu-badge: do_build_result OK for job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+                self::dbg( '[AI Assets Scanner] menu-badge: do_build_result OK for job=' . $job_id );
             } catch ( \RuntimeException $e ) {
                 // Build failed (e.g., Railway 410 — job data expired between status
                 // poll and coverage fetch). Force the scan into 'failed' state so the
@@ -265,14 +265,14 @@ class MenuBadge {
             }
             // do_build_result deletes the transient itself on success (scanner-ajax.php:559).
         } elseif ( $rs === 'failed' ) {
-            error_log( '[AI Assets Scanner] menu-badge: marking failed for job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+            self::dbg( '[AI Assets Scanner] menu-badge: marking failed for job=' . $job_id );
             $this->get_history()->update_status( $job_id, 'failed' );
             delete_transient( $transient_key );
         } elseif ( $rs === 'killed' || $rs === 'cancelled_timeout' ) {
             // Kill paths are already terminal in ScanHistory via the orchestrator
             // (ScannerAjax::handle_killed / cancel paths). Just clear the transient
             // so the polling loop stops; status is already correctly recorded.
-            error_log( '[AI Assets Scanner] menu-badge: clearing transient for ' . $rs . ' job=' . $job_id ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional diagnostic logging.
+            self::dbg( '[AI Assets Scanner] menu-badge: clearing transient for ' . $rs . ' job=' . $job_id );
             delete_transient( $transient_key );
         }
         // 'queued' / 'in_progress' / unknown → no-op; next heartbeat tick re-polls.
@@ -332,6 +332,14 @@ class MenuBadge {
             $this->history = new ScanHistory();
         }
         return $this->history;
+    }
+
+    /** Gated diagnostic log — default OFF (see includes/debug.php). */
+    private static function dbg( string $msg ): void {
+        if ( cu_scanner_debug_enabled() ) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional diagnostic; gated by cu_scanner_debug_enabled().
+            error_log( $msg );
+        }
     }
 
     private function badge_html( string $state ): string {

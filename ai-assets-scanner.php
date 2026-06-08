@@ -29,6 +29,8 @@ define( 'CU_SCANNER_URL', plugin_dir_url( __FILE__ ) );
 define( 'CU_SCANNER_WPSERVICE_BASE', 'https://wpservice.pro' );
 define( 'CU_SCANNER_WPSERVICE_URL',  CU_SCANNER_WPSERVICE_BASE . '/wp-json' );
 
+require_once CU_SCANNER_DIR . 'includes/debug.php';
+
 spl_autoload_register( function ( string $class ): void {
     $map = [
         'CUScanner\\Plugin'           => 'includes/class-plugin.php',
