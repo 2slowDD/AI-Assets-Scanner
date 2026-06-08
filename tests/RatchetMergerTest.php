@@ -818,6 +818,126 @@ class RatchetMergerTest extends TestCase {
         $this->assertSame( 'benign', $byHandle['h_fs'][0]['failsafe_class'] );
         $this->assertNull( $byHandle['h_fs'][0]['demote_class'] );
         $this->assertSame( 'failsafe_benign', $byHandle['h_fs'][0]['outcome'] );
+        // Tightened: h_validated — demote_class='validated', failsafe_class=null, outcome='validated_drop'.
+        $this->assertSame( 'validated',     $byHandle['h_validated'][0]['demote_class'] );
+        $this->assertNull( $byHandle['h_validated'][0]['failsafe_class'] );
+        $this->assertSame( 'validated_drop', $byHandle['h_validated'][0]['outcome'] );
+        // Tightened: h_covered — demote_class=null (no demote_class on covered asset), failsafe_class=null, outcome='covered_drop'.
+        $this->assertNull( $byHandle['h_covered'][0]['demote_class'] );
+        $this->assertNull( $byHandle['h_covered'][0]['failsafe_class'] );
+        $this->assertSame( 'covered_drop',   $byHandle['h_covered'][0]['outcome'] );
+    }
+
+    /**
+     * AC-1 companion — closes the 3 remaining outcome branches:
+     * in_r_et, failsafe_validated, null_drop.
+     *
+     * Together with test_ac1_last_merge_diag_records_outcomes_and_fields all
+     * eight Step-6 outcomes are now asserted via last_merge_diag.
+     */
+    public function test_ac1_last_merge_diag_missing_three_outcomes(): void {
+        $merger = new RatchetMerger();
+
+        // ── Scenario A: in_r_et ──────────────────────────────────────────
+        // h_in_ret is aggressive on both devices in the rescan → CuJsonBuilder
+        // emits url_pattern|h_in_ret|css|all/2 → explodes to desktop+mobile.
+        // R_orig carries the same handle/type/url_pattern → both exploded legs
+        // land in r_et_keys → outcome = in_r_et.
+        $pat_ret = 'https://y.com/ret';
+        $r_orig_ret = [
+            $this->rule( 'h_in_ret', 'all', 2, 'css', $pat_ret ),
+        ];
+        $rescan_ret = [
+            [
+                'url'    => $pat_ret,
+                'status' => 'done',
+                'assets' => [ [
+                    'handle'  => 'h_in_ret',
+                    'type'    => 'style',
+                    'desktop' => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => 'aggressive' ],
+                    'mobile'  => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => 'aggressive' ],
+                ] ],
+            ],
+        ];
+        $merger->merge( $r_orig_ret, $rescan_ret );
+        $diag_ret = $merger->last_merge_diag;
+
+        $this->assertGreaterThanOrEqual( 1, $diag_ret['outcomes']['in_r_et'] ?? 0,
+            'in_r_et must appear in outcomes when orig rule is already in R_et' );
+        $by_ret = [];
+        foreach ( $diag_ret['handles'] as $h ) {
+            if ( $h['handle'] === 'h_in_ret' ) {
+                $by_ret[] = $h;
+            }
+        }
+        $this->assertNotEmpty( $by_ret, 'h_in_ret must appear in handles[]' );
+        $this->assertSame( 'in_r_et',  $by_ret[0]['outcome'] );
+        $this->assertNull( $by_ret[0]['demote_class'],   'in_r_et: demote_class must be null' );
+        $this->assertNull( $by_ret[0]['failsafe_class'], 'in_r_et: failsafe_class must be null' );
+
+        // ── Scenario B: failsafe_validated ───────────────────────────────
+        // Page with failsafe_demote='visual_unattributable' (→ 'validated').
+        // R_orig has a rule for that page NOT in R_et (no aggressive asset for it).
+        $pat_fsv = 'https://y.com/fsv';
+        $r_orig_fsv = [
+            $this->rule( 'h_fsv', 'all', 2, 'css', $pat_fsv ),
+        ];
+        $rescan_fsv = [
+            $this->page_failsafe( $pat_fsv, 'visual_unattributable', [] ),
+        ];
+        $merger->merge( $r_orig_fsv, $rescan_fsv );
+        $diag_fsv = $merger->last_merge_diag;
+
+        $this->assertGreaterThanOrEqual( 1, $diag_fsv['outcomes']['failsafe_validated'] ?? 0,
+            'failsafe_validated must appear in outcomes for a validated-trigger failsafe page' );
+        $by_fsv = [];
+        foreach ( $diag_fsv['handles'] as $h ) {
+            if ( $h['handle'] === 'h_fsv' ) {
+                $by_fsv[] = $h;
+            }
+        }
+        $this->assertNotEmpty( $by_fsv, 'h_fsv must appear in handles[]' );
+        $this->assertSame( 'failsafe_validated', $by_fsv[0]['outcome'] );
+        $this->assertSame( 'validated', $by_fsv[0]['failsafe_class'],
+            'failsafe_validated: failsafe_class must be "validated"' );
+        $this->assertNull( $by_fsv[0]['demote_class'],
+            'failsafe_validated: demote_class must be null' );
+
+        // ── Scenario C: null_drop ────────────────────────────────────────
+        // Asset is demoted (bucket='needed', coverage=0.001 sentinel) but
+        // has NO demote_class → dc=null → neither benign nor validated → null_drop.
+        $pat_nd = 'https://y.com/nd';
+        $r_orig_nd = [
+            $this->rule( 'h_null_drop', 'desktop', 2, 'css', $pat_nd ),
+        ];
+        $rescan_nd = [
+            [
+                'url'    => $pat_nd,
+                'status' => 'done',
+                'assets' => [ [
+                    'handle'  => 'h_null_drop',
+                    'type'    => 'style',
+                    'desktop' => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                    'mobile'  => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                    // intentionally no 'demote_class' → null_drop
+                ] ],
+            ],
+        ];
+        $merger->merge( $r_orig_nd, $rescan_nd );
+        $diag_nd = $merger->last_merge_diag;
+
+        $this->assertGreaterThanOrEqual( 1, $diag_nd['outcomes']['null_drop'] ?? 0,
+            'null_drop must appear in outcomes when demote_class is absent' );
+        $by_nd = [];
+        foreach ( $diag_nd['handles'] as $h ) {
+            if ( $h['handle'] === 'h_null_drop' ) {
+                $by_nd[] = $h;
+            }
+        }
+        $this->assertNotEmpty( $by_nd, 'h_null_drop must appear in handles[]' );
+        $this->assertSame( 'null_drop',  $by_nd[0]['outcome'] );
+        $this->assertNull( $by_nd[0]['demote_class'],   'null_drop: demote_class must be null' );
+        $this->assertNull( $by_nd[0]['failsafe_class'], 'null_drop: failsafe_class must be null' );
     }
 
     /**
