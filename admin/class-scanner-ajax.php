@@ -1342,8 +1342,11 @@ class ScannerAjax {
                 'url'             => $url,
                 'bypass_suffixes' => $bypass_suffixes,
                 // FU-AAS-EXTRA-TIME — flag this page for Extra Time if the operator
-                // marked its URL. Carried through reshape_page_specs() into pages[].
-                'extra_time'      => isset( $et_set[ $url ] ),
+                // marked its URL. Match the RESOLVED $url OR its original submitted URL,
+                // because the client may have keyed $et_set on the pre-resolution URL
+                // (1.7.27b backstop for the resolved-vs-unresolved ET mismatch).
+                'extra_time'      => isset( $et_set[ $url ] )
+                                     || ( isset( $submitted_url_per_url[ $url ] ) && isset( $et_set[ $submitted_url_per_url[ $url ] ] ) ),
                 // AC-RC-8a — original operator-submitted URL (pre-redirect-resolution).
                 // $url here is the RESOLVED scan URL; submitted_url preserves what the
                 // operator actually entered so downstream attribution stays honest.
