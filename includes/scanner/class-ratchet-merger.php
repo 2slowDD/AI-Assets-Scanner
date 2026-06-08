@@ -36,6 +36,11 @@ class RatchetMerger {
      * read by the AAS boundary for WP_DEBUG_LOG-gated logging. Never alters
      * merge output. Shape: [ 'counts'=>[], 'outcomes'=>[outcome=>int], 'handles'=>[ {...} ] ].
      *
+     * Note: the four 'counts' fields (r_et, r_orig, recovered, final) AND the
+     * 'outcomes' tallies are all in the per-device-leg domain (post-explode_all),
+     * consistent with recovered_by_pattern — a rule that applies to both devices
+     * counts as 2, not 1.
+     *
      * @var array<string,mixed>
      */
     public array $last_merge_diag = [];
@@ -288,6 +293,7 @@ class RatchetMerger {
 
             $page_pattern = $r['url_pattern'];
 
+            // Check whole-page failsafe first.
             if ( isset( $state['failsafe'][ $page_pattern ] ) ) {
                 $fs = $state['failsafe'][ $page_pattern ];
                 if ( 'benign' === $fs ) {
@@ -295,11 +301,12 @@ class RatchetMerger {
                     $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
                     $this->record_diag( $r, 'failsafe_benign', null, 'benign' );
                 } else {
-                    $this->record_diag( $r, 'failsafe_validated', null, 'validated' );
+                    $this->record_diag( $r, 'failsafe_validated', null, $fs );
                 }
                 continue;
             }
 
+            // Per-asset policy.
             $asset_state = $state['asset'][ $ikey ] ?? null;
 
             if ( null === $asset_state ) {
@@ -320,7 +327,7 @@ class RatchetMerger {
                 $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
                 $this->record_diag( $r, 'benign_restore', $dc, null );
             } else {
-                $this->record_diag( $r, ( 'validated' === $dc ) ? 'validated_drop' : 'null_drop', $dc, null );
+                $this->record_diag( $r, ( 'validated' === $dc ) ? 'validated_drop' : 'unknown_drop', $dc, null );
             }
         }
 
