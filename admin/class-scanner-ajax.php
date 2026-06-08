@@ -54,6 +54,39 @@ class ScannerAjax {
         return (bool) get_option( 'cu_scanner_ratchet_enabled', true );
     }
 
+    private function ratchet_debug_enabled(): bool {
+        return defined( 'WP_DEBUG' ) && WP_DEBUG
+            && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG;
+    }
+
+    private function log_ratchet_diag( string $phase, array $data ): void {
+        if ( ! $this->ratchet_debug_enabled() ) {
+            return;
+        }
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional WP_DEBUG_LOG-gated server-side diagnostic; no secrets (asset handles/URLs only), withheld from browser.
+        error_log( '[AI Assets Scanner][ratchet][' . $phase . '] ' . wp_json_encode( $data ) );
+    }
+
+    /**
+     * Diagnostic skip-reason for the ET ratchet. Returns the reason string when
+     * the merge will NOT run for an ET rescan; null when it WILL run, or when
+     * not an ET rescan (N/A). Pure — unit-tested via __test_ratchet_skip_reason.
+     */
+    private function ratchet_skip_reason( bool $enabled, bool $is_et, $r_orig, bool $matches ): ?string {
+        if ( ! $is_et ) {
+            return null;
+        }
+        if ( ! $enabled ) {
+            return 'ratchet_disabled';
+        }
+        if ( $matches ) {
+            return null;
+        }
+        return ( ! is_array( $r_orig ) || empty( $r_orig['rules'] ) )
+            ? 'r_orig_absent_or_empty'
+            : 'url_set_mismatch';
+    }
+
     private function ensure_railway_url( Settings $settings, string $api_key ): string {
         $railway_url = $settings->get_railway_url();
         if ( Settings::is_safe_railway_url( $railway_url ) ) {
@@ -1486,6 +1519,10 @@ class ScannerAjax {
     public function __test_should_persist_r_orig( array $pages_raw ): bool { return $this->ratchet_enabled() && ! $this->is_et_rescan( $pages_raw ); }
     public function __test_r_orig_matches( $r_orig, array $pages_raw ): bool { return $this->r_orig_matches( $r_orig, $pages_raw ); }
     public function __test_recompute_by_page( array $rules, array $pages_raw, array $orig_by_page ): array { return $this->recompute_by_page( $rules, $pages_raw, $orig_by_page ); }
+    public function __test_ratchet_skip_reason( bool $enabled, bool $is_et, $r_orig, bool $matches ): ?string {
+        return $this->ratchet_skip_reason( $enabled, $is_et, $r_orig, $matches );
+    }
+    public function __test_ratchet_debug_enabled(): bool { return $this->ratchet_debug_enabled(); }
 
     /**
      * B4 test seam: exposes the ratchet_recovered stamp loop so tests can exercise
