@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.28b - 2026-06-08
+
+### Fixed — Step-4 notice placement (External URLs / banners)
+
+- Dynamically-rendered admin notices now carry the WordPress `inline` class so they stay where the plugin places them instead of being hoisted by WP admin to the top of the page (which made the "External URLs scanned" notice appear inside the header banner during scanning and duplicated on the results screen). Applies to the External-URLs notice, the queued-scan banner, and the broken-pages banner.
+
+---
+
 ## 1.7.27b - 2026-06-08
 
 ### Fixed — Extra-Time rescan no longer loses rules on resolving URLs
