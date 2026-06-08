@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.27b - 2026-06-08
+
+### Fixed — Extra-Time rescan no longer loses rules on resolving URLs
+
+- The ET (Extra Time) rescan now flags the correct page when a URL resolves (e.g. trailing slash or http→https). Previously the extra-time selection was matched against the pre-resolution URL, so a resolving URL silently dropped extra-time — the worker ran no continuation and the Extra-Time result ratchet did not engage (a scan could lose rules its first pass had found). Fixed at both submit paths plus a server-side backstop.
+
+### Changed — AAS debug logging is off by default
+
+- AAS no longer writes diagnostic lines to `wp-content/debug.log` unless you opt in with `define( 'CU_SCANNER_DEBUG', true );` in `wp-config.php`. Real-error logging is unchanged.
+
+---
+
 ## 1.7.26b - 2026-06-08
 
 ### Added — ET ratchet decision-trail diagnostic (observability)
