@@ -1338,6 +1338,7 @@ class ScannerAjax {
                 $bypass_suffixes = $host_bypass;
             }
 
+            $et_submitted = $submitted_url_per_url[ $url ] ?? '';
             $pages[] = [
                 'url'             => $url,
                 'bypass_suffixes' => $bypass_suffixes,
@@ -1346,7 +1347,7 @@ class ScannerAjax {
                 // because the client may have keyed $et_set on the pre-resolution URL
                 // (1.7.27b backstop for the resolved-vs-unresolved ET mismatch).
                 'extra_time'      => isset( $et_set[ $url ] )
-                                     || ( isset( $submitted_url_per_url[ $url ] ) && isset( $et_set[ $submitted_url_per_url[ $url ] ] ) ),
+                                     || ( '' !== $et_submitted && isset( $et_set[ $et_submitted ] ) ),
                 // AC-RC-8a — original operator-submitted URL (pre-redirect-resolution).
                 // $url here is the RESOLVED scan URL; submitted_url preserves what the
                 // operator actually entered so downstream attribution stays honest.
