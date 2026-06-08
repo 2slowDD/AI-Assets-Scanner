@@ -690,4 +690,41 @@ class ScannerAjaxTest extends TestCase {
         $recovered = $result[0]['ratchet_recovered'] ?? 0;
         $this->assertSame( 0, $recovered, 'no ratchet → ratchet_recovered must be 0/absent' );
     }
+
+    /**
+     * AC-3 — ratchet_skip_reason returns the exact diagnostic reason for each path.
+     */
+    public function test_ac3_ratchet_skip_reason_selection(): void {
+        $ajax = new ScannerAjax();
+
+        // enabled + ET + r_orig absent/empty + no match → r_orig_absent_or_empty
+        $this->assertSame( 'r_orig_absent_or_empty',
+            $ajax->__test_ratchet_skip_reason( true, true, null, false ) );
+        $this->assertSame( 'r_orig_absent_or_empty',
+            $ajax->__test_ratchet_skip_reason( true, true, [ 'rules' => [] ], false ) );
+
+        // enabled + ET + r_orig present + no match → url_set_mismatch
+        $this->assertSame( 'url_set_mismatch',
+            $ajax->__test_ratchet_skip_reason( true, true, [ 'rules' => [ [ 'x' => 1 ] ], 'urls' => [ 'u' ] ], false ) );
+
+        // ET + ratchet disabled → ratchet_disabled
+        $this->assertSame( 'ratchet_disabled',
+            $ajax->__test_ratchet_skip_reason( false, true, null, false ) );
+
+        // enabled + ET + matches → null (merge runs, no skip)
+        $this->assertNull(
+            $ajax->__test_ratchet_skip_reason( true, true, [ 'rules' => [ [ 'x' => 1 ] ] ], true ) );
+
+        // not an ET rescan → null (N/A)
+        $this->assertNull(
+            $ajax->__test_ratchet_skip_reason( true, false, null, false ) );
+    }
+
+    /**
+     * AC-3b — log gate is a no-op when WP_DEBUG_LOG is not enabled (test env).
+     */
+    public function test_ac3b_ratchet_debug_gate_off_by_default(): void {
+        $ajax = new ScannerAjax();
+        $this->assertFalse( $ajax->__test_ratchet_debug_enabled() );
+    }
 }
