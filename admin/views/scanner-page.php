@@ -133,6 +133,8 @@
 
     <!-- Step 3: Live Progress -->
     <div id="step-3" class="cu-step cu-body" style="display:none">
+        <!-- Detected target cache stack (filled by scanner.js on clean external-URL detection) -->
+        <div id="cu-target-stack-notice"></div>
         <div class="cu-sonar-anim" id="cu-sonar-anim-3" style="display:flex">
             <svg class="cu-sonar-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
                 <rect width="120" height="120" rx="8" fill="#1a2744"/>
