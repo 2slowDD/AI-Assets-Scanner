@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.29b - 2026-06-10
+
+### Fixed — Detected cache stack now shown for cleanly-detected external sites
+
+- When scanning an external URL whose cache stack is detected cleanly (WP Rocket, FlyingPress, LiteSpeed, …), the plugin now shows a passive "Target site detection" notice on the scanning screen naming the detected stack. Previously the detection summary only appeared as a blocking confirmation dialog, and that dialog is shown **only** when the probe is uncertain (a warning outcome). A clean detection proceeded silently — so as the target probe got more reliable, well-detected sites stopped surfacing *which* stack was found even though the correct cache bypass was still applied. The notice is informational only; it does not block the scan or change which bypass is used. Detected host and stack names are HTML-escaped on output.
+
+---
+
 ## 1.7.28b - 2026-06-08
 
 ### Fixed — Step-4 notice placement (External URLs / banners)
