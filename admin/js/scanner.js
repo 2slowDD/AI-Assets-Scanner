@@ -388,6 +388,26 @@
         return filtered.map(function (d) { return esc(d.name || d.slug || 'unknown'); }).join(', ');
     }
 
+    /**
+     * FU-AAS-CACHE-STACK-NOTICE-MISSING — surface the detected target cache stack
+     * as a passive inline notice on the silent (uniform class_a_clean) probe path.
+     * The blocking showProbeOutcomeDialog() only fires when warning_needed=true, so a
+     * cleanly-detected stack (suffix applied, no warning) previously showed nothing.
+     * Content reuses the same esc()-escaped builders as the dialog. Pass null/empty to clear.
+     */
+    function renderTargetStackNotice(probeData) {
+        const el = document.getElementById('cu-target-stack-notice');
+        if (!el) return;
+        const results = (probeData && probeData.per_host_results) || [];
+        if (!results.length) { el.innerHTML = ''; return; }
+        const uniform = !!(probeData.summary && probeData.summary.uniform_outcome);
+        const body = uniform ? buildUniformMessage(results) : buildPerHostList(results);
+        el.innerHTML = '<div class="notice notice-info inline">'
+            + '<p><strong>Target site detection</strong></p>'
+            + body
+            + '</div>';
+    }
+
     // --- Step 1: Plugin detection ---
 
     function detectPlugins() {
@@ -904,6 +924,9 @@
     })();
 
     document.getElementById('cu-btn-next-1').addEventListener('click', async function () {
+        // Clear any prior scan's target-stack notice so it never lingers into a
+        // warning-path or no-external scan (FU-AAS-CACHE-STACK-NOTICE-MISSING).
+        renderTargetStackNotice(null);
         // Mode is keyed on `discoveryRan` (set true only by a completed Discover Pages
         // run), NOT on `groupedUrls.included`. syncIncludedUrls() sets `included` whenever
         // ANY include URL exists, so the old `groupedUrls.included !== undefined` marker
@@ -990,8 +1013,11 @@
             if (probeResult.data.warning_needed) {
                 const userConfirmed = await showProbeOutcomeDialog(probeResult.data);
                 if (!userConfirmed) return;
+            } else {
+                // Uniform class_a_clean: no blocking dialog, but surface WHICH stack
+                // was detected as a passive inline notice (FU-AAS-CACHE-STACK-NOTICE-MISSING).
+                renderTargetStackNotice(probeResult.data);
             }
-            // Silent proceed on uniform class_a_clean.
         }
 
         showStep(2);
