@@ -761,11 +761,13 @@
                 groupedUrls:    groupedUrls,
                 selectedUrls:   selectedUrls,
                 extraTimeUrls:  extraTimeUrls,
+                etCarriedUrls:  etCarriedUrls, // FU-AAS-SUFFIX-DROP-ON-RESOLVE
             }));
         } catch (_e) {}
     }
     function clearEtCarryOver() {
         etCarryOver = false;
+        etCarriedUrls = []; // FU-AAS-SUFFIX-DROP-ON-RESOLVE — leaving the carry-over view restores normal resolution
         try { localStorage.removeItem('cu_scanner_et_carry_over'); } catch (_e) {}
     }
 
@@ -1019,6 +1021,12 @@
                 renderTargetStackNotice(probeResult.data);
             }
         }
+
+        // FU-AAS-SUFFIX-DROP-ON-RESOLVE — carried-over ET URLs are scanned byte-identically;
+        // resolution fires only on a URL's first scan (operator directive 2026-06-11). Identity
+        // entries are inert downstream: the submission maps yield u unchanged and the
+        // "← resolved from" note has a resolved !== submitted guard.
+        etCarriedUrls.forEach(function (u) { resolvedByUrl[u] = u; });
 
         showStep(2);
         // Scroll to the top so the operator sees the scanning progress UI
@@ -1326,6 +1334,14 @@
     // for the "← resolved from" note) can see it. Was previously let-scoped inside the submit
     // handler → ReferenceError in renderResultUrlListPage → Step-4 render threw on every scan.
     var resolvedByUrl = {};
+
+    // FU-AAS-SUFFIX-DROP-ON-RESOLVE — URLs carried over from a prior scan result (ET rescan /
+    // carry-over view). These are scanned byte-identically: the submit handler forces
+    // resolvedByUrl[u] = u for each, so the probe's fresh redirect resolution never rewrites
+    // them (resolution fires only on a URL's first scan — operator directive 2026-06-11).
+    // Writers (all with this one semantic): primeRescanEt(), restoreEtCarryOver(),
+    // clearEtCarryOver() (reset). IIFE-scoped for the same cross-function reason as above.
+    var etCarriedUrls = [];
 
     function cuEscHtml( v ) { var d = document.createElement('div'); d.textContent = ( v == null ? '' : String( v ) ); return d.innerHTML; }
 
@@ -1671,6 +1687,7 @@
         groupedUrls    = { page: [], post: [], other: [], included: etUrls };
         selectedUrls   = etUrls.slice();
         extraTimeUrls  = etUrls.slice();   // Extra Time PRE-CHECKED (the payoff)
+        etCarriedUrls  = etUrls.slice();   // FU-AAS-SUFFIX-DROP-ON-RESOLVE — scan these byte-identically
         totalPages     = etUrls.length;
         activeFilter   = 'all';
         discoveryRan   = true;             // mixed/merge mode — NOT include-only
@@ -1696,6 +1713,9 @@
         groupedUrls    = (d.groupedUrls && typeof d.groupedUrls === 'object') ? d.groupedUrls : { page: [], post: [], other: [], included: d.discoveredUrls };
         selectedUrls   = Array.isArray(d.selectedUrls) ? d.selectedUrls : d.discoveredUrls.slice();
         extraTimeUrls  = Array.isArray(d.extraTimeUrls) ? d.extraTimeUrls : [];
+        // FU-AAS-SUFFIX-DROP-ON-RESOLVE — old (pre-1.7.30b) blobs lack etCarriedUrls; treat all
+        // restored URLs as carried (conservative: no re-resolve for any of them).
+        etCarriedUrls  = Array.isArray(d.etCarriedUrls) ? d.etCarriedUrls : d.discoveredUrls.slice();
         totalPages     = discoveredUrls.length;
         activeFilter   = 'all';
         discoveryRan   = true;
