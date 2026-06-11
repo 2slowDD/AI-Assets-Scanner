@@ -4,6 +4,19 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.30b - 2026-06-11
+
+### Fixed — ET rescans no longer re-resolve URLs (carried URLs scan byte-identically)
+
+- "Rescan ET Candidates" carried the prior result's URLs into a full re-run of the submit flow, whose fresh
+  redirect probe could re-resolve them differently — `example.com?bypass` lost its cache-bypass suffix on
+  rescan (scanned un-bypassed) and the ET-ratchet's original-vs-rescan URL comparison could never match,
+  silently blocking rule restoration. Carried-over URLs are now pinned to identity resolution (tracked
+  through the carry-over view, surviving navigation), so resolution fires only on a URL's first scan.
+  Fresh URLs added during a rescan view still resolve normally. Probe warnings/stack detection unchanged.
+
+---
+
 ## 1.7.29b - 2026-06-10
 
 ### Fixed — Detected cache stack now shown for cleanly-detected external sites
