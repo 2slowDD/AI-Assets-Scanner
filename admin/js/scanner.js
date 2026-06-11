@@ -1131,7 +1131,12 @@
         pollTimer = setTimeout(pollProgress, interval);
     }
 
-    function showQueueBanner(position, total, message) {
+    function formatEtaShort(s) {
+        if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min';
+        return (s / 3600).toFixed(1) + ' h';
+    }
+
+    function showQueueBanner(position, total, message, etaS) {
         let banner = document.getElementById('cu-queue-banner');
         if (!banner) {
             banner = document.createElement('div');
@@ -1146,7 +1151,11 @@
         if (message) {
             banner.innerHTML = '<p>' + esc(message) + '</p>';
         } else if (position !== null && position !== undefined) {
-            banner.innerHTML = '<p>Your scan is queued \u2014 position #' + esc(String(position)) + ' of ' + esc(String(total)) + '. It will start automatically.</p>';
+            var etaTxt = (typeof etaS === 'number' && etaS > 0)
+                ? ' Estimated start: ~' + esc(formatEtaShort(etaS)) + ' (estimate).'
+                : '';
+            banner.innerHTML = '<p>Your scan is queued \u2014 position #' + esc(String(position)) +
+                ' of ' + esc(String(total)) + '.' + etaTxt + ' It will start automatically.</p>';
         } else {
             banner.innerHTML = '<p>Your scan is queued. It will start automatically.</p>';
         }
@@ -1181,7 +1190,7 @@
         lastKnownStatus = data.status;
 
         if (data.status === 'queued') {
-            showQueueBanner(data.queue_position, data.total_queued, null);
+            showQueueBanner(data.queue_position, data.total_queued, null, data.eta_s);
             scheduleNextPoll();
             return;
         }
