@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.31b - 2026-06-11
+
+### Added — Queue visibility: queued banner now shows estimated start time
+
+- Queue visibility: queued banner now shows estimated start time (eta_s) returned by the worker.
+
+---
+
 ## 1.7.30b - 2026-06-11
 
 ### Fixed — ET rescans no longer re-resolve URLs (carried URLs scan byte-identically)
