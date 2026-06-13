@@ -158,4 +158,42 @@ class BannerRenderingTest extends TestCase {
 		// to avoid misleading single-cause guidance.
 		$this->assertStringContainsString( 'bot protection denied', $html );
 	}
+
+	// -------------------------------------------------------------------------
+	// tier2_waf_challenge → 'firewall/WAF' phrase, bot category
+	// -------------------------------------------------------------------------
+
+	public function test_waf_challenge_shows_firewall_phrase_and_bot_action(): void {
+		$this->stub_render_helpers();
+
+		$html = AIAS_Broken_Banner::render( [
+			'scan_id'         => 'waf-test',
+			'pages_blocked'   => [ 'desktop' => 1, 'mobile' => 0 ],
+			'blocked_reasons' => [ 'tier2_waf_challenge' => 1 ],
+			'total_pages'     => 1,
+		] );
+
+		$this->assertStringContainsString( 'firewall/WAF', $html );
+		$this->assertStringContainsString( 'temporarily disable bot protection', $html );
+		$this->assertStringNotContainsString( 'rate-limited', $html );
+	}
+
+	// -------------------------------------------------------------------------
+	// tier2_unknown_challenge → 'unidentified' phrase, bot category
+	// -------------------------------------------------------------------------
+
+	public function test_unknown_challenge_shows_unidentified_phrase_and_bot_action(): void {
+		$this->stub_render_helpers();
+
+		$html = AIAS_Broken_Banner::render( [
+			'scan_id'         => 'unk-test',
+			'pages_blocked'   => [ 'desktop' => 1, 'mobile' => 0 ],
+			'blocked_reasons' => [ 'tier2_unknown_challenge' => 1 ],
+			'total_pages'     => 1,
+		] );
+
+		$this->assertStringContainsString( 'unidentified', $html );
+		$this->assertStringContainsString( 'temporarily disable bot protection', $html );
+		$this->assertStringNotContainsString( 'rate-limited', $html );
+	}
 }
