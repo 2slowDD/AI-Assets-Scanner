@@ -4,6 +4,22 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.36b - 2026-06-13
+
+### Added — Probe-challenge blocker banner copy (Cloudflare / firewall-WAF / host)
+
+- The Railway worker now detects an intermittent CF / host / WAF challenge served only to the
+  verifier's mid-scan probe passes — previously missed by the `phase_a`-only challenge detector,
+  which produced a misleading-green scan (S:0 A:0, no warning) plus a spurious mass demote. When
+  detected, the worker flags the affected device in `broken_devices` with a blocker reason key and
+  applies a conservative keep; the "some pages couldn't be fully scanned" banner now names the
+  blocker class. Two new reason keys are mapped in the banner copy: `tier2_waf_challenge` →
+  "firewall/WAF", `tier2_unknown_challenge` → "bot/firewall protection (unidentified)"
+  (Cloudflare / Akamai / Imperva / 4xx / 5xx / rate-limit classes were already mapped). AAS side
+  is banner-copy only; the detection + conservative-keep logic ships in the worker.
+
+---
+
 ## 1.7.35b - 2026-06-13
 
 ### Fixed — Class A bypass hook-removal no longer emits PHP warnings during scans
