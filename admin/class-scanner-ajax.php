@@ -555,15 +555,24 @@ class ScannerAjax {
     }
 
     /**
-     * Count pages that should be billed as credits.
-     * Excludes 'error' (scan error) and 'origin_unavailable' (origin down — page was skipped).
+     * Total credits billed for a scan, summed from the per-page rule.
+     *
+     * Delegates to AIAS_Scan_Status::classify() — the SAME rule that drives the per-URL
+     * Step-4 "Credits" column — so the scan-history total always equals the sum of that
+     * column and the amount the SaaS actually charged. Each page contributes:
+     *   origin_unavailable → 0; error → 0 (+1 if it ran a billed Extra-Time continuation);
+     *   ok/partial/blocked → 1 (+1 if Extra-Time was billed via `extra_time_charged`).
+     * Replaces the old page-COUNT (FU-AAS-ET-CREDIT-DISPLAY 2026-06-13): the count was
+     * ET-blind and under-reported ET continuations (showed 1 where 2 was billed).
      *
      * @param array<int, array<string, mixed>> $pages_raw Per-page status rows from Railway.
-     * @return int Number of billable pages.
+     * @return int Total billed credits across all pages.
      */
-    public static function billable_page_count( array $pages_raw ): int {
-        $skip = [ 'error', 'origin_unavailable' ];
-        return count( array_filter( $pages_raw, fn( $p ) => ! in_array( $p['status'] ?? '', $skip, true ) ) );
+    public static function billable_credit_total( array $pages_raw ): int {
+        return (int) array_sum( array_map(
+            fn( $p ) => \AIAS_Scan_Status::classify( (array) $p )['credits'],
+            $pages_raw
+        ) );
     }
 
     /**
@@ -740,12 +749,12 @@ class ScannerAjax {
 
         $safe_count = count( array_filter( $cu_json['rules'], fn($r) => $r['group_id'] === 1 ) );
         $agg_count  = count( array_filter( $cu_json['rules'], fn($r) => $r['group_id'] === 2 ) );
-        $completed_pages = self::billable_page_count( $pages_raw );
+        $credits_used = self::billable_credit_total( $pages_raw );
 
         $history = new ScanHistory();
         $history->store_json( $job_id, $json_str );
         $history->update_status( $job_id, 'complete', [
-            'credits_used'     => $completed_pages,
+            'credits_used'     => $credits_used,
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
         ] );

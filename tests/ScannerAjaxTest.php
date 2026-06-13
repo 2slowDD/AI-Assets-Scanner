@@ -275,14 +275,35 @@ class ScannerAjaxTest extends TestCase {
         $this->assertStringEndsNotWith( '…', $result );
     }
 
-    public function test_billable_count_excludes_origin_unavailable(): void {
+    public function test_billable_credit_total_excludes_origin_unavailable(): void {
         $pages = [
             [ 'status' => 'done' ],
             [ 'status' => 'done' ],
-            [ 'status' => 'origin_unavailable' ],   // skipped — must NOT bill
-            [ 'status' => 'error' ],                 // already excluded
+            [ 'status' => 'origin_unavailable' ],   // skipped — 0 credits
+            [ 'status' => 'error' ],                 // error w/o ET — 0 credits
         ];
-        $this->assertSame( 2, ScannerAjax::billable_page_count( $pages ) );
+        // 1 + 1 + 0 + 0 = 2 (unchanged from the old page-count semantics for non-ET pages).
+        $this->assertSame( 2, ScannerAjax::billable_credit_total( $pages ) );
+    }
+
+    // FU-AAS-ET-CREDIT-DISPLAY (2026-06-13): the scan-history Credits TOTAL must include the
+    // per-page Extra-Time +1, matching the per-URL Step-4 column (and the SaaS-billed amount).
+    public function test_billable_credit_total_adds_extra_time_charged(): void {
+        $pages = [
+            [ 'status' => 'done', 'extra_time_charged' => true ], // base 1 + ET 1 = 2
+        ];
+        $this->assertSame( 2, ScannerAjax::billable_credit_total( $pages ) );
+    }
+
+    public function test_billable_credit_total_mixed_et_and_plain(): void {
+        $pages = [
+            [ 'status' => 'done' ],                                // 1
+            [ 'status' => 'done', 'extra_time_charged' => true ],  // 2
+            [ 'status' => 'origin_unavailable', 'extra_time_charged' => true ], // 0 (skipped)
+            [ 'status' => 'error', 'extra_time_charged' => true ], // 1 (ET-only on errored page)
+        ];
+        // 1 + 2 + 0 + 1 = 4
+        $this->assertSame( 4, ScannerAjax::billable_credit_total( $pages ) );
     }
 
     // FU-AAS-EXTRA-TIME (UI Task 4) — per-URL extra_time flag threaded into the job payload.
