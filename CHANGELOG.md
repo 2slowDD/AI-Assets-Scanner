@@ -4,6 +4,21 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.35b - 2026-06-13
+
+### Fixed — Class A bypass hook-removal no longer emits PHP warnings during scans
+
+- The Class A optimizer bypass (defense-in-depth hook removal for WP Rocket / Perfmatters /
+  Autoptimize) removed a hook's entire priority bucket by directly unsetting
+  `$wp_filter[$tag]->callbacks[$priority]`. That bypasses `WP_Hook::resort_active_iterations()`,
+  so WordPress core emitted repeated `Undefined array key <priority>` + `foreach() … null given`
+  warnings (`class-wp-hook.php`) on every scanned page-load. Removal now goes through the core
+  `remove_all_filters( $tag, $priority )` API, which re-sorts active iterations. No behavior
+  change to the bypass itself (the URL-suffix bypass remains primary); this only removes the
+  warning noise and the latent remove-during-iteration fragility.
+
+---
+
 ## 1.7.34b - 2026-06-13
 
 ### Added — ET ratchet rule-count divergence diagnostic (debug-gated, inert in production)

@@ -151,20 +151,20 @@ class BypassHandler {
 			return;
 		}
 
-		// Sweeping removal: drop the entire priority bucket for this tag.
+		// Sweeping removal: drop the entire priority bucket for this tag via the core
+		// API. remove_all_filters() delegates to WP_Hook::remove_all_filters(), which
+		// unsets the bucket AND calls resort_active_iterations() when the hook is
+		// mid-apply. A direct `unset( $wp_filter[$tag]->callbacks[$priority] )` skips
+		// that resort, leaving WP_Hook's cached iteration keys pointing at the removed
+		// priority — which emits "Undefined array key <priority>" + "foreach() null"
+		// warnings from class-wp-hook.php at apply time. FU-AAS-BYPASS-HOOK-RESORT.
 		global $wp_filter;
 
 		if ( ! isset( $wp_filter[ $tag ] ) ) {
 			return;
 		}
 
-		$hook_obj = $wp_filter[ $tag ];
-
-		if ( is_object( $hook_obj ) && isset( $hook_obj->callbacks ) && is_array( $hook_obj->callbacks ) ) {
-			unset( $hook_obj->callbacks[ $priority ] );
-		} elseif ( is_array( $hook_obj ) ) {
-			unset( $wp_filter[ $tag ][ $priority ] );
-		}
+		remove_all_filters( $tag, $priority );
 	}
 
 	/**
