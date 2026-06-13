@@ -306,6 +306,30 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( 4, ScannerAjax::billable_credit_total( $pages ) );
     }
 
+    // FU-AAS-HISTORY-RULE-COUNT (2026-06-13): the scan-history Safe/Aggressive counts must equal
+    // the SUM of the per-URL Step-4 table (its `by_page` tally), NOT count(cu_json['rules']). On an
+    // ET ratchet merge the rule list can include rules whose url_pattern is not in the rescan's
+    // pages (recompute_by_page attributes them to no page), so count(rules) over-reports vs the
+    // table. Sourcing both from by_page makes the documented invariant the live contract.
+    public function test_rule_counts_by_group_sums_per_page(): void {
+        $by_page = [
+            0 => [ 'safe' => 1, 'aggressive' => 5, 'needed' => 10 ],
+            1 => [ 'safe' => 2, 'aggressive' => 3, 'needed' => 4 ],
+        ];
+        $this->assertSame( [ 'safe' => 3, 'aggressive' => 8 ], ScannerAjax::rule_counts_by_group( $by_page ) );
+    }
+
+    public function test_rule_counts_by_group_matches_per_url_on_ratchet_scan(): void {
+        // The live bug: single rescanned URL showed S:0 A:17 in the table but the
+        // history counted the post-merge rule list (1 safe / 48 agg). History must follow by_page.
+        $by_page = [ 0 => [ 'safe' => 0, 'aggressive' => 17, 'needed' => 45 ] ];
+        $this->assertSame( [ 'safe' => 0, 'aggressive' => 17 ], ScannerAjax::rule_counts_by_group( $by_page ) );
+    }
+
+    public function test_rule_counts_by_group_empty_is_zero(): void {
+        $this->assertSame( [ 'safe' => 0, 'aggressive' => 0 ], ScannerAjax::rule_counts_by_group( [] ) );
+    }
+
     // FU-AAS-EXTRA-TIME (UI Task 4) — per-URL extra_time flag threaded into the job payload.
 
     public function test_build_pages_array_threads_extra_time_flag(): void {

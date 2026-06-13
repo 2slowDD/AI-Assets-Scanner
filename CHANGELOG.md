@@ -4,6 +4,24 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.33b - 2026-06-13
+
+### Fixed — Scan-History "Safe / Aggressive Rules" counts now match the per-URL table
+
+- On an Extra-Time **ratchet** scan, the Scan History "Safe Rules" / "Aggressive Rules"
+  columns could disagree with the per-URL Step-4 table (live: a 1-URL scan showed
+  **A:17** in the table but **48** in history). The history counts were computed from
+  `count(cu_json['rules'])` *after* the ratchet merge, which can include restored rules
+  whose `url_pattern` is not among the rescanned pages (`recompute_by_page()` attributes
+  them to no page). The history Safe/Aggressive totals are now summed from the same
+  `by_page` tally the per-URL table renders, so the history row always equals the sum of
+  the per-URL column. Non-ratchet scans are unaffected (`array_sum(by_page) == count(rules)`
+  already holds). Note: this aligns the *displayed* counts; whether the ratchet should
+  restore rules for pages absent from a single-URL rescan is tracked separately
+  (FU-AAS-RATCHET-ABSENT-PAGE-RESTORE).
+
+---
+
 ## 1.7.32b - 2026-06-13
 
 ### Fixed — Scan-History "Credits" total under-counted Extra-Time scans

@@ -576,6 +576,27 @@ class ScannerAjax {
     }
 
     /**
+     * Scan-history Safe/Aggressive totals, summed from the per-page tally.
+     *
+     * MUST be sourced from by_page (the exact array the per-URL Step-4 table renders),
+     * NOT from count(cu_json['rules']). On an ET ratchet merge, cu_json['rules'] can
+     * contain rules whose url_pattern is absent from the rescan's pages — recompute_by_page()
+     * attributes them to no page, so count(rules) over-reports vs the table the operator sees.
+     * Summing by_page makes the documented invariant (recompute_by_page jsdoc) the live contract:
+     * history Safe/Aggressive always equals the sum of the per-URL column.
+     * FU-AAS-HISTORY-RULE-COUNT (2026-06-13).
+     *
+     * @param array<int, array{safe?:int,aggressive?:int,needed?:int}> $by_page CuJsonBuilder/recompute_by_page tally.
+     * @return array{safe:int,aggressive:int}
+     */
+    public static function rule_counts_by_group( array $by_page ): array {
+        return [
+            'safe'       => (int) array_sum( array_column( $by_page, 'safe' ) ),
+            'aggressive' => (int) array_sum( array_column( $by_page, 'aggressive' ) ),
+        ];
+    }
+
+    /**
      * Core truncation: 80-char cap, ellipsis on overflow. Shared by submit + reserve formatters.
      *
      * @param string $message Raw exception message.
@@ -747,8 +768,13 @@ class ScannerAjax {
 
         $json_str = json_encode( $cu_json, JSON_PRETTY_PRINT );
 
-        $safe_count = count( array_filter( $cu_json['rules'], fn($r) => $r['group_id'] === 1 ) );
-        $agg_count  = count( array_filter( $cu_json['rules'], fn($r) => $r['group_id'] === 2 ) );
+        // Safe/Aggressive history totals are sourced from by_page (the per-URL table tally), NOT
+        // count(cu_json['rules']) — on an ET ratchet merge the rule list can carry rules whose
+        // url_pattern is absent from the rescan's pages, over-reporting vs the table the operator
+        // sees. FU-AAS-HISTORY-RULE-COUNT (2026-06-13).
+        $rule_counts = self::rule_counts_by_group( $cu_json['by_page'] ?? [] );
+        $safe_count  = $rule_counts['safe'];
+        $agg_count   = $rule_counts['aggressive'];
         $credits_used = self::billable_credit_total( $pages_raw );
 
         $history = new ScanHistory();
