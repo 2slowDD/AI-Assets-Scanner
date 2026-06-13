@@ -152,4 +152,33 @@ class BypassHandlerTest extends TestCase {
 		BypassHandler::handle_wp_loaded();
 		$this->assertConditionsMet();  // no crash
 	}
+
+	// FU-AAS-BYPASS-HOOK-RESORT (2026-06-13): sweeping removal must go through core
+	// remove_all_filters() (which calls WP_Hook::resort_active_iterations()) — NOT a
+	// direct unset of $wp_filter[$tag]->callbacks[$priority], which corrupts mid-apply
+	// iteration state and emits "Undefined array key <priority>" + "foreach() null" warnings.
+	public function test_class_a_sweeping_removal_uses_remove_all_filters(): void {
+		$_GET['cu_scan_token'] = 'tok-good';
+		BypassHandler::for_testing_set_token_validator( fn( $t ) => true );
+		BypassHandler::for_testing_set_active_plugins( [
+			'wp-rocket/wp-rocket.php' => true,  // Class A — single hook: template_redirect@999
+		] );
+
+		global $wp_filter;
+		$wp_filter = [ 'template_redirect' => new \stdClass() ];  // present → isset() guard passes
+
+		WP_Mock::userFunction( 'sanitize_text_field' )->andReturnUsing( fn( $v ) => $v );
+		WP_Mock::userFunction( 'wp_unslash' )->andReturnUsing( fn( $v ) => $v );
+		WP_Mock::userFunction( 'is_plugin_active' )
+			->andReturnUsing( fn( $plugin ) => $plugin === 'wp-rocket/wp-rocket.php' );
+		WP_Mock::userFunction( 'get_option' )->andReturn( [] );
+
+		// The fix: removal must call core remove_all_filters($tag, $priority), once.
+		WP_Mock::userFunction( 'remove_all_filters' )
+			->once()
+			->with( 'template_redirect', 999 );
+
+		BypassHandler::handle_wp_loaded();
+		$this->assertConditionsMet();
+	}
 }
