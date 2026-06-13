@@ -4,6 +4,20 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.34b - 2026-06-13
+
+### Added — ET ratchet rule-count divergence diagnostic (debug-gated, inert in production)
+
+- Diagnostic only: when a scan's per-page tally disagrees with the merged rule list (only
+  reachable when the Extra-Time ratchet restores rules for pages absent from a partial
+  rescan), the plugin now logs a `[ratchet][count_divergence]` line — the per-`url_pattern`
+  rule breakdown vs the rescanned URLs — so we can tell whether those restored rules are
+  legitimate other-page rules or stale same-page patterns. Gated behind `CU_SCANNER_DEBUG`
+  (no output in normal operation); logs asset handles/URLs only, withheld from the browser.
+  Investigates FU-AAS-RATCHET-ABSENT-PAGE-RESTORE. No behavior change to scans or rules.
+
+---
+
 ## 1.7.33b - 2026-06-13
 
 ### Fixed — Scan-History "Safe / Aggressive Rules" counts now match the per-URL table
