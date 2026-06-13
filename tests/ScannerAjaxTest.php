@@ -330,6 +330,38 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( [ 'safe' => 0, 'aggressive' => 0 ], ScannerAjax::rule_counts_by_group( [] ) );
     }
 
+    // FU-AAS-RATCHET-ABSENT-PAGE-RESTORE (2026-06-13): diagnostic that fires when the by_page tally
+    // disagrees with the rule-list group counts (only possible after an ET ratchet merge restores
+    // rules for pages absent from the rescan). Returns null when consistent; a payload otherwise.
+    private function aggRule( string $pattern ): array {
+        return [ 'url_pattern' => $pattern, 'group_id' => 2, 'asset_handle' => 'h', 'asset_type' => 'css', 'device_type' => 'all' ];
+    }
+
+    public function test_count_divergence_diag_null_when_consistent(): void {
+        $by_page = [ 0 => [ 'safe' => 0, 'aggressive' => 2, 'needed' => 5 ] ];
+        $rules   = [ $this->aggRule( 'https://wpservice.pro/' ), $this->aggRule( 'https://wpservice.pro/' ) ];
+        $pages   = [ [ 'url' => 'https://wpservice.pro/?nowprocket' ] ];
+        $this->assertNull( ScannerAjax::count_divergence_diag( $by_page, $rules, $pages ) );
+    }
+
+    public function test_count_divergence_diag_reports_absent_page_rules(): void {
+        // Per-URL table sees 17 agg on the rescanned homepage; rule list has 48 agg across 2 patterns
+        // (17 homepage + 31 for a page NOT in this rescan) — the live 48-vs-17 shape.
+        $rules = [];
+        for ( $i = 0; $i < 17; $i++ ) { $rules[] = $this->aggRule( 'https://wpservice.pro/' ); }
+        for ( $i = 0; $i < 31; $i++ ) { $rules[] = $this->aggRule( 'https://wpservice.pro/about' ); }
+        $by_page = [ 0 => [ 'safe' => 0, 'aggressive' => 17, 'needed' => 45 ] ];
+        $pages   = [ [ 'url' => 'https://wpservice.pro/?nowprocket&nowpcu&perfmattersoff' ] ];
+
+        $diag = ScannerAjax::count_divergence_diag( $by_page, $rules, $pages );
+        $this->assertNotNull( $diag );
+        $this->assertSame( [ 'safe' => 0, 'aggressive' => 17 ], $diag['by_page'] );
+        $this->assertSame( [ 'safe' => 0, 'aggressive' => 48 ], $diag['rule_total'] );
+        $this->assertSame( 17, $diag['rule_patterns']['https://wpservice.pro/']['aggressive'] );
+        $this->assertSame( 31, $diag['rule_patterns']['https://wpservice.pro/about']['aggressive'] );
+        $this->assertSame( [ 'https://wpservice.pro/?nowprocket&nowpcu&perfmattersoff' ], $diag['rescan_urls'] );
+    }
+
     // FU-AAS-EXTRA-TIME (UI Task 4) — per-URL extra_time flag threaded into the job payload.
 
     public function test_build_pages_array_threads_extra_time_flag(): void {

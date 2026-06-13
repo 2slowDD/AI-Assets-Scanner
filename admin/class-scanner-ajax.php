@@ -597,6 +597,52 @@ class ScannerAjax {
     }
 
     /**
+     * Divergence diagnostic: returns a payload when the by_page tally disagrees with the rule-list
+     * group counts, else null. A divergence is only reachable when the ET ratchet merge restored
+     * rules whose url_pattern is absent from the rescanned pages (recompute_by_page attributes them
+     * to no page). The payload's per-pattern breakdown vs the rescanned URLs lets us decide whether
+     * the restored rules are real OTHER pages (by-design) or stale variants of the rescanned URL
+     * (a ratchet bug). Pure + diagnostic-only; the caller logs it CU_SCANNER_DEBUG-gated.
+     * FU-AAS-RATCHET-ABSENT-PAGE-RESTORE (2026-06-13).
+     *
+     * @param array $by_page   Per-page S/A tally (the per-URL table source).
+     * @param array $rules      Final cu_json rule array (post-merge).
+     * @param array $pages_raw  Rescan pages (untrusted Railway input — url read defensively).
+     * @return array|null Diagnostic payload, or null when by_page and rule counts agree.
+     */
+    public static function count_divergence_diag( array $by_page, array $rules, array $pages_raw ): ?array {
+        $bp        = self::rule_counts_by_group( $by_page );
+        $rule_safe = 0;
+        $rule_agg  = 0;
+        $by_pat    = [];
+        foreach ( $rules as $r ) {
+            $pat = (string) ( $r['url_pattern'] ?? '' );
+            $g   = (int) ( $r['group_id'] ?? 0 );
+            if ( ! isset( $by_pat[ $pat ] ) ) {
+                $by_pat[ $pat ] = [ 'safe' => 0, 'aggressive' => 0 ];
+            }
+            if ( 1 === $g ) {
+                $rule_safe++;
+                $by_pat[ $pat ]['safe']++;
+            } elseif ( 2 === $g ) {
+                $rule_agg++;
+                $by_pat[ $pat ]['aggressive']++;
+            }
+        }
+        if ( $bp['safe'] === $rule_safe && $bp['aggressive'] === $rule_agg ) {
+            return null; // Invariant holds — no ratchet absent-page restore in play.
+        }
+        return [
+            'by_page'       => $bp,
+            'rule_total'    => [ 'safe' => $rule_safe, 'aggressive' => $rule_agg ],
+            'rule_patterns' => $by_pat,
+            'rescan_urls'   => array_values( array_unique( array_filter(
+                array_map( fn( $p ) => (string) ( $p['url'] ?? '' ), $pages_raw )
+            ) ) ),
+        ];
+    }
+
+    /**
      * Core truncation: 80-char cap, ellipsis on overflow. Shared by submit + reserve formatters.
      *
      * @param string $message Raw exception message.
@@ -775,6 +821,16 @@ class ScannerAjax {
         $rule_counts = self::rule_counts_by_group( $cu_json['by_page'] ?? [] );
         $safe_count  = $rule_counts['safe'];
         $agg_count   = $rule_counts['aggressive'];
+
+        // FU-AAS-RATCHET-ABSENT-PAGE-RESTORE diagnostic (CU_SCANNER_DEBUG-gated): when the by_page
+        // tally disagrees with the rule-list group counts, the ET ratchet restored rules for pages
+        // absent from this rescan. Log the per-pattern breakdown vs the rescanned URLs so we can tell
+        // real other-page rules (by-design) from stale same-page patterns (a ratchet bug).
+        $divergence = self::count_divergence_diag( $cu_json['by_page'] ?? [], $cu_json['rules'], $pages_raw );
+        if ( null !== $divergence ) {
+            $this->log_ratchet_diag( 'count_divergence', $divergence );
+        }
+
         $credits_used = self::billable_credit_total( $pages_raw );
 
         $history = new ScanHistory();
