@@ -4,6 +4,20 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.32b - 2026-06-13
+
+### Fixed — Scan-History "Credits" total under-counted Extra-Time scans
+
+- The Scan History table's **Credits** column showed the base page count for an Extra-Time
+  (ET) continuation scan — e.g. **1** where **2** was actually billed. The per-URL Step-4
+  "Credits" column was already ET-aware (2026-06-02), but the history *summary* was computed
+  by a separate page-COUNT that ignored `extra_time_charged`. The summary now sums the same
+  per-page rule (`AIAS_Scan_Status::classify()`), so the history total always equals the sum
+  of the per-URL column and the amount the SaaS charged. Backfill-safe: scans whose pages
+  lack the `extra_time_charged` flag show base credits only, unchanged.
+
+---
+
 ## 1.7.31b - 2026-06-11
 
 ### Added — Queue visibility: queued banner now shows estimated start time
