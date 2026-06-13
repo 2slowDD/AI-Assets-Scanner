@@ -1478,6 +1478,8 @@
             tier2_cf_challenge:       'Cloudflare challenge',
             tier2_akamai_challenge:   'Akamai Bot Manager',
             tier2_imperva_challenge:  'Imperva WAF',
+            tier2_waf_challenge:      'firewall/WAF',
+            tier2_unknown_challenge:  'bot/firewall protection (unidentified)',
             tier2_rocket_loader_stub: 'Cloudflare Rocket-Loader stub',
             tier2_small_body:         'asymmetric stub response',
             tier1_zero_bytes:         'empty response',

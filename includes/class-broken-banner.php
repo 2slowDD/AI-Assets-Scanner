@@ -167,6 +167,10 @@ class AIAS_Broken_Banner {
 				return esc_html__( 'Akamai Bot Manager', 'ai-assets-scanner' );
 			case 'tier2_imperva_challenge':
 				return esc_html__( 'Imperva WAF', 'ai-assets-scanner' );
+			case 'tier2_waf_challenge':
+				return esc_html__( 'firewall/WAF', 'ai-assets-scanner' );
+			case 'tier2_unknown_challenge':
+				return esc_html__( 'bot/firewall protection (unidentified)', 'ai-assets-scanner' );
 			case 'tier2_rocket_loader_stub':
 				return esc_html__( 'Cloudflare Rocket-Loader stub', 'ai-assets-scanner' );
 			case 'tier2_small_body':
