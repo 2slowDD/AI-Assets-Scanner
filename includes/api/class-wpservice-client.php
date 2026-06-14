@@ -99,15 +99,15 @@ class WpserviceClient {
 
     private function parse( mixed $response ): array {
         if ( is_wp_error( $response ) ) {
-            throw new \RuntimeException( $response->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
+            throw new HttpException( $response->get_error_message(), 0 ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
         }
         $code = wp_remote_retrieve_response_code( $response );
         $body = json_decode( wp_remote_retrieve_body( $response ), true ) ?? [];
         if ( $code === 402 ) {
-            throw new \RuntimeException( $body['message'] ?? 'Insufficient credits' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
+            throw new HttpException( $body['message'] ?? 'Insufficient credits', 402 ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
         }
         if ( $code < 200 || $code >= 300 ) {
-            throw new \RuntimeException( "HTTP {$code}: " . ( $body['message'] ?? 'Unknown error' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
+            throw new HttpException( "HTTP {$code}: " . ( $body['message'] ?? 'Unknown error' ), (int) $code ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
         }
         return $body;
     }
