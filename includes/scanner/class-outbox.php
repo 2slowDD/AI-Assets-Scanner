@@ -40,19 +40,24 @@ class Outbox {
         if ( $existing && ( $existing['status'] ?? '' ) === 'pending' ) {
             return false; // 1-entry/site cap (AC-O-5)
         }
-        $now   = time();
-        $entry = [
+        $user_id = (int) ( $intent['user_id'] ?? 0 );
+        // FU-OUTBOX-ADOPT-RESERVE: adopt the account's outstanding reserve token (if any) as the
+        // initial half-state so the outbox owns the reference and releases it on the first dispatch
+        // pass. Discarding it (old AC-O-10) orphaned a still-'reserved' token when the original
+        // release was skipped/raced during an outage -> outbox 409'd against its own reservation.
+        $pending = get_transient( 'cu_scanner_pending_token_' . $user_id );
+        $now     = time();
+        $entry   = [
             'intent'          => $intent,
             'status'          => 'pending',
             'attempts'        => 0,
             'created_at'      => $now,
             'next_attempt_at' => $now,
-            'job_token'       => null,
+            'job_token'       => ( is_string( $pending ) && '' !== $pending ) ? $pending : null,
             'last_error'      => '',
         ];
         self::save( $entry );
-        // AC-O-10: outbox owns the half-state; drop any lingering reserve pending-token.
-        $user_id = (int) ( $intent['user_id'] ?? 0 );
+        // Still delete the transient so handle_failure() can't also act on the same token.
         delete_transient( 'cu_scanner_pending_token_' . $user_id );
         self::schedule( $now );
         return true;
@@ -181,8 +186,10 @@ class Outbox {
                 return self::fail( $entry, "couldn't reach the backend after repeated attempts - please try again.", $deps );
             }
 
-            if ( ! empty( $entry['job_token'] ) ) { // release stale half-state from a prior pass
-                self::call( $deps, 'release', [ $entry['job_token'] ] );
+            if ( ! empty( $entry['job_token'] ) ) { // release stale half-state from a prior pass / adopted token
+                // Best-effort: the token may already be released/finalized (outage race with
+                // submit_job/handle_failure) -> SaaS release() returns 409; swallow it.
+                try { self::call( $deps, 'release', [ $entry['job_token'] ] ); } catch ( \Throwable $e ) {}
                 $entry['job_token'] = null;
                 self::save( $entry );
             }
