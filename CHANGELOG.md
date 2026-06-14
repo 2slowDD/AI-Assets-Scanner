@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.37b - 2026-06-14
+
+### Added — Outage outbox (queued-locally scan replay through backend outages)
+
+- When the scanner backend is temporarily unreachable (timeout / 5xx / 503 capacity), a scan is now queued locally instead of failing. It dispatches automatically when the backend recovers — retried in the browser while the tab is open, and by WP-cron after it closes.
+- Max one locally-queued scan per site. Any half-completed credit reservation is released before each retry; the request fails cleanly (with a clear message) if another scan on the account becomes active while it waits.
+- New internal `HttpException` carries the HTTP status so failures are classified correctly (network/5xx retried; 4xx / insufficient-credits / already-active are terminal).
+- A replayed scan is identical to an interactive one — same optimizer handling, Scan History record, and event telemetry (the submit path was refactored into shared units so the two paths cannot drift).
+- No backend/SaaS changes; AAS-only.
+
+---
+
 ## 1.7.36b - 2026-06-13
 
 ### Added — Probe-challenge blocker banner copy (Cloudflare / firewall-WAF / host)
