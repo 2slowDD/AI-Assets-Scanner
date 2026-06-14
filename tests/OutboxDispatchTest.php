@@ -265,4 +265,30 @@ class OutboxDispatchTest extends TestCase {
         $this->assertSame( [ 'TOK' ], $log['release'], 'horizon fail() released the stranded token' );
         $this->assertSame( 0, $log['reserve'], 'never reached reserve' );
     }
+
+    // --- 9. FU-OUTBOX-ADOPT-RESERVE: best-effort step-3 release ---------------
+
+    public function test_step3_release_is_best_effort_when_adopted_token_already_released(): void {
+        $entry = $this->pendingEntry();
+        $entry['job_token'] = 'ADOPTED-TOK';
+        WP_Mock::userFunction( 'get_option' )->andReturn( $entry );
+        WP_Mock::userFunction( 'add_option' )->andReturn( true );
+        WP_Mock::userFunction( 'update_option' )->andReturn( true );
+        WP_Mock::userFunction( 'delete_option' )->andReturn( true );
+        WP_Mock::userFunction( 'wp_clear_scheduled_hook' )->andReturn( true );
+        $reserved = false;
+        $deps = [
+            'clear_bypass'     => fn() => null,
+            'release'          => function () { throw new \CUScanner\Api\HttpException( 'HTTP 409: token_already_used', 409 ); },
+            'build_payload'    => fn( $i ) => [ [ 'pages' => [] ], [], 'BT' ],
+            'consent_payload'  => fn( $dt, $c ) => null,
+            'reserve'          => function ( $p, $et ) use ( &$reserved ) { $reserved = true; return 'NEWTOK'; },
+            'resolve_endpoint' => fn() => 'https://worker.example',
+            'submit'           => fn( $u, $p ) => [ 'job_id' => 'J1' ],
+            'side_effects'     => fn( ...$a ) => [ 'job_id' => 'J1' ],
+        ];
+        $status = Outbox::dispatch( $deps );
+        $this->assertSame( 'done', $status ); // did NOT abort on the release throw
+        $this->assertTrue( $reserved );       // proceeded to reserve a fresh token
+    }
 }
