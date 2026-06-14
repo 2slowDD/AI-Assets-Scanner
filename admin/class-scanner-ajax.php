@@ -819,7 +819,21 @@ class ScannerAjax {
             $client = new RailwayClient( $state['railway_url'], $settings->get_api_key() );
             $resp   = $client->cancel_job( $state['job_id'], $state['job_token'] );
             $pages_completed = (int) ( $resp['pages_completed'] ?? 0 );
-        } catch ( \RuntimeException ) { /* Cancel best-effort — keep pages_completed=0 as fallback */ }
+        } catch ( \RuntimeException $e ) {
+            // FU-AAS-CANCEL-RELEASE-RESILIENCE: only a NON-retryable failure (4xx/410 — the
+            // job is already gone/invalid worker-side) is safe to swallow as a local cancel.
+            // A RETRYABLE failure (backend unreachable: timeout/5xx/network) means the cancel
+            // never reached the worker — the scan + its credit reservation are STILL ACTIVE.
+            // Marking it cancelled + deleting the local transient here would strand the
+            // reservation until admin-kill/expiry (the intermittent post-cancel 409). Keep
+            // local state intact and surface a retryable error so the user can retry.
+            if ( \CUScanner\Scanner\Outbox::is_retryable( $e ) ) {
+                error_log( '[AI Assets Scanner] cancel_job: backend unreachable, cancel not applied: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional production logging; the browser receives a generic message, not $e->getMessage().
+                wp_send_json_error( [ 'message' => 'Could not reach the scanner backend to cancel. Your scan is still running — please try again in a moment.', 'retryable' => true ] );
+                return;
+            }
+            /* Non-retryable — job gone/invalid worker-side; fall through to a local cancel (pages_completed = 0 fallback). */
+        }
 
         ( new BypassManager() )->delete_all_tokens();
         ( new ScanHistory() )->update_status( $state['job_id'], 'cancelled', [
