@@ -14,6 +14,41 @@ class ScannerAjaxTest extends TestCase {
         WP_Mock::userFunction( 'current_user_can' )->with( 'manage_options' )->andReturn( true );
     }
 
+    public function test_cancel_job_keeps_state_and_errors_when_backend_unreachable(): void {
+        // FU-AAS-CANCEL-RELEASE-RESILIENCE: a RETRYABLE worker-cancel failure (backend
+        // unreachable) must NOT mark the scan cancelled, delete the transient, or report
+        // success — it returns a retryable error and leaves local state intact so the user
+        // can retry (otherwise the still-active reservation strands → post-cancel 409).
+        $this->mockCheck();
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 5 );
+        WP_Mock::userFunction( 'get_transient' )->with( 'cu_scanner_job_5' )->andReturn( [
+            'job_id'      => 'job-abc',
+            'job_token'   => 'tok-xyz',
+            'railway_url' => 'https://cu-scanner-railway-production.up.railway.app',
+        ] );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_api_key', '' )->andReturn( 'test-key' );
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( string $url, ?int $component = null ) {
+            $parts = parse_url( $url );
+            if ( null === $component ) { return $parts; }
+            $map = [ PHP_URL_SCHEME => 'scheme', PHP_URL_HOST => 'host', PHP_URL_PORT => 'port', PHP_URL_USER => 'user', PHP_URL_PASS => 'pass' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        // Backend unreachable → wp_remote_post returns WP_Error → RailwayClient::parse throws
+        // HttpException(status 0) → Outbox::is_retryable() === true.
+        WP_Mock::userFunction( 'wp_remote_post' )->andReturn( new \WP_Error( 'http_request_failed', 'cURL error 7: connection refused' ) );
+        // State MUST be preserved + no false success.
+        WP_Mock::userFunction( 'delete_transient' )->never();
+        WP_Mock::userFunction( 'wp_send_json_success' )->never();
+        $captured = null;
+        WP_Mock::userFunction( 'wp_send_json_error' )->once()->andReturnUsing( function ( $data ) use ( &$captured ) { $captured = $data; } );
+
+        ( new ScannerAjax() )->cancel_job();
+
+        $this->assertConditionsMet();
+        $this->assertIsArray( $captured );
+        $this->assertTrue( $captured['retryable'] ?? false );
+    }
+
     public function test_check_job_returns_error_when_no_transient(): void {
         $this->mockCheck();
         WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );

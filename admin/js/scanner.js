@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.21';
+    const SCANNER_JS_VERSION = '1.0.10.22';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1721,8 +1721,21 @@
         }
         if (!confirm(msg)) return;
         stopPolling();
-        sessionStorage.removeItem('cu_scanner_active_job');
-        post('cu_scanner_cancel_job').then(() => { showStep(1); });
+        // FU-AAS-CANCEL-RELEASE-RESILIENCE: only tear down local state on a confirmed cancel.
+        // If the backend was unreachable (retryable), the scan is still running server-side —
+        // keep the active-job state, resume tracking, and let the user retry the cancel.
+        post('cu_scanner_cancel_job').then((res) => {
+            if (res && res.success) {
+                sessionStorage.removeItem('cu_scanner_active_job');
+                showStep(1);
+            } else {
+                const m = (res && res.data && res.data.message)
+                    ? res.data.message
+                    : 'Could not cancel — please try again.';
+                alert(m);
+                startPolling(); // scan still active; sessionStorage preserved for re-attach
+            }
+        });
     });
 
     // Notify any open Code Unloader admin Rules tab (channel 'code-unloader',

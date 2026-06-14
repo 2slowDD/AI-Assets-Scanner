@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.38b - 2026-06-14
+
+### Fixed — Cancel no longer silently strands a scan when the backend is unreachable
+
+- Cancelling a scan while the scanner backend is temporarily unreachable (timeout / 5xx / network) previously reported success and reset the UI even though the cancel never reached the backend — leaving the scan (and its credit reservation) active, which could block the next scan for that account until it expired.
+- Cancel now distinguishes a transient backend outage from a real cancel: on an outage it keeps the scan tracked, tells you it couldn't be cancelled, and lets you retry; a confirmed cancel (or a job already gone backend-side) resets as before. No change to what you're charged.
+
+---
+
 ## 1.7.37b - 2026-06-14
 
 ### Added — Outage outbox (queued-locally scan replay through backend outages)
