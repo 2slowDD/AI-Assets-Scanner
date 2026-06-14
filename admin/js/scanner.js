@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.20';
+    const SCANNER_JS_VERSION = '1.0.10.21';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1002,15 +1002,20 @@
      * Must include the same fields that cu_scanner_submit_job sends so the
      * server's intent_from_post() can reconstruct the scan.
      */
-    function buildOutboxPayload( pageCount, etCount, etSelected, jobToken ) {
+    // All handler-local values (bypassPerUrl, stackSummary, consentGiven) are passed in
+    // as parameters: this function lives at IIFE scope and must NOT read the `let`s that
+    // are block-scoped to the Step-2 click handler (doing so throws ReferenceError under
+    // 'use strict'). Only selectedUrls / resolvedByUrl are genuinely IIFE-scope here.
+    function buildOutboxPayload( pageCount, etCount, etSelected, jobToken, bypassPerUrl, stackSummary, consentGiven ) {
         const payload = {
             urls:                  selectedUrls.map(u => resolvedByUrl[u] || u),
             submitted_urls:        selectedUrls,
             extra_time_urls:       etSelected.map(u => resolvedByUrl[u] || u),
-            target_bypass_per_url: targetBypassPerUrl,
-            target_stack_summary:  targetStackSummary,
+            target_bypass_per_url: bypassPerUrl,
+            target_stack_summary:  stackSummary,
             page_count:            pageCount,
             extra_time_count:      etCount,
+            class_c_consent_given: consentGiven || '',
         };
         if (jobToken) {
             payload.job_token = jobToken;
@@ -1142,13 +1147,20 @@
         // extra_time_count drives the SaaS reserve gate (N pages + M extra-time = N+M credits).
         const pageCount = selectedUrls.length;
         const etCount   = etSelected.length;
+        // Class C optimizer-disable consent: '' until the user confirms the consent
+        // dialog (then '1'). Carried into the outbox intent so a cron/closed-tab replay
+        // of a consented Class-C scan isn't terminal-failed for "missing consent".
+        let classCConsentGiven = '';
 
         // Helper: route a retryable outbox failure. Enqueues the scan intent
         // and shows the queued-locally banner + starts the 30 s tick poll.
         // jobToken: pass the reserve token when available (post-reserve failure),
         // or omit/null when the reserve itself failed (token not yet issued).
+        // targetBypassPerUrl / targetStackSummary / classCConsentGiven come from THIS
+        // handler's scope (routeToOutbox is nested here) and are passed as params —
+        // buildOutboxPayload is at IIFE scope and cannot read these block-scoped lets.
         function routeToOutbox( jobToken ) {
-            post('cu_scanner_outbox_enqueue', buildOutboxPayload( pageCount, etCount, etSelected, jobToken ))
+            post('cu_scanner_outbox_enqueue', buildOutboxPayload( pageCount, etCount, etSelected, jobToken, targetBypassPerUrl, targetStackSummary, classCConsentGiven ))
                 .then(function () {
                     showOutboxBanner();
                     startOutboxTick();
@@ -1196,6 +1208,7 @@
                                 showStep(1);
                                 return;
                             }
+                            classCConsentGiven = '1'; // carry consent into any later outbox enqueue (incl. a retry network-failure)
                             const retry = await post('cu_scanner_submit_job', {
                                 // AC-RC-8a — same resolved/submitted threading as above.
                                 urls: selectedUrls.map(u => resolvedByUrl[u] || u),
