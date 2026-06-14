@@ -199,63 +199,55 @@ class ScannerAjax {
             wp_send_json_success( [ 'reserved' => true, 'job_token' => $result['job_token'] ] );
         } catch ( \RuntimeException $e ) {
             error_log( '[AI Assets Scanner] reserve_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: full exception detail to server log; truncated user-visible detail via format_reserve_error_detail().
-            wp_send_json_error( self::format_reserve_error_detail( $e->getMessage() ) );
+            // Merge `retryable` INTO the error $data (NOT the 2nd arg) — same WP
+            // status_header() reasoning as submit_job's catch — so JS can later
+            // route retryable reserve failures to the outbox (Phase O).
+            wp_send_json_error( [
+                'message'   => self::format_reserve_error_detail( $e->getMessage() ),
+                'retryable' => \CUScanner\Scanner\Outbox::is_retryable( $e ),
+            ] );
         }
     }
 
-    public function submit_job(): void {
-        $this->check();
-        // Wipe all prior banner dismissals — each new scan gets a fresh slate.
-        // After $this->check() so the state-change is gated by nonce + capability per WP Compliance Rules 4/11.
-        // Leading backslash: AIAS_Broken_Banner is in the global namespace; this file is in CUScanner\Admin.
-        \AIAS_Broken_Banner::on_submit_job();
+    /**
+     * Phase O (AC-O-8) — extract the detection + worker-payload-building middle of
+     * submit_job() so BOTH the interactive handler and the outbox replay path
+     * (Outbox::dispatch) build a BYTE-IDENTICAL payload. Parity by construction.
+     *
+     * Reads every scan input from $intent (NOT $_POST) so a replay — which has no
+     * live request — can drive it. The bypass token may be INJECTED so a replay
+     * reproduces the exact same token (BypassManager::create_token() is fresh per
+     * call); when null, a fresh token is minted as the interactive path does today.
+     *
+     * The returned $payload intentionally OMITS job_token — the caller late-binds
+     * it (interactive: from $_POST; replay: from the persisted envelope).
+     *
+     * @param array $intent {
+     *     @type array       $urls                  Resolved (post-redirect) scan URLs.
+     *     @type array       $submitted_urls        Original operator-entered URLs (index-aligned).
+     *     @type array       $extra_time_urls       URLs flagged for Extra Time.
+     *     @type array       $target_bypass_per_url URL → suffix-array map from the probe step.
+     *     @type array|null  $target_stack_summary  Per-host probe summary (or null).
+     * }
+     * @param string|null $bypass_token Injected fixed token, or null to mint a fresh one.
+     * @return array{0:array,1:array,2:string} [ $payload (no job_token), $detector_typed, $token ]
+     */
+    public function build_submit_payload( array $intent, ?string $bypass_token = null ): array {
+        $settings = $this->settings();
+        $api_key  = $settings->get_api_key();
 
-        $settings    = $this->settings();
-        $api_key     = $settings->get_api_key();
-        $job_token   = sanitize_text_field( wp_unslash( $_POST['job_token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
-        $urls_raw    = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['urls'] ?? [] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
+        $urls_raw = $intent['urls'];
+        $et_set   = array_flip( $intent['extra_time_urls'] ?? [] );
 
-        // FU-AAS-EXTRA-TIME (UI Task 4) — per-URL Extra Time flag. JS sends the
-        // subset of selected URLs the operator marked for Extra Time. Sanitize as
-        // URLs (same recognized sanitizer as $urls_raw), then array_flip into a
-        // membership set so build_pages_array() can stamp each page spec.
-        $et_urls_raw = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['extra_time_urls'] ?? [] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
-        $et_set      = array_flip( $et_urls_raw );
-
-        try {
-            $railway_url = $this->ensure_railway_url( $settings, $api_key );
-        } catch ( \RuntimeException $e ) {
-            $this->release_reserved_job( $api_key, $job_token );
-            error_log( '[AI Assets Scanner] submit_job railway_url: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: no secrets, only auth/allowlist failure detail for diagnosis.
-            wp_send_json_error( self::format_submit_error_detail( $e->getMessage() ) );
-            return;
-        }
-
-        $missing = [];
-        if ( ! $railway_url ) {
-            $missing[] = 'railway_url';
-        }
-        if ( ! $job_token ) {
-            $missing[] = 'job_token';
-        }
-        if ( empty( $urls_raw ) ) {
-            $missing[] = 'urls';
-        }
-        if ( $missing ) {
-            $this->release_reserved_job( $api_key, $job_token );
-            error_log( '[AI Assets Scanner] submit_job missing required fields: ' . implode( ',', $missing ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: field names only, no credentials or URLs.
-            wp_send_json_error( 'Missing required fields: ' . implode( ', ', $missing ) );
-            return;
-        }
-
-        // Detect plugins, build bypass params
+        // Detect plugins, build bypass params.
         $detector       = new PluginDetector();
         $detected       = $detector->detect();
         $detector_typed = $detector->detect_typed();
-        $bypass         = new BypassManager();
-        $token          = $bypass->create_token();
+        // Injected token lets a replay reproduce the same token; create_token() is
+        // fresh per call so the interactive path mints a new one.
+        $token          = $bypass_token ?? ( new BypassManager() )->create_token();
 
-        $bypass_params   = [];
+        $bypass_params = [];
         foreach ( $detected['auto_bypass'] as $params ) {
             foreach ( $params as $param ) {
                 $bypass_params[ $param ] = '';
@@ -264,48 +256,11 @@ class ScannerAjax {
 
         $host_bypass = PluginDetector::build_bypass_suffixes( $detector_typed );
 
-        // FU-NEW-2 Phase 5 (T5.2) — capture per-URL bypass map from JS probe step.
-        // External URLs use target-detected suffixes; internal URLs use $host_bypass.
-        // Missing external URLs default to [] and fire cu_scanner_target_bypass_missing.
-        //
-        // wp-compliance Rule 25 / proposed-Rule-27 — $_POST may carry a structured
-        // multi-level map (URL key → suffix-array). PHP's $_POST parser hands us
-        // nested arrays without per-value unslash beyond the outer level. Walk the
-        // structure: validate each URL key, validate each suffix value's character
-        // class (must match the legal bypass-suffix shape produced by OPTIMIZERS).
-        // Anything outside that allowlist is dropped silently.
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
-        $target_bypass_per_url_raw = isset( $_POST['target_bypass_per_url'] )
-            ? (array) wp_unslash( $_POST['target_bypass_per_url'] )
-            : [];
-        $target_bypass_per_url = [];
-        foreach ( $target_bypass_per_url_raw as $u => $suffixes ) {
-            $clean_url = esc_url_raw( (string) $u );
-            if ( $clean_url === '' || ! is_array( $suffixes ) ) {
-                continue;
-            }
-            $clean_suffixes = [];
-            foreach ( $suffixes as $s ) {
-                $candidate = (string) $s;
-                // Legal bypass-suffix shapes: bare flag (e.g. 'nowprocket')
-                // or 'key=value' (e.g. 'ao_noptimize=1', 'LSCWP_CTRL=before_optm').
-                // Allowed chars: A-Z a-z 0-9 _ - . =
-                if ( preg_match( '/^[A-Za-z0-9_=.\-]+$/', $candidate ) ) {
-                    $clean_suffixes[] = $candidate;
-                }
-            }
-            $target_bypass_per_url[ $clean_url ] = $clean_suffixes;
-        }
+        // Per-URL bypass map (already validated upstream and carried in $intent).
+        $target_bypass_per_url = $intent['target_bypass_per_url'] ?? [];
 
-        // AC-RC-8a — per-URL submitted_url map. JS sends a parallel submitted_urls[]
-        // array, index-aligned with urls[]: urls[i] is the RESOLVED (post-redirect)
-        // scan URL, submitted_urls[i] is the ORIGINAL URL the operator entered. We zip
-        // them by index into a (resolved-URL → submitted-URL) map keyed the same way
-        // build_pages_array() iterates ($urls_raw), so the lookup mirrors
-        // $target_bypass_per_url[$url]. Flat scalar array → esc_url_raw per element is a
-        // recognized outermost sanitizer (wp-compliance Rule 24).
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map esc_url_raw.
-        $submitted_urls_raw    = array_map( 'esc_url_raw', wp_unslash( (array) ( $_POST['submitted_urls'] ?? [] ) ) );
+        // AC-RC-8a — resolved-URL → submitted-URL map, zipped by index.
+        $submitted_urls_raw    = $intent['submitted_urls'] ?? [];
         $submitted_url_per_url = [];
         foreach ( $urls_raw as $i => $resolved_url ) {
             $orig = $submitted_urls_raw[ $i ] ?? '';
@@ -314,9 +269,9 @@ class ScannerAjax {
             }
         }
 
-        $home_url    = home_url();
-        $home_host   = wp_parse_url( $home_url, PHP_URL_HOST );
-        $page_specs  = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url, $et_set, $submitted_url_per_url );
+        $home_url   = home_url();
+        $home_host  = wp_parse_url( $home_url, PHP_URL_HOST );
+        $page_specs = self::build_pages_array( $urls_raw, $host_bypass, $target_bypass_per_url, $home_url, $et_set, $submitted_url_per_url );
 
         // Force URL scheme to match the current admin request's protocol. Sitemaps
         // and WP_Query can emit http URLs even on https-served sites (option drift,
@@ -388,9 +343,9 @@ class ScannerAjax {
 
         $pages = self::reshape_page_specs( $page_specs, $build_scan_url, $token );
 
+        // NOTE: job_token is deliberately OMITTED — the caller late-binds it.
         $payload = [
             'pages'          => $pages,
-            'job_token'      => $job_token,
             'api_key'        => $api_key,
             'wpservice_url'  => CU_SCANNER_WPSERVICE_BASE,
             'scanner_secret' => $settings->get_scanner_secret(),
@@ -401,122 +356,283 @@ class ScannerAjax {
         }
 
         // FU-NEW-2 Phase 5 (T5.4) — forward target_stack_summary blob to SaaS (AC-N2-10).
-        // JS attaches this after the cu_scanner_probe_target_stack step; if absent/empty,
-        // the field is omitted from the SaaS payload (null signal from the helper).
+        // Captured into $intent upstream; omitted from the payload when null.
+        $target_stack_summary = $intent['target_stack_summary'] ?? null;
+        if ( $target_stack_summary !== null ) {
+            $payload['target_stack_summary'] = $target_stack_summary;
+        }
+
+        return [ $payload, $detector_typed, $token ];
+    }
+
+    /**
+     * Phase O (AC-O-8) — Class C consent CHECK only (no begin(), no wp_send_json).
+     *
+     * Returns the class_c_active[] descriptor array ({slug,name,warning}) when a
+     * Class C optimizer is active AND consent has NOT been given ($consent_given
+     * !== '1'); otherwise null (consent not required / already given). Lifted from
+     * the inline gate in submit_job() so the interactive handler and the replay
+     * path share one consent contract.
+     *
+     * @param array  $detector_typed PluginDetector::detect_typed() output.
+     * @param string $consent_given  The class_c_consent_given value ('1' = consented).
+     * @return array|null class_c_active descriptors, or null when consent not required.
+     */
+    public function class_c_consent_payload( array $detector_typed, string $consent_given ): ?array {
+        $class_c_entries = array_filter(
+            $detector_typed,
+            static fn( $e ) => ( $e['class'] ?? '' ) === 'C'
+        );
+        if ( empty( $class_c_entries ) || $consent_given === '1' ) {
+            return null;
+        }
+        return array_values( array_map(
+            static fn( $e ) => [
+                'slug'    => (string) ( $e['disable_method'] ?? '' ),
+                'name'    => (string) ( $e['name'] ?? '' ),
+                'warning' => (string) ( $e['warning'] ?? '' ),
+            ],
+            $class_c_entries
+        ) );
+    }
+
+    /**
+     * Phase O (AC-O-8) — PURE side-effect runner shared by the interactive submit
+     * and the outbox replay. NO consent check, NO wp_send_json. Consent is already
+     * guaranteed by the caller (it ran class_c_consent_payload() first). Runs the
+     * exact same effects, in the exact same order, as today's submit_job() success
+     * path:
+     *   1. emit scan_request_received + optimizer_detected operational events,
+     *   2. for Class C entries, build strategies + OptimizerBypassOrchestrator->begin()
+     *      (RuntimeException propagates to the caller's catch),
+     *   3. ScanHistory->create_record(...,'queued'),
+     *   4. set_transient( 'cu_scanner_job_<user_id>', ... , 7200 ).
+     *
+     * CRITICAL: the transient is keyed on the $user_id PARAMETER, NOT
+     * get_current_user_id() — under WP-cron (outbox replay) the current user is 0,
+     * which would key the job to an invisible scan. Substituting the originating
+     * user_id is the whole point of the extraction.
+     *
+     * @param array  $result         RailwayClient::submit_job() response (job_id).
+     * @param array  $intent         The scan intent (urls used for record + scan_id).
+     * @param array  $detector_typed Typed detection result (events + Class C).
+     * @param string $bypass_token   The bypass token bound to this scan.
+     * @param string $railway_url    Resolved Railway base URL.
+     * @param string $job_token      The reserved job token (late-bound by the caller).
+     * @param int    $user_id        Originating user id (NOT get_current_user_id()).
+     * @return array{job_id:mixed,job_token:string,railway_url:string}
+     */
+    public function perform_submit_side_effects( array $result, array $intent, array $detector_typed, string $bypass_token, string $railway_url, string $job_token, int $user_id ): array {
+        $job_id  = $result['job_id'];
+        $urls    = $intent['urls'];
+
+        // Derive a stable scan_id from the Railway job_id (16 hex chars).
+        $scan_id     = substr( hash( 'sha256', (string) $job_id ), 0, 16 );
+        $primary_url = (string) ( $urls[0] ?? '' );
+
+        EventEmitter::emit(
+            'scan_request_received',
+            'operational',
+            [
+                'scan_id'           => $scan_id,
+                'path_hash'         => substr( hash( 'sha256', $primary_url ), 0, 16 ),
+                'optimizers_active' => count( $detector_typed ),
+            ],
+            $scan_id
+        );
+
+        foreach ( $detector_typed as $file => $entry ) {
+            EventEmitter::emit(
+                'optimizer_detected',
+                'operational',
+                [
+                    'plugin'       => PluginDetector::plugin_file_to_enum( $file ),
+                    'class'        => $entry['class'] ?? '',
+                    'bypass_query' => substr( hash( 'sha256', (string) ( $entry['bypass_query'] ?? '' ) ), 0, 16 ),
+                    'scan_id'      => $scan_id,
+                ],
+                $scan_id
+            );
+        }
+
+        // Class C orchestrator begin (spec §3.5 + §6.1). Consent is guaranteed by
+        // the caller, so this runs the disable strategies directly. A
+        // RuntimeException from begin() propagates to the caller's catch.
+        $class_c_entries = array_filter(
+            $detector_typed,
+            static fn( $e ) => ( $e['class'] ?? '' ) === 'C'
+        );
+        if ( ! empty( $class_c_entries ) ) {
+            $strategies = [];
+            foreach ( $class_c_entries as $entry ) {
+                $method = $entry['disable_method'] ?? '';
+                if ( $method === '' ) continue;
+                try {
+                    $strategies[] = \CUScanner\Scanner\StrategyFactory::for_method( $method );
+                } catch ( \InvalidArgumentException $_ ) {
+                    // Unknown method: silently skip (factory may lag detector additions).
+                }
+            }
+            if ( ! empty( $strategies ) ) {
+                ( new \CUScanner\Scanner\OptimizerBypassOrchestrator( $strategies ) )
+                    ->begin( $scan_id, 1800 );
+            }
+        }
+
+        $domain = wp_parse_url( get_home_url(), PHP_URL_HOST );
+        ( new ScanHistory() )->create_record( $job_id, $domain, count( $urls ), 'queued' );
+
+        // Keyed on the $user_id PARAMETER — under WP-cron get_current_user_id() is 0.
+        set_transient( 'cu_scanner_job_' . $user_id, [
+            'job_id'       => $job_id,
+            'job_token'    => $job_token,
+            'bypass_token' => $bypass_token,
+            'railway_url'  => $railway_url,
+        ], 7200 );
+
+        return [
+            'job_id'      => $job_id,
+            'job_token'   => $job_token,
+            'railway_url' => $railway_url,
+        ];
+    }
+
+    public function submit_job(): void {
+        $this->check();
+        // Wipe all prior banner dismissals — each new scan gets a fresh slate.
+        // After $this->check() so the state-change is gated by nonce + capability per WP Compliance Rules 4/11.
+        // Leading backslash: AIAS_Broken_Banner is in the global namespace; this file is in CUScanner\Admin.
+        \AIAS_Broken_Banner::on_submit_job();
+
+        $settings    = $this->settings();
+        $api_key     = $settings->get_api_key();
+        $job_token   = sanitize_text_field( wp_unslash( $_POST['job_token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $urls_raw    = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['urls'] ?? [] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
+
+        // FU-AAS-EXTRA-TIME (UI Task 4) — per-URL Extra Time flag. JS sends the
+        // subset of selected URLs the operator marked for Extra Time. Sanitize as
+        // URLs (same recognized sanitizer as $urls_raw); build_submit_payload()
+        // array_flips this into the membership set build_pages_array() consumes.
+        $et_urls_raw = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['extra_time_urls'] ?? [] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
+
+        try {
+            $railway_url = $this->ensure_railway_url( $settings, $api_key );
+        } catch ( \RuntimeException $e ) {
+            $this->release_reserved_job( $api_key, $job_token );
+            error_log( '[AI Assets Scanner] submit_job railway_url: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: no secrets, only auth/allowlist failure detail for diagnosis.
+            wp_send_json_error( self::format_submit_error_detail( $e->getMessage() ) );
+            return;
+        }
+
+        $missing = [];
+        if ( ! $railway_url ) {
+            $missing[] = 'railway_url';
+        }
+        if ( ! $job_token ) {
+            $missing[] = 'job_token';
+        }
+        if ( empty( $urls_raw ) ) {
+            $missing[] = 'urls';
+        }
+        if ( $missing ) {
+            $this->release_reserved_job( $api_key, $job_token );
+            error_log( '[AI Assets Scanner] submit_job missing required fields: ' . implode( ',', $missing ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: field names only, no credentials or URLs.
+            wp_send_json_error( 'Missing required fields: ' . implode( ', ', $missing ) );
+            return;
+        }
+
+        // FU-NEW-2 Phase 5 (T5.2) — capture per-URL bypass map from JS probe step.
+        // External URLs use target-detected suffixes; internal URLs use $host_bypass.
+        // Missing external URLs default to [] and fire cu_scanner_target_bypass_missing.
+        //
+        // wp-compliance Rule 25 / proposed-Rule-27 — $_POST may carry a structured
+        // multi-level map (URL key → suffix-array). PHP's $_POST parser hands us
+        // nested arrays without per-value unslash beyond the outer level. Walk the
+        // structure: validate each URL key, validate each suffix value's character
+        // class (must match the legal bypass-suffix shape produced by OPTIMIZERS).
+        // Anything outside that allowlist is dropped silently.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $target_bypass_per_url_raw = isset( $_POST['target_bypass_per_url'] )
+            ? (array) wp_unslash( $_POST['target_bypass_per_url'] )
+            : [];
+        $target_bypass_per_url = [];
+        foreach ( $target_bypass_per_url_raw as $u => $suffixes ) {
+            $clean_url = esc_url_raw( (string) $u );
+            if ( $clean_url === '' || ! is_array( $suffixes ) ) {
+                continue;
+            }
+            $clean_suffixes = [];
+            foreach ( $suffixes as $s ) {
+                $candidate = (string) $s;
+                // Legal bypass-suffix shapes: bare flag (e.g. 'nowprocket')
+                // or 'key=value' (e.g. 'ao_noptimize=1', 'LSCWP_CTRL=before_optm').
+                // Allowed chars: A-Z a-z 0-9 _ - . =
+                if ( preg_match( '/^[A-Za-z0-9_=.\-]+$/', $candidate ) ) {
+                    $clean_suffixes[] = $candidate;
+                }
+            }
+            $target_bypass_per_url[ $clean_url ] = $clean_suffixes;
+        }
+
+        // AC-RC-8a — per-URL submitted_url map. JS sends a parallel submitted_urls[]
+        // array, index-aligned with urls[]: urls[i] is the RESOLVED (post-redirect)
+        // scan URL, submitted_urls[i] is the ORIGINAL URL the operator entered. Flat
+        // scalar array → esc_url_raw per element is a recognized outermost sanitizer
+        // (wp-compliance Rule 24). build_submit_payload() zips them by index.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map esc_url_raw.
+        $submitted_urls_raw = array_map( 'esc_url_raw', wp_unslash( (array) ( $_POST['submitted_urls'] ?? [] ) ) );
+
+        // FU-NEW-2 Phase 5 (T5.4) — capture target_stack_summary blob (forwarded by
+        // JS after the cu_scanner_probe_target_stack step). Null when absent/empty.
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
         $target_stack_summary_raw = isset( $_POST['target_stack_summary'] )
             ? wp_unslash( $_POST['target_stack_summary'] )
             : null;
         $target_stack_summary = self::capture_target_stack_summary( $target_stack_summary_raw );
-        if ( $target_stack_summary !== null ) {
-            $payload['target_stack_summary'] = $target_stack_summary;
-        }
+
+        // Class C consent: '1' when the operator confirmed in the modal.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified at top of submit_job via $this->check() / check_ajax_referer().
+        $class_c_consent_given = isset( $_POST['class_c_consent_given'] ) ? sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) ) : '';
+
+        // Assemble the scan intent (the parity contract shared with Outbox::dispatch).
+        $intent = [
+            'urls'                  => $urls_raw,
+            'submitted_urls'        => $submitted_urls_raw,
+            'extra_time_urls'       => $et_urls_raw,
+            'target_bypass_per_url' => $target_bypass_per_url,
+            'target_stack_summary'  => $target_stack_summary,
+            'class_c_consent_given' => $class_c_consent_given,
+            'user_id'               => get_current_user_id(),
+        ];
+
+        // Parity-by-construction: the SAME builder the outbox replay will call.
+        [ $payload, $detector_typed, $token ] = $this->build_submit_payload( $intent );
+        $payload['job_token'] = $job_token; // late-bind (builder omits it).
 
         try {
             $client = new RailwayClient( $railway_url, $api_key );
             $result = $client->submit_job( $payload );
-            $job_id = $result['job_id'];
-
-            // Derive a stable scan_id from the Railway job_id (16 hex chars).
-            $scan_id    = substr( hash( 'sha256', (string) $job_id ), 0, 16 );
-            $primary_url = (string) ( $urls_raw[0] ?? '' );
-
-            EventEmitter::emit(
-                'scan_request_received',
-                'operational',
-                [
-                    'scan_id'           => $scan_id,
-                    'path_hash'         => substr( hash( 'sha256', $primary_url ), 0, 16 ),
-                    'optimizers_active' => count( $detector_typed ),
-                ],
-                $scan_id
-            );
-
-            foreach ( $detector_typed as $file => $entry ) {
-                EventEmitter::emit(
-                    'optimizer_detected',
-                    'operational',
-                    [
-                        'plugin'       => PluginDetector::plugin_file_to_enum( $file ),
-                        'class'        => $entry['class'] ?? '',
-                        'bypass_query' => substr( hash( 'sha256', (string) ( $entry['bypass_query'] ?? '' ) ), 0, 16 ),
-                        'scan_id'      => $scan_id,
-                    ],
-                    $scan_id
-                );
+            $cc = $this->class_c_consent_payload( $detector_typed, $intent['class_c_consent_given'] );
+            if ( $cc !== null ) {
+                wp_send_json( [ 'ok' => false, 'error' => 'class_c_consent_required', 'class_c_active' => $cc ] );
+                return; // worker job already submitted — unchanged from today's submit-before-consent-gate ordering
             }
-
-            // Class C orchestrator gate (spec §3.5 + §6.1).
-            $class_c_entries = array_filter(
-                $detector_typed,
-                static fn( $e ) => ( $e['class'] ?? '' ) === 'C'
-            );
-
-            if ( ! empty( $class_c_entries ) ) {
-                // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified at top of submit_job via $this->check() / check_ajax_referer().
-                $consent = isset( $_POST['class_c_consent_given'] ) ? sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) ) : '';
-                if ( $consent !== '1' ) {
-                    wp_send_json( [
-                        'ok'             => false,
-                        'error'          => 'class_c_consent_required',
-                        'class_c_active' => array_values( array_map(
-                            static fn( $e ) => [
-                                'slug'    => (string) ( $e['disable_method'] ?? '' ),
-                                'name'    => (string) ( $e['name'] ?? '' ),
-                                'warning' => (string) ( $e['warning'] ?? '' ),
-                            ],
-                            $class_c_entries
-                        ) ),
-                    ] );
-                    return;
-                }
-
-                $strategies = [];
-                foreach ( $class_c_entries as $entry ) {
-                    $method = $entry['disable_method'] ?? '';
-                    if ( $method === '' ) continue;
-                    try {
-                        $strategies[] = \CUScanner\Scanner\StrategyFactory::for_method( $method );
-                    } catch ( \InvalidArgumentException $_ ) {
-                        // Unknown method: silently skip (factory may lag detector additions).
-                    }
-                }
-
-                if ( ! empty( $strategies ) ) {
-                    try {
-                        ( new \CUScanner\Scanner\OptimizerBypassOrchestrator( $strategies ) )
-                            ->begin( $scan_id, 1800 );
-                    } catch ( \RuntimeException $e ) {
-                        wp_send_json( [
-                            'ok'      => false,
-                            'error'   => 'class_c_disable_failed',
-                            'message' => $e->getMessage(),
-                        ] );
-                        return;
-                    }
-                }
-            }
-
-            $domain = wp_parse_url( get_home_url(), PHP_URL_HOST );
-            ( new ScanHistory() )->create_record( $job_id, $domain, count( $urls_raw ), 'queued' );
-
-            set_transient( 'cu_scanner_job_' . get_current_user_id(), [
-                'job_id'       => $job_id,
-                'job_token'    => $job_token,
-                'bypass_token' => $token,
-                'railway_url'  => $railway_url,
-            ], 7200 );
-
-            wp_send_json_success( [
-                'job_id'      => $job_id,
-                'job_token'   => $job_token,
-                'railway_url' => $railway_url,
-            ] );
+            $out = $this->perform_submit_side_effects( $result, $intent, $detector_typed, $token, $railway_url, $job_token, (int) get_current_user_id() );
+            wp_send_json_success( $out );
         } catch ( \RuntimeException $e ) {
-            $bypass->delete_all_tokens();
+            ( new BypassManager() )->delete_all_tokens(); // own handle — $bypass is no longer in this scope after extraction
             $this->release_reserved_job( $api_key, $job_token );
             error_log( '[AI Assets Scanner] submit_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: full exception detail to server log; truncated user-visible detail via format_submit_error_detail().
-            wp_send_json_error( self::format_submit_error_detail( $e->getMessage() ) );
+            // Merge `retryable` INTO the error $data (NOT the 2nd arg). WP's
+            // wp_send_json_error($data,$status_code,$options) treats the 2nd arg as
+            // an HTTP status code → an array there breaks status_header(). The
+            // existing calls pass no status code; embedding the flag in $data keeps
+            // the HTTP status unchanged and lets JS route retryable failures to the
+            // outbox (Phase O). `message` preserves the user-visible detail string.
+            wp_send_json_error( [
+                'message'   => self::format_submit_error_detail( $e->getMessage() ),
+                'retryable' => \CUScanner\Scanner\Outbox::is_retryable( $e ),
+            ] );
         }
     }
 
