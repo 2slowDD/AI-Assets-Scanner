@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.19';
+    const SCANNER_JS_VERSION = '1.0.10.20';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -26,6 +26,7 @@
     let hasSoftBlocks  = false;
     let includedUrls   = [];   // include URLs not duplicated in discoveredUrls
     let availableBalance = null; // credit balance fetched from detect_plugins response
+    let outboxTickTimer  = null; // interval id for outbox polling (null = not ticking)
 
     const STEP_LABELS = {
         1: 'Step 1 \u2014 Discover Pages',
@@ -914,6 +915,109 @@
         }
     }
 
+    // --- Phase O: Outbox banner + tick ---
+
+    /**
+     * Show a persistent "queued locally" banner in the step-3 scan-status area.
+     * Mirrors the showQueueBanner() DOM pattern (notice notice-info inline, inserted
+     * before the progress bar) so it uses the same markup conventions.
+     */
+    function showOutboxBanner() {
+        showStep(3);
+        let banner = document.getElementById('cu-outbox-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'cu-outbox-banner';
+            banner.className = 'notice notice-info inline';
+            banner.style.marginTop = '10px';
+            const progressBar = document.getElementById('cu-progress-bar');
+            if (progressBar && progressBar.parentNode) {
+                progressBar.parentNode.insertBefore(banner, progressBar);
+            }
+        }
+        banner.innerHTML = '<p><strong>Backend temporarily unavailable</strong> — your scan is queued locally and will dispatch automatically when the backend is reachable.</p>';
+        banner.style.display = '';
+        const pb = document.getElementById('cu-progress-bar');
+        if (pb) pb.style.display = 'none';
+        const pt = document.getElementById('cu-progress-text');
+        if (pt) pt.style.display = 'none';
+    }
+
+    function hideOutboxBanner() {
+        const banner = document.getElementById('cu-outbox-banner');
+        if (banner) banner.style.display = 'none';
+    }
+
+    /**
+     * Poll cu_scanner_outbox_tick every 30 s.
+     * Terminal states (dispatched / failed / none) stop the interval.
+     * Guard: does nothing if an interval is already running.
+     */
+    function startOutboxTick() {
+        if (outboxTickTimer !== null) return; // already ticking
+        outboxTickTimer = setInterval(function () {
+            post('cu_scanner_outbox_tick', {}).then(function (res) {
+                if (!res.success) return; // server error — keep ticking
+                const d = res.data || {};
+                const state = d.state || 'none';
+
+                if (state === 'queued') {
+                    // Still waiting — keep the banner, keep ticking.
+                    // Optionally show next-attempt time if provided.
+                    return;
+                }
+
+                // Terminal state — stop polling.
+                clearInterval(outboxTickTimer);
+                outboxTickTimer = null;
+
+                if (state === 'dispatched') {
+                    hideOutboxBanner();
+                    scanJobId     = d.job_id    || null;
+                    scanJobToken  = d.job_token  || null;
+                    railwayUrl    = d.railway_url || null;
+                    lastPageIndex = 0;
+                    sessionStorage.setItem('cu_scanner_active_job', JSON.stringify({
+                        job_id:      scanJobId,
+                        job_token:   scanJobToken,
+                        railway_url: railwayUrl,
+                    }));
+                    showStep(3);
+                    startPolling();
+                } else if (state === 'failed') {
+                    hideOutboxBanner();
+                    showStep(1);
+                    alert('Scan failed: ' + esc(d.message || 'Unknown error. Please try again.'));
+                } else {
+                    // state === 'none' — nothing queued (e.g. cleared externally).
+                    hideOutboxBanner();
+                    showStep(1);
+                }
+            });
+        }, 30000);
+    }
+
+    /**
+     * Helper: build the outbox intent payload from the current scan state.
+     * Must include the same fields that cu_scanner_submit_job sends so the
+     * server's intent_from_post() can reconstruct the scan.
+     */
+    function buildOutboxPayload( pageCount, etCount, etSelected, jobToken ) {
+        const payload = {
+            urls:                  selectedUrls.map(u => resolvedByUrl[u] || u),
+            submitted_urls:        selectedUrls,
+            extra_time_urls:       etSelected.map(u => resolvedByUrl[u] || u),
+            target_bypass_per_url: targetBypassPerUrl,
+            target_stack_summary:  targetStackSummary,
+            page_count:            pageCount,
+            extra_time_count:      etCount,
+        };
+        if (jobToken) {
+            payload.job_token = jobToken;
+        }
+        return payload;
+    }
+
     // --- Step 2: Reserve + Submit ---
 
     // Top "Start Scan" button (above the URL list) mirrors the bottom one —
@@ -1036,9 +1140,35 @@
         const etSelected = extraTimeUrls.filter(u => selectedUrls.includes(u));
         // Use selectedUrls.length — only charge for URLs that will actually be scanned.
         // extra_time_count drives the SaaS reserve gate (N pages + M extra-time = N+M credits).
-        post('cu_scanner_reserve_job', { page_count: selectedUrls.length, extra_time_count: etSelected.length })
+        const pageCount = selectedUrls.length;
+        const etCount   = etSelected.length;
+
+        // Helper: route a retryable outbox failure. Enqueues the scan intent
+        // and shows the queued-locally banner + starts the 30 s tick poll.
+        // jobToken: pass the reserve token when available (post-reserve failure),
+        // or omit/null when the reserve itself failed (token not yet issued).
+        function routeToOutbox( jobToken ) {
+            post('cu_scanner_outbox_enqueue', buildOutboxPayload( pageCount, etCount, etSelected, jobToken ))
+                .then(function () {
+                    showOutboxBanner();
+                    startOutboxTick();
+                });
+        }
+
+        post('cu_scanner_reserve_job', { page_count: pageCount, extra_time_count: etCount })
             .then(res => {
-                if (!res.success) { showStep(1); alert('Error: ' + res.data); return; }
+                if (!res.success) {
+                    // res.data is now {message, retryable} — defensive: handle legacy string too.
+                    const retryable = res.data && res.data.retryable === true;
+                    const msg       = (res.data && res.data.message) ? res.data.message : res.data;
+                    if (retryable) {
+                        routeToOutbox( null );
+                    } else {
+                        showStep(1);
+                        alert('Error: ' + msg);
+                    }
+                    return;
+                }
                 const job_token = res.data.job_token;
                 post('cu_scanner_submit_job', {
                     // AC-RC-8a — scan the resolved URL, carry the original submitted URL.
@@ -1077,17 +1207,31 @@
                                 target_stack_summary: targetStackSummary,
                             });
                             if (!retry.success) {
+                                // res.data is now {message, retryable} — defensive: handle legacy string too.
+                                const retryable = retry.data && retry.data.retryable === true;
+                                const msg       = (retry.data && retry.data.message) ? retry.data.message : retry.data;
                                 post('cu_scanner_handle_failure');
-                                showStep(1);
-                                alert('Error: ' + retry.data);
+                                if (retryable) {
+                                    routeToOutbox( job_token );
+                                } else {
+                                    showStep(1);
+                                    alert('Error: ' + msg);
+                                }
                                 return;
                             }
                             res2 = retry;
                         }
                         if (!res2.success) {
+                            // res.data is now {message, retryable} — defensive: handle legacy string too.
+                            const retryable = res2.data && res2.data.retryable === true;
+                            const msg       = (res2.data && res2.data.message) ? res2.data.message : res2.data;
                             post('cu_scanner_handle_failure');
-                            showStep(1);
-                            alert('Error: ' + res2.data);
+                            if (retryable) {
+                                routeToOutbox( job_token );
+                            } else {
+                                showStep(1);
+                                alert('Error: ' + msg);
+                            }
                             return;
                         }
                         scanJobId     = res2.data.job_id;
@@ -1104,14 +1248,14 @@
                         startPolling();
                     })
                     .catch(() => {
+                        // Network error on submit — retryable (canonical outage case).
                         post('cu_scanner_handle_failure');
-                        showStep(1);
-                        alert('Error: Scan submission failed. Please try again.');
+                        routeToOutbox( job_token );
                     });
             })
             .catch(() => {
-                showStep(1);
-                alert('Error: Could not connect to server. Please try again.');
+                // Network error on reserve — retryable (canonical outage case).
+                routeToOutbox( null );
             });
     });
 
@@ -1760,6 +1904,33 @@
         } catch (_) {
             sessionStorage.removeItem('cu_scanner_active_job');
         }
+    }());
+
+    // --- Phase O: Re-attach outbox on page load ---
+    // If the server reports a queued or dispatched outbox entry (populated by PHP
+    // via the cuScanner.outbox localized value), restore the matching UI state so
+    // a page reload during an outage doesn't show an idle Step 1.
+    (function restoreOutboxState() {
+        var ob = (typeof cuScanner !== 'undefined' && cuScanner.outbox) ? cuScanner.outbox : null;
+        if (!ob || !ob.state) return;
+
+        if (ob.state === 'queued') {
+            showOutboxBanner();
+            startOutboxTick();
+        } else if (ob.state === 'dispatched') {
+            scanJobId     = ob.job_id    || null;
+            scanJobToken  = ob.job_token  || null;
+            railwayUrl    = ob.railway_url || null;
+            lastPageIndex = 0;
+            sessionStorage.setItem('cu_scanner_active_job', JSON.stringify({
+                job_id:      scanJobId,
+                job_token:   scanJobToken,
+                railway_url: railwayUrl,
+            }));
+            showStep(3);
+            startPolling();
+        }
+        // 'failed' and 'none' need no special UI — Step 1 is already shown.
     }());
 
     detectPlugins();
