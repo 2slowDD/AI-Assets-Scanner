@@ -147,4 +147,177 @@ class Outbox {
             wp_schedule_single_event( $at, self::CRON_HOOK );
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Dispatch chain (Task 6).
+    // -------------------------------------------------------------------------
+
+    /**
+     * Replay the queued scan intent: clear bypass, (release stale half-state),
+     * build payload, consent pre-check, reserve, resolve endpoint, submit, then
+     * run the shared side-effects. All I/O is funneled through self::call() so
+     * tests inject stubs via $deps; production calls dispatch() zero-arg.
+     *
+     * @param array $deps Optional dep-name => callable overrides (testability seam).
+     * @return string One of: done|failed|pending|none.
+     */
+    public static function dispatch( array $deps = [] ): string {
+        $entry = self::load();
+        if ( ! $entry || in_array( $entry['status'] ?? '', [ 'done', 'failed' ], true ) ) {
+            return $entry['status'] ?? 'none';
+        }
+        // due-guard BEFORE the lock: a not-yet-due tick must not take the lock or reserve.
+        if ( (int) ( $entry['next_attempt_at'] ?? 0 ) > time() ) {
+            return 'pending';
+        }
+        if ( ! self::acquire_lock() ) {
+            return 'pending';
+        }
+        try {
+            self::call( $deps, 'clear_bypass', [] ); // F-SEC: bound live bypass-token set to 1
+
+            $now = time();
+            if ( $entry['attempts'] >= self::MAX_ATTEMPTS || ( $now - (int) $entry['created_at'] ) > self::HORIZON ) {
+                return self::fail( $entry, "couldn't reach the backend after repeated attempts - please try again.", $deps );
+            }
+
+            if ( ! empty( $entry['job_token'] ) ) { // release stale half-state from a prior pass
+                self::call( $deps, 'release', [ $entry['job_token'] ] );
+                $entry['job_token'] = null;
+                self::save( $entry );
+            }
+
+            $intent  = $entry['intent'];
+            $user_id = (int) ( $intent['user_id'] ?? 0 );
+
+            [ $payload, $detector_typed, $bypass_token ] = self::call( $deps, 'build_payload', [ $intent ] );
+            if ( self::call( $deps, 'consent_payload', [ $detector_typed, $intent['class_c_consent_given'] ?? '' ] ) !== null ) {
+                return self::fail( $entry, "This scan needs optimizer-disable consent and can't be auto-dispatched - please start it again.", $deps );
+            }
+
+            try {
+                $token = self::call( $deps, 'reserve', [ (int) $intent['page_count'], (int) ( $intent['extra_time_count'] ?? 0 ) ] );
+            } catch ( \Throwable $e ) {
+                return self::retry_or_fail( $entry, $e, $deps );
+            }
+            $entry['job_token'] = $token;
+            self::save( $entry );            // crash-safe checkpoint
+            $payload['job_token'] = $token;  // late-bind
+
+            try {
+                $railway_url = self::call( $deps, 'resolve_endpoint', [] );
+            } catch ( \Throwable $e ) {
+                return self::retry_or_fail( $entry, $e, $deps );
+            }
+
+            try {
+                $result = self::call( $deps, 'submit', [ $railway_url, $payload ] );
+            } catch ( \Throwable $e ) {
+                $code = $e instanceof HttpException ? $e->get_status_code() : -1;
+                if ( $code === 409 ) {
+                    return self::fail( $entry, 'another scan on this account became active; this locally queued request was canceled.', $deps );
+                }
+                if ( self::is_retryable( $e ) ) {
+                    return self::backoff( $entry, $e );
+                }
+                return self::fail( $entry, $e->getMessage(), $deps );
+            }
+
+            try {
+                self::call( $deps, 'side_effects', [ $result, $intent, $detector_typed, $bypass_token, $railway_url, $token, $user_id ] );
+            } catch ( \Throwable $e ) {
+                // §10.6 safety net: worker job already created + charged -> keep it pollable, do NOT release.
+                set_transient( 'cu_scanner_job_' . $user_id, [
+                    'job_id'       => $result['job_id'] ?? '',
+                    'job_token'    => $token,
+                    'bypass_token' => $bypass_token,
+                    'railway_url'  => $railway_url,
+                ], 7200 );
+                $entry['job_token'] = null; // ownership handed to the job transient
+                return self::fail( $entry, $e->getMessage(), $deps );
+            }
+
+            $entry['job_token'] = null;
+            self::done();
+            return 'done';
+        } finally {
+            self::release_lock();
+        }
+    }
+
+    /**
+     * Run a dep stub when provided, else the real collaborator. The seam keeps
+     * dispatch() free of direct HTTP/WP-data calls so unit tests stay hermetic.
+     *
+     * @param array  $deps Injected overrides.
+     * @param string $name Dep name (see the real-default branch below).
+     * @param array  $args Positional args for the dep.
+     * @return mixed
+     */
+    private static function call( array $deps, string $name, array $args ) {
+        if ( isset( $deps[ $name ] ) && is_callable( $deps[ $name ] ) ) {
+            return ( $deps[ $name ] )( ...$args );
+        }
+        switch ( $name ) {
+            case 'clear_bypass':
+                ( new \CUScanner\Scanner\BypassManager() )->delete_all_tokens();
+                return null;
+            case 'resolve_endpoint':
+                $s = new \CUScanner\Settings();
+                return ( new \CUScanner\Admin\ScannerAjax() )->ensure_railway_url( $s, $s->get_api_key() );
+            case 'reserve':
+                $ak = ( new \CUScanner\Settings() )->get_api_key();
+                return ( new \CUScanner\Api\WpserviceClient( CU_SCANNER_WPSERVICE_URL, $ak ) )
+                    ->reserve_job( (int) $args[0], (int) $args[1] )['job_token'];
+            case 'submit':
+                $ak = ( new \CUScanner\Settings() )->get_api_key();
+                return ( new \CUScanner\Api\RailwayClient( (string) $args[0], $ak ) )->submit_job( $args[1] );
+            case 'release':
+                $ak = ( new \CUScanner\Settings() )->get_api_key();
+                ( new \CUScanner\Api\WpserviceClient( CU_SCANNER_WPSERVICE_URL, $ak ) )->release_credits( (string) $args[0] );
+                return null;
+            case 'build_payload':
+                return ( new \CUScanner\Admin\ScannerAjax() )->build_submit_payload( $args[0] );
+            case 'consent_payload':
+                return ( new \CUScanner\Admin\ScannerAjax() )->class_c_consent_payload( $args[0], (string) $args[1] );
+            case 'side_effects':
+                return ( new \CUScanner\Admin\ScannerAjax() )->perform_submit_side_effects(
+                    $args[0], $args[1], $args[2], (string) $args[3], (string) $args[4], (string) $args[5], (int) $args[6]
+                );
+        }
+        return null;
+    }
+
+    /**
+     * Terminal failure: release any held reservation (M2 — never strand credits),
+     * clear bypass tokens, persist status=failed + short error, drop the cron.
+     *
+     * @param array  $entry Current outbox entry.
+     * @param string $msg   Human-facing error.
+     * @param array  $deps  Dep seam.
+     * @return string Always 'failed'.
+     */
+    private static function fail( array $entry, string $msg, array $deps ): string {
+        if ( ! empty( $entry['job_token'] ) ) {           // M2: never strand a reservation
+            try { self::call( $deps, 'release', [ $entry['job_token'] ] ); } catch ( \Throwable $e ) {} // best-effort
+            $entry['job_token'] = null;
+        }
+        try { self::call( $deps, 'clear_bypass', [] ); } catch ( \Throwable $e ) {}
+        $entry['status']     = 'failed';
+        $entry['last_error'] = self::short( $msg );
+        self::save( $entry );
+        wp_clear_scheduled_hook( self::CRON_HOOK );
+        return 'failed';
+    }
+
+    /** Successful dispatch: drop the entry + cron. */
+    private static function done(): void {
+        delete_option( self::OPTION_KEY );
+        wp_clear_scheduled_hook( self::CRON_HOOK );
+    }
+
+    /** Retry (backoff) when the error is retryable, else terminal fail. */
+    private static function retry_or_fail( array $entry, \Throwable $e, array $deps ): string {
+        return self::is_retryable( $e ) ? self::backoff( $entry, $e ) : self::fail( $entry, $e->getMessage(), $deps );
+    }
 }

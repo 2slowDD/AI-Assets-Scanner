@@ -86,7 +86,7 @@ class ScannerAjax {
             : 'url_set_mismatch';
     }
 
-    private function ensure_railway_url( Settings $settings, string $api_key ): string {
+    public function ensure_railway_url( Settings $settings, string $api_key ): string {
         $railway_url = $settings->get_railway_url();
         if ( Settings::is_safe_railway_url( $railway_url ) ) {
             return $railway_url;
