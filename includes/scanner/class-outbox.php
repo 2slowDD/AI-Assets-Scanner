@@ -323,4 +323,54 @@ class Outbox {
     private static function retry_or_fail( array $entry, \Throwable $e, array $deps ): string {
         return self::is_retryable( $e ) ? self::backoff( $entry, $e ) : self::fail( $entry, $e->getMessage(), $deps );
     }
+
+    // -------------------------------------------------------------------------
+    // Done-handoff state contract + cron entry point (Task 8).
+    // -------------------------------------------------------------------------
+
+    /**
+     * Done-handoff state contract (§10.7).
+     *
+     * Returns one of:
+     *   ['state'=>'queued',      'next_attempt_at'=>int]
+     *   ['state'=>'failed',      'message'=>string]
+     *   ['state'=>'dispatched',  'job_id'=>..., 'job_token'=>..., 'railway_url'=>...]
+     *   ['state'=>'none']
+     *
+     * Priority: outbox entry (pending/failed) > job transient (dispatched) > none.
+     * A 'failed' entry is never deleted by dispatch() — only done() deletes the option —
+     * so this method correctly surfaces it. A later enqueue() overwrites it (enqueue()
+     * only rejects on status==='pending').
+     *
+     * @param int $user_id The current WP user ID (used to look up the job transient).
+     * @return array{state:string} State array with shape matching one of the four contracts above.
+     */
+    public static function outbox_state_for_user( int $user_id ): array {
+        $entry = self::load();
+        if ( $entry && ( $entry['status'] ?? '' ) === 'pending' ) {
+            return [ 'state' => 'queued', 'next_attempt_at' => (int) ( $entry['next_attempt_at'] ?? 0 ) ];
+        }
+        if ( $entry && ( $entry['status'] ?? '' ) === 'failed' ) {
+            return [ 'state' => 'failed', 'message' => (string) ( $entry['last_error'] ?? '' ) ];
+        }
+        $job = get_transient( 'cu_scanner_job_' . $user_id );
+        if ( is_array( $job ) && ! empty( $job['job_id'] ) ) {
+            return [
+                'state'       => 'dispatched',
+                'job_id'      => $job['job_id'],
+                'job_token'   => $job['job_token'] ?? '',
+                'railway_url' => $job['railway_url'] ?? '',
+            ];
+        }
+        return [ 'state' => 'none' ];
+    }
+
+    /**
+     * Cron entry point (CRON_HOOK = 'cu_scanner_outbox_replay').
+     *
+     * Delegates to dispatch() which internally guards against not-yet-due entries.
+     */
+    public static function replay(): void {
+        self::dispatch();
+    }
 }

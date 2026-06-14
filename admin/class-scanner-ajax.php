@@ -34,6 +34,8 @@ class ScannerAjax {
             'cu_scanner_delete_history',
             'cu_scanner_probe_target_stack',
             'cu_scanner_get_badge_state',
+            'cu_scanner_outbox_enqueue',
+            'cu_scanner_outbox_tick',
         ];
         foreach ( $actions as $action ) {
             add_action( 'wp_ajax_' . $action, [ $this, str_replace( 'cu_scanner_', '', $action ) ] );
@@ -1865,5 +1867,121 @@ class ScannerAjax {
         }
         // Fall through to CSV-only if ZIP build failed.
         $this->stream_csv_response( $records );
+    }
+
+    // -------------------------------------------------------------------------
+    // Phase O outbox AJAX handlers (Task 8).
+    // -------------------------------------------------------------------------
+
+    /**
+     * Build the scan $intent array from $_POST, mirroring submit_job()'s
+     * $_POST reads and sanitizers exactly (parity contract shared with Outbox::dispatch).
+     *
+     * Keys produced:
+     *   urls, submitted_urls, extra_time_urls — sanitized URL arrays
+     *   extra_time_count, page_count          — absint scalars (needed by dispatch reserve call)
+     *   target_bypass_per_url                 — nested allowlist-walked map
+     *   target_stack_summary                  — via capture_target_stack_summary()
+     *   class_c_consent_given                 — sanitize_text_field
+     *   user_id                               — get_current_user_id()
+     *
+     * All phpcs:ignore comments are consistent with submit_job()'s equivalent reads.
+     *
+     * @return array Scan intent ready for Outbox::enqueue().
+     */
+    private function intent_from_post(): array {
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
+        $urls_raw = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['urls'] ?? [] ) ) );
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map sanitize_url.
+        $et_urls_raw = array_map( 'sanitize_url', wp_unslash( (array) ( $_POST['extra_time_urls'] ?? [] ) ) );
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); URLs sanitized via array_map esc_url_raw.
+        $submitted_urls_raw = array_map( 'esc_url_raw', wp_unslash( (array) ( $_POST['submitted_urls'] ?? [] ) ) );
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $extra_time_count = absint( $_POST['extra_time_count'] ?? 0 );
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $page_count = absint( $_POST['page_count'] ?? 0 );
+
+        // wp-compliance Rule 25 / proposed-Rule-27 — nested $_POST map: URL key → suffix-array.
+        // Walk and validate each level; drop anything outside the allowlist character class.
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $target_bypass_per_url_raw = isset( $_POST['target_bypass_per_url'] )
+            ? (array) wp_unslash( $_POST['target_bypass_per_url'] )
+            : [];
+        $target_bypass_per_url = [];
+        foreach ( $target_bypass_per_url_raw as $u => $suffixes ) {
+            $clean_url = esc_url_raw( (string) $u );
+            if ( $clean_url === '' || ! is_array( $suffixes ) ) {
+                continue;
+            }
+            $clean_suffixes = [];
+            foreach ( $suffixes as $s ) {
+                $candidate = (string) $s;
+                if ( preg_match( '/^[A-Za-z0-9_=.\-]+$/', $candidate ) ) {
+                    $clean_suffixes[] = $candidate;
+                }
+            }
+            $target_bypass_per_url[ $clean_url ] = $clean_suffixes;
+        }
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+        $target_stack_summary_raw = isset( $_POST['target_stack_summary'] )
+            ? wp_unslash( $_POST['target_stack_summary'] )
+            : null;
+        $target_stack_summary = self::capture_target_stack_summary( $target_stack_summary_raw );
+
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified via $this->check() / check_ajax_referer().
+        $class_c_consent_given = isset( $_POST['class_c_consent_given'] )
+            ? sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) )
+            : '';
+
+        return [
+            'urls'                  => $urls_raw,
+            'submitted_urls'        => $submitted_urls_raw,
+            'extra_time_urls'       => $et_urls_raw,
+            'extra_time_count'      => $extra_time_count,
+            'page_count'            => $page_count,
+            'target_bypass_per_url' => $target_bypass_per_url,
+            'target_stack_summary'  => $target_stack_summary,
+            'class_c_consent_given' => $class_c_consent_given,
+            'user_id'               => get_current_user_id(),
+        ];
+    }
+
+    /**
+     * AJAX handler: enqueue a scan intent into the outbox (Phase O).
+     *
+     * Called by the JS outbox path when a submit fails with a retryable error.
+     * The intent is built from $_POST using the same sanitizers as submit_job().
+     * wp-compliance: check() first (nonce + capability); no raw SQL/output.
+     */
+    public function outbox_enqueue(): void {
+        $this->check();
+        $intent = $this->intent_from_post();
+        $ok = \CUScanner\Scanner\Outbox::enqueue( $intent );
+        if ( ! $ok ) {
+            wp_send_json_error( [ 'message' => 'A scan request is already queued locally for this site.' ] );
+            return;
+        }
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- diagnostic; no secrets
+        error_log( '[AI Assets Scanner] outbox: enqueued scan for user ' . get_current_user_id() );
+        wp_send_json_success( [ 'queued' => true ] );
+    }
+
+    /**
+     * AJAX handler: tick the outbox (Phase O done-handoff).
+     *
+     * Attempts a dispatch (internally guarded — early-returns 'pending' when not yet due),
+     * then returns the current state contract so the open tab can react:
+     * queued | failed | dispatched | none.
+     * wp-compliance: check() first (nonce + capability); no raw SQL/output.
+     */
+    public function outbox_tick(): void {
+        $this->check();
+        \CUScanner\Scanner\Outbox::dispatch(); // runs only if due (internally guarded)
+        wp_send_json_success( \CUScanner\Scanner\Outbox::outbox_state_for_user( (int) get_current_user_id() ) );
     }
 }
