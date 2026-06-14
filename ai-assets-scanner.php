@@ -95,6 +95,8 @@ add_action( 'cu_scanner_free_key_retry', function (): void {
     ( new \CUScanner\FreeKeyBootstrap() )->run();
 } );
 
+add_action( \CUScanner\Scanner\Outbox::CRON_HOOK, [ \CUScanner\Scanner\Outbox::class, 'replay' ] );
+
 add_action( 'plugins_loaded', function (): void {
     ( new CUScanner\Plugin() )->init();
 } );
