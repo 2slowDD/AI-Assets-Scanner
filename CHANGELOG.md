@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.39b - 2026-06-14
+
+### Fixed - A locally-queued scan no longer strands a reservation during a long outage
+
+- When a scan was queued locally during a backend outage (1.7.37b outbox), the original credit reservation could be left active-but-orphaned, so the queued scan then failed with "a scan is already queued or running" and the account stayed blocked until the reservation expired. The locally-queued scan now takes ownership of that reservation and releases it cleanly before retrying, so it dispatches normally when the backend returns.
+
+---
+
 ## 1.7.38b - 2026-06-14
 
 ### Fixed — Cancel no longer silently strands a scan when the backend is unreachable
