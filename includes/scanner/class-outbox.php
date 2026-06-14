@@ -59,8 +59,78 @@ class Outbox {
     }
 
     // -------------------------------------------------------------------------
+    // Concurrency: claim-lock (Tasks 7).
+    // -------------------------------------------------------------------------
+
+    /**
+     * Attempt to claim the outbox dispatch lock.
+     *
+     * Uses add_option NX semantics: succeeds only when the key is absent.
+     * If the option already exists but the stored timestamp is older than
+     * LOCK_TTL seconds (stale lock), the lock is taken over via update_option.
+     *
+     * @return bool True when the lock was acquired, false if held by another caller.
+     */
+    public static function acquire_lock(): bool {
+        if ( add_option( self::LOCK_KEY, time(), '', 'no' ) ) {
+            return true;
+        }
+        $held = (int) get_option( self::LOCK_KEY );
+        if ( ( time() - $held ) > self::LOCK_TTL ) { // stale → take over
+            update_option( self::LOCK_KEY, time(), false );
+            return true;
+        }
+        return false;
+    }
+
+    /** Release the outbox dispatch lock. */
+    public static function release_lock(): void {
+        delete_option( self::LOCK_KEY );
+    }
+
+    // -------------------------------------------------------------------------
+    // Backoff helpers (Tasks 7).
+    // -------------------------------------------------------------------------
+
+    /**
+     * Deterministic backoff core (jitter is added in backoff()).
+     *
+     * Returns BASE_BACKOFF * 2^attempts, capped at MAX_BACKOFF.
+     *
+     * @param int $attempts Number of prior attempts (0-based).
+     * @return int Delay in seconds.
+     */
+    public static function next_delay( int $attempts ): int {
+        return (int) min( self::MAX_BACKOFF, self::BASE_BACKOFF * ( 2 ** $attempts ) );
+    }
+
+    /**
+     * Record a failed attempt: bump counter, compute next-attempt timestamp
+     * (with jitter), persist, and re-schedule.
+     *
+     * @param array      $entry The current outbox entry.
+     * @param \Throwable $e     The caught exception.
+     * @return string Always 'pending'.
+     */
+    private static function backoff( array $entry, \Throwable $e ): string {
+        $entry['attempts']++;
+        $jitter = random_int( 0, self::BASE_BACKOFF );
+        $entry['next_attempt_at'] = time() + self::next_delay( $entry['attempts'] ) + $jitter;
+        $entry['last_error']      = self::short( $e->getMessage() );
+        $entry['status']          = 'pending';
+        self::save( $entry );
+        self::schedule( $entry['next_attempt_at'] );
+        return 'pending';
+    }
+
+    /** Truncate a string to 200 characters (mb-safe). */
+    private static function short( string $s ): string {
+        return mb_substr( $s, 0, 200 );
+    }
+
+    // -------------------------------------------------------------------------
     // Private helpers — load / save / schedule
-    // dispatch(), lock helpers, outbox_state_for_user(), replay() are Tasks 6-8.
+    // dispatch(), outbox_state_for_user(), replay() are Tasks 6/8.
     // -------------------------------------------------------------------------
 
     private static function load(): ?array {
