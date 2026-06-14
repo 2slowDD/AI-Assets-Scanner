@@ -121,4 +121,46 @@ class WpserviceClientTest extends TestCase {
         $this->client->release_credits( 'tok-abc' );
         $this->assertConditionsMet();
     }
+
+    public function test_release_credits_sends_job_token_as_bearer(): void {
+        // AC-RB-1 (FU-OUTBOX-RELEASE-BEARER) — /credits/release is token-authed:
+        // the Authorization Bearer MUST equal the job_token, NOT the account api_key.
+        // Sending the api_key fails SaaS authenticate_bearer() (no job_tokens row for
+        // hash(api_key)) → 401 → reservation never releases → stranded credit.
+        $captured = null;
+        WP_Mock::userFunction( 'wp_remote_post' )
+            ->with( 'https://wpservice.pro/wp-json/cu-scanner/v1/credits/release', \Mockery::on( function ( array $args ) use ( &$captured ): bool {
+                $captured = $args['headers']['Authorization'] ?? null;
+                return true;
+            } ) )
+            ->once()
+            ->andReturn( [] );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( '{}' );
+
+        $this->client->release_credits( 'tok-abc' );
+
+        $this->assertSame( 'Bearer tok-abc', $captured );
+    }
+
+    public function test_reserve_job_sends_api_key_as_bearer(): void {
+        // Parity guard for AC-RB-1 — account-authed endpoints (reserve/auth/credits/events)
+        // must still send the account api_key Bearer, unaffected by the release-path fix.
+        $captured = null;
+        WP_Mock::userFunction( 'wp_remote_post' )
+            ->with( 'https://wpservice.pro/wp-json/cu-scanner/v1/jobs/reserve', \Mockery::on( function ( array $args ) use ( &$captured ): bool {
+                $captured = $args['headers']['Authorization'] ?? null;
+                return true;
+            } ) )
+            ->once()
+            ->andReturn( [] );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( json_encode( [ 'job_token' => 'tok-x' ] ) );
+
+        $this->client->reserve_job( 5 );
+
+        $this->assertSame( 'Bearer sk-test', $captured );
+    }
 }

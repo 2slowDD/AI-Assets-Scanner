@@ -48,10 +48,13 @@ class WpserviceClient {
     }
 
     public function release_credits( string $job_token ): void {
+        // /credits/release is token-authed: the Bearer MUST equal the job_token, not the
+        // account api_key. The SaaS endpoint runs authenticate_bearer() + hash_equals against
+        // the job_tokens table, so an api_key Bearer 401s and the reservation never releases.
         $this->post( '/cu-scanner/v1/credits/release', [
             'job_token' => $job_token,
             'domain'    => $this->domain(),
-        ] );
+        ], $job_token );
     }
 
     /**
@@ -73,10 +76,10 @@ class WpserviceClient {
         return DomainNormalizer::normalize_url( get_home_url() );
     }
 
-    private function post( string $path, array $body ): array {
+    private function post( string $path, array $body, ?string $bearer = null ): array {
         $response = wp_remote_post( $this->base_url . $path, [
             'headers' => [
-                'Authorization' => 'Bearer ' . $this->api_key,
+                'Authorization' => 'Bearer ' . ( $bearer ?? $this->api_key ),
                 'Content-Type'  => 'application/json',
             ],
             'body'    => json_encode( $body ),

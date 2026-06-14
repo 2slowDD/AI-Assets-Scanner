@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.40b - 2026-06-14
+
+### Fixed — A queued-during-outage scan now releases its reservation cleanly (no more stuck "scan already running")
+
+- The 1.7.37b–1.7.39b outage outbox could still leave a credit reservation stranded after a backend outage: the queued scan's attempt to release its half-completed reservation was rejected by the server's auth check, so the reservation stayed active and the next scan was blocked with "a scan is already queued or running" until the reservation expired (up to 24h) or an admin cleared it.
+- Root cause: the plugin's reservation-release call authenticated with the account API key instead of the scan's own job token; the release endpoint requires the job token, so every release silently failed. The release call now sends the correct job token, so reservations release as intended across all paths (submit failure, scan failure, and the outage-outbox retry). No change to what you're charged.
+
+---
+
 ## 1.7.39b - 2026-06-14
 
 ### Fixed - A locally-queued scan no longer strands a reservation during a long outage
