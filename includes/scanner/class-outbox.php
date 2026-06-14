@@ -281,11 +281,14 @@ class Outbox {
             case 'consent_payload':
                 return ( new \CUScanner\Admin\ScannerAjax() )->class_c_consent_payload( $args[0], (string) $args[1] );
             case 'side_effects':
+                // $args: 0=result, 1=intent, 2=detector_typed, 3=bypass_token, 4=railway_url, 5=job_token, 6=user_id
                 return ( new \CUScanner\Admin\ScannerAjax() )->perform_submit_side_effects(
                     $args[0], $args[1], $args[2], (string) $args[3], (string) $args[4], (string) $args[5], (int) $args[6]
                 );
         }
-        return null;
+        // Code-review I-2: a mistyped dep name must fail loudly, not return null silently
+        // (which would surface as an opaque "cannot unpack non-array" later).
+        throw new \LogicException( "Outbox::call() unknown dependency: {$name}" );
     }
 
     /**
