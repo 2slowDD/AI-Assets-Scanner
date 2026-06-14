@@ -38,6 +38,7 @@ class AdminPages {
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'cu_scanner_nonce' ),
                 'siteUrl' => get_home_url(),
+                'outbox'  => \CUScanner\Scanner\Outbox::outbox_state_for_user( get_current_user_id() ),
             ] );
             // Subsystem D-4: nonce for AJAX banner-dismiss endpoint.
             wp_localize_script( 'cu-scanner-scanner', 'aiasBannerL10n', [
