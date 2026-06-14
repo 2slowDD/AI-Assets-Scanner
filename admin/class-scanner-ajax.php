@@ -118,6 +118,38 @@ class ScannerAjax {
         } catch ( \RuntimeException ) {}
     }
 
+    /**
+     * Build the wp_send_json_error payload for a failed reserve/submit.
+     *
+     * Group C (AAS 409 UX): a 409 from the gate or the SaaS reserve means a scan is
+     * already queued/running for this account (`scan_already_active`) — surface a friendly
+     * message + a machine-readable `error` code instead of a raw "HTTP 409" string. (Note:
+     * the 409 body carries only the existing job_id, not its Bearer job_token, so AAS cannot
+     * resume tracking that job — the message just asks the user to wait.)
+     *
+     * Otherwise: the detail string + the Phase O `retryable` flag, merged INTO $data (NOT
+     * wp_send_json_error's 2nd arg, which WP treats as an HTTP status code) so JS can route
+     * retryable failures to the outbox.
+     *
+     * @param \Throwable $e        The caught exception.
+     * @param string     $fallback The user-visible detail string for the non-409 case.
+     * @return array{message:string,retryable:bool,error?:string}
+     */
+    private static function friendly_error( \Throwable $e, string $fallback ): array {
+        $code = $e instanceof \CUScanner\Api\HttpException ? $e->get_status_code() : -1;
+        if ( 409 === $code ) {
+            return [
+                'message'   => 'A scan is already queued or running for this account. Please wait for it to finish before starting another.',
+                'retryable' => false,
+                'error'     => 'scan_already_active',
+            ];
+        }
+        return [
+            'message'   => $fallback,
+            'retryable' => \CUScanner\Scanner\Outbox::is_retryable( $e ),
+        ];
+    }
+
     public function detect_plugins(): void {
         $this->check();
         $plugins = ( new PluginDetector() )->detect();
@@ -201,13 +233,7 @@ class ScannerAjax {
             wp_send_json_success( [ 'reserved' => true, 'job_token' => $result['job_token'] ] );
         } catch ( \RuntimeException $e ) {
             error_log( '[AI Assets Scanner] reserve_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: full exception detail to server log; truncated user-visible detail via format_reserve_error_detail().
-            // Merge `retryable` INTO the error $data (NOT the 2nd arg) — same WP
-            // status_header() reasoning as submit_job's catch — so JS can later
-            // route retryable reserve failures to the outbox (Phase O).
-            wp_send_json_error( [
-                'message'   => self::format_reserve_error_detail( $e->getMessage() ),
-                'retryable' => \CUScanner\Scanner\Outbox::is_retryable( $e ),
-            ] );
+            wp_send_json_error( self::friendly_error( $e, self::format_reserve_error_detail( $e->getMessage() ) ) );
         }
     }
 
@@ -625,16 +651,7 @@ class ScannerAjax {
             ( new BypassManager() )->delete_all_tokens(); // own handle — $bypass is no longer in this scope after extraction
             $this->release_reserved_job( $api_key, $job_token );
             error_log( '[AI Assets Scanner] submit_job: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: full exception detail to server log; truncated user-visible detail via format_submit_error_detail().
-            // Merge `retryable` INTO the error $data (NOT the 2nd arg). WP's
-            // wp_send_json_error($data,$status_code,$options) treats the 2nd arg as
-            // an HTTP status code → an array there breaks status_header(). The
-            // existing calls pass no status code; embedding the flag in $data keeps
-            // the HTTP status unchanged and lets JS route retryable failures to the
-            // outbox (Phase O). `message` preserves the user-visible detail string.
-            wp_send_json_error( [
-                'message'   => self::format_submit_error_detail( $e->getMessage() ),
-                'retryable' => \CUScanner\Scanner\Outbox::is_retryable( $e ),
-            ] );
+            wp_send_json_error( self::friendly_error( $e, self::format_submit_error_detail( $e->getMessage() ) ) );
         }
     }
 
