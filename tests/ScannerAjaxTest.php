@@ -49,6 +49,28 @@ class ScannerAjaxTest extends TestCase {
         $this->assertTrue( $captured['retryable'] ?? false );
     }
 
+    public function test_friendly_error_maps_409_to_scan_already_active(): void {
+        // Group C: a 409 (gate / SaaS reserve "scan_already_active") → friendly message +
+        // machine code + non-retryable. Any other status → the fallback detail string +
+        // the Phase O retryable flag (no `error` code).
+        $m = new \ReflectionMethod( ScannerAjax::class, 'friendly_error' );
+        $m->setAccessible( true );
+
+        $r409 = $m->invoke( null, new \CUScanner\Api\HttpException( 'HTTP 409: scan_already_active', 409 ), 'raw-detail' );
+        $this->assertSame( 'scan_already_active', $r409['error'] );
+        $this->assertFalse( $r409['retryable'] );
+        $this->assertStringContainsStringIgnoringCase( 'already', $r409['message'] );
+
+        $r503 = $m->invoke( null, new \CUScanner\Api\HttpException( 'HTTP 503: queue_full', 503 ), 'raw-detail' );
+        $this->assertArrayNotHasKey( 'error', $r503 );          // no friendly code for non-409
+        $this->assertSame( 'raw-detail', $r503['message'] );    // fallback detail preserved
+        $this->assertTrue( $r503['retryable'] );                // 5xx is retryable (Phase O)
+
+        $r402 = $m->invoke( null, new \CUScanner\Api\HttpException( 'Insufficient credits', 402 ), 'no-credits' );
+        $this->assertArrayNotHasKey( 'error', $r402 );
+        $this->assertFalse( $r402['retryable'] );                // 402 terminal
+    }
+
     public function test_check_job_returns_error_when_no_transient(): void {
         $this->mockCheck();
         WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );

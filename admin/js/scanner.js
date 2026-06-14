@@ -1023,6 +1023,18 @@
         return payload;
     }
 
+    // Group C: surface a reserve/submit error. A `scan_already_active` (409 from the gate
+    // or SaaS reserve) gets the server's friendly account-busy message verbatim — no
+    // "Error:" prefix — since it's an expected state, not a fault. Everything else keeps
+    // the "Error:" prefix.
+    function submitErrorAlert(data, msg) {
+        if (data && data.error === 'scan_already_active') {
+            alert(msg);
+        } else {
+            alert('Error: ' + msg);
+        }
+    }
+
     // --- Step 2: Reserve + Submit ---
 
     // Top "Start Scan" button (above the URL list) mirrors the bottom one —
@@ -1177,7 +1189,7 @@
                         routeToOutbox( null );
                     } else {
                         showStep(1);
-                        alert('Error: ' + msg);
+                        submitErrorAlert(res.data, msg);
                     }
                     return;
                 }
@@ -1228,7 +1240,7 @@
                                     routeToOutbox( job_token );
                                 } else {
                                     showStep(1);
-                                    alert('Error: ' + msg);
+                                    submitErrorAlert(retry.data, msg);
                                 }
                                 return;
                             }
@@ -1243,7 +1255,7 @@
                                 routeToOutbox( job_token );
                             } else {
                                 showStep(1);
-                                alert('Error: ' + msg);
+                                submitErrorAlert(res2.data, msg);
                             }
                             return;
                         }

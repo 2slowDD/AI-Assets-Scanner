@@ -11,6 +11,10 @@ All notable changes to AI Assets Scanner are documented here.
 - Cancelling a scan while the scanner backend is temporarily unreachable (timeout / 5xx / network) previously reported success and reset the UI even though the cancel never reached the backend — leaving the scan (and its credit reservation) active, which could block the next scan for that account until it expired.
 - Cancel now distinguishes a transient backend outage from a real cancel: on an outage it keeps the scan tracked, tells you it couldn't be cancelled, and lets you retry; a confirmed cancel (or a job already gone backend-side) resets as before. No change to what you're charged.
 
+### Changed — Friendlier message when a scan is already running for your account
+
+- If you try to start a scan while one is already queued or running for your account (the 1-scan-per-account limit), you now get a plain "a scan is already queued or running — please wait for it to finish" message instead of a raw "HTTP 409" error.
+
 ---
 
 ## 1.7.37b - 2026-06-14
