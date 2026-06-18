@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.22';
+    const SCANNER_JS_VERSION = '1.0.10.23';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1371,28 +1371,33 @@
             return;
         }
 
+        // Task 5 — shared {pages, completed, total} computation hoisted ABOVE the
+        // killed branch so killed/complete/failed can all use it. queued +
+        // cancelled_timeout returned already (they don't need page data).
+        const pages     = data.pages || [];
+        const completed = data.completed || 0;
+        const total     = data.total || totalPages;
+
         if (data.status === 'killed') {
             stopPolling();
             sessionStorage.removeItem('cu_scanner_active_job');
-            var completedCount = Number(data.completed) || 0;
-            var totalCount     = Number(data.total) || totalPages || 0;
             // FU-7 — also update the plugin's local ScanHistory record so the
             // History tab no longer shows this scan as in_progress/queued.
             // Fire-and-forget; UI banner is the user-visible signal regardless.
             post('cu_scanner_handle_killed');
-            showQueueBanner(
-                null,
-                null,
-                'Your scan was cancelled by an administrator. ' + completedCount + ' of ' + totalCount + ' pages were scanned before the kill.'
-            );
+            // Killed = admin kill: charged 0, no rules delivered → no build_result.
+            // Route through the unified terminal-incomplete handler for the banner.
+            handleTerminalIncomplete({
+                status:       'killed',
+                completed:    completed,
+                total:        total,
+                pages:        pages,
+                selectedUrls: selectedUrls.slice(),
+            });
             return;
         }
 
         hideQueueBanner(); // clears banner if transitioning from queued → in_progress
-
-        const pages     = data.pages || [];
-        const completed = data.completed || 0;
-        const total     = data.total || totalPages;
 
         document.getElementById('cu-progress-bar').value = total ? (completed / total) * 100 : 0;
         document.getElementById('cu-progress-text').textContent = `${completed} / ${total}`;
@@ -1419,7 +1424,32 @@
             sessionStorage.removeItem('cu_scanner_active_job');
             if (data.status === 'complete') {
                 buildResult();
+            } else if (completed >= total) {
+                // failed but every page actually completed → treat as a normal
+                // complete (deliver rules + Step-4, no partial banner).
+                buildResult();
+            } else if (completed > 0) {
+                // Charged partial: 0 < completed < total. Deliver the X-page rules
+                // (build_result) AND show the partial banner. If build_result errors
+                // we fall back to the pre-submit-fatal failure path below.
+                buildResult({
+                    status:       'failed',
+                    completed:    completed,
+                    total:        total,
+                    pages:        pages,
+                    selectedUrls: selectedUrls.slice(),
+                }).then((built) => {
+                    // built === false means build_result returned res.success === false
+                    // (do_build_result threw "No coverage data" — nothing was delivered).
+                    if (!built) {
+                        post('cu_scanner_handle_failure').then(() => {
+                            showStep(1);
+                            alert('Scan failed. Credits have been released. You may retry the scan.');
+                        });
+                    }
+                });
             } else {
+                // completed === 0 → pre-submit fatal / zero delivered. Existing path.
                 post('cu_scanner_handle_failure').then(() => {
                     showStep(1);
                     alert('Scan failed. Credits have been released. You may retry the scan.');
@@ -1434,11 +1464,25 @@
         return `<td>${esc(url)}</td><td>${esc(status)}</td>`;
     }
 
-    function buildResult() {
+    // buildResult([terminalInfo]) — delivers the X-page rules and renders Step 4.
+    // When terminalInfo is supplied (a charged terminal-incomplete: failed/user_cancel
+    // partial), after Step 4 renders we route it through handleTerminalIncomplete() for
+    // the partial banner. Returns a Promise<boolean> resolving true when the result was
+    // built (res.success) and false when build_result errored (no coverage delivered),
+    // so callers can fall back to the pre-submit-fatal failure path.
+    function buildResult(terminalInfo) {
         const externalOnly = allSelectedAreExternal();
-        post('cu_scanner_build_result', { job_id: scanJobId, job_token: scanJobToken })
+        return post('cu_scanner_build_result', { job_id: scanJobId, job_token: scanJobToken })
             .then(res => {
-                if (!res.success) { alert('Error building result: ' + res.data); return; }
+                if (!res.success) {
+                    // For a terminal-incomplete partial, an error here means nothing was
+                    // delivered (do_build_result threw "No coverage data"). Signal the
+                    // caller (return false) so it can run the failure fallback rather
+                    // than alerting — avoids a double "error" surface.
+                    if (terminalInfo) return false;
+                    alert('Error building result: ' + res.data);
+                    return false;
+                }
                 const d = res.data;
                 const bannerData = {
                     scan_id:         d.scan_id          || '',
@@ -1458,7 +1502,54 @@
                     scan_id:       d.scan_id || '',
                     // banner data not persisted \u2014 shown once per live build_result call only.
                 }) );
+                // Task 5 \u2014 charged terminal-incomplete partial: after Step 4 renders,
+                // route through the unified handler for the partial banner.
+                if (terminalInfo) handleTerminalIncomplete(terminalInfo);
+                return true;
             });
+    }
+
+    // Task 5 \u2014 IIFE-scoped stash of the most recent terminal-incomplete info so
+    // Tasks 6 (banner/remainder persistence) and 7 (re-queue) can consume it.
+    let currentPartialInfo = null;
+
+    // handleTerminalIncomplete(info) \u2014 unified routing target for every terminal
+    // path that ends a scan before all selected pages completed:
+    //   - killed     (admin kill; charged 0, no rules)
+    //   - failed     (worker failure mid-scan; charged {completed}, X-page rules)
+    //   - user_cancel (operator cancel mid-scan; charged {completed}, X-page rules)
+    // info = { status, completed, total, pages, selectedUrls }.
+    // Task 5 keeps this minimal: stash + render the stub banner. Task 6 finalizes
+    // it (full banner + button/escaping + localStorage remainder persistence).
+    function handleTerminalIncomplete(info) {
+        currentPartialInfo = info;
+        renderPartialBanner(info);
+    }
+
+    // Task 6 finalizes this \u2014 MINIMAL valid stub: per-path reason + charge text into
+    // #cu-banner-area. Task 6 REPLACES this with the full version (re-queue button,
+    // proper escaping) and ADDS the localStorage remainder persistence inside
+    // handleTerminalIncomplete (do NOT compute/persist the remainder here).
+    function renderPartialBanner(info) {
+        const area = document.getElementById('cu-banner-area');
+        if (!area) return;
+        const completed = Number(info && info.completed) || 0;
+        const total     = Number(info && info.total) || 0;
+        let reason;
+        let charge;
+        if (info && info.status === 'killed') {
+            reason = 'Your scan was cancelled by an administrator.';
+            charge = 'You were not charged.';
+        } else if (info && info.status === 'user_cancel') {
+            reason = 'You cancelled the scan.';
+            charge = 'You were charged for ' + completed + ' page' + (completed === 1 ? '' : 's') + ' already scanned.';
+        } else {
+            reason = 'The scan failed before all pages completed.';
+            charge = 'You were charged for ' + completed + ' page' + (completed === 1 ? '' : 's') + ' scanned.';
+        }
+        area.innerHTML =
+            '<div class="notice notice-warning inline"><p><strong>' + esc(reason) + '</strong> ' +
+            esc(completed + ' of ' + total + ' pages were scanned. ' + charge) + '</p></div>';
     }
 
     function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned, pages, scanId ) {
@@ -1716,6 +1807,10 @@
 
     document.getElementById('cu-btn-cancel').addEventListener('click', async function () {
         let msg;
+        // Task 5 — widen progress.pages beyond the try block so the user_cancel
+        // terminal-incomplete routing can source the page rows the confirm fetch
+        // already retrieved (avoids a second /status round-trip).
+        let progressPages = [];
         try {
             const res = await fetch(
                 railwayUrl + '/jobs/' + encodeURIComponent(scanJobId) + '/status',
@@ -1727,6 +1822,7 @@
             // The field is 'completed' (not 'pages_completed') — earlier code read the wrong key,
             // so the confirm dialog always said "0 pages already scanned" regardless of progress.
             const pages = Number(progress.completed) || 0;
+            progressPages = Array.isArray(progress.pages) ? progress.pages : [];
             msg = 'Cancelling now will charge you for ' + pages + ' page' + (pages === 1 ? '' : 's') + ' already scanned.\n\nContinue?';
         } catch (_e) {
             msg = 'Unable to fetch current progress. Cancel anyway? (You may still be charged for pages already scanned.)';
@@ -1739,7 +1835,23 @@
         post('cu_scanner_cancel_job').then((res) => {
             if (res && res.success) {
                 sessionStorage.removeItem('cu_scanner_active_job');
-                showStep(1);
+                // Task 5 — user_cancel charged partial: deliver the X-page rules +
+                // Step-4, then route through the unified handler for the partial banner.
+                // pages source: progressPages (from the confirm-fetch status above) —
+                // already in hand, no extra round-trip. Task 3 made cancel_job return
+                // res.data.pages_completed.
+                const completedPages = (res.data && res.data.pages_completed) || 0;
+                buildResult({
+                    status:       'user_cancel',
+                    completed:    completedPages,
+                    total:        totalPages,
+                    pages:        progressPages,
+                    selectedUrls: selectedUrls.slice(),
+                }).then((built) => {
+                    // build_result errored (no coverage delivered) → fall back to the
+                    // pre-Task-5 behaviour: return the operator to Step 1.
+                    if (!built) showStep(1);
+                });
             } else {
                 const m = (res && res.data && res.data.message)
                     ? res.data.message
