@@ -984,7 +984,7 @@ class ScannerAjax {
 
         $completed   = (int) ( $status['completed'] ?? count( $pages_raw ) );
         $total       = (int) ( $status['total'] ?? count( $pages_raw ) );
-        $hist_status = ( $completed < $total ) ? 'partial' : 'complete';
+        $hist_status = $this->compute_hist_status( $completed, $total );
 
         $history = new ScanHistory();
         $history->store_json( $job_id, $json_str );
@@ -1094,18 +1094,16 @@ class ScannerAjax {
             'pages'         => $pages_payload,
         ], false );
 
-        return [
-            'safe_count'          => $safe_count,
-            'aggressive_count'    => $agg_count,
-            'can_push'            => $can_push,
-            'scan_id'             => $scan_id_display,
-            'pages_blocked'       => $pages_blocked,
-            'blocked_reasons'     => $blocked_reasons,
-            'total_pages'         => count( $pages_raw ),
-            'pages'               => $pages_payload,
-            'has_active_cu_rules' => ( new RulePusher() )->has_active_cu_rules(),
-            'is_partial'          => ( $completed < $total ),
-        ];
+        return array_merge( [
+            'safe_count'       => $safe_count,
+            'aggressive_count' => $agg_count,
+            'can_push'         => $can_push,
+            'scan_id'          => $scan_id_display,
+            'pages_blocked'    => $pages_blocked,
+            'blocked_reasons'  => $blocked_reasons,
+            'total_pages'      => count( $pages_raw ),
+            'pages'            => $pages_payload,
+        ], $this->build_partial_response_fields( $completed, $total ) );
     }
 
     /**
@@ -1789,6 +1787,37 @@ class ScannerAjax {
         return $by_page;
     }
 
+    /**
+     * Compute the scan-history status string from Railway's completed/total counters.
+     * 'partial' when completed < total (worker was stopped before finishing all pages);
+     * 'complete' otherwise (including the malformed-response case completed > total).
+     *
+     * Extracted so the production write-site and the unit tests share ONE implementation.
+     *
+     * @param int $completed Pages completed (from Railway status, server-authoritative).
+     * @param int $total     Pages total    (from Railway status, server-authoritative).
+     * @return string 'partial' | 'complete'
+     */
+    private function compute_hist_status( int $completed, int $total ): string {
+        return ( $completed < $total ) ? 'partial' : 'complete';
+    }
+
+    /**
+     * Build the partial-scan response fields that do_build_result() merges into its
+     * return array. Extracted so the production return and the unit tests share ONE
+     * implementation (no duplicate RulePusher instantiation in test-only seams).
+     *
+     * @param int $completed Pages completed (from Railway status, server-authoritative).
+     * @param int $total     Pages total    (from Railway status, server-authoritative).
+     * @return array{has_active_cu_rules:bool,is_partial:bool}
+     */
+    private function build_partial_response_fields( int $completed, int $total ): array {
+        return [
+            'has_active_cu_rules' => ( new RulePusher() )->has_active_cu_rules(),
+            'is_partial'          => ( $completed < $total ),
+        ];
+    }
+
     // --- Test seams (public; call into private helpers for unit testing) ---
     public function __test_ratchet_enabled(): bool { return $this->ratchet_enabled(); }
     public function __test_is_et_rescan( array $pages_raw ): bool { return $this->is_et_rescan( $pages_raw ); }
@@ -1801,17 +1830,14 @@ class ScannerAjax {
     }
     public function __test_ratchet_debug_enabled(): bool { return $this->ratchet_debug_enabled(); }
 
-    /** R2 test seam: returns 'partial' or 'complete' based on the completed/total comparison. */
+    /** R2 test seam: delegates to the real compute_hist_status() production helper. */
     public function __test_compute_hist_status( int $completed, int $total ): string {
-        return ( $completed < $total ) ? 'partial' : 'complete';
+        return $this->compute_hist_status( $completed, $total );
     }
 
-    /** R2 test seam: returns the is_partial and has_active_cu_rules flags as in the do_build_result response. */
+    /** R2 test seam: delegates to the real build_partial_response_fields() production helper. */
     public function __test_result_flags( int $completed, int $total ): array {
-        return [
-            'is_partial'          => ( $completed < $total ),
-            'has_active_cu_rules' => ( new RulePusher() )->has_active_cu_rules(),
-        ];
+        return $this->build_partial_response_fields( $completed, $total );
     }
 
     /**
