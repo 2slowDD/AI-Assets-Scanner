@@ -1519,37 +1519,101 @@
     //   - failed     (worker failure mid-scan; charged {completed}, X-page rules)
     //   - user_cancel (operator cancel mid-scan; charged {completed}, X-page rules)
     // info = { status, completed, total, pages, selectedUrls }.
-    // Task 5 keeps this minimal: stash + render the stub banner. Task 6 finalizes
-    // it (full banner + button/escaping + localStorage remainder persistence).
+    // Task 6: stash info, compute + persist remainder, render full banner.
     function handleTerminalIncomplete(info) {
         currentPartialInfo = info;
-        renderPartialBanner(info);
+
+        // --- Compute remainder ---
+        // Strip any query string (bypass params) from a URL for clean comparison.
+        // normaliseUrl() already strips trailing slashes + lowercases; we also
+        // drop the ?query portion so bypass-baked pages[].url matches selectedUrls.
+        function cleanUrl(u) {
+            return normaliseUrl(String(u || '').replace(/\?.*$/, ''));
+        }
+
+        const submitted = Array.isArray(info && info.selectedUrls) ? info.selectedUrls : [];
+        const pages     = Array.isArray(info && info.pages)        ? info.pages        : [];
+
+        // Build a set of "done" clean URLs from the pages array.
+        const doneSet = new Set();
+        pages.forEach(function (p) {
+            if (p && p.status === 'done') {
+                doneSet.add(cleanUrl(p.url));
+            }
+        });
+
+        // Remainder = submitted URLs whose clean form is NOT in the done set.
+        const remainderUrls = submitted.filter(function (u) {
+            return !doneSet.has(cleanUrl(u));
+        });
+
+        // --- Persist to localStorage ---
+        // Key is 'cu_scanner_partial' (un-namespaced). The spec calls for
+        // 'cu_scanner_partial_{user_id}' but cuScanner exposes no user_id to JS;
+        // the sibling key 'cu_scanner_result' is also un-namespaced \u2014 staying
+        // consistent keeps this task scanner.js-only (no PHP changes needed).
+        var partialPayload = {
+            job_id:        scanJobId,
+            status:        info.status,
+            completed:     Number(info.completed) || 0,
+            total:         Number(info.total)     || 0,
+            remainder_urls: remainderUrls,
+        };
+        try {
+            localStorage.setItem('cu_scanner_partial', JSON.stringify(partialPayload));
+        } catch (_e) { /* localStorage unavailable \u2014 banner still renders live */ }
+
+        // --- Render banner (uses persisted payload so reload-restore uses same path) ---
+        renderPartialBanner(partialPayload);
+
+        // --- killed visibility: #cu-banner-area lives on Step 4; killed skips
+        // buildResult/showStep(4), so we must advance to Step 4 here. ---
+        // For failed/user_cancel, restoreStep4() inside buildResult already called
+        // showStep(4) before we arrive here, so this is a no-op for those paths.
+        if (info.status === 'killed') {
+            showStep(4);
+        }
     }
 
-    // Task 6 finalizes this \u2014 MINIMAL valid stub: per-path reason + charge text into
-    // #cu-banner-area. Task 6 REPLACES this with the full version (re-queue button,
-    // proper escaping) and ADDS the localStorage remainder persistence inside
-    // handleTerminalIncomplete (do NOT compute/persist the remainder here).
-    function renderPartialBanner(info) {
+    // renderPartialBanner(payload) \u2014 renders the full partial-failure banner into
+    // #cu-banner-area. Accepts either a live info object or a reloaded payload from
+    // localStorage (both share the same shape after Task 6 normalisation).
+    // Task 7 wires the button click handlers \u2014 do NOT add click logic here.
+    function renderPartialBanner(payload) {
         const area = document.getElementById('cu-banner-area');
         if (!area) return;
-        const completed = Number(info && info.completed) || 0;
-        const total     = Number(info && info.total) || 0;
-        let reason;
-        let charge;
-        if (info && info.status === 'killed') {
-            reason = 'Your scan was cancelled by an administrator.';
-            charge = 'You were not charged.';
-        } else if (info && info.status === 'user_cancel') {
-            reason = 'You cancelled the scan.';
-            charge = 'You were charged for ' + completed + ' page' + (completed === 1 ? '' : 's') + ' already scanned.';
+
+        const status    = (payload && payload.status)    || '';
+        const completed = Number(payload && payload.completed) || 0;
+        const total     = Number(payload && payload.total)     || 0;
+        const remainder = Array.isArray(payload && payload.remainder_urls)
+            ? payload.remainder_urls : [];
+        const N = remainder.length;
+
+        var html;
+        if (status === 'killed') {
+            html = '<div class="notice notice-warning inline aias-partial-banner">' +
+                '<p><strong>&#9888; Your scan was stopped by an administrator.</strong> ' +
+                '<strong>You were not charged.</strong></p>' +
+                '<p><button type="button" class="button" id="cu-partial-retry-btn">' +
+                'Retry the scan' +
+                '</button></p>' +
+                '</div>';
         } else {
-            reason = 'The scan failed before all pages completed.';
-            charge = 'You were charged for ' + completed + ' page' + (completed === 1 ? '' : 's') + ' scanned.';
+            var reason = (status === 'user_cancel')
+                ? 'You cancelled this scan.'
+                : 'Your scan was interrupted before it finished.';
+            html = '<div class="notice notice-warning inline aias-partial-banner">' +
+                '<p><strong>&#9888; Scan stopped at page ' + esc(String(completed)) +
+                ' of ' + esc(String(total)) + '.</strong> ' +
+                esc(reason) + ' You were charged for the ' +
+                esc(String(completed)) + ' completed page' + (completed === 1 ? '' : 's') + '.</p>' +
+                '<p><button type="button" class="button" id="cu-partial-requeue-btn">' +
+                'Re-queue the remaining ' + esc(String(N)) + ' page' + (N === 1 ? '' : 's') +
+                '</button></p>' +
+                '</div>';
         }
-        area.innerHTML =
-            '<div class="notice notice-warning inline"><p><strong>' + esc(reason) + '</strong> ' +
-            esc(completed + ' of ' + total + ' pages were scanned. ' + charge) + '</p></div>';
+        area.innerHTML = html;
     }
 
     function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned, pages, scanId ) {
@@ -1974,6 +2038,23 @@
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');
         }
+    }());
+
+    // --- Init: restore partial-failure banner on page reload ---
+    // Runs AFTER the cu_scanner_result restore above (Step-4 wins when both exist).
+    // If a partial was stored by handleTerminalIncomplete, re-render the banner so
+    // the re-queue/retry button survives a page reload. Task 7 clears this key on
+    // successful re-queue submit.
+    (function restorePartialBanner() {
+        if (localStorage.getItem('cu_scanner_result')) return; // Step-4 result wins
+        var raw = localStorage.getItem('cu_scanner_partial');
+        if (!raw) return;
+        var p;
+        try { p = JSON.parse(raw); } catch (_e) { localStorage.removeItem('cu_scanner_partial'); return; }
+        if (!p || !p.status) { localStorage.removeItem('cu_scanner_partial'); return; }
+        currentPartialInfo = p;
+        renderPartialBanner(p);
+        showStep(4);
     }());
 
     // --- "Rescan ET Candidates" prime — runs AFTER the Step-4 restore above so its
