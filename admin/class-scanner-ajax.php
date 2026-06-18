@@ -982,9 +982,13 @@ class ScannerAjax {
 
         $credits_used = self::billable_credit_total( $pages_raw );
 
+        $completed   = (int) ( $status['completed'] ?? count( $pages_raw ) );
+        $total       = (int) ( $status['total'] ?? count( $pages_raw ) );
+        $hist_status = ( $completed < $total ) ? 'partial' : 'complete';
+
         $history = new ScanHistory();
         $history->store_json( $job_id, $json_str );
-        $history->update_status( $job_id, 'complete', [
+        $history->update_status( $job_id, $hist_status, [
             'credits_used'     => $credits_used,
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
@@ -1091,14 +1095,16 @@ class ScannerAjax {
         ], false );
 
         return [
-            'safe_count'       => $safe_count,
-            'aggressive_count' => $agg_count,
-            'can_push'         => $can_push,
-            'scan_id'          => $scan_id_display,
-            'pages_blocked'    => $pages_blocked,
-            'blocked_reasons'  => $blocked_reasons,
-            'total_pages'      => count( $pages_raw ),
-            'pages'            => $pages_payload,
+            'safe_count'          => $safe_count,
+            'aggressive_count'    => $agg_count,
+            'can_push'            => $can_push,
+            'scan_id'             => $scan_id_display,
+            'pages_blocked'       => $pages_blocked,
+            'blocked_reasons'     => $blocked_reasons,
+            'total_pages'         => count( $pages_raw ),
+            'pages'               => $pages_payload,
+            'has_active_cu_rules' => ( new RulePusher() )->has_active_cu_rules(),
+            'is_partial'          => ( $completed < $total ),
         ];
     }
 
@@ -1794,6 +1800,19 @@ class ScannerAjax {
         return $this->ratchet_skip_reason( $enabled, $is_et, $r_orig, $matches );
     }
     public function __test_ratchet_debug_enabled(): bool { return $this->ratchet_debug_enabled(); }
+
+    /** R2 test seam: returns 'partial' or 'complete' based on the completed/total comparison. */
+    public function __test_compute_hist_status( int $completed, int $total ): string {
+        return ( $completed < $total ) ? 'partial' : 'complete';
+    }
+
+    /** R2 test seam: returns the is_partial and has_active_cu_rules flags as in the do_build_result response. */
+    public function __test_result_flags( int $completed, int $total ): array {
+        return [
+            'is_partial'          => ( $completed < $total ),
+            'has_active_cu_rules' => ( new RulePusher() )->has_active_cu_rules(),
+        ];
+    }
 
     /**
      * B4 test seam: exposes the ratchet_recovered stamp loop so tests can exercise

@@ -924,4 +924,60 @@ class ScannerAjaxTest extends TestCase {
         $ajax = new ScannerAjax();
         $this->assertFalse( $ajax->__test_ratchet_debug_enabled(), 'ratchet diagnostic gated off by default' );
     }
+
+    // ── R2 partial-stamp + response-flags tests ──────────────────────────────
+
+    /**
+     * R2-1 — hist_status is 'partial' when completed < total.
+     */
+    public function test_r2_hist_status_is_partial_when_completed_lt_total(): void {
+        $ajax = new ScannerAjax();
+        $this->assertSame(
+            'partial',
+            $ajax->__test_compute_hist_status( 3, 5 ),
+            'completed < total must yield partial'
+        );
+    }
+
+    /**
+     * R2-2 — hist_status is 'complete' when completed === total.
+     */
+    public function test_r2_hist_status_is_complete_when_completed_eq_total(): void {
+        $ajax = new ScannerAjax();
+        $this->assertSame(
+            'complete',
+            $ajax->__test_compute_hist_status( 5, 5 ),
+            'completed === total must yield complete'
+        );
+    }
+
+    /**
+     * R2-3 — is_partial flag in the response mirrors the completed < total condition.
+     *         has_active_cu_rules is a bool (requires is_plugin_active WP_Mock stub).
+     */
+    public function test_r2_result_flags_is_partial_true_and_has_active_cu_rules_is_bool(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'code-unloader/code-unloader.php' )
+            ->andReturn( false );
+
+        $ajax   = new ScannerAjax();
+        $flags  = $ajax->__test_result_flags( 2, 4 );
+
+        $this->assertTrue( $flags['is_partial'], 'is_partial must be true when completed < total' );
+        $this->assertIsBool( $flags['has_active_cu_rules'], 'has_active_cu_rules must be a bool' );
+    }
+
+    /**
+     * R2-4 — is_partial is false when completed === total (full scan).
+     */
+    public function test_r2_result_flags_is_partial_false_when_complete(): void {
+        \WP_Mock::userFunction( 'is_plugin_active' )
+            ->with( 'code-unloader/code-unloader.php' )
+            ->andReturn( false );
+
+        $ajax  = new ScannerAjax();
+        $flags = $ajax->__test_result_flags( 5, 5 );
+
+        $this->assertFalse( $flags['is_partial'], 'is_partial must be false when completed === total' );
+    }
 }
