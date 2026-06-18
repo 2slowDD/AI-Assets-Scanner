@@ -1269,8 +1269,7 @@
                             railway_url: railwayUrl,
                         }) );
                         clearEtCarryOver(); // FU-AAS-ET-VIEW-PERSIST — scan started; resume Step 3 on return, not the ET view
-                        showStep(3);
-                        startPolling();
+                        beginScanPolling();
                     })
                     .catch(() => {
                         // Network error on submit — retryable (canonical outage case).
@@ -1288,6 +1287,16 @@
 
     function startPolling() {
         pollProgress(); // poll immediately, then self-schedule
+    }
+
+    // beginScanPolling() — called on new-scan-start submit paths ONLY (main submit + reQueueRemainder).
+    // Clears the Step-3 URL table so rows from a previous (longer) scan don't linger, then starts polling.
+    // Do NOT call from the resume-after-reload path (cu_scanner_check_job / restoreOutboxState) —
+    // those paths legitimately repopulate the table from the worker's pages[] array.
+    function beginScanPolling() {
+        document.getElementById('cu-pages-tbody').innerHTML = '';
+        showStep(3);
+        startPolling();
     }
 
     function stopPolling() {
@@ -1768,8 +1777,7 @@
             localStorage.setItem('cu_scanner_requeue_' + scanJobId, '1');
             // Clear the persisted remainder so a reload no longer shows the old banner.
             localStorage.removeItem('cu_scanner_partial');
-            showStep(3);
-            startPolling();
+            beginScanPolling();
         } finally {
             reQueueRemainder._inFlight = false;
         }
