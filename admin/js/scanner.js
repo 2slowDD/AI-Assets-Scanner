@@ -1499,7 +1499,7 @@
                     blocked_reasons: d.blocked_reasons  || {},
                     total_pages:     d.total_pages      || 0,
                 };
-                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData, d.total_pages, d.pages, d.scan_id );
+                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData, d.total_pages, d.pages, d.scan_id, d.has_active_cu_rules );
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
                     job_id:        scanJobId,
                     safe_count:    d.safe_count,
@@ -1783,7 +1783,7 @@
         }
     }
 
-    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned, pages, scanId ) {
+    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned, pages, scanId, hasActiveCuRules ) {
         const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
         document.getElementById('cu-result-summary').textContent =
             `Scan complete. ${urls} URLs scanned, ${safeCount} safe rules, ${aggCount} aggressive rules generated.`;
@@ -1794,13 +1794,31 @@
         const pushBtn    = document.getElementById('cu-btn-push');
         const syncBtn    = document.getElementById('cu-btn-sync');
         const pushResult = document.getElementById('cu-push-result');
+
+        // G6: re-queue partial scans must not clobber already-pushed rules.
+        const isRequeue = !!localStorage.getItem('cu_scanner_requeue_' + jobId);
+        const syncOnly  = isRequeue && !!hasActiveCuRules;
+
         if (externalOnly) {
             pushBtn.style.display = 'none';
             syncBtn.style.display = 'none';
             pushResult.innerHTML = '<div class="notice notice-info inline"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push/sync to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
+        } else if (syncOnly) {
+            syncBtn.style.display = '';
+            pushBtn.style.display = '';
+            pushBtn.disabled = true;
+            pushBtn.classList.add('cu-btn-dormant');
+            pushResult.innerHTML = '<div class="notice notice-info inline"><p>This was a re-queued partial scan. Use <strong>Sync</strong> to add these rules to your existing pushed rules \u2014 Push is disabled so it can\u2019t replace them.</p></div>';
         } else if (canPush) {
             pushBtn.style.display = '';
             syncBtn.style.display = '';
+            pushBtn.disabled = false;
+            pushBtn.classList.remove('cu-btn-dormant');
+        }
+
+        // Consume the re-queue marker now that the result screen has rendered.
+        if (isRequeue) {
+            localStorage.removeItem('cu_scanner_requeue_' + jobId);
         }
 
         // Subsystem D-4: render broken-banner if pages were blocked.
@@ -2201,7 +2219,7 @@
         try {
             const d = JSON.parse(stored);
             scanJobId = d.job_id;
-            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only, undefined, d.total_pages, d.pages, d.scan_id );
+            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only, undefined, d.total_pages, d.pages, d.scan_id, d.has_active_cu_rules );
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');
         }
