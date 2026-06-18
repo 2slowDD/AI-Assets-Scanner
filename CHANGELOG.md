@@ -4,6 +4,27 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.41b - 2026-06-18
+
+### Added — Honest partial-failure handling: banner, delivered rules, and re-queue-the-rest
+
+- When a scan ends early — interrupted before it finished, cancelled by you, or stopped by an administrator — the scanner now shows a clear banner explaining what happened and exactly what you were charged for that path.
+- For **charged** partials (interrupted / cancelled), the scanner now delivers the rule file for the pages that **did** complete. Previously a partially-delivered scan could charge you for the completed pages but hand back nothing; now you get rules for the pages you paid for.
+- **Re-queue the rest** — a one-click "Re-queue the remaining N pages" button re-runs only the pages that didn't finish, through the normal reserve → submit → 1-scan-per-account gate. An administrator-stopped scan offers "Retry the scan" (re-runs the whole run, since it delivered no rules).
+- A re-queued partial result offers **Sync only** — "Push to Code Unloader" is shown disabled (with a note) so a remainder-only scan can't replace and lose the rules you already pushed. Push stays available when there's nothing to protect.
+- An administrator-stopped scan now clearly states **you were not charged** (admin-kill is non-charging) and shows no download.
+
+### Fixed — Interrupted-scan credit handling and a stale results table
+
+- Closed a credit-handling race on the interrupted-scan path: the plugin no longer releases a credit reservation the backend is already finalizing, so an interrupted-but-partially-delivered scan is charged for its delivered pages and handled once. The pre-submit-failure path (a scan that never reached the backend) still releases its reservation as before, so it can't strand credits. No change to what a successful scan costs.
+- The Step-3 live URL table is now cleared when a new scan starts, so starting a smaller scan after a larger one no longer leaves stale rows behind.
+
+### Changed — Scan History shows partial scans
+
+- Charged-but-incomplete scans now appear in Scan History as "Partial — N credits charged" with their safe/aggressive rule counts and a re-download link, instead of a bare status with no actions.
+
+---
+
 ## 1.7.40b - 2026-06-14
 
 ### Fixed — A queued-during-outage scan now releases its reservation cleanly (no more stuck "scan already running")
