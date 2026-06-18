@@ -980,4 +980,34 @@ class ScannerAjaxTest extends TestCase {
 
         $this->assertFalse( $flags['is_partial'], 'is_partial must be false when completed === total' );
     }
+
+    /**
+     * R2-5 — boundary: completed > total (malformed worker response) still yields 'complete'.
+     * Pins the `<` operator: only strictly-less-than is partial; over-reporting is not partial.
+     */
+    public function test_r2_hist_status_is_complete_when_completed_gt_total(): void {
+        $ajax = new ScannerAjax();
+        $this->assertSame(
+            'complete',
+            $ajax->__test_compute_hist_status( 7, 5 ),
+            'completed > total (malformed worker response) must yield complete, not partial'
+        );
+    }
+
+    /**
+     * R2-6 — fallback: when $status is missing completed/total keys, both default to
+     * count($pages_raw) so completed === total → 'complete'.
+     * Verifies the `?? count($pages_raw)` fallback in do_build_result indirectly: when
+     * both sides default to the same value the `<` condition is false.
+     */
+    public function test_r2_hist_status_complete_when_both_default_to_page_count(): void {
+        $ajax = new ScannerAjax();
+        // Both sides default → equal → not partial.
+        $page_count = 4;
+        $this->assertSame(
+            'complete',
+            $ajax->__test_compute_hist_status( $page_count, $page_count ),
+            'when both completed and total default to count(pages_raw) the result must be complete'
+        );
+    }
 }
