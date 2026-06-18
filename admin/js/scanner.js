@@ -1653,122 +1653,126 @@
     // which survives a page reload (resolvedByUrl / selectedUrls do NOT).
     // Mirrors the reserve → submit flow in the main submit handler (L1182-L1284).
     async function reQueueRemainder() {
-        var requeueUrls = (currentPartialInfo && Array.isArray(currentPartialInfo.remainder_urls))
-            ? currentPartialInfo.remainder_urls : [];
-        var N = requeueUrls.length;
-        if (N === 0) {
-            alert('No remaining pages to re-queue.');
-            return;
-        }
-
-        // Reserve credits for N pages (no extra-time on re-queue).
-        var resRes;
+        if (reQueueRemainder._inFlight) return;
+        reQueueRemainder._inFlight = true;
         try {
-            resRes = await post('cu_scanner_reserve_job', { page_count: N, extra_time_count: 0 });
-        } catch (_e) {
-            // Network error on reserve — retryable path mirrors main flow.
-            // No outbox integration here (no targetBypassPerUrl / classCConsent scope).
-            alert('Network error reserving credits. Please try again.');
-            return;
-        }
-
-        if (!resRes.success) {
-            // Covers Phase-G 409 scan_already_active + insufficient-credits messages.
-            // submitErrorAlert() already has the right copy for both — reuse it.
-            var resMsg = (resRes.data && resRes.data.message) ? resRes.data.message : resRes.data;
-            var resRetryable = resRes.data && resRes.data.retryable === true;
-            if (resRetryable) {
-                alert('Network error reserving credits. Please try again.');
-            } else {
-                showStep(1);
-                submitErrorAlert(resRes.data, resMsg);
-            }
-            return;
-        }
-
-        var job_token = resRes.data.job_token;
-
-        // Submit the re-queue. remainder_urls are already clean (bypass-stripped by
-        // handleTerminalIncomplete). Send them as both urls and submitted_urls; no
-        // resolvedByUrl mapping (absent after reload — remainder already clean).
-        // Class-C consent gate is handled the same way as the main submit handler.
-        var classCConsentGiven = '';
-        var submitPayload = {
-            urls:           requeueUrls,
-            submitted_urls: requeueUrls,
-            job_token:      job_token,
-            extra_time_urls: [],
-        };
-
-        var subRes;
-        try {
-            subRes = await post('cu_scanner_submit_job', submitPayload);
-        } catch (_e) {
-            post('cu_scanner_handle_failure');
-            alert('Network error submitting re-queue. Please try again.');
-            return;
-        }
-
-        // Class-C consent gate — mirrors main submit handler pattern.
-        if (!subRes.success && subRes.data && subRes.data.error === 'class_c_consent_required') {
-            var consented = await showConsentDialog(subRes.data.class_c_active || [], N);
-            if (!consented) {
-                post('cu_scanner_handle_failure');
-                showStep(1);
+            var requeueUrls = (currentPartialInfo && Array.isArray(currentPartialInfo.remainder_urls))
+                ? currentPartialInfo.remainder_urls : [];
+            var N = requeueUrls.length;
+            if (N === 0) {
+                alert('No remaining pages to re-queue.');
                 return;
             }
-            classCConsentGiven = '1';
-            var retryPayload = Object.assign({}, submitPayload, { class_c_consent_given: '1' });
+
+            // Reserve credits for N pages (no extra-time on re-queue).
+            var resRes;
             try {
-                subRes = await post('cu_scanner_submit_job', retryPayload);
+                resRes = await post('cu_scanner_reserve_job', { page_count: N, extra_time_count: 0 });
+            } catch (_e) {
+                // Network error on reserve — retryable path mirrors main flow.
+                // No outbox integration here (no targetBypassPerUrl / classCConsent scope).
+                alert('Network error reserving credits. Please try again.');
+                return;
+            }
+
+            if (!resRes.success) {
+                // Covers Phase-G 409 scan_already_active + insufficient-credits messages.
+                // submitErrorAlert() already has the right copy for both — reuse it.
+                var resMsg = (resRes.data && resRes.data.message) ? resRes.data.message : resRes.data;
+                var resRetryable = resRes.data && resRes.data.retryable === true;
+                if (resRetryable) {
+                    alert('Network error reserving credits. Please try again.');
+                } else {
+                    showStep(1);
+                    submitErrorAlert(resRes.data, resMsg);
+                }
+                return;
+            }
+
+            var job_token = resRes.data.job_token;
+
+            // Submit the re-queue. remainder_urls are already clean (bypass-stripped by
+            // handleTerminalIncomplete). Send them as both urls and submitted_urls; no
+            // resolvedByUrl mapping (absent after reload — remainder already clean).
+            // Class-C consent gate is handled the same way as the main submit handler.
+            var submitPayload = {
+                urls:           requeueUrls,
+                submitted_urls: requeueUrls,
+                job_token:      job_token,
+                extra_time_urls: [],
+            };
+
+            var subRes;
+            try {
+                subRes = await post('cu_scanner_submit_job', submitPayload);
             } catch (_e) {
                 post('cu_scanner_handle_failure');
                 alert('Network error submitting re-queue. Please try again.');
                 return;
             }
-            if (!subRes.success) {
-                var retryMsg      = (subRes.data && subRes.data.message) ? subRes.data.message : subRes.data;
-                var retryRetryable = subRes.data && subRes.data.retryable === true;
-                post('cu_scanner_handle_failure');
-                if (!retryRetryable) {
+
+            // Class-C consent gate — mirrors main submit handler pattern.
+            if (!subRes.success && subRes.data && subRes.data.error === 'class_c_consent_required') {
+                var consented = await showConsentDialog(subRes.data.class_c_active || [], N);
+                if (!consented) {
+                    post('cu_scanner_handle_failure');
                     showStep(1);
-                    submitErrorAlert(subRes.data, retryMsg);
+                    return;
+                }
+                var retryPayload = Object.assign({}, submitPayload, { class_c_consent_given: '1' });
+                try {
+                    subRes = await post('cu_scanner_submit_job', retryPayload);
+                } catch (_e) {
+                    post('cu_scanner_handle_failure');
+                    alert('Network error submitting re-queue. Please try again.');
+                    return;
+                }
+                if (!subRes.success) {
+                    var retryMsg      = (subRes.data && subRes.data.message) ? subRes.data.message : subRes.data;
+                    var retryRetryable = subRes.data && subRes.data.retryable === true;
+                    post('cu_scanner_handle_failure');
+                    if (!retryRetryable) {
+                        showStep(1);
+                        submitErrorAlert(subRes.data, retryMsg);
+                    } else {
+                        alert('Network error submitting re-queue. Please try again.');
+                    }
+                    return;
+                }
+            }
+
+            if (!subRes.success) {
+                var subMsg      = (subRes.data && subRes.data.message) ? subRes.data.message : subRes.data;
+                var subRetryable = subRes.data && subRes.data.retryable === true;
+                post('cu_scanner_handle_failure');
+                if (!subRetryable) {
+                    showStep(1);
+                    submitErrorAlert(subRes.data, subMsg);
                 } else {
                     alert('Network error submitting re-queue. Please try again.');
                 }
                 return;
             }
-        }
 
-        if (!subRes.success) {
-            var subMsg      = (subRes.data && subRes.data.message) ? subRes.data.message : subRes.data;
-            var subRetryable = subRes.data && subRes.data.retryable === true;
-            post('cu_scanner_handle_failure');
-            if (!subRetryable) {
-                showStep(1);
-                submitErrorAlert(subRes.data, subMsg);
-            } else {
-                alert('Network error submitting re-queue. Please try again.');
-            }
-            return;
+            // Success — transition to Step 3 polling, same as main submit handler.
+            scanJobId     = subRes.data.job_id;
+            scanJobToken  = subRes.data.job_token;
+            railwayUrl    = subRes.data.railway_url;
+            lastPageIndex = 0;
+            sessionStorage.setItem('cu_scanner_active_job', JSON.stringify({
+                job_id:      scanJobId,
+                job_token:   scanJobToken,
+                railway_url: railwayUrl,
+            }));
+            // Task 9 marker — set AFTER reserve returns the new job_id.
+            localStorage.setItem('cu_scanner_requeue_' + scanJobId, '1');
+            // Clear the persisted remainder so a reload no longer shows the old banner.
+            localStorage.removeItem('cu_scanner_partial');
+            showStep(3);
+            startPolling();
+        } finally {
+            reQueueRemainder._inFlight = false;
         }
-
-        // Success — transition to Step 3 polling, same as main submit handler.
-        scanJobId     = subRes.data.job_id;
-        scanJobToken  = subRes.data.job_token;
-        railwayUrl    = subRes.data.railway_url;
-        lastPageIndex = 0;
-        sessionStorage.setItem('cu_scanner_active_job', JSON.stringify({
-            job_id:      scanJobId,
-            job_token:   scanJobToken,
-            railway_url: railwayUrl,
-        }));
-        // Task 9 marker — set AFTER reserve returns the new job_id.
-        localStorage.setItem('cu_scanner_requeue_' + scanJobId, '1');
-        // Clear the persisted remainder so a reload no longer shows the old banner.
-        localStorage.removeItem('cu_scanner_partial');
-        showStep(3);
-        startPolling();
     }
 
     function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned, pages, scanId ) {
