@@ -853,11 +853,12 @@ class ScannerAjax {
         }
 
         ( new BypassManager() )->delete_all_tokens();
-        ( new ScanHistory() )->update_status( $state['job_id'], 'cancelled', [
-            'credits_used' => $pages_completed,
-        ] );
+        // do_build_result (cu_scanner_build_result) is the single write-owner for the
+        // user_cancel ScanHistory record — the JS calls build_result after a successful
+        // cancel, so AAS must NOT write a competing 'cancelled' record here.
+        // Return pages_completed so the JS can pass it to build_result for the banner.
         delete_transient( 'cu_scanner_job_' . $user_id );
-        wp_send_json_success();
+        wp_send_json_success( [ 'pages_completed' => $pages_completed ] );
     }
 
     public function build_result(): void {
@@ -1160,14 +1161,13 @@ class ScannerAjax {
             return;
         }
 
-        try {
-            $settings = $this->settings();
-            $wps = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $settings->get_api_key() );
-            $wps->release_credits( $state['job_token'] );
-        } catch ( \RuntimeException ) {}
-
+        // FALLBACK: $state is present (submit_job ran) but the JS routed here instead of
+        // cu_scanner_build_result (e.g. an older JS bundle, or a race before Task 5 ships).
+        // R1 finalises the charge and owns the credit release for failed+$state jobs —
+        // AAS must NOT call release_credits here (race) and must NOT stamp a 'failed'
+        // ScanHistory record (do_build_result is the single write-owner for the partial
+        // record). Only clean up local state so the UI can recover.
         ( new BypassManager() )->delete_all_tokens();
-        ( new ScanHistory() )->update_status( $state['job_id'], 'failed' );
         delete_transient( 'cu_scanner_job_' . $user_id );
         wp_send_json_success();
     }
