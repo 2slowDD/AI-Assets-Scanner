@@ -52,7 +52,12 @@
                         <td><?php echo esc_html( $record['safe_count'] ); ?></td>
                         <td><?php echo esc_html( $record['aggressive_count'] ); ?></td>
                         <td><?php if ( $record['status'] === 'partial' ) {
-                                echo 'Partial (' . esc_html( (int) $record['credits_used'] ) . ' of ' . esc_html( (int) $record['page_count'] ) . ')';
+                                // Show the actual charge (credits_used), NOT a "X of Y pages" count:
+                                // credits_used adds +1 per Extra-Time page, so it can diverge from the
+                                // completed-page count the live banner shows (data.completed). Labelling it
+                                // "credits charged" keeps the History tab honest about the unit.
+                                $cu_partial_credits = (int) $record['credits_used'];
+                                echo 'Partial &mdash; ' . esc_html( $cu_partial_credits ) . ' credit' . ( 1 === $cu_partial_credits ? '' : 's' ) . ' charged';
                             } else {
                                 echo esc_html( $record['status'] );
                             } ?></td>
