@@ -1614,6 +1614,21 @@
                 '</div>';
         }
         area.innerHTML = html;
+
+        // killed has no rule file — hide the download button so it is not
+        // shown as a non-functional href="#". Push/sync are already display:none
+        // by default in the template, but hide them explicitly for robustness.
+        // This guard covers BOTH the live path (handleTerminalIncomplete →
+        // renderPartialBanner) and the reload-restore path (restorePartialBanner
+        // IIFE → renderPartialBanner) because both converge here.
+        if (status === 'killed') {
+            var dlBtn  = document.getElementById('cu-btn-download');
+            var pshBtn = document.getElementById('cu-btn-push');
+            var synBtn = document.getElementById('cu-btn-sync');
+            if (dlBtn)  dlBtn.style.display  = 'none';
+            if (pshBtn) pshBtn.style.display = 'none';
+            if (synBtn) synBtn.style.display = 'none';
+        }
     }
 
     function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned, pages, scanId ) {
