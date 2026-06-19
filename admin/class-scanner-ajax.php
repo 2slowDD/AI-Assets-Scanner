@@ -890,12 +890,23 @@ class ScannerAjax {
         $job_id    = sanitize_text_field( wp_unslash( $_POST['job_id'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
         $job_token = sanitize_text_field( wp_unslash( $_POST['job_token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
 
+        // R2 1.7.43b: on a PARTIAL (cancelled/failed) the JS passes the SaaS-charged page
+        // count (= the banner's data.completed, worker/SaaS-authoritative) so History's
+        // credits_used mirrors what was actually charged, rather than counting the build-time
+        // delivered pages (which a fast-cancel race can inflate). DISPLAY-MIRROR ONLY — the
+        // real charge is owned by the SaaS; this client value is clamped to [0,total] in
+        // do_build_result and cannot dictate billing. Absent (complete scans) => null.
+        $charged_count = null;
+        if ( isset( $_POST['charged_count'] ) && '' !== $_POST['charged_count'] ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check().
+            $charged_count = absint( wp_unslash( $_POST['charged_count'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check().
+        }
+
         if ( ! $job_id || ! $job_token ) {
             wp_send_json_error( 'Missing job_id or job_token' ); return;
         }
 
         try {
-            $result = $this->do_build_result( $job_id, $job_token );
+            $result = $this->do_build_result( $job_id, $job_token, $charged_count );
         } catch ( \RuntimeException $e ) {
             error_log( '[AI Assets Scanner] build_result: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
             wp_send_json_error( 'Could not retrieve scan data. Check server error logs.' ); return;
@@ -927,7 +938,7 @@ class ScannerAjax {
      *
      * @throws \RuntimeException Railway fetch error or empty coverage data.
      */
-    public function do_build_result( string $job_id, string $job_token ): array {
+    public function do_build_result( string $job_id, string $job_token, ?int $charged_count = null ): array {
         // Fetch full coverage dataset from Railway server-side.
         $settings = $this->settings();
         $client   = new RailwayClient( $settings->get_railway_url(), $settings->get_api_key() );
@@ -1011,10 +1022,18 @@ class ScannerAjax {
             $this->log_ratchet_diag( 'count_divergence', $divergence );
         }
 
-        $credits_used = self::billable_credit_total( $pages_raw );
-
         $completed   = (int) ( $status['completed'] ?? count( $pages_raw ) );
         $total       = (int) ( $status['total'] ?? count( $pages_raw ) );
+        $is_partial  = ( $completed < $total );
+
+        // R2 1.7.43b: on a PARTIAL, credits_used mirrors the SaaS-charged count the JS passed
+        // (the banner's data.completed) clamped to [0,total] — so History == banner == SaaS
+        // charge. billable_credit_total counts the build-time delivered pages, which a
+        // fast-cancel race can inflate above the charge (in-flight pages finishing after the
+        // cancel snapshot). A COMPLETE scan (or no count passed) keeps billable_credit_total.
+        $credits_used = ( $is_partial && null !== $charged_count )
+            ? max( 0, min( $charged_count, $total ) )
+            : self::billable_credit_total( $pages_raw );
         $hist_status = $this->compute_hist_status( $completed, $total );
 
         $history = new ScanHistory();
@@ -1094,7 +1113,7 @@ class ScannerAjax {
         // Per-URL Step-4 results table. by_page is keyed by the same $pages_raw
         // index, so build_pages() joins status/credits with S/A/N tallies cleanly.
         // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.
-        $pages_payload = \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [] );
+        $pages_payload = \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [], $is_partial );
 
         // B4 — stamp each page row with ratchet_recovered (int ≥ 0).
         // When the ratchet ran, $merger->recovered_by_pattern is keyed by url_pattern;

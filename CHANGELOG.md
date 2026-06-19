@@ -4,6 +4,19 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.43b - 2026-06-19
+
+### Fixed — Re-queue button, and cancelled-mid-scan pages on the partial result
+
+- **"Re-queue the remaining N pages" now works.** It previously reported "No remaining pages to re-queue" even when the banner offered pages — the button was reading the remainder from the wrong place on the live (just-cancelled) screen. It now re-queues correctly.
+- **Re-queue targets the pages that didn't actually finish.** When you cancel a scan, pages already in-flight may finish a moment later. The re-queue set is now the pages that genuinely didn't complete (cut off + never reached), so it won't re-scan pages that already produced rules.
+- **Pages cut off by the cancel now read "Cancelled — not scanned"** in the results table, instead of a misleading "OK" with zero rules.
+- **Scan History credit count matches the charge.** A partial scan's recorded credits now mirror what the SaaS actually charged (the same number the banner shows), instead of counting build-time delivered pages that a fast cancel could inflate. No change to what you're charged.
+
+> Note: on very fast scans, the worker bills the page count at the instant you cancel while a couple of pages finish right after — so the pages shown with rules can slightly exceed the charged count (in your favour). This is heavily exaggerated when testing on a fast site and is negligible on real long scans.
+
+---
+
 ## 1.7.42b - 2026-06-19
 
 ### Fixed — Cancelling a scan now shows the partial banner (and bills the right number)
