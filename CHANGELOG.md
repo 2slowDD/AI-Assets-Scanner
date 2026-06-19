@@ -4,6 +4,16 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.42b - 2026-06-19
+
+### Fixed — Cancelling a scan now shows the partial banner (and bills the right number)
+
+- Hotfix for 1.7.41b: cancelling a long scan partway (e.g. 3 of 13 pages) could leave the scanner stuck on the progress screen with no "partial" banner, even though the cancel itself went through and you were correctly charged for the completed pages.
+- Root cause: when a scan ends early, the server reports the not-yet-scanned pages as empty placeholders. The rule-builder (written for fully-completed scans) choked on those placeholders, so building the partial result failed and the banner never rendered. The same placeholders were also miscounted as credits, so the Scan History row could show too high a "credits charged" number.
+- The partial result is now built from only the pages that actually ran — fixing both the stuck/no-banner behaviour and the Scan History credit count. No change to what you're actually charged (the backend already had that right).
+
+---
+
 ## 1.7.41b - 2026-06-18
 
 ### Added — Honest partial-failure handling: banner, delivered rules, and re-queue-the-rest

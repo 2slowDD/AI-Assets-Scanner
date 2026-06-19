@@ -711,6 +711,30 @@ class ScannerAjax {
     }
 
     /**
+     * Keep only the pages that actually produced a result. For an INCOMPLETE scan
+     * (failed / user_cancel / killed), get_status() returns the unreached slots as
+     * synthetic placeholders { index, status:'pending', assets:[] }
+     * (JobStore.getAllPageResults) with NO 'url'. The build path
+     * (CuJsonBuilder::build, billable_credit_total, build_pages) is written for real
+     * done/error pages that each carry a url — feeding the placeholders in throws
+     * "Undefined array key 'url'" in CuJsonBuilder AND miscounts credits (a 3-of-13
+     * partial billed 13, not 3). Real pages always carry a url; placeholders never do,
+     * so presence of a non-empty 'url' is the discriminator. Dropping placeholders makes
+     * a partial build from exactly the pages that ran — the same shape a complete scan
+     * yields. completed/total for the banner come from $status (server-authoritative),
+     * not count($pages_raw), so this does not affect them.
+     *
+     * @param array<int,mixed> $pages_raw Raw get_status()['pages'].
+     * @return array<int,array<string,mixed>>
+     */
+    public static function filter_real_pages( array $pages_raw ): array {
+        return array_values( array_filter(
+            $pages_raw,
+            static fn( $p ) => is_array( $p ) && isset( $p['url'] ) && '' !== (string) $p['url']
+        ) );
+    }
+
+    /**
      * Scan-history Safe/Aggressive totals, summed from the per-page tally.
      *
      * MUST be sourced from by_page (the exact array the per-URL Step-4 table renders),
@@ -909,8 +933,14 @@ class ScannerAjax {
         $client   = new RailwayClient( $settings->get_railway_url(), $settings->get_api_key() );
         $status   = $client->get_status( $job_id, $job_token, 0 );
 
-        $pages_raw = $status['pages'] ?? [];
+        // R2 partial-scan fix: drop the unreached-slot placeholders get_status() returns
+        // for an incomplete scan (no 'url'/assets) — they throw "Undefined array key 'url'"
+        // in CuJsonBuilder::build and miscount credits. A partial builds from the pages
+        // that actually ran (the same shape a complete scan yields). See filter_real_pages().
+        $pages_raw = self::filter_real_pages( $status['pages'] ?? [] );
         if ( empty( $pages_raw ) ) {
+            // No real (done/error) pages — e.g. cancelled before any page completed.
+            // build_result returns a clean error; the JS routes the operator back to Step 1.
             throw new \RuntimeException( 'No coverage data in Railway response' );
         }
 
