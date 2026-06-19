@@ -1667,6 +1667,14 @@
             if (dlBtn)  dlBtn.style.display  = 'none';
             if (pshBtn) pshBtn.style.display = 'none';
             if (synBtn) synBtn.style.display = 'none';
+            // 1.7.44b — killed reaches Step 4 via renderPartialBanner WITHOUT running
+            // restoreStep4, so the top "Run Another Scan" row keeps its template-default
+            // visibility and duplicates the always-shown bottom one. killed has no results
+            // table, so the top row is purely redundant — hide it. Covers both the live path
+            // (handleTerminalIncomplete) and the reload path (restorePartialBanner), which
+            // both converge here. (Charged partials keep restoreStep4's own rescan-row logic.)
+            var topRescanRow = document.querySelector('#step-4 .cu-rescan-row');
+            if (topRescanRow) topRescanRow.style.display = 'none';
         }
 
         // Wire click handlers for the banner buttons.
@@ -2223,6 +2231,14 @@
         btn.addEventListener('click', function () {
             localStorage.removeItem('cu_scanner_result');
             localStorage.removeItem('cu_scanner_et_carry_over'); // FU-AAS-ET-VIEW-PERSIST — reset to a fresh Step 1
+            // 1.7.44b — "Run Another Scan" = discard ALL partial state and start over.
+            // Without this, cu_scanner_partial survives the reload and restorePartialBanner
+            // re-renders the (now un-dismissable) banner on every load. Also drop any stale
+            // re-queue markers so they can't mis-flag a brand-new scan as a re-queue.
+            localStorage.removeItem('cu_scanner_partial');
+            Object.keys(localStorage).forEach(function (k) {
+                if (k.indexOf('cu_scanner_requeue_') === 0) { localStorage.removeItem(k); }
+            });
             window.location.href = '?page=cu-scanner';
         });
     });
