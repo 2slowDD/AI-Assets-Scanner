@@ -85,13 +85,24 @@ class AIAS_Scan_Status {
 	 * @param array $by_page   build()'s per-page tallies, keyed by the SAME page index.
 	 * @return array<int,array> Sequential rows; error/absent pages get S/A/N = 0.
 	 */
-	public static function build_pages( array $pages_raw, array $by_page ): array {
+	public static function build_pages( array $pages_raw, array $by_page, bool $is_partial = false ): array {
 		$rows = [];
 		$n    = 0;
 		foreach ( $pages_raw as $i => $page ) {
 			$n++;
 			$page  = (array) $page;
 			$st    = self::classify( $page );
+			// R2 1.7.43b: a page with NO captured assets on a CANCELLED/partial scan was cut
+			// off in-flight (zero S/A/N) — show it as "Cancelled", not a misleading 0-rule
+			// "OK", and don't bill it. A genuinely-scanned page lists its assets even when all
+			// of them are needed (S:0 A:0 but N>0), so empty assets is the cut-off signal.
+			if ( $is_partial && empty( $page['assets'] ) ) {
+				$st = [
+					'class'   => 'cancelled',
+					'label'   => __( 'Cancelled — not scanned', 'ai-assets-scanner' ),
+					'credits' => 0,
+				];
+			}
 			$tally = $by_page[ $i ] ?? [ 'safe' => 0, 'aggressive' => 0, 'needed' => 0 ];
 			$bail  = isset( $page['deadline_bail_count'] ) ? (int) $page['deadline_bail_count'] : 0;
 			$rows[] = [

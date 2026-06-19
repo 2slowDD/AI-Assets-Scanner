@@ -79,4 +79,26 @@ class R2PartialReproTest extends TestCase {
         $complete = [ $this->done_page( 'https://site.com/a/' ), $this->done_page( 'https://site.com/b/' ) ];
         $this->assertCount( 2, ScannerAjax::filter_real_pages( $complete ) );
     }
+
+    // --- 1.7.43b: cut-off (in-flight-when-cancelled) pages labeled "Cancelled", not "OK". ---
+
+    public function test_build_pages_labels_cutoff_as_cancelled_on_partial(): void {
+        $pages = [
+            // genuine — has captured assets (a real page lists assets even when all are needed)
+            [ 'url' => 'https://x/done', 'status' => 'done', 'assets' => [ [ 'handle' => 'h', 'type' => 'style' ] ] ],
+            // cut-off — marked done by the worker but zero assets captured
+            [ 'url' => 'https://x/cut',  'status' => 'done', 'assets' => [] ],
+        ];
+        $rows = \AIAS_Scan_Status::build_pages( $pages, [], true ); // is_partial = true
+        $this->assertNotSame( 'cancelled', $rows[0]['status_class'], 'genuine page must not be relabeled' );
+        $this->assertSame( 'cancelled', $rows[1]['status_class'], 'cut-off page must be Cancelled' );
+        $this->assertSame( 0, $rows[1]['credits'], 'cut-off page must not be billed' );
+    }
+
+    public function test_build_pages_complete_scan_does_not_relabel_empty_page(): void {
+        // On a COMPLETE scan a 0-asset page is genuinely empty — keep classify's result, not "Cancelled".
+        $pages = [ [ 'url' => 'https://x/empty', 'status' => 'done', 'assets' => [] ] ];
+        $rows  = \AIAS_Scan_Status::build_pages( $pages, [], false ); // is_partial = false
+        $this->assertNotSame( 'cancelled', $rows[0]['status_class'] );
+    }
 }

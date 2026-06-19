@@ -1481,7 +1481,11 @@
     // so callers can fall back to the pre-submit-fatal failure path.
     function buildResult(terminalInfo) {
         const externalOnly = allSelectedAreExternal();
-        return post('cu_scanner_build_result', { job_id: scanJobId, job_token: scanJobToken })
+        // R2 1.7.43b: on a partial, pass the SaaS-charged page count (the cancel/failed
+        // completed count) so History's credits_used mirrors the actual charge (= the banner),
+        // not the build-time delivered pages a fast-cancel race can inflate.
+        const chargedCount = (terminalInfo && terminalInfo.completed != null) ? terminalInfo.completed : '';
+        return post('cu_scanner_build_result', { job_id: scanJobId, job_token: scanJobToken, charged_count: chargedCount })
             .then(res => {
                 if (!res.success) {
                     // For a terminal-incomplete partial, an error here means nothing was
@@ -1513,7 +1517,13 @@
                 }) );
                 // Task 5 \u2014 charged terminal-incomplete partial: after Step 4 renders,
                 // route through the unified handler for the partial banner.
-                if (terminalInfo) handleTerminalIncomplete(terminalInfo);
+                if (terminalInfo) {
+                    // R2 1.7.43b: use the BUILD-TIME result rows (d.pages) for the remainder
+                    // discriminator, not the stale cancel-click snapshot \u2014 so a page that
+                    // finished in-flight after the cancel isn't re-queued.
+                    terminalInfo.pages = (d.pages || terminalInfo.pages || []);
+                    handleTerminalIncomplete(terminalInfo);
+                }
                 return true;
             });
     }
@@ -1530,7 +1540,10 @@
     // info = { status, completed, total, pages, selectedUrls }.
     // Task 6: stash info, compute + persist remainder, render full banner.
     function handleTerminalIncomplete(info) {
-        currentPartialInfo = info;
+        // currentPartialInfo is assigned to partialPayload below (after the remainder is
+        // computed) so it carries remainder_urls — reQueueRemainder reads
+        // currentPartialInfo.remainder_urls. Setting it to the raw `info` here left it
+        // undefined on the live path → "No remaining pages to re-queue" (1.7.43b fix).
 
         // --- Compute remainder ---
         // Strip any query string (bypass params) from a URL for clean comparison.
@@ -1543,10 +1556,20 @@
         const submitted = Array.isArray(info && info.selectedUrls) ? info.selectedUrls : [];
         const pages     = Array.isArray(info && info.pages)        ? info.pages        : [];
 
-        // Build a set of "done" clean URLs from the pages array.
+        // Build the set of clean URLs that GENUINELY scanned (captured real assets).
+        // info.pages here is the BUILD-TIME result set (buildResult passes do_build_result's
+        // d.pages). A cut-off page (in-flight when cancelled) is marked done by the worker but
+        // has zero assets / zero S:A:N — it is NOT genuinely scanned, so it stays in the
+        // remainder to be re-queued (alongside the never-reached pages). (1.7.43b)
+        function isGenuinelyScanned(p) {
+            if (!p) return false;
+            var san = (Number(p.safe) || 0) + (Number(p.aggressive) || 0) + (Number(p.needed) || 0);
+            if (san > 0) return true;                              // build-time result row (real rules/needed)
+            return Array.isArray(p.assets) && p.assets.length > 0; // raw worker row (killed/fallback)
+        }
         const doneSet = new Set();
         pages.forEach(function (p) {
-            if (p && p.status === 'done') {
+            if (p && p.url && isGenuinelyScanned(p)) {
                 doneSet.add(cleanUrl(p.url));
             }
         });
@@ -1571,6 +1594,10 @@
             total:         Number(info.total)     || 0,
             remainder_urls: remainderUrls,
         };
+        // Stash the payload WITH remainder_urls so reQueueRemainder works on the LIVE path
+        // (it reads currentPartialInfo.remainder_urls) — identical to the reload-restore path
+        // (restorePartialBanner sets currentPartialInfo to this same shape). (1.7.43b fix.)
+        currentPartialInfo = partialPayload;
         try {
             localStorage.setItem('cu_scanner_partial', JSON.stringify(partialPayload));
         } catch (_e) { /* localStorage unavailable \u2014 banner still renders live */ }
@@ -1883,7 +1910,7 @@
         var host = document.getElementById('cu-result-url-list'), st = cuUrlListState;
         var total = st.pages.length, pageCount = Math.ceil( total / st.perPage );
         var slice = st.pages.slice( st.page * st.perPage, st.page * st.perPage + st.perPage );
-        var c = { ok: 0, partial: 0, blocked: 0, error: 0, skipped: 0 };
+        var c = { ok: 0, partial: 0, blocked: 0, error: 0, skipped: 0, cancelled: 0 };
         st.pages.forEach( function ( p ) { if ( c[ p.status_class ] != null ) { c[ p.status_class ]++; } } );
         // AC-RC-8b — build reverse map (resolved → submitted) from the probe-session
         // resolvedByUrl map. Only populated during a live scan; gracefully absent when
@@ -1922,7 +1949,7 @@
             : '';
         host.innerHTML =
             '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
-          + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error (' + total + ' URLs)</p>'
+          + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error · ' + c.cancelled + ' cancelled (' + total + ' URLs)</p>'
           + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th>ET candidate <span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></th><th>Extra Time <span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
           + '<p class="cu-et-result-all-row"><label><input type="checkbox" id="cu-et-result-all"> Extra Time: all ET candidates</label></p>'
           + pager;
