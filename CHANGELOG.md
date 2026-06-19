@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.44b - 2026-06-19
+
+### Fixed — Partial banner could get stuck after a page reload
+
+- Hotfix for 1.7.43b: after a cancelled or stopped scan, clicking **"Run Another Scan"** reloaded the page but left the partial-failure banner stored, so it reappeared on every load — the banner became impossible to dismiss, and the screen showed a duplicate "Run Another Scan" button with Push/Sync missing.
+- **"Run Another Scan" now clears the stored partial-banner state** (and any leftover re-queue markers) before reloading, so it always lands on a fresh Step 1.
+- An administrator-stopped scan — which legitimately shows the banner on its own after a passive reload — no longer renders a redundant top "Run Another Scan" button (the bottom one remains).
+
+> The partial banner still survives a plain page reload before you act on it, and is still cleared automatically when you re-queue the remaining pages. Only "Run Another Scan" now also discards it.
+
+---
+
 ## 1.7.43b - 2026-06-19
 
 ### Fixed — Re-queue button, and cancelled-mid-scan pages on the partial result
