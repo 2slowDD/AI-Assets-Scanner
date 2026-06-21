@@ -163,7 +163,8 @@ class ScannerAjax {
             $balance = null;
         }
 
-        $extra = [];
+        $extra    = [];
+        $detected = null;
         try {
             $detected = ( new \CUScanner\Cdn\Detector() )->detect();
             $ack      = $this->settings()->get_acknowledged_cdn();
@@ -176,6 +177,28 @@ class ScannerAjax {
         } catch ( \Throwable $e ) {
             // Fail-quiet: CDN detection is non-critical; omit the notice on error.
             error_log( '[AI Assets Scanner] detect_plugins cdn_notice: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
+        }
+
+        // A1: pre-scan throttle notice — if the last scan was rate-limited, name the source + branch the advice.
+        try {
+            $records = ( new ScanHistory() )->get_all();
+            $last    = $records[0] ?? null;
+            $name    = is_array( $last ) ? (string) ( $last['rate_limit_attribution'] ?? '' ) : '';
+            if ( '' !== $name ) {
+                $kind    = self::throttle_notice_kind( $name );
+                $payload = [ 'name' => $name, 'kind' => $kind ];
+                if ( 'cdn' === $kind ) {
+                    $payload['settings_url'] = admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' );
+                }
+                $extra['last_scan_throttle'] = $payload;
+                // Supersede the proactive cdn_notice when it's the same detected CDN (avoid a double notice).
+                if ( isset( $extra['cdn_notice'] ) && self::throttle_supersedes_cdn_notice( $kind, $name, $detected ) ) {
+                    unset( $extra['cdn_notice'] );
+                }
+            }
+        } catch ( \Throwable $e ) {
+            // Fail-quiet: the throttle notice is non-critical; omit it on error.
+            error_log( '[AI Assets Scanner] detect_plugins last_scan_throttle: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging; detail withheld from the browser.
         }
 
         wp_send_json_success( array_merge( $plugins, [ 'balance' => $balance ], $extra ) );
