@@ -53,10 +53,8 @@ final class CloudflareAdapter implements AdapterInterface {
      * @param string $scanner_secret The per-site secret from plugin settings.
      */
     public function instructionsHtml( string $scanner_secret ): string {
-        $secret = esc_html( $scanner_secret );
-
-        // The full header expression the customer must paste into Cloudflare.
-        $expression = 'http.request.headers[&quot;x-cu-scanner&quot;][0] eq &quot;' . $secret . '&quot;';
+        // Build the raw expression with real quotes — escaping happens at output time.
+        $expression = 'http.request.headers["x-cu-scanner"][0] eq "' . $scanner_secret . '"';
 
         ob_start();
         ?>
@@ -74,7 +72,7 @@ final class CloudflareAdapter implements AdapterInterface {
     <h4>Step 3 — Paste the expression</h4>
     <p>Switch to <em>Edit expression</em> (plain text mode) and paste:</p>
     <div class="cu-cdn-expression-wrap">
-        <code id="cu-cf-rule-expression" class="cu-cdn-expression"><?php echo $expression; ?></code>
+        <code id="cu-cf-rule-expression" class="cu-cdn-expression"><?php echo esc_html( $expression ); ?></code>
         <button type="button" id="cu-copy-cf-expression" class="button button-secondary cu-cdn-copy-btn">Copy</button>
     </div>
 
