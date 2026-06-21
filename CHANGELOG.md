@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.47b - 2026-06-21
+
+### Added — Pre-scan throttle attribution notice (know *who* rate-limited your scan)
+
+- After a scan hits rate-limiting (429), the scanner page now shows a **pre-scan notice that names the source** of the throttling and gives source-specific advice:
+  - **CDN edge** (Cloudflare / Akamai / Imperva / WAF) → "set up the exemption before re-scanning," with a direct link to the Cloudflare WAF Bypass settings.
+  - **Origin server** (e.g. Wordfence or host limits) → "a CDN exemption won't help — temporarily raise or disable rate limiting on your server."
+  - **Unknown** → generic CDN-or-origin guidance.
+- The notice is precise (it uses the scanner worker's actual throttle attribution), persisted (it shows *before* the next scan, carried from the last one), and **self-clears** after the next clean scan. For a confirmed Cloudflare throttle it supersedes the proactive "CDN detected" notice to avoid a double message.
+
+---
+
 ## 1.7.46b - 2026-06-21
 
 ### Fixed
