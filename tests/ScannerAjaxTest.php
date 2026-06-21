@@ -115,6 +115,13 @@ class ScannerAjaxTest extends TestCase {
             ->with( 'cu_scanner_api_key', '' )->andReturn( 'test-key' );
         WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://example.com' );
         WP_Mock::userFunction( 'wp_parse_url' )->andReturn( 'example.com' );
+        // CDN detection: transient cache-hit → Detector::detect() returns null; get_acknowledged_cdn stub silences cdn_notice path.
+        WP_Mock::userFunction( 'get_transient' )
+            ->with( 'cu_scanner_cdn_detected' )
+            ->andReturn( '' );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_cdn_exemption_ack', '' )
+            ->andReturn( '' );
         WP_Mock::userFunction( 'wp_remote_get' )
             ->andReturn( new \WP_Error( 'http_failure', 'Connection refused' ) );
 
@@ -136,6 +143,13 @@ class ScannerAjaxTest extends TestCase {
             ->with( 'cu_scanner_api_key', '' )->andReturn( 'test-key' );
         WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://example.com' );
         WP_Mock::userFunction( 'wp_parse_url' )->andReturn( 'example.com' );
+        // CDN detection: transient cache-hit → Detector::detect() returns null; get_acknowledged_cdn stub silences cdn_notice path.
+        WP_Mock::userFunction( 'get_transient' )
+            ->with( 'cu_scanner_cdn_detected' )
+            ->andReturn( '' );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_cdn_exemption_ack', '' )
+            ->andReturn( '' );
         WP_Mock::userFunction( 'wp_remote_get' )->andReturn( [ 'response' => [ 'code' => 200 ] ] );
         WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
         WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( '{"balance":42}' );
