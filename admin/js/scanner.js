@@ -2070,10 +2070,18 @@
 
         const copy = bits.map(esc).join(' ') + reasonClause + ' ' + esc(action);
 
+        // CDN exemption solution line \u2014 shown whenever 'rate' is one of the categories
+        // (covers both pure-rate and mixed rate+bot scans). The href is a static,
+        // hardcoded, user-input-free admin-relative URL \u2014 safe to inline without esc().
+        // Must match class-broken-banner.php action_clause() rate-branch copy.
+        const cdnLink = categories.includes('rate')
+            ? ' Behind Cloudflare or another CDN? Set up the scanner rate-limit exemption so future scans aren\'t throttled \u2014 <a href="admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass">open AI Assets Scanner settings</a>.'
+            : '';
+
         area.innerHTML =
             '<div class="notice notice-warning inline aias-broken-banner" data-scan-id="' + esc(scanId) + '">' +
             '<p><strong>\u26a0 Some pages couldn\'t be fully scanned</strong></p>' +
-            '<p>' + copy + '</p>' +
+            '<p>' + copy + cdnLink + '</p>' +
             '<p><button type="button" class="button aias-dismiss-banner">Got it \u2014 don\'t show again for this scan</button></p>' +
             '</div>';
     }
