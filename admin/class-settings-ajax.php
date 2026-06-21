@@ -10,6 +10,15 @@ class SettingsAjax {
     public function register(): void {
         add_action( 'wp_ajax_cu_scanner_save_settings', [ $this, 'save_settings' ] );
         add_action( 'wp_ajax_cu_scanner_fetch_balance', [ $this, 'fetch_balance' ] );
+        add_action( 'wp_ajax_cu_scanner_ack_cdn', [ $this, 'ack_cdn' ] );
+    }
+
+    public function ack_cdn(): void {
+        check_ajax_referer( 'cu_scanner_settings_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Forbidden', 403 );
+        $cdn = sanitize_text_field( wp_unslash( $_POST['cdn'] ?? '' ) );
+        ( new \CUScanner\Settings() )->set_acknowledged_cdn( $cdn );
+        wp_send_json_success();
     }
 
     public function save_settings(): void {

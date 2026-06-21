@@ -266,6 +266,14 @@ class Settings {
             && defined( 'SODIUM_CRYPTO_SECRETBOX_NONCEBYTES' );
     }
 
+    public function get_acknowledged_cdn(): string {
+        return (string) get_option( 'cu_scanner_cdn_exemption_ack', '' );
+    }
+
+    public function set_acknowledged_cdn( string $name ): void {
+        update_option( 'cu_scanner_cdn_exemption_ack', $name );
+    }
+
     public function get_scanner_secret(): string {
         $secret = (string) get_option( 'cu_scanner_secret', '' );
         if ( ! $secret ) {

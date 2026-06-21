@@ -86,5 +86,75 @@
                 });
             });
         }
+
+        // CF expression copy button (rendered by CloudflareAdapter::instructionsHtml).
+        const copyExprBtn = document.getElementById('cu-copy-cf-expression');
+        if (copyExprBtn) {
+            copyExprBtn.addEventListener('click', function () {
+                const exprEl = document.getElementById('cu-cf-rule-expression');
+                if (!exprEl) return;
+                navigator.clipboard.writeText(exprEl.textContent).then(function () {
+                    const orig = copyExprBtn.textContent;
+                    copyExprBtn.textContent = 'Copied!';
+                    setTimeout(function () { copyExprBtn.textContent = orig; }, 2000);
+                });
+            });
+        }
+
+        // Helper: POST ack_cdn action and call callback on success.
+        function postAckCdn(cdnName, onSuccess) {
+            if (!cdnName) return;
+            const nonceField = form.querySelector('[name="nonce"]');
+            const nonceVal   = nonceField ? nonceField.value : cuScannerSettings.nonce;
+            const data = new FormData();
+            data.append('action', 'cu_scanner_ack_cdn');
+            data.append('nonce',  nonceVal);
+            data.append('cdn',    cdnName);
+            fetch(cuScannerSettings.ajaxUrl, { method: 'POST', body: data })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (res.success && typeof onSuccess === 'function') {
+                        onSuccess();
+                    }
+                });
+        }
+
+        // Auto-detected CDN ack button.
+        const ackBtn = document.getElementById('cu-ack-cdn');
+        if (ackBtn) {
+            ackBtn.addEventListener('click', function () {
+                const cdnName = ackBtn.dataset.cdn;
+                postAckCdn(cdnName, function () {
+                    ackBtn.disabled    = true;
+                    ackBtn.textContent = 'Saved!';
+                });
+            });
+        }
+
+        // Manual CDN selector — show the matching instructions block.
+        const cdnSelect = document.getElementById('cu-cdn-select');
+        if (cdnSelect) {
+            cdnSelect.addEventListener('change', function () {
+                document.querySelectorAll('.cu-cdn-instructions-block').forEach(function (el) {
+                    el.style.display = 'none';
+                });
+                const chosen = cdnSelect.value;
+                if (chosen) {
+                    const block = document.getElementById('cu-cdn-instructions-' + chosen);
+                    if (block) block.style.display = '';
+                }
+            });
+        }
+
+        // Manual CDN ack buttons (one per adapter block).
+        document.querySelectorAll('.cu-ack-cdn-manual').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const cdnName = btn.dataset.cdn;
+                postAckCdn(cdnName, function () {
+                    btn.disabled    = true;
+                    btn.textContent = 'Saved!';
+                });
+            });
+        });
     });
 }());
