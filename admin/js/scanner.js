@@ -452,6 +452,19 @@
                 html += `<div class="notice notice-warning"><p><strong>CDN detected (${cdnName})</strong> — set up the scanner rate-limit exemption to avoid 429 errors during scans. <a href="${esc(d.cdn_notice.settings_url)}">Open the Cloudflare WAF Bypass settings</a>.</p></div>`;
             }
 
+            // A1: last scan was rate-limited — attribution-branched pre-scan notice (supersedes cdn_notice for same CDN, server-side)
+            if (d.last_scan_throttle) {
+                const t = d.last_scan_throttle;
+                if (t.kind === 'cdn') {
+                    const tName = esc(t.name).replace(/^./, c => c.toUpperCase());
+                    html += `<div class="notice notice-warning"><p><strong>Your last scan was rate-limited by ${tName}</strong> — set up the exemption before re-scanning. <a href="${esc(t.settings_url)}">Open the Cloudflare WAF Bypass settings</a>.</p></div>`;
+                } else if (t.kind === 'origin') {
+                    html += `<div class="notice notice-warning"><p><strong>Your last scan was rate-limited by your origin server</strong> (e.g. Wordfence or host limits). A CDN exemption won't help — temporarily raise or disable rate limiting on your server before scanning.</p></div>`;
+                } else {
+                    html += `<div class="notice notice-warning"><p><strong>Your last scan hit rate-limiting (429).</strong> If your site is behind a CDN, set up the exemption; otherwise check your origin/server rate limits.</p></div>`;
+                }
+            }
+
             // Auto-bypass: compact single-line banner
             Object.keys(d.auto_bypass || {}).forEach(slug => {
                 // Derive a readable label from the slug (wp-rocket → WP Rocket, code-unloader → Code Unloader)
