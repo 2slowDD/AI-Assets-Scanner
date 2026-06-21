@@ -110,6 +110,9 @@ class BannerRenderingTest extends TestCase {
 		WP_Mock::userFunction( 'esc_html_e' )->andReturnUsing( function ( $t ) { echo $t; } );
 		WP_Mock::userFunction( 'esc_html' )->andReturnArg( 0 );
 		WP_Mock::userFunction( 'wp_kses_post' )->andReturnArg( 0 );
+		WP_Mock::userFunction( '__' )->andReturnArg( 0 );
+		WP_Mock::userFunction( 'esc_url' )->andReturnArg( 0 );
+		WP_Mock::userFunction( 'admin_url' )->andReturnArg( 0 );
 	}
 
 	public function test_rate_limit_alone_uses_cadence_action_clause(): void {
@@ -125,6 +128,9 @@ class BannerRenderingTest extends TestCase {
 		$this->assertStringContainsString( 'rate-limited', $html );
 		$this->assertStringContainsString( 'between scans', $html );
 		$this->assertStringNotContainsString( 'bot protection denied', $html );
+		// CDN-exemption solution + settings deep-link must appear on 429 banners.
+		$this->assertStringContainsString( 'rate-limit exemption', $html );
+		$this->assertStringContainsString( 'cu-cloudflare-waf-bypass', $html );
 	}
 
 	public function test_server_error_alone_uses_retry_action_clause(): void {
@@ -157,6 +163,9 @@ class BannerRenderingTest extends TestCase {
 		// Mixed-category reasons fall back to the generic bot-protection clause
 		// to avoid misleading single-cause guidance.
 		$this->assertStringContainsString( 'bot protection denied', $html );
+		// CDN-exemption solution also appears when rate is one of the reasons (mixed scan).
+		$this->assertStringContainsString( 'rate-limit exemption', $html );
+		$this->assertStringContainsString( 'cu-cloudflare-waf-bypass', $html );
 	}
 
 	// -------------------------------------------------------------------------

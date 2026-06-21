@@ -136,9 +136,14 @@ class AIAS_Broken_Banner {
 
 		if ( count( $categories ) === 1 ) {
 			if ( $categories[0] === 'rate' ) {
+				$settings_url = esc_url( admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ) );
 				return esc_html__(
 					'Your server rate-limited the scanner. The rules from the unblocked device (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.',
 					'ai-assets-scanner'
+				) . ' ' . sprintf(
+					/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
+					wp_kses_post( __( 'Behind Cloudflare or another CDN? Set up the scanner rate-limit exemption so future scans aren\'t throttled — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ) ),
+					$settings_url
 				);
 			}
 			if ( $categories[0] === 'error' ) {
@@ -149,10 +154,19 @@ class AIAS_Broken_Banner {
 			}
 		}
 
-		return esc_html__(
+		$base = esc_html__(
 			'Your bot protection denied the scanner. The rules from the unblocked device are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.',
 			'ai-assets-scanner'
 		);
+		if ( in_array( 'rate', $categories, true ) ) {
+			$settings_url = esc_url( admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ) );
+			$base .= ' ' . sprintf(
+				/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
+				wp_kses_post( __( 'Behind Cloudflare or another CDN? Set up the scanner rate-limit exemption so future scans aren\'t throttled — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ) ),
+				$settings_url
+			);
+		}
+		return $base;
 	}
 
 	/**
