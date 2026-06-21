@@ -74,6 +74,7 @@ spl_autoload_register( function ( string $class ): void {
         'AIAS_Scan_Status'                       => 'includes/class-scan-status.php',
         'CUScanner\\Cdn\\AdapterInterface'       => 'includes/cdn/interface-adapter.php',
         'CUScanner\\Cdn\\Registry'               => 'includes/cdn/class-registry.php',
+        'CUScanner\\Cdn\\CloudflareAdapter'      => 'includes/cdn/class-cloudflare-adapter.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require CU_SCANNER_DIR . $map[ $class ];
