@@ -1118,13 +1118,20 @@ class ScannerAjax {
             : self::billable_credit_total( $pages_raw );
         $hist_status = $this->compute_hist_status( $completed, $total );
 
-        $history = new ScanHistory();
-        $history->store_json( $job_id, $json_str );
-        $history->update_status( $job_id, $hist_status, [
+        // A1: aggregate the rate-limited pages' attribution (presence-keyed; null when none / pre-worker-deploy).
+        $rate_limit_attribution = self::aggregate_rate_limit_attribution( $pages_raw );
+
+        $history     = new ScanHistory();
+        $hist_extra  = [
             'credits_used'     => $credits_used,
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
-        ] );
+        ];
+        if ( null !== $rate_limit_attribution ) {
+            $hist_extra['rate_limit_attribution'] = $rate_limit_attribution;
+        }
+        $history->store_json( $job_id, $json_str );
+        $history->update_status( $job_id, $hist_status, $hist_extra );
 
         // Signal scan completion so the Class C orchestrator can restore plugins (spec §3.5).
         $scan_id_complete = substr( hash( 'sha256', (string) $job_id ), 0, 16 );
