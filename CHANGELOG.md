@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.46b - 2026-06-21
+
+### Fixed
+
+- **CDN auto-detection now works on hosts where the server's self-check loops back to the origin** (e.g. Hostinger + Cloudflare): the scanner now also reads the CDN fingerprint from the current inbound request (`$_SERVER` HTTP_* headers), so the "CDN detected" notice and the Settings exemption instructions appear automatically instead of falling back to the manual "I use a CDN" picker.
+
+---
+
 ## 1.7.45b - 2026-06-21
 
 ### Added — CDN rate-limit exemption (stop your CDN throttling the scanner)
