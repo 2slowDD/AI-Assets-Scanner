@@ -163,7 +163,22 @@ class ScannerAjax {
             $balance = null;
         }
 
-        wp_send_json_success( array_merge( $plugins, [ 'balance' => $balance ] ) );
+        $extra = [];
+        try {
+            $detected = ( new \CUScanner\Cdn\Detector() )->detect();
+            $ack      = $this->settings()->get_acknowledged_cdn();
+            if ( \CUScanner\Admin\AdminPages::cdn_notice_should_show( $detected, $ack ) ) {
+                $extra['cdn_notice'] = [
+                    'name'         => $detected,
+                    'settings_url' => admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ),
+                ];
+            }
+        } catch ( \Throwable $e ) {
+            // Fail-quiet: CDN detection is non-critical; omit the notice on error.
+            error_log( '[AI Assets Scanner] detect_plugins cdn_notice: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
+        }
+
+        wp_send_json_success( array_merge( $plugins, [ 'balance' => $balance ], $extra ) );
     }
 
     public function discover_pages(): void {
