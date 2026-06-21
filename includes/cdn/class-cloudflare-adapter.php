@@ -26,11 +26,21 @@ final class CloudflareAdapter implements AdapterInterface {
 
     /**
      * @param array<string,string> $headers Lower-cased header name => value.
+     *
+     * Matches both response-side signals (cf-ray, server: cloudflare — returned by CF on
+     * outbound self-sniff) and request-side signals (cf-connecting-ip, cdn-loop: cloudflare —
+     * added by CF to every forwarded origin request, visible in $_SERVER on the origin).
      */
     public function detect( array $headers ): bool {
-        if ( isset( $headers['cf-ray'] ) ) {
+        // Response-side and request-side presence signals (any one is sufficient).
+        if ( isset( $headers['cf-ray'] ) || isset( $headers['cf-connecting-ip'] ) ) {
             return true;
         }
+        // cdn-loop contains 'cloudflare' — request-side forwarding marker.
+        if ( isset( $headers['cdn-loop'] ) && stripos( $headers['cdn-loop'], 'cloudflare' ) !== false ) {
+            return true;
+        }
+        // Response-side server header.
         return isset( $headers['server'] )
             && stripos( $headers['server'], 'cloudflare' ) !== false;
     }

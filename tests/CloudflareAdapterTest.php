@@ -48,6 +48,20 @@ final class CloudflareAdapterTest extends TestCase {
         $this->assertFalse( $this->adapter->detect( [] ) );
     }
 
+    // ── request-side CF fingerprints (origin-request headers added by CF) ────
+
+    public function test_detects_via_cf_connecting_ip(): void {
+        $this->assertTrue( $this->adapter->detect( [ 'cf-connecting-ip' => '1.2.3.4' ] ) );
+    }
+
+    public function test_detects_via_cdn_loop_cloudflare(): void {
+        $this->assertTrue( $this->adapter->detect( [ 'cdn-loop' => 'cloudflare' ] ) );
+    }
+
+    public function test_does_not_detect_cdn_loop_fastly(): void {
+        $this->assertFalse( $this->adapter->detect( [ 'cdn-loop' => 'fastly' ] ) );
+    }
+
     // ── isValidated() ───────────────────────────────────────────────────────
 
     public function test_is_validated(): void {

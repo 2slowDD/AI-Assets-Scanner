@@ -27,17 +27,31 @@ final class Detector {
     /**
      * Detect the CDN serving this WordPress site.
      *
-     * Performs a single self-sniff GET to home_url('/') with a 5-second timeout
-     * so a slow or down origin never blocks admin render. Result is cached in a
-     * transient (12h on hit, 30m on miss/error) to avoid repeated HTTP calls.
-     * Fail-quiet: a WP_Error response sets the miss transient and returns null.
+     * Priority order:
+     * 1. Inbound-request headers ($_SERVER) — checked FIRST. The current browser
+     *    request traversed the CDN (browser → CDN → origin), so CDN fingerprint
+     *    headers (e.g. HTTP_CF_RAY, HTTP_CF_CONNECTING_IP) are visible in $_SERVER.
+     *    This path is free (no HTTP), is authoritative, and self-heals stale cached
+     *    misses (e.g. from split-horizon loopback self-sniffs on Hostinger).
+     * 2. Transient cache — avoids repeated self-sniff HTTP calls.
+     * 3. Server-side self-sniff GET to home_url('/') — fallback for the first hit
+     *    after cache expiry. Fail-quiet on WP_Error.
      *
-     * SSRF note: the request target is always home_url('/') — a WordPress core
+     * SSRF note: the self-sniff target is always home_url('/') — a WordPress core
      * function returning this site's own URL. It is never user-supplied input.
      *
      * @return string|null Detected CDN adapter name, or null when unknown/error.
      */
     public function detect( bool $force = false ): ?string {
+        // 1. Inbound-request detection: checked before transient and self-sniff.
+        //    Overrides any stale cached miss on split-horizon hosts (e.g. Hostinger + CF).
+        $from_request = $this->detect_from_request();
+        if ( null !== $from_request ) {
+            set_transient( self::CACHE_KEY, $from_request, self::TTL_HIT );
+            return $from_request;
+        }
+
+        // 2. Transient cache.
         if ( ! $force ) {
             $cached = get_transient( self::CACHE_KEY );
             if ( $cached !== false ) {
@@ -45,6 +59,7 @@ final class Detector {
             }
         }
 
+        // 3. Self-sniff fallback.
         $resp = wp_remote_get( home_url( '/' ), [ 'timeout' => 5 ] );
 
         if ( is_wp_error( $resp ) ) {
@@ -61,5 +76,33 @@ final class Detector {
         $name    = $adapter ? $adapter->name() : '';
         set_transient( self::CACHE_KEY, $name, $name === '' ? self::TTL_MISS : self::TTL_HIT );
         return $name === '' ? null : $name;
+    }
+
+    /**
+     * Detect CDN from the current inbound request's $_SERVER headers.
+     *
+     * Normalises HTTP_* keys (strip prefix, lowercase, underscores → dashes) and
+     * runs them through the adapter registry. Values are cast to string for
+     * header-map shape compatibility; they are NEVER echoed or output anywhere —
+     * the return value is always an adapter name() from our own registry or null.
+     *
+     * @return string|null Matched adapter name, or null if no CDN fingerprint found.
+     */
+    private function detect_from_request(): ?string {
+        $headers = [];
+        foreach ( $_SERVER as $key => $value ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- values used only for header-name matching via adapter detect(); never echoed or output; return value is always adapter name() from our registry.
+            if ( strncmp( $key, 'HTTP_', 5 ) !== 0 ) {
+                continue;
+            }
+            $header_name             = strtolower( str_replace( '_', '-', substr( $key, 5 ) ) );
+            $headers[ $header_name ] = (string) $value;
+        }
+
+        if ( empty( $headers ) ) {
+            return null;
+        }
+
+        $adapter = $this->registry->detect( $headers );
+        return $adapter ? $adapter->name() : null;
     }
 }
