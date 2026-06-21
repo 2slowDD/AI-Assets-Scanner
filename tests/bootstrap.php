@@ -72,6 +72,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Admin\\PrivateUpdater'        => 'includes/admin/class-private-updater.php',
         'AIAS_Broken_Banner'                     => 'includes/class-broken-banner.php',
         'AIAS_Scan_Status'                       => 'includes/class-scan-status.php',
+        'CUScanner\\Admin\\AdminPages'            => 'admin/class-admin-pages.php',
         'CUScanner\\Admin\\SettingsAjax'          => 'admin/class-settings-ajax.php',
         'CUScanner\\Cdn\\AdapterInterface'       => 'includes/cdn/interface-adapter.php',
         'CUScanner\\Cdn\\Registry'               => 'includes/cdn/class-registry.php',

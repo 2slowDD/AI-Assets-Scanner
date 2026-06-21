@@ -445,6 +445,13 @@
                 html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(data.reason)}</p></div>`;
             });
 
+            // CDN detected: warning notice with deep-link to WAF bypass settings
+            if (d.cdn_notice) {
+                // Capitalise the CDN slug for display (e.g. "cloudflare" → "Cloudflare")
+                const cdnName = esc(d.cdn_notice.name).replace(/^./, c => c.toUpperCase());
+                html += `<div class="notice notice-warning"><p><strong>CDN detected (${cdnName})</strong> — set up the scanner rate-limit exemption to avoid 429 errors during scans. <a href="${esc(d.cdn_notice.settings_url)}">Open the Cloudflare WAF Bypass settings</a>.</p></div>`;
+            }
+
             // Auto-bypass: compact single-line banner
             Object.keys(d.auto_bypass || {}).forEach(slug => {
                 // Derive a readable label from the slug (wp-rocket → WP Rocket, code-unloader → Code Unloader)

@@ -94,4 +94,15 @@ class AdminPages {
     public function render_scanner(): void  { require CU_SCANNER_DIR . 'admin/views/scanner-page.php'; }
     public function render_settings(): void { require CU_SCANNER_DIR . 'admin/views/settings-page.php'; }
     public function render_history(): void  { require CU_SCANNER_DIR . 'admin/views/history-page.php'; }
+
+    /**
+     * Pure visibility predicate: show the CDN notice when a CDN is detected
+     * and the detected CDN differs from the one the operator has acknowledged.
+     *
+     * @param string|null $detected     CDN slug returned by Detector::detect(), or null.
+     * @param string      $acknowledged CDN slug stored in settings ('' = none).
+     */
+    public static function cdn_notice_should_show( ?string $detected, string $acknowledged ): bool {
+        return $detected !== null && $detected !== $acknowledged;
+    }
 }
