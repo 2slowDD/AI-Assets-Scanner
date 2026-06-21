@@ -108,20 +108,97 @@
     </div>
 
     <div class="cu-body" id="cu-cloudflare-waf-bypass" style="margin-top:24px">
-        <h3 style="margin-top:0">Cloudflare WAF Bypass <small style="font-weight:normal;font-size:12px;color:#a7aaad;">(Advanced)</small></h3>
-        <p>If your site uses Cloudflare Bot Fight Mode or Super Bot Fight Mode, create a custom WAF rule
-           so the scanner passes through automatically &mdash; no need to disable protection before each scan.</p>
-        <ol>
-            <li>Log in to <strong>Cloudflare Dashboard</strong> &rarr; select your domain &rarr; <strong>Security &rarr; WAF &rarr; Custom Rules</strong></li>
-            <li>Click <strong>Create rule</strong></li>
-            <li>Set the expression (use Edit expression / plain text):<br>
-                <code style="display:inline-block;margin-top:4px;padding:4px 8px;background:#f0f0f1;border-radius:3px">http.request.headers["x-cu-scanner"][0] eq "<?php echo esc_html( $scanner_secret ); ?>"</code>
-            </li>
-            <li>Set Action: <strong>Skip</strong> &rarr; check <em>All remaining custom rules</em> and <em>Skip Bot Fight Mode</em></li>
-            <li>Click <strong>Deploy</strong></li>
-        </ol>
-        <p>The scanner will bypass Cloudflare bot checks automatically on every scan.</p>
-        <p><strong>WordFence users:</strong> Temporarily disabling WordFence rate limiting before a scan is the simplest approach.</p>
+        <?php
+        // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template file included within a class method; variables are local to method scope, not global.
+        $cdn_registry     = \CUScanner\Cdn\Detector::default_registry();
+        $detected_cdn     = ( new \CUScanner\Cdn\Detector() )->detect();
+        $acknowledged_cdn = ( new \CUScanner\Settings() )->get_acknowledged_cdn();
+
+        $detected_adapter = null;
+        if ( null !== $detected_cdn ) {
+            foreach ( $cdn_registry->all() as $cdn_adapter ) {
+                if ( $cdn_adapter->name() === $detected_cdn ) {
+                    $detected_adapter = $cdn_adapter;
+                    break;
+                }
+            }
+        }
+        // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
+        ?>
+
+        <?php if ( null !== $detected_adapter ) : ?>
+
+            <h3 style="margin-top:0">CDN Rate Limiting Exemption</h3>
+            <p>We detected your site is proxied through <strong><?php echo esc_html( ucfirst( $detected_cdn ) ); ?></strong>.
+               Configure the exemption below so the scanner can reach your pages without hitting rate limits.</p>
+
+            <?php
+            // instructionsHtml() is plugin-authored and self-escapes the secret via esc_html() internally — safe to echo as-is.
+            // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- plugin-authored HTML; secret escaped via esc_html() inside instructionsHtml().
+            echo $detected_adapter->instructionsHtml( $scanner_secret );
+            ?>
+
+            <?php if ( $acknowledged_cdn !== $detected_cdn ) : ?>
+                <p style="margin-top:16px">
+                    <button type="button"
+                            id="cu-ack-cdn"
+                            class="button button-primary"
+                            data-cdn="<?php echo esc_attr( $detected_cdn ); ?>">
+                        I&rsquo;ve configured this exemption
+                    </button>
+                </p>
+            <?php else : ?>
+                <p style="margin-top:12px;color:#2a9d55">
+                    &#10003; Exemption marked as configured.
+                    <button type="button"
+                            id="cu-ack-cdn"
+                            class="button"
+                            data-cdn="<?php echo esc_attr( $detected_cdn ); ?>"
+                            style="margin-left:8px">
+                        Re-confirm
+                    </button>
+                </p>
+            <?php endif; ?>
+
+        <?php else : ?>
+
+            <h3 style="margin-top:0">CDN Rate Limiting Exemption <small style="font-weight:normal;font-size:12px;color:#a7aaad;">(Optional)</small></h3>
+            <p>We couldn&rsquo;t automatically detect a CDN on this site. If you use one, select it below
+               to see instructions for creating a rate-limit exemption rule.</p>
+
+            <p>
+                <label for="cu-cdn-select"><strong>My CDN:</strong></label>
+                <select id="cu-cdn-select" style="margin-left:8px">
+                    <option value="">— Select CDN —</option>
+                    <?php foreach ( $cdn_registry->all() as $cdn_adapter ) : ?>
+                        <option value="<?php echo esc_attr( $cdn_adapter->name() ); ?>">
+                            <?php echo esc_html( ucfirst( $cdn_adapter->name() ) ); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </p>
+
+            <?php foreach ( $cdn_registry->all() as $cdn_adapter ) : ?>
+                <div id="cu-cdn-instructions-<?php echo esc_attr( $cdn_adapter->name() ); ?>"
+                     class="cu-cdn-instructions-block"
+                     style="display:none">
+                    <?php
+                    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- plugin-authored HTML; secret escaped via esc_html() inside instructionsHtml().
+                    echo $cdn_adapter->instructionsHtml( $scanner_secret );
+                    ?>
+                    <p style="margin-top:16px">
+                        <button type="button"
+                                id="cu-ack-cdn-<?php echo esc_attr( $cdn_adapter->name() ); ?>"
+                                class="button button-primary cu-ack-cdn-manual"
+                                data-cdn="<?php echo esc_attr( $cdn_adapter->name() ); ?>">
+                            I&rsquo;ve configured this exemption
+                        </button>
+                    </p>
+                </div>
+            <?php endforeach; ?>
+
+        <?php endif; ?>
+
     </div>
 
 </div>
