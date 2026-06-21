@@ -72,6 +72,8 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Admin\\PrivateUpdater'        => 'includes/admin/class-private-updater.php',
         'AIAS_Broken_Banner'                     => 'includes/class-broken-banner.php',
         'AIAS_Scan_Status'                       => 'includes/class-scan-status.php',
+        'CUScanner\\Cdn\\AdapterInterface'       => 'includes/cdn/interface-adapter.php',
+        'CUScanner\\Cdn\\Registry'               => 'includes/cdn/class-registry.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require CU_SCANNER_DIR . $map[ $class ];
