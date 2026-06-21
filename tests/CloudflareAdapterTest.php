@@ -1,5 +1,4 @@
 <?php
-defined( 'ABSPATH' ) || exit;
 
 use PHPUnit\Framework\TestCase;
 use CUScanner\Cdn\CloudflareAdapter;
