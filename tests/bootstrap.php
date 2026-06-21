@@ -76,6 +76,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Cdn\\Registry'               => 'includes/cdn/class-registry.php',
         'CUScanner\\Cdn\\CloudflareAdapter'      => 'includes/cdn/class-cloudflare-adapter.php',
         'CUScanner\\Cdn\\GenericAdapter'         => 'includes/cdn/class-generic-adapter.php',
+        'CUScanner\\Cdn\\Detector'              => 'includes/cdn/class-detector.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require CU_SCANNER_DIR . $map[ $class ];
