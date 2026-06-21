@@ -750,6 +750,73 @@ class ScannerAjax {
     }
 
     /**
+     * A1: reduce the rate-limited pages' attribution to a single source name.
+     * PRESENCE-KEYED (R1): only entries that actually carry the `attribution` key count, so a
+     * pre-worker-deploy result (no key) yields null → no notice (backward-safe / inert, AC-A5).
+     * Selection: most-frequent; tie → CDN-edge > host > unknown (fixed enum rank).
+     *
+     * @param array $pages_raw Decoded worker page array.
+     * @return string|null One of {cloudflare,akamai,imperva,waf,host,unknown} or null when none.
+     */
+    public static function aggregate_rate_limit_attribution( array $pages_raw ): ?string {
+        $counts = [];
+        foreach ( $pages_raw as $page ) {
+            $broken_devices = is_array( $page['broken_devices'] ?? null ) ? $page['broken_devices'] : [];
+            foreach ( $broken_devices as $bd ) {
+                if ( ! is_array( $bd ) || ( $bd['reason'] ?? '' ) !== 'tier1_http_rate_limit' ) {
+                    continue;
+                }
+                if ( ! array_key_exists( 'attribution', $bd ) ) { // R1: presence, never `?? 'unknown'`
+                    continue;
+                }
+                $name = (string) $bd['attribution'];
+                if ( '' === $name ) {
+                    continue;
+                }
+                $counts[ $name ] = ( $counts[ $name ] ?? 0 ) + 1;
+            }
+        }
+        if ( empty( $counts ) ) {
+            return null;
+        }
+        $rank      = [ 'cloudflare' => 0, 'akamai' => 1, 'imperva' => 2, 'waf' => 3, 'host' => 4, 'unknown' => 5 ];
+        $best      = null;
+        $best_cnt  = -1;
+        $best_rank = PHP_INT_MAX;
+        foreach ( $counts as $name => $cnt ) {
+            $r = $rank[ $name ] ?? 5;
+            if ( $cnt > $best_cnt || ( $cnt === $best_cnt && $r < $best_rank ) ) {
+                $best      = $name;
+                $best_cnt  = $cnt;
+                $best_rank = $r;
+            }
+        }
+        return $best;
+    }
+
+    /**
+     * A1: map an attribution enum value to the notice branch.
+     * @return string 'cdn' | 'origin' | 'unknown'
+     */
+    public static function throttle_notice_kind( string $name ): string {
+        if ( in_array( $name, [ 'cloudflare', 'akamai', 'imperva', 'waf' ], true ) ) {
+            return 'cdn';
+        }
+        if ( 'host' === $name ) {
+            return 'origin';
+        }
+        return 'unknown';
+    }
+
+    /**
+     * A1: the confirmed-throttle CDN notice supersedes the proactive cdn_notice for the SAME detected CDN
+     * (stronger same-CTA signal → avoid a double notice). All other cases: both may show.
+     */
+    public static function throttle_supersedes_cdn_notice( string $kind, string $name, ?string $detected ): bool {
+        return 'cdn' === $kind && null !== $detected && $detected === $name;
+    }
+
+    /**
      * Scan-history Safe/Aggressive totals, summed from the per-page tally.
      *
      * MUST be sourced from by_page (the exact array the per-URL Step-4 table renders),
