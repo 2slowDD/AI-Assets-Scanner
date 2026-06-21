@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.45b - 2026-06-21
+
+### Added — CDN rate-limit exemption (stop your CDN throttling the scanner)
+
+- **Cloudflare** (full support) and **BunnyCDN, Fastly, Akamai, Sucuri** (detected with setup guidance) are now auto-detected by sniffing the response headers of your own homepage — no manual configuration needed.
+- A **"CDN detected" notice** appears on the scanner page, with a direct link to the relevant exemption instructions in Settings. The notice is CDN-keyed: once you acknowledge it for your CDN, it stays gone.
+- The **Cloudflare WAF "Skip" rule instructions** in Settings → Cloudflare WAF Bypass have been rewritten with accurate, copy-paste-ready steps: Security → Security rules → Custom rules → create a Skip rule matching the scanner's `x-cu-scanner` header, placed at First. Includes the exact checkboxes to tick, a copy button for the rule expression, and a caveat for free-plan users on Bot Fight Mode.
+- After a scan that hit rate-limiting (429 responses), the **broken-scan banner now links directly to the CDN exemption setup** in Settings, so you know where to go without hunting.
+- For non-Cloudflare CDNs (BunnyCDN, Fastly, Akamai, Sucuri), a conditional instruction is shown — these are detect-only with platform-specific guidance since setup steps vary by plan.
+
+---
+
 ## 1.7.44b - 2026-06-19
 
 ### Fixed — Partial banner could get stuck after a page reload
