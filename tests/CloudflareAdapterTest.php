@@ -162,4 +162,16 @@ final class CloudflareAdapterTest extends TestCase {
         $html = $this->adapter->instructionsHtml( 'mysecret' );
         $this->assertStringContainsString( 'x-cu-scanner', $html );
     }
+
+    // ── Task 2: copy button → icon ────────────────────────────────────────────
+
+    public function test_copy_button_is_icon_with_aria_label(): void {
+        $html = $this->adapter->instructionsHtml( 'mysecret' );
+        // Still the same button id (handler + existing test depend on it).
+        $this->assertStringContainsString( 'id="cu-copy-cf-expression"', $html );
+        // Icon-only: aria-label present, literal "Copy" text removed, svg present.
+        $this->assertStringContainsString( 'aria-label="Copy expression"', $html );
+        $this->assertStringContainsString( 'cu-cdn-copy-icon', $html );
+        $this->assertStringNotContainsString( '>Copy</button>', $html );
+    }
 }

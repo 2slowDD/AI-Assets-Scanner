@@ -90,13 +90,23 @@
         // CF expression copy button (rendered by CloudflareAdapter::instructionsHtml).
         const copyExprBtn = document.getElementById('cu-copy-cf-expression');
         if (copyExprBtn) {
+            // Check glyph shown briefly on success.
+            const CHECK_SVG = '<svg class="cu-cdn-copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="20 6 9 17 4 12"></polyline></svg>';
             copyExprBtn.addEventListener('click', function () {
                 const exprEl = document.getElementById('cu-cf-rule-expression');
                 if (!exprEl) return;
                 navigator.clipboard.writeText(exprEl.textContent).then(function () {
-                    const orig = copyExprBtn.textContent;
-                    copyExprBtn.textContent = 'Copied!';
-                    setTimeout(function () { copyExprBtn.textContent = orig; }, 2000);
+                    const orig = copyExprBtn.innerHTML;
+                    copyExprBtn.innerHTML = CHECK_SVG;
+                    copyExprBtn.setAttribute('aria-label', 'Copied');
+                    setTimeout(function () {
+                        copyExprBtn.innerHTML = orig;
+                        copyExprBtn.setAttribute('aria-label', 'Copy expression');
+                    }, 2000);
+                }).catch(function () {
+                    // Clipboard API rejects on non-secure context / denied permission.
+                    copyExprBtn.setAttribute('aria-label', 'Copy failed');
+                    copyExprBtn.title = 'Copy failed — select the text and copy manually';
                 });
             });
         }

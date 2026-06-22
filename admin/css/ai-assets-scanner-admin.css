@@ -737,3 +737,7 @@
 .cu-url-table tr.cu-row-skipped { background: #eef1f4; color: #3a4350; box-shadow: inset 3px 0 0 #8a96a3; }
 .cu-url-pager { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
 .cu-resolved-note { font-size: 11px; color: #787c82; font-style: italic; }
+
+/* CDN copy icon button sizing (item 5) */
+.cu-cdn-copy-btn { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; }
+.cu-cdn-copy-icon { display: block; }
