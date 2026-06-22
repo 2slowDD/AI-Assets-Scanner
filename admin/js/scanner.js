@@ -1283,6 +1283,13 @@
                         scanJobToken  = res2.data.job_token;
                         railwayUrl    = res2.data.railway_url;
                         lastPageIndex = 0;
+                        // FU-AAS-YELLOW-S0A0-ROWS — a "Scan again" rescan reuses the 429 dormant
+                        // button state: mark this job as a re-queue so restoreStep4 disables Push
+                        // (Sync-only) when CU rules already exist. Mirrors reQueueRemainder (:1832).
+                        if ( sessionStorage.getItem('cu_scanner_rescan_requeue') ) {
+                            localStorage.setItem('cu_scanner_requeue_' + scanJobId, '1');
+                            sessionStorage.removeItem('cu_scanner_rescan_requeue');
+                        }
                         sessionStorage.setItem( 'cu_scanner_active_job', JSON.stringify({
                             job_id:      scanJobId,
                             job_token:   scanJobToken,
@@ -1863,7 +1870,7 @@
             pushBtn.style.display = '';
             pushBtn.disabled = true;
             pushBtn.classList.add('cu-btn-dormant');
-            pushResult.innerHTML = '<div class="notice notice-info inline"><p>This was a re-queued partial scan. Use <strong>Sync</strong> to add these rules to your existing pushed rules \u2014 Push is disabled so it can\u2019t replace them.</p></div>';
+            pushResult.innerHTML = '<div class="notice notice-info inline"><p>These rules are from a re-scan. Use <strong>Sync</strong> to add them to your existing pushed rules \u2014 Push is disabled so it can\u2019t replace them.</p></div>';
         } else if (canPush) {
             pushBtn.style.display = '';
             syncBtn.style.display = '';
@@ -1958,7 +1965,8 @@
             var noopt = ( p.status_class === 'ok' && Number( p.safe ) === 0 && Number( p.aggressive ) === 0 );
             var san = ( p.status_class === 'error' ) ? '—'
                 : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed
-                    + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' ) );
+                    + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' )
+                    + ( noopt ? ' <a href="#" class="cu-rescan-noopt" data-url="' + esc( p.url ) + '">Scan again</a>' : '' ) );
             var origUrl = submittedByResolved[ p.url ];
             var urlCell = cuEscHtml( p.url )
                 + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' );
@@ -1993,6 +2001,18 @@
                 var url = cb.getAttribute('data-url');
                 if ( cb.checked ) { st.etChecked.add( url ); } else { st.etChecked.delete( url ); }
                 syncEtResultAll();
+            } );
+        } );
+        // FU-AAS-YELLOW-S0A0-ROWS — "Scan again" on a noopt row: stash the URL + reload to a fresh
+        // Step 1 where primeRescanSingle() picks it up (no Extra Time). Re-bound on every render so
+        // links on paginated pages work and aren't double-bound.
+        host.querySelectorAll('.cu-rescan-noopt').forEach( function ( link ) {
+            link.addEventListener('click', function ( e ) {
+                e.preventDefault();
+                var url = link.getAttribute('data-url');
+                if ( !url ) { return; }
+                sessionStorage.setItem('cu_scanner_rescan_single', JSON.stringify( [ url ] ));
+                window.location.href = '?page=cu-scanner';
             } );
         } );
         // All-on/off → toggle every ET-candidate URL across ALL pages (iterate st.pages,
@@ -2339,6 +2359,35 @@
         etCarryOver    = true;             // FU-AAS-ET-VIEW-PERSIST — this IS the carry-over view
         renderUrlList();
         updateCreditBadge();               // persists the view via saveEtCarryOver()
+        document.getElementById('cu-url-list-area').style.display = 'block';
+        updateStartScanVisibility();
+        showStep(1);
+    }());
+
+    // --- "Scan again" prime (FU-AAS-YELLOW-S0A0-ROWS item 2) — mirrors primeRescanEt but with NO
+    // Extra Time, and sets the requeue-origin flag so the completed rescan reuses the existing
+    // Push-dormant button state (Sync-only when CU rules already exist). Runs before
+    // restoreEtCarryOver so its etCarryOver=true wins. ---
+    (function primeRescanSingle() {
+        var raw = sessionStorage.getItem('cu_scanner_rescan_single');
+        if (!raw) return;
+        sessionStorage.removeItem('cu_scanner_rescan_single');
+        var urls = []; try { urls = JSON.parse(raw) || []; } catch (e) { return; }
+        if (!urls.length) return;
+        localStorage.removeItem('cu_scanner_result');         // clear stale Step-4 bounce
+        discoveredUrls = urls;
+        groupedUrls    = { page: [], post: [], other: [], included: urls };
+        selectedUrls   = urls.slice();
+        extraTimeUrls  = [];                                  // PLAIN rescan — NO Extra Time
+        etCarriedUrls  = urls.slice();                        // scan byte-identically (no re-resolve)
+        totalPages     = urls.length;
+        activeFilter   = 'all';
+        discoveryRan   = true;
+        etCarryOver    = true;
+        // Dormant-origin flag: survives a pre-Start reload; consumed at the Start-Scan seam (:1282).
+        sessionStorage.setItem('cu_scanner_rescan_requeue', '1');
+        renderUrlList();
+        updateCreditBadge();
         document.getElementById('cu-url-list-area').style.display = 'block';
         updateStartScanVisibility();
         showStep(1);
