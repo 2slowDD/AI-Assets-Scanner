@@ -4,6 +4,23 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.48b - 2026-06-22
+
+### Added — Spot "scanned but not optimized" pages + re-scan them
+
+- The Step-4 results table now highlights any **completed page that produced zero rules (S:0 A:0)** with a **yellow "needs attention" row** instead of the green success row — these pages scanned OK but got no optimization (deadline-bailed / fail-closed / nothing safely unloadable), so they're worth a second look instead of blending in as a success.
+- Each such row gains a **"Scan again"** link that re-runs just that URL: it re-enters Step 1 pre-filled (no Extra Time), so you review the credit cost and start it yourself. On completion it reuses the existing re-queue behavior — **"Push to Code Unloader" is disabled (Sync only)** when you already have pushed rules, so a single-page re-scan can't replace them.
+
+### Changed — Settings → Cloudflare WAF exemption section
+
+- Renamed the visible "CU Scanner" wording to **"AAS"** in the WAF exemption instructions (the `x-cu-scanner` rule expression is unchanged).
+- Restyled the step-by-step instructions for readability: tighter heading-to-text spacing and a subtle dashed separator between steps.
+- Replaced the **"Copy" text button** next to the rule expression with an **accessible copy icon** — it now shows a brief check-mark on success, degrades gracefully on a clipboard failure, and no longer mis-resets the wrong button after copying.
+
+_Touched: `admin/js/scanner.js`, `admin/js/settings.js`, `admin/css/ai-assets-scanner-admin.css`, `includes/cdn/class-cloudflare-adapter.php`, `ai-assets-scanner.php`._
+
+---
+
 ## 1.7.47b - 2026-06-21
 
 ### Added — Pre-scan throttle attribution notice (know *who* rate-limited your scan)
