@@ -603,6 +603,7 @@
             activeFilter   = 'all';
             discoveryRan   = true; // a real discovery completed — mixed-mode include URLs now MERGE, not replace
             clearEtCarryOver();    // FU-AAS-ET-VIEW-PERSIST — a fresh discovery exits the ET carry-over view
+            sessionStorage.removeItem('cu_scanner_rescan_requeue'); // clear stale "Scan again" dormant-origin flag on re-discover (parity with clearEtCarryOver)
 
             syncIncludedUrls();
             renderUrlList();
