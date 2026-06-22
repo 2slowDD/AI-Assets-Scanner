@@ -1953,13 +1953,16 @@
             } );
         }
         var rows = slice.map( function ( p ) {
+            // FU-AAS-YELLOW-S0A0-ROWS — completed row that optimized nothing. Number() mirrors
+            // the existing coercion at scanner.js:1586 (safe/aggressive are PHP int → JSON number).
+            var noopt = ( p.status_class === 'ok' && Number( p.safe ) === 0 && Number( p.aggressive ) === 0 );
             var san = ( p.status_class === 'error' ) ? '—'
                 : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed
                     + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' ) );
             var origUrl = submittedByResolved[ p.url ];
             var urlCell = cuEscHtml( p.url )
                 + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' );
-            return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + '">'
+            return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + ( noopt ? ' cu-row-noopt' : '' ) + '">'
                 + '<td>' + cuEscHtml( p.n ) + '</td>'
                 + '<td class="cu-url-cell">' + urlCell + '</td>'
                 + '<td>' + cuEscHtml( p.status_label ) + '</td>'
