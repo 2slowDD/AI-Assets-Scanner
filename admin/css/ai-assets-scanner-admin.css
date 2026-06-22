@@ -741,3 +741,11 @@
 /* CDN copy icon button sizing (item 5) */
 .cu-cdn-copy-btn { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; }
 .cu-cdn-copy-icon { display: block; }
+
+/* CDN Rate Limiting Exemption — step instructions (FU-AAS-YELLOW-S0A0-ROWS item 4) */
+.cu-cdn-card__title { margin: 0 0 8px; }
+.cu-cdn-card h4 { margin: 0 0 4px; padding-top: 18px; border-top: 1px dashed #dcdcde; }
+.cu-cdn-card h4:first-of-type { padding-top: 0; border-top: none; }
+.cu-cdn-card h4 + p { margin-top: 0; }
+.cu-cdn-expression-wrap { margin: 8px 0; }
+.cu-cdn-skip-list { margin-top: 6px; }
