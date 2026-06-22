@@ -147,4 +147,19 @@ final class CloudflareAdapterTest extends TestCase {
         // Also confirm the header expression template is present.
         $this->assertStringContainsString( 'x-cu-scanner', $html );
     }
+
+    // ── Task 1: rename "CU Scanner" → "AAS" in visible text ─────────────────
+
+    public function test_instructions_use_aas_not_cu_scanner(): void {
+        $html = $this->adapter->instructionsHtml( 'mysecret' );
+        $this->assertStringContainsString( 'when the AAS sends requests', $html );
+        $this->assertStringContainsString( '<em>AAS bypass</em>', $html );
+        $this->assertStringNotContainsString( 'CU Scanner', $html );
+    }
+
+    public function test_instructions_still_use_x_cu_scanner_header_token(): void {
+        // The rename must NOT touch the request-header expression.
+        $html = $this->adapter->instructionsHtml( 'mysecret' );
+        $this->assertStringContainsString( 'x-cu-scanner', $html );
+    }
 }

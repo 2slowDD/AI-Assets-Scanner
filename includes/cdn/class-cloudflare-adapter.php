@@ -70,14 +70,13 @@ final class CloudflareAdapter implements AdapterInterface {
         ?>
 <div class="cu-cdn-card cu-cdn-card--cloudflare">
     <h3 class="cu-cdn-card__title">Cloudflare WAF — Rate Limiting Exemption</h3>
-    <p>Create a custom WAF rule so Cloudflare skips its security checks when the
-    CU Scanner sends requests. This prevents 429 / 403 errors during scans.</p>
+    <p>Create a custom WAF rule so Cloudflare skips its security checks when the AAS sends requests. This prevents 429 / 403 errors during scans.</p>
 
     <h4>Step 1 — Open Custom Rules</h4>
     <p>In the Cloudflare dashboard: <strong>Security &rarr; Security rules &rarr; Create rule &rarr; Custom rules</strong>.</p>
 
     <h4>Step 2 — Name the rule</h4>
-    <p>Give it a descriptive name such as <em>CU Scanner bypass</em>.</p>
+    <p>Give it a descriptive name such as <em>AAS bypass</em>.</p>
 
     <h4>Step 3 — Paste the expression</h4>
     <p>Switch to <em>Edit expression</em> (plain text mode) and paste:</p>
