@@ -388,4 +388,26 @@ class MenuBadgeTest extends TestCase {
         $this->makeBadge( [ 'status' => 'paused', 'resume_at' => $resume_at_ms ] )->check_active_job_completion();
         $this->assertConditionsMet();
     }
+
+    // --- Task 10: R3 Stage C — cron handler registered UN-GATED (loads in wp-cron/front-end context) ---
+
+    public function test_r3_rebuild_handler_registered_ungated(): void {
+        // Prove the registration is OUTSIDE the is_admin() gate: with is_admin()=false
+        // (the cron / front-end context), Plugin::init() must still add the cron callback,
+        // otherwise the scheduled cu_scanner_r3_rebuild event would have no handler.
+        WP_Mock::userFunction( 'plugin_basename' )->andReturn( 'ai-assets-scanner/ai-assets-scanner.php' );
+        WP_Mock::userFunction( 'is_admin' )->andReturn( false );
+        // The handler is registered as an instance callback [ new MenuBadge(), 'run_r3_rebuild' ].
+        // WP_Mock keys plain-object callbacks by spl_object_hash (unpredictable), so match any
+        // MenuBadge instance via its AnyInstance matcher.
+        WP_Mock::expectActionAdded(
+            'cu_scanner_r3_rebuild',
+            [ new \WP_Mock\Matcher\AnyInstance( \CUScanner\MenuBadge::class ), 'run_r3_rebuild' ],
+            10,
+            1
+        );
+
+        ( new \CUScanner\Plugin() )->init();
+        $this->assertConditionsMet();
+    }
 }
