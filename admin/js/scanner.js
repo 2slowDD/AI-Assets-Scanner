@@ -1459,6 +1459,18 @@
             return;
         }
 
+        if (data.status === 'paused_exhausted') {
+            stopPolling();
+            sessionStorage.removeItem('cu_scanner_active_job');
+            // Charged partial: worker already finalized source='partial' (X pages).
+            // Deliver the X-page rules + the honest banner via the existing path.
+            buildResult({ status: 'paused_exhausted', completed: completed, total: total,
+                          pages: pages, selectedUrls: selectedUrls.slice() }).then(function (built) {
+                if (!built) showStep(1);
+            });
+            return;
+        }
+
         hideQueueBanner(); // clears banner if transitioning from queued → in_progress
 
         document.getElementById('cu-progress-bar').value = total ? (completed / total) * 100 : 0;
@@ -1602,6 +1614,7 @@
     //   - killed     (admin kill; charged 0, no rules)
     //   - failed     (worker failure mid-scan; charged {completed}, X-page rules)
     //   - user_cancel (operator cancel mid-scan; charged {completed}, X-page rules)
+    //   - paused_exhausted (R3 12h-ladder kill; worker charged source='partial', X-page rules)
     // info = { status, completed, total, pages, selectedUrls }.
     // Task 6: stash info, compute + persist remainder, render full banner.
     function handleTerminalIncomplete(info) {
@@ -1738,6 +1751,16 @@
                 '<strong>You were not charged.</strong></p>' +
                 '<p><button type="button" class="button" id="cu-partial-retry-btn">' +
                 'Retry the scan' +
+                '</button></p>' +
+                '</div>';
+        } else if (status === 'paused_exhausted') {
+            html = '<div class="notice notice-warning inline aias-partial-banner">' +
+                '<p><strong>&#9888; Scan stopped after repeated origin throttling/blocking.</strong> ' +
+                'Your origin repeatedly rate-limited or blocked the scanner (e.g. HTTP 429 / 403 / 5xx). ' +
+                'You were charged for the ' + esc(String(completed)) + ' completed page' +
+                (completed === 1 ? '' : 's') + '.</p>' +
+                '<p><button type="button" class="button" id="cu-partial-requeue-btn">' +
+                'Re-queue the remaining ' + esc(String(N)) + ' page' + (N === 1 ? '' : 's') +
                 '</button></p>' +
                 '</div>';
         } else {
@@ -2595,5 +2618,6 @@
     detectPlugins();
 
     // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
-    window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate };
+    window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,
+                        renderPartialBanner: renderPartialBanner };
 }());
