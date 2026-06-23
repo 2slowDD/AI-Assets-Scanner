@@ -317,6 +317,22 @@ class MenuBadgeTest extends TestCase {
         $this->assertLessThanOrEqual( ( $after  + 1800 ) + 62, $captured_scheduled_when, '$when must not be unreasonably far in future' );
     }
 
+    // --- Task 8: R3 Stage C — paused_exhausted terminal: builds partial (charged_count=X) + deletes transient ---
+
+    public function test_paused_exhausted_builds_partial_with_charged_count_and_deletes_transient(): void {
+        $state = [ 'job_id' => 'J', 'job_token' => 'TOK', 'bypass_token' => 'BYP', 'railway_url' => 'https://r' ];
+        WP_Mock::userFunction( 'get_transient' )->andReturn( $state );
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 7 );
+        WP_Mock::userFunction( 'delete_transient' )->once()->with( 'cu_scanner_job_7' );
+
+        $ajax = Mockery::mock( \CUScanner\Admin\ScannerAjax::class );
+        $ajax->shouldReceive( 'do_build_result' )->once()->with( 'J', 'TOK', 4 )->andReturn( [] );  // charged_count=X
+
+        $this->makeBadge( [ 'status' => 'paused_exhausted', 'completed' => 4, 'total' => 10 ], $ajax )
+             ->check_active_job_completion();
+        $this->assertConditionsMet();
+    }
+
     // --- Task 6: R3 Stage C — paused branch refreshes job transient TTL, preserves full payload ---
 
     public function test_paused_refreshes_transient_ttl_preserving_full_payload(): void {
