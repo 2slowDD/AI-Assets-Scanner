@@ -39,5 +39,13 @@ class Plugin {
             \CUScanner\Scanner\OptimizerBypassOrchestrator::build_default_orchestrator()
                 ->complete( 'normal' );
         }, 10, 1 );
+
+        // R3 Stage C (Tier C) — the rebuild cron fires in wp-cron context (front-end
+        // traffic), where the admin-gated MenuBadge::init() is NOT loaded. Register the
+        // handler here (un-gated) so the scheduled cu_scanner_r3_rebuild event always has a
+        // callback (O-7a). O-8: the run_r3_rebuild → do_build_result → cu_scanner_scan_complete
+        // → OptimizerBypassOrchestrator::complete() chain is site-global (no per-user/session
+        // state in the optimizer classes), and run_r3_rebuild calls wp_set_current_user() first.
+        add_action( 'cu_scanner_r3_rebuild', [ new \CUScanner\MenuBadge(), 'run_r3_rebuild' ], 10, 1 );
     }
 }
