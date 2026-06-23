@@ -20,9 +20,15 @@ class MenuBadge {
 
     /** @var ScanHistory|null Constructor-injected for testability (per d-review Minor 5). */
     private $history;
+    /** @var \CUScanner\Admin\ScannerAjax|null Injected for testability (mirrors $history). */
+    private $ajax;
+    /** @var callable|null (string $url, string $key): object — injected RailwayClient factory. */
+    private $railway_factory;
 
-    public function __construct( ?ScanHistory $history = null ) {
-        $this->history = $history;   // null => lazy-init in get_history() (production path).
+    public function __construct( ?ScanHistory $history = null, ?\CUScanner\Admin\ScannerAjax $ajax = null, ?callable $railway_factory = null ) {
+        $this->history         = $history;         // null => lazy-init in get_history() (production path).
+        $this->ajax            = $ajax;
+        $this->railway_factory = $railway_factory;
     }
 
     /**
@@ -212,7 +218,7 @@ class MenuBadge {
      * the second call re-writes the same 'complete' record harmlessly. The transient
      * is deleted on the first successful build_result so subsequent ticks early-return.
      */
-    private function check_active_job_completion(): void {
+    public function check_active_job_completion(): void {
         $user_id = get_current_user_id();
         $transient_key = 'cu_scanner_job_' . $user_id;
         $state = get_transient( $transient_key );
@@ -240,7 +246,7 @@ class MenuBadge {
         }
 
         try {
-            $client = new \CUScanner\Api\RailwayClient( $railway_url, ( new \CUScanner\Settings() )->get_api_key() );
+            $client = $this->railway( $railway_url );
             $status = $client->get_status( $job_id, $job_token, 0 );
         } catch ( \RuntimeException $e ) {
             error_log( '[AI Assets Scanner] menu-badge heartbeat poll FAILED: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: Railway exception detail captured server-side only.
@@ -253,7 +259,7 @@ class MenuBadge {
         if ( $rs === 'complete' ) {
             self::dbg( '[AI Assets Scanner] menu-badge: firing do_build_result for job=' . $job_id );
             try {
-                ( new \CUScanner\Admin\ScannerAjax() )->do_build_result( $job_id, $job_token );
+                $this->get_ajax()->do_build_result( $job_id, $job_token );
                 self::dbg( '[AI Assets Scanner] menu-badge: do_build_result OK for job=' . $job_id );
             } catch ( \RuntimeException $e ) {
                 // Build failed (e.g., Railway 410 — job data expired between status
@@ -332,6 +338,21 @@ class MenuBadge {
             $this->history = new ScanHistory();
         }
         return $this->history;
+    }
+
+    private function get_ajax(): \CUScanner\Admin\ScannerAjax {
+        if ( $this->ajax === null ) {
+            $this->ajax = new \CUScanner\Admin\ScannerAjax();
+        }
+        return $this->ajax;
+    }
+
+    private function railway( string $url ) {
+        $key = ( new \CUScanner\Settings() )->get_api_key();
+        if ( $this->railway_factory !== null ) {
+            return ( $this->railway_factory )( $url, $key );
+        }
+        return new \CUScanner\Api\RailwayClient( $url, $key );
     }
 
     /** Gated diagnostic log — default OFF (see includes/debug.php). */
