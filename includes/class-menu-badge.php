@@ -7,6 +7,9 @@ class MenuBadge {
 
     private const OPTION_LAST_SEEN = 'aias_last_seen_scan_id';
 
+    /** R3 Stage C (Tier C) — wp-cron hook name for the deferred rebuild event. */
+    public const CRON_HOOK = 'cu_scanner_r3_rebuild';
+
     // Badge state values (returned by get_badge_state + on Heartbeat wire).
     private const BADGE_STATE_GREEN = 'green';
     private const BADGE_STATE_RED   = 'red';
@@ -288,10 +291,36 @@ class MenuBadge {
             $ttl = max( 0, (int) ceil( $resume_at_ms / 1000 ) - time() ) + 300; // R3_TRANSIENT_MARGIN
             set_transient( $transient_key, $state, $ttl );
             self::dbg( '[AI Assets Scanner] menu-badge: paused — transient TTL=' . $ttl . 's job=' . $job_id );
-            // $this->arm_r3_rebuild_cron( $state, $resume_at_ms );  // TASK 7 adds the method + un-comments this
+            $this->arm_r3_rebuild_cron( $state, $resume_at_ms );
             return;
         }
         // 'queued' / 'in_progress' / unknown → no-op; next heartbeat tick re-polls.
+    }
+
+    /**
+     * R3 Stage C (Tier C) — arm a single wp-cron rebuild at resume_at + 60s. The event's
+     * args ARE the durable job pointer (survive tab close in wp_options) + carry user_id so
+     * the userless handler can wp_set_current_user(). Args are STABLE (no resume_at — it
+     * changes on escalation) so wp_next_scheduled's exact-args identity guard works.
+     *
+     * Outer-array wrapping: WP spreads the stored array as positional callback args, so the
+     * Task-9 handler signature is run_r3_rebuild(array $job) receiving the inner array.
+     * Keep the wrapping identical at arm + every reschedule (Task 9) or the identity guard
+     * breaks.
+     */
+    private function arm_r3_rebuild_cron( array $state, int $resume_at_ms ): void {
+        $args = [ [
+            'job_id'      => (string) $state['job_id'],
+            'job_token'   => (string) $state['job_token'],
+            'railway_url' => (string) $state['railway_url'],
+            'user_id'     => (int) get_current_user_id(),
+            'armed_at'    => time(),
+        ] ];
+        if ( wp_next_scheduled( self::CRON_HOOK, $args ) ) {
+            return; // already armed (idempotent)
+        }
+        $when = max( time(), (int) ceil( $resume_at_ms / 1000 ) ) + 60; // R3_CRON_BUFFER
+        wp_schedule_single_event( $when, self::CRON_HOOK, $args );
     }
 
     /**

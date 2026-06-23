@@ -256,6 +256,67 @@ class MenuBadgeTest extends TestCase {
         $this->assertConditionsMet();
     }
 
+    // --- Task 7: R3 Stage C — paused branch arms Tier C rebuild cron (idempotent, stable args, user_id) ---
+
+    public function test_paused_arms_rebuild_cron_once_with_user_id_and_stable_args(): void {
+        // Use real time() — WP_Mock cannot override internal PHP functions.
+        // Set resume_at 1800 s (30 min) from now, expressed as ms-epoch.
+        $before       = time();
+        $resume_at_ms = ( $before + 1800 ) * 1000;   // 30 min out, ms-epoch
+        $state = [ 'job_id' => 'J', 'job_token' => 'TOK', 'bypass_token' => 'BYP', 'railway_url' => 'https://r' ];
+        WP_Mock::userFunction( 'get_transient' )->andReturn( $state );
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 7 );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+
+        // Capture the actual args passed to both cron functions for post-call assertion.
+        $captured_scheduled_when = null;
+        $captured_scheduled_args = null;
+        $captured_next_args      = null;
+
+        WP_Mock::userFunction( 'wp_next_scheduled' )
+            ->andReturnUsing( function ( $hook, $args ) use ( &$captured_next_args ) {
+                $captured_next_args = $args;
+                return false;   // not yet scheduled → proceed to wp_schedule_single_event
+            } );
+
+        WP_Mock::userFunction( 'wp_schedule_single_event' )
+            ->once()
+            ->andReturnUsing( function ( $when, $hook, $args ) use ( &$captured_scheduled_when, &$captured_scheduled_args ) {
+                $captured_scheduled_when = $when;
+                $captured_scheduled_args = $args;
+                return true;
+            } );
+
+        $this->makeBadge( [ 'status' => 'paused', 'resume_at' => $resume_at_ms ] )->check_active_job_completion();
+        $this->assertConditionsMet();
+
+        // --- Post-call assertions ---
+        $this->assertNotNull( $captured_scheduled_args, 'wp_schedule_single_event must have been called' );
+
+        // Both cron calls must receive identical args (same outer-array, same keys + values).
+        $this->assertSame( $captured_next_args, $captured_scheduled_args, 'wp_next_scheduled and wp_schedule_single_event must receive identical $args' );
+
+        // Outer-array wrapping: args must be [ [ inner ] ].
+        $this->assertCount( 1, $captured_scheduled_args, 'args must be outer-array with exactly one element' );
+        $inner = $captured_scheduled_args[0];
+
+        // Stable fields (no resume_at).
+        $this->assertSame( 'J',          $inner['job_id'],      'job_id must be stable' );
+        $this->assertSame( 'TOK',        $inner['job_token'],   'job_token must be stable' );
+        $this->assertSame( 'https://r',  $inner['railway_url'], 'railway_url must be stable' );
+        $this->assertSame( 7,            $inner['user_id'],     'user_id must be int 7' );
+        $this->assertArrayNotHasKey( 'resume_at', $inner,       'resume_at must NOT be in stable args' );
+
+        // armed_at must be a real timestamp close to $before (within 5s).
+        $after = time();
+        $this->assertGreaterThanOrEqual( $before, $inner['armed_at'], 'armed_at must be >= test start time' );
+        $this->assertLessThanOrEqual( $after + 1, $inner['armed_at'], 'armed_at must be <= test end time + 1' );
+
+        // $when = max(time(), ceil(resume_at_ms/1000)) + 60 ≈ ($before+1800) + 60.
+        $this->assertGreaterThanOrEqual( ( $before + 1800 ) + 60, $captured_scheduled_when, '$when must be resume_at + 60' );
+        $this->assertLessThanOrEqual( ( $after  + 1800 ) + 62, $captured_scheduled_when, '$when must not be unreasonably far in future' );
+    }
+
     // --- Task 6: R3 Stage C — paused branch refreshes job transient TTL, preserves full payload ---
 
     public function test_paused_refreshes_transient_ttl_preserving_full_payload(): void {
