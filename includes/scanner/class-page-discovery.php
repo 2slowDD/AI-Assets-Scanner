@@ -67,7 +67,10 @@ class PageDiscovery {
     }
 
     public function get_urls(): array {
-        return array_values( array_diff( $this->urls, $this->excluded_urls ) );
+        // array_unique() de-dupes URLs that a sitemap can list more than once
+        // (e.g. the WooCommerce shop page registered in multiple sitemap sections),
+        // which otherwise both display in the page list and double-count credits.
+        return array_values( array_unique( array_diff( $this->urls, $this->excluded_urls ) ) );
     }
 
     public function get_credit_cost(): int {
