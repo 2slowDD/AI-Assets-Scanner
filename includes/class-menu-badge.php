@@ -293,6 +293,19 @@ class MenuBadge {
             self::dbg( '[AI Assets Scanner] menu-badge: paused — transient TTL=' . $ttl . 's job=' . $job_id );
             $this->arm_r3_rebuild_cron( $state, $resume_at_ms );
             return;
+        } elseif ( $rs === 'paused_exhausted' ) {
+            // R3 Stage C — terminal 12h-ladder kill. Worker already finalized source='partial'
+            // (X charged). Build + deliver the X-page rules (idempotent); pass charged_count=completed
+            // so History credits_used == X (AC-C-13). ScanHistory 'partial' row → NOT badge-triggering.
+            $completed = (int) ( $status['completed'] ?? 0 );
+            try {
+                $this->get_ajax()->do_build_result( $job_id, $job_token, $completed );
+            } catch ( \RuntimeException $e ) {
+                error_log( '[AI Assets Scanner] menu-badge: paused_exhausted build FAILED: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- diagnostic.
+                $this->get_history()->update_status( $job_id, 'failed' );
+            }
+            delete_transient( $transient_key );
+            return;
         }
         // 'queued' / 'in_progress' / unknown → no-op; next heartbeat tick re-polls.
     }
