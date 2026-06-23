@@ -20,6 +20,7 @@
     let scanJobToken     = null;
     let railwayUrl       = null;
     let pollTimer        = null;
+    let countdownInterval = null;  // R3 Stage C — single live-countdown ticker
     let lastPageIndex    = 0;
     let totalPages       = 0;
     let lastKnownStatus  = null;
@@ -1337,6 +1338,10 @@
         pollTimer = setTimeout(pollProgress, interval);
     }
 
+    var PAUSED_COUNTDOWN_TICK_MS = 1000, PAUSED_POLL_FLOOR_MS = 15000,
+        PAUSED_POLL_BUFFER_MS = 3000, PAUSED_CATCHUP_MS = 10000;
+    var pausedResumeAt = 0;   // latest resume_at (ms) — countdown reads this
+
     function formatEtaShort(s) {
         if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min';
         return (s / 3600).toFixed(1) + ' h';
@@ -1404,6 +1409,17 @@
     function handleStatusUpdate(data) {
         lastKnownStatus = data.status;
 
+        // R3 Stage C — one teardown point: clear the live countdown on EVERY
+        // non-paused state (resumed/terminal/Stop&keep all pass through here).
+        if (countdownInterval && data.status !== 'paused') {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+        if (data.status !== 'paused') {
+            var pb = document.getElementById('cu-paused-banner');
+            if (pb) pb.style.display = 'none';
+        }
+
         if (data.status === 'queued') {
             showQueueBanner(data.queue_position, data.total_queued, null, data.eta_s);
             scheduleNextPoll();
@@ -1464,6 +1480,18 @@
                 tbody.appendChild(tr);
             }
         });
+
+        if (data.status === 'paused') {
+            renderPausedBanner(data);
+            if (!countdownInterval) {                 // AC-C-4: never a second timer
+                countdownInterval = setInterval(function () {
+                    var el = document.getElementById('cu-paused-countdown');
+                    if (el) el.textContent = formatCountdown(pausedResumeAt - Date.now());
+                }, PAUSED_COUNTDOWN_TICK_MS);
+            }
+            schedulePausedPoll(data);                 // AC-C-3: aligned, not 2s
+            return;                                   // do NOT hit scheduleNextPoll
+        }
 
         if (data.status === 'complete' || data.status === 'failed') {
             stopPolling();
@@ -1649,6 +1677,42 @@
         if (info.status === 'killed') {
             showStep(4);
         }
+    }
+
+    // R3 Stage C \u2014 idempotent paused banner. Re-render updates resume_at; the
+    // countdown text node (#cu-paused-countdown) is rewritten by the 1s interval.
+    function renderPausedBanner(data) {
+        pausedResumeAt = Number(data.resume_at) || 0;
+        var area = document.getElementById('cu-paused-banner');
+        if (!area) {
+            area = document.createElement('div');
+            area.id = 'cu-paused-banner';
+            area.className = 'notice notice-warning inline';
+            var bar = document.getElementById('cu-progress-bar');
+            if (bar && bar.parentNode) bar.parentNode.insertBefore(area, bar);
+        }
+        if (!area._cuPausedBuilt) {
+            area.innerHTML =
+                '<p>&#9208; <strong>Scan paused</strong> \u2014 your origin repeatedly rate-limited or ' +
+                'blocked the scanner. Auto-retrying in <span id="cu-paused-countdown">' +
+                esc(formatCountdown(pausedResumeAt - Date.now())) + '</span>\u2026 (no action needed)</p>' +
+                '<p><button type="button" class="button" id="cu-paused-stopkeep">' +
+                'Stop & keep results now</button></p>';
+            area._cuPausedBuilt = true;
+            var btn = document.getElementById('cu-paused-stopkeep');
+            if (btn) btn.addEventListener('click', stopAndKeep);   // Task 3
+        }
+        area.style.display = '';
+    }
+
+    // R3 Stage C \u2014 align the next /status poll to resume_at; once we're at/past
+    // it, poll every PAUSED_CATCHUP_MS until the status leaves 'paused'.
+    function schedulePausedPoll(data) {
+        var remaining = (Number(data.resume_at) || 0) - Date.now();
+        var delay = remaining > 0
+            ? Math.max(remaining + PAUSED_POLL_BUFFER_MS, PAUSED_POLL_FLOOR_MS)
+            : PAUSED_CATCHUP_MS;
+        pollTimer = setTimeout(pollProgress, delay);
     }
 
     // renderPartialBanner(payload) \u2014 renders the full partial-failure banner into
@@ -2496,5 +2560,5 @@
     detectPlugins();
 
     // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
-    window.__cuTest = { formatCountdown: formatCountdown };
+    window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate };
 }());
