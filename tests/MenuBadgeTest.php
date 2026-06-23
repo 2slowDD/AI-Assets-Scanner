@@ -255,4 +255,28 @@ class MenuBadgeTest extends TestCase {
         $this->makeBadge( [ 'status' => 'complete' ], $ajax )->check_active_job_completion();
         $this->assertConditionsMet();
     }
+
+    // --- Task 6: R3 Stage C — paused branch refreshes job transient TTL, preserves full payload ---
+
+    public function test_paused_refreshes_transient_ttl_preserving_full_payload(): void {
+        // Use real time() — WP_Mock cannot override internal PHP functions.
+        // Set resume_at 1800 s (30 min) from now, expressed as ms-epoch.
+        $now          = time();
+        $resume_at_ms = ( $now + 1800 ) * 1000;   // 30 min out, ms-epoch
+        $state = [ 'job_id' => 'J', 'job_token' => 'TOK', 'bypass_token' => 'BYP', 'railway_url' => 'https://r' ];
+        WP_Mock::userFunction( 'get_transient' )->andReturn( $state );
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 7 );
+        WP_Mock::userFunction( 'wp_next_scheduled' )->andReturn( true );        // arm guard short-circuits (Task 7 adds arming)
+        WP_Mock::userFunction( 'set_transient' )->once()
+            ->andReturnUsing( function ( $k, $v, $ttl ) {
+                $this->assertSame( 'cu_scanner_job_7', $k );
+                $this->assertSame( 'BYP', $v['bypass_token'], 'full payload preserved' );
+                $this->assertGreaterThanOrEqual( 1800, $ttl );
+                $this->assertLessThanOrEqual( 1800 + 300 + 2, $ttl );
+                return true;
+            } );
+
+        $this->makeBadge( [ 'status' => 'paused', 'resume_at' => $resume_at_ms ] )->check_active_job_completion();
+        $this->assertConditionsMet();
+    }
 }

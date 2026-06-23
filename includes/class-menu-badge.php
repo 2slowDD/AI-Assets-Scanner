@@ -280,6 +280,16 @@ class MenuBadge {
             // so the polling loop stops; status is already correctly recorded.
             self::dbg( '[AI Assets Scanner] menu-badge: clearing transient for ' . $rs . ' job=' . $job_id );
             delete_transient( $transient_key );
+        } elseif ( $rs === 'paused' ) {
+            // R3 Stage C — keep AAS's 2h job transient alive across the cooldown so the
+            // dispatched re-attach + Stop&keep keep working, and ARM the Tier C rebuild cron
+            // (Task 7). Re-set the FULL $state array verbatim (preserves bypass_token).
+            $resume_at_ms = (int) ( $status['resume_at'] ?? 0 );
+            $ttl = max( 0, (int) ceil( $resume_at_ms / 1000 ) - time() ) + 300; // R3_TRANSIENT_MARGIN
+            set_transient( $transient_key, $state, $ttl );
+            self::dbg( '[AI Assets Scanner] menu-badge: paused — transient TTL=' . $ttl . 's job=' . $job_id );
+            // $this->arm_r3_rebuild_cron( $state, $resume_at_ms );  // TASK 7 adds the method + un-comments this
+            return;
         }
         // 'queued' / 'in_progress' / unknown → no-op; next heartbeat tick re-polls.
     }
