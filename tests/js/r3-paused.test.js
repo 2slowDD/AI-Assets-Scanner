@@ -14,7 +14,7 @@ function run() {
                          completed: 2, total: 7, pages: [] });
   const banner = h.els['cu-paused-banner'];
   assert.ok(/Scan paused/.test(banner.innerHTML), 'paused banner rendered');
-  assert.ok(/Stop & keep/.test(banner.innerHTML), 'Stop&keep button present');
+  assert.ok(/Stop &amp; keep/.test(banner.innerHTML), 'Stop&keep button present');
   const intervals = h.timers.filter((t) => t.type === 'interval' && !t.cleared);
   assert.strictEqual(intervals.length, 1, 'exactly one countdown interval');
 
