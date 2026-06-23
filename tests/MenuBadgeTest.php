@@ -3,6 +3,7 @@ namespace CUScanner\Tests;
 
 use CUScanner\MenuBadge;
 use CUScanner\ScanHistory;
+use Mockery;
 use WP_Mock;
 use WP_Mock\Tools\TestCase;
 
@@ -221,5 +222,37 @@ class MenuBadgeTest extends TestCase {
         $result = $badge->filter_heartbeat( [], [] );
 
         $this->assertNull( $result['aias_badge'] );
+    }
+
+    // --- Task 5: characterization test — drives the full `complete` branch via injected seams ---
+
+    /**
+     * Build a MenuBadge whose railway() returns an anonymous stub client
+     * that returns $status from get_status().
+     *
+     * @param array    $status  The array returned by the stub's get_status().
+     * @param mixed    $ajax    Optional ScannerAjax mock (or null for default lazy-init).
+     */
+    private function makeBadge( array $status, $ajax = null ): MenuBadge {
+        $factory = function ( $url, $key ) use ( $status ) {
+            return new class( $status ) {
+                private $s;
+                public function __construct( $s ) { $this->s = $s; }
+                public function get_status( $j, $t, $f ) { return $this->s; }
+            };
+        };
+        return new MenuBadge( null, $ajax, $factory );
+    }
+
+    public function test_complete_status_calls_do_build_result_via_injected_ajax(): void {
+        $state = [ 'job_id' => 'J', 'job_token' => 'TOK', 'bypass_token' => 'BYP', 'railway_url' => 'https://r' ];
+        WP_Mock::userFunction( 'get_transient' )->andReturn( $state );
+        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 7 );
+
+        $ajax = Mockery::mock( \CUScanner\Admin\ScannerAjax::class );
+        $ajax->shouldReceive( 'do_build_result' )->once()->with( 'J', 'TOK' )->andReturn( [] );
+
+        $this->makeBadge( [ 'status' => 'complete' ], $ajax )->check_active_job_completion();
+        $this->assertConditionsMet();
     }
 }
