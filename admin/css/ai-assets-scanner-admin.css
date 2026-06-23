@@ -739,6 +739,8 @@
 .cu-url-table tr.cu-row-skipped { background: #eef1f4; color: #3a4350; box-shadow: inset 3px 0 0 #8a96a3; }
 .cu-url-pager { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
 .cu-resolved-note { font-size: 11px; color: #787c82; font-style: italic; }
+/* "Please scan again" note on S:0 A:0 (noopt) rows — replaces the old per-row "Scan again" link. */
+.cu-noopt-note { font-style: italic; }
 
 /* CDN copy icon button — compact 20x20 square with a centered icon.
    Higher specificity than core's `.wp-core-ui .button` so the size/padding actually apply. */

@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.50b - 2026-06-23
+
+### Changed — "Scanned but not optimized" (S:0 A:0) rows
+
+- The per-row **"Scan again"** link on yellow S:0 A:0 rows is now plain **"Please scan again"** text.
+- A new **"Rescan 0-Results URLs"** button sits beside **"Rescan ET Candidates"** (above and below the results table) and appears whenever the scan produced at least one S:0 A:0 page. Clicking it loads every S:0 A:0 URL from the result into a fresh Step 1 — no Extra Time, each selected and ready — so you can rescan them all in one batch. Each URL is charged as a normal scan (1 credit per URL).
+
+_Touched: `admin/js/scanner.js`, `admin/views/scanner-page.php`, `admin/css/ai-assets-scanner-admin.css`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.49b - 2026-06-23
 
 ### Fixed — Duplicate pages in the discovery list (and double-counted credits)
