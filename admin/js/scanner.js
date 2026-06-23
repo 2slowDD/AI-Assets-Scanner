@@ -2209,6 +2209,40 @@
         } );
     });
 
+    // R3 Stage C — Stop & keep results now (paused banner). A NEW handler: it
+    // does NOT re-fire the cancel button's generic confirm. It clears the live
+    // countdown, then reuses the cancel BODY (cu_scanner_cancel_job →
+    // user_cancel partial). Billing-safe vs a later zombie resume (C5/SaaS 409).
+    function stopAndKeep() {
+        if (stopAndKeep._inFlight) return;
+        var completedNow = (function () {
+            var t = document.getElementById('cu-progress-text');
+            var m = t && /(\d+)\s*\//.exec(t.textContent || '');
+            return m ? Number(m[1]) : 0;
+        }());
+        if (!confirm('Keep your ' + completedNow + ' completed page' +
+                     (completedNow === 1 ? '' : 's') + ' and stop the scan now?')) return;
+        stopAndKeep._inFlight = true;
+        stopPolling();
+        if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+        post('cu_scanner_cancel_job').then(function (res) {
+            stopAndKeep._inFlight = false;
+            if (res && res.success) {
+                sessionStorage.removeItem('cu_scanner_active_job');
+                var completedPages = (res.data && res.data.pages_completed) || completedNow;
+                buildResult({ status: 'user_cancel', completed: completedPages, total: totalPages,
+                              pages: [], selectedUrls: selectedUrls.slice() }).then(function (built) {
+                    if (!built) showStep(1);
+                });
+            } else {
+                var m = (res && res.data && res.data.message) ? res.data.message
+                    : 'Could not stop — please try again.';
+                alert(m);
+                startPolling();
+            }
+        });
+    }
+
     // --- Cancel ---
 
     document.getElementById('cu-btn-cancel').addEventListener('click', async function () {

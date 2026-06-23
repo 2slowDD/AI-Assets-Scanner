@@ -32,7 +32,8 @@ function createHarness(opts = {}) {
    'cu-progress-text', 'cu-push-result', 'cu-queue-banner', 'cu-result-summary',
    'cu-result-url-list', 'cu-scanner-app', 'cu-sonar-anim', 'cu-step-label',
    'cu-target-stack-notice', 'cu-url-list', 'cu-url-list-area', 'cu-url-next',
-   'cu-url-prev', 'cu-paused-banner', 'step-1'].forEach(ensure);
+   'cu-url-prev', 'cu-paused-banner', 'cu-paused-countdown', 'cu-paused-stopkeep',
+   'step-1'].forEach(ensure);
 
   const timers = [];
   const sandbox = {
@@ -58,8 +59,14 @@ function createHarness(opts = {}) {
     URL,
     AbortController,
     FormData: class FormData {
-      append() {} get() { return null; } set() {} has() { return false; }
-      delete() {} entries() { return [][Symbol.iterator](); }
+      constructor() { this._data = []; }
+      append(k, v) { this._data.push([k, v]); }
+      get(k) { const e = this._data.find(([ek]) => ek === k); return e ? e[1] : null; }
+      set(k, v) { this._data = this._data.filter(([ek]) => ek !== k); this._data.push([k, v]); }
+      has(k) { return this._data.some(([ek]) => ek === k); }
+      delete(k) { this._data = this._data.filter(([ek]) => ek !== k); }
+      entries() { return this._data[Symbol.iterator](); }
+      toString() { return this._data.map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&'); }
     },
     location: opts.location || { href: '', hostname: '', pathname: '/', search: '', hash: '' },
   };
