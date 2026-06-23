@@ -740,8 +740,19 @@
 .cu-url-pager { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
 .cu-resolved-note { font-size: 11px; color: #787c82; font-style: italic; }
 
-/* CDN copy icon button sizing (item 5) */
-.cu-cdn-copy-btn { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; }
+/* CDN copy icon button — compact 20x20 square with a centered icon.
+   Higher specificity than core's `.wp-core-ui .button` so the size/padding actually apply. */
+.wp-core-ui .cu-cdn-expression-wrap .cu-cdn-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    min-width: 20px;
+    height: 20px;
+    min-height: 20px;
+    padding: 0;
+    line-height: 1;
+}
 .cu-cdn-copy-icon { display: block; }
 
 /* CDN Rate Limiting Exemption — step instructions (FU-AAS-YELLOW-S0A0-ROWS item 4) */

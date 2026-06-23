@@ -58,4 +58,29 @@ class PageDiscoveryTest extends TestCase {
         $discovery->set_manual_urls( [ 'https://a.com/', 'https://b.com/', 'https://c.com/' ] );
         $this->assertSame( 3, $discovery->get_credit_cost() );
     }
+
+    public function test_get_urls_dedupes_duplicate_urls(): void {
+        // A sitemap can list the same URL twice (e.g. the WooCommerce shop page
+        // registered in multiple sitemap sections). get_urls() must collapse them.
+        $discovery = new PageDiscovery();
+        $discovery->set_manual_urls( [
+            'https://site.com/shop/',
+            'https://site.com/about/',
+            'https://site.com/shop/',
+        ] );
+        $this->assertSame(
+            [ 'https://site.com/shop/', 'https://site.com/about/' ],
+            $discovery->get_urls()
+        );
+    }
+
+    public function test_get_credit_cost_does_not_double_count_duplicates(): void {
+        $discovery = new PageDiscovery();
+        $discovery->set_manual_urls( [
+            'https://site.com/shop/',
+            'https://site.com/shop/',
+            'https://site.com/about/',
+        ] );
+        $this->assertSame( 2, $discovery->get_credit_cost() );
+    }
 }

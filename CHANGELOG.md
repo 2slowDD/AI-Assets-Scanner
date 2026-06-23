@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.49b - 2026-06-23
+
+### Fixed — Duplicate pages in the discovery list (and double-counted credits)
+
+- After **Re-discover**, a page that a sitemap lists in more than one section (e.g. the WooCommerce **shop** page) no longer appears twice in the page list. Discovery now de-duplicates URLs at the single point that feeds both the displayed list and the credit cost, so a duplicated page is also no longer **billed twice**.
+
+### Changed — Settings → Cloudflare WAF exemption copy button
+
+- The copy-icon button next to the rule expression is now a compact **20×20** square with the icon centred, instead of the oversized default WordPress button (the previous compact styling was being overridden by core button CSS).
+
+_Touched: `includes/scanner/class-page-discovery.php`, `admin/css/ai-assets-scanner-admin.css`, `tests/PageDiscoveryTest.php`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.48b - 2026-06-22
 
 ### Added — Spot "scanned but not optimized" pages + re-scan them
