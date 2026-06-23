@@ -333,6 +333,38 @@ class MenuBadgeTest extends TestCase {
         $this->assertConditionsMet();
     }
 
+    // --- Task 9: R3 Stage C — Tier C wp-cron handler run_r3_rebuild ---
+
+    public function test_cron_handler_sets_user_then_builds_partial_on_terminal(): void {
+        $job = [ 'job_id' => 'J', 'job_token' => 'TOK', 'railway_url' => 'https://r',
+                 'user_id' => 7, 'armed_at' => 1_900_000_000 ];
+        WP_Mock::userFunction( 'wp_set_current_user' )->once()->with( 7 );
+        WP_Mock::userFunction( 'delete_transient' )->once()->with( 'cu_scanner_job_7' );
+        WP_Mock::userFunction( 'wp_clear_scheduled_hook' )->once();
+        WP_Mock::userFunction( 'wp_schedule_single_event' )->never();      // terminal → no reschedule
+
+        $ajax = Mockery::mock( \CUScanner\Admin\ScannerAjax::class );
+        $ajax->shouldReceive( 'do_build_result' )->once()->with( 'J', 'TOK', 4 )->andReturn( [] );
+
+        $this->makeBadge( [ 'status' => 'paused_exhausted', 'completed' => 4, 'total' => 10 ], $ajax )
+             ->run_r3_rebuild( $job );
+        $this->assertConditionsMet();
+    }
+
+    public function test_cron_handler_reschedules_while_paused(): void {
+        // armed_at in the future (year ~2030) so time() - armed_at is always negative → well under ceiling.
+        // WP_Mock cannot mock internal PHP time() — use armed_at > real now instead.
+        $job = [ 'job_id' => 'J', 'job_token' => 'TOK', 'railway_url' => 'https://r',
+                 'user_id' => 7, 'armed_at' => 1_900_000_000 ];
+        WP_Mock::userFunction( 'wp_set_current_user' )->once()->with( 7 );
+        WP_Mock::userFunction( 'wp_schedule_single_event' )->once();        // still paused → reschedule
+        WP_Mock::userFunction( 'wp_clear_scheduled_hook' )->never();
+
+        $this->makeBadge( [ 'status' => 'paused', 'resume_at' => ( 1_900_000_500 + 900 ) * 1000 ] )
+             ->run_r3_rebuild( $job );
+        $this->assertConditionsMet();
+    }
+
     // --- Task 6: R3 Stage C — paused branch refreshes job transient TTL, preserves full payload ---
 
     public function test_paused_refreshes_transient_ttl_preserving_full_payload(): void {
