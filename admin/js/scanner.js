@@ -1697,7 +1697,7 @@
                 'blocked the scanner. Auto-retrying in <span id="cu-paused-countdown">' +
                 esc(formatCountdown(pausedResumeAt - Date.now())) + '</span>\u2026 (no action needed)</p>' +
                 '<p><button type="button" class="button" id="cu-paused-stopkeep">' +
-                'Stop & keep results now</button></p>';
+                'Stop &amp; keep results now</button></p>';
             area._cuPausedBuilt = true;
             var btn = document.getElementById('cu-paused-stopkeep');
             if (btn) btn.addEventListener('click', stopAndKeep);   // Task 3
@@ -1708,6 +1708,7 @@
     // R3 Stage C \u2014 align the next /status poll to resume_at; once we're at/past
     // it, poll every PAUSED_CATCHUP_MS until the status leaves 'paused'.
     function schedulePausedPoll(data) {
+        stopPolling();                                    // clear any prior timer before rescheduling
         var remaining = (Number(data.resume_at) || 0) - Date.now();
         var delay = remaining > 0
             ? Math.max(remaining + PAUSED_POLL_BUFFER_MS, PAUSED_POLL_FLOOR_MS)
