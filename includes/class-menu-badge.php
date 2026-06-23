@@ -337,6 +337,61 @@ class MenuBadge {
     }
 
     /**
+     * R3 Stage C (Tier C) — wp-cron rebuild backbone. Runs userless, so it FIRST
+     * wp_set_current_user($user_id) (M4) — do_build_result reads get_current_user_id()
+     * internally (ET-ratchet r_orig lookup + transient delete). Then: terminal →
+     * build partial + delete transient + clear hook; non-terminal → reschedule
+     * (bounded by R3_CRON_CEILING ~20h from armed_at). Reschedule args MUST equal
+     * the Task-7 arm shape — pass [ $job ] (the ORIGINAL inner array re-wrapped).
+     *
+     * @param array $job  The inner args array armed by arm_r3_rebuild_cron:
+     *                    [ 'job_id', 'job_token', 'railway_url', 'user_id', 'armed_at' ].
+     */
+    public function run_r3_rebuild( array $job ): void {
+        $user_id = (int) ( $job['user_id'] ?? 0 );
+        if ( $user_id <= 0 ) { return; }
+        wp_set_current_user( $user_id );   // M4 — fixes get_current_user_id() inside do_build_result
+
+        $job_id      = (string) ( $job['job_id']      ?? '' );
+        $job_token   = (string) ( $job['job_token']   ?? '' );
+        $railway_url = (string) ( $job['railway_url'] ?? '' );
+        $armed_at    = (int)    ( $job['armed_at']    ?? time() );
+        if ( $job_id === '' || $job_token === '' || $railway_url === '' ) { return; }
+
+        try {
+            $status = $this->railway( $railway_url )->get_status( $job_id, $job_token, 0 );
+        } catch ( \RuntimeException $e ) {
+            error_log( '[AI Assets Scanner] r3-rebuild cron: status poll FAILED: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- diagnostic.
+            return; // transient — the still-scheduled event re-fires on the next site-traffic tick.
+        }
+
+        $rs          = (string) ( $status['status']    ?? '' );
+        $completed   = (int)    ( $status['completed'] ?? 0 );
+        $is_terminal = in_array( $rs, [ 'complete', 'paused_exhausted', 'failed' ], true );
+
+        if ( $is_terminal && ( $rs === 'complete' || $completed > 0 ) ) {
+            try {
+                $this->get_ajax()->do_build_result( $job_id, $job_token, $completed );
+            } catch ( \RuntimeException $e ) {
+                error_log( '[AI Assets Scanner] r3-rebuild cron: build FAILED: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- diagnostic.
+                $this->get_history()->update_status( $job_id, 'failed' );
+            }
+            delete_transient( 'cu_scanner_job_' . $user_id );
+            wp_clear_scheduled_hook( self::CRON_HOOK, [ $job ] );
+            return;
+        }
+
+        // Non-terminal. Reschedule unless past the ladder ceiling (~20h from arm).
+        if ( time() - $armed_at >= 72000 ) {   // R3_CRON_CEILING
+            wp_clear_scheduled_hook( self::CRON_HOOK, [ $job ] );
+            return;
+        }
+        $resume_at_ms = (int) ( $status['resume_at'] ?? 0 );
+        $next = $resume_at_ms > 0 ? max( time(), (int) ceil( $resume_at_ms / 1000 ) ) + 60 : time() + 300;
+        wp_schedule_single_event( $next, self::CRON_HOOK, [ $job ] );   // IDENTICAL wrapped args
+    }
+
+    /**
      * Inline CSS for the badge. Emitted unconditionally on every wp-admin page.
      *
      * Why not gated on get_badge_state() !== null: the Heartbeat path can
@@ -400,10 +455,10 @@ class MenuBadge {
     }
 
     private function railway( string $url ) {
-        $key = ( new \CUScanner\Settings() )->get_api_key();
         if ( $this->railway_factory !== null ) {
-            return ( $this->railway_factory )( $url, $key );
+            return ( $this->railway_factory )( $url, '' );
         }
+        $key = ( new \CUScanner\Settings() )->get_api_key();
         return new \CUScanner\Api\RailwayClient( $url, $key );
     }
 
