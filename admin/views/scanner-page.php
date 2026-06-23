@@ -180,11 +180,13 @@
         <div class="cu-rescan-row" style="margin-top:16px; display:flex; gap:12px; align-items:center">
             <button type="button" class="button button-secondary cu-btn-run-another">Run Another Scan</button>
             <button type="button" class="button button-secondary cu-btn-rescan-et" style="display:none">Rescan ET Candidates</button>
+            <button type="button" class="button button-secondary cu-btn-rescan-noopt-all" style="display:none">Rescan 0-Results URLs</button>
         </div>
     <div id="cu-result-url-list"></div>
         <div class="cu-rescan-row" style="margin-top:16px; display:flex; gap:12px; align-items:center">
             <button type="button" class="button button-secondary cu-btn-run-another">Run Another Scan</button>
             <button type="button" class="button button-secondary cu-btn-rescan-et" style="display:none">Rescan ET Candidates</button>
+            <button type="button" class="button button-secondary cu-btn-rescan-noopt-all" style="display:none">Rescan 0-Results URLs</button>
         </div>
     </div>
 

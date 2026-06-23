@@ -1905,6 +1905,12 @@
             document.querySelectorAll('#step-4 .cu-btn-rescan-et').forEach(function (btn) { btn.style.display = ''; });
         }
 
+        // Reveal "Rescan 0-Results URLs" (both rows) when at least one S:0 A:0 (noopt) row exists.
+        var hasNoopt = Array.isArray(pages) && pages.some(function (p) { return p && p.status_class === 'ok' && Number(p.safe) === 0 && Number(p.aggressive) === 0; });
+        if (hasNoopt) {
+            document.querySelectorAll('#step-4 .cu-btn-rescan-noopt-all').forEach(function (btn) { btn.style.display = ''; });
+        }
+
         showStep(4);
     }
 
@@ -1967,7 +1973,7 @@
             var san = ( p.status_class === 'error' ) ? '—'
                 : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed
                     + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' )
-                    + ( noopt ? ' <a href="#" class="cu-rescan-noopt" data-url="' + esc( p.url ) + '">Scan again</a>' : '' ) );
+                    + ( noopt ? ' <span class="cu-noopt-note">Please scan again</span>' : '' ) );
             var origUrl = submittedByResolved[ p.url ];
             var urlCell = cuEscHtml( p.url )
                 + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' );
@@ -2004,18 +2010,8 @@
                 syncEtResultAll();
             } );
         } );
-        // FU-AAS-YELLOW-S0A0-ROWS — "Scan again" on a noopt row: stash the URL + reload to a fresh
-        // Step 1 where primeRescanSingle() picks it up (no Extra Time). Re-bound on every render so
-        // links on paginated pages work and aren't double-bound.
-        host.querySelectorAll('.cu-rescan-noopt').forEach( function ( link ) {
-            link.addEventListener('click', function ( e ) {
-                e.preventDefault();
-                var url = link.getAttribute('data-url');
-                if ( !url ) { return; }
-                sessionStorage.setItem('cu_scanner_rescan_single', JSON.stringify( [ url ] ));
-                window.location.href = '?page=cu-scanner';
-            } );
-        } );
+        // Per-row "Scan again" link removed — noopt rows now show plain "Please scan again" text;
+        // the bottom "Rescan 0-Results URLs" button rescans every noopt URL in one batch.
         // All-on/off → toggle every ET-candidate URL across ALL pages (iterate st.pages,
         // not just the visible slice), then re-sync the visible checkboxes.
         var allCb = document.getElementById('cu-et-result-all');
@@ -2307,6 +2303,20 @@
         });
     });
 
+    // --- "Rescan 0-Results URLs" — collect every S:0 A:0 (noopt) URL, stash them, and reload to a
+    // fresh Step 1, where primeRescanSingle() picks them up (NO Extra Time; charged as a normal
+    // 1-credit-per-URL scan, same as the per-row rescan it replaces). No-op when there are none. ---
+    document.querySelectorAll('#step-4 .cu-btn-rescan-noopt-all').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var urls = cuUrlListState.pages.filter(function (p) {
+                return p && p.status_class === 'ok' && Number(p.safe) === 0 && Number(p.aggressive) === 0;
+            }).map(function (p) { return p.url; });
+            if (!urls.length) { return; }
+            sessionStorage.setItem('cu_scanner_rescan_single', JSON.stringify(urls));
+            window.location.href = '?page=cu-scanner';
+        });
+    });
+
     // --- Init: restore Step 4 if a completed result is stored ---
     (function () {
         const stored = localStorage.getItem('cu_scanner_result');
@@ -2365,10 +2375,11 @@
         showStep(1);
     }());
 
-    // --- "Scan again" prime (FU-AAS-YELLOW-S0A0-ROWS item 2) — mirrors primeRescanEt but with NO
-    // Extra Time, and sets the requeue-origin flag so the completed rescan reuses the existing
-    // Push-dormant button state (Sync-only when CU rules already exist). Runs before
-    // restoreEtCarryOver so its etCarryOver=true wins. ---
+    // --- Rescan-noopt prime (FU-AAS-YELLOW-S0A0-ROWS item 2) — consumes cu_scanner_rescan_single,
+    // now fed by the "Rescan 0-Results URLs" bulk button (one or many S:0 A:0 URLs). Mirrors
+    // primeRescanEt but with NO Extra Time, and sets the requeue-origin flag so the completed rescan
+    // reuses the existing Push-dormant button state (Sync-only when CU rules already exist). Runs
+    // before restoreEtCarryOver so its etCarryOver=true wins. ---
     (function primeRescanSingle() {
         var raw = sessionStorage.getItem('cu_scanner_rescan_single');
         if (!raw) return;
