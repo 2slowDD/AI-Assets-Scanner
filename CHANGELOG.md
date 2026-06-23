@@ -4,6 +4,16 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.51b - 2026-06-23
+
+### Added — R3 Stage C: pause-cooldown UI + wp-cron partial-rebuild backbone
+
+- When the scanner pauses a scan due to **repeated origin throttling/blocking** (HTTP 429 / 403 / 5xx / WAF), the scanner page now shows a **live countdown** to the auto-retry, plus a **"Stop & keep results now"** control, and a terminal **"paused-exhausted" partial banner** that delivers the completed pages' rules.
+- A **wp-cron backbone** rebuilds the partial result server-side, so a charged result is delivered even if the browser was closed during the cooldown.
+- **Inert until the worker's R3 cooldown feature is enabled** — no behavior change on existing scans.
+
+_Touched: `admin/js/scanner.js`, `includes/class-menu-badge.php`, `includes/class-plugin.php`, `ai-assets-scanner.php`, plus `tests/js/r3-*`, `tests/MenuBadgeTest.php`._
+
 ## 1.7.50b - 2026-06-23
 
 ### Changed — "Scanned but not optimized" (S:0 A:0) rows
