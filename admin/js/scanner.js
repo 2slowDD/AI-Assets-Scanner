@@ -1342,6 +1342,15 @@
         return (s / 3600).toFixed(1) + ' h';
     }
 
+    // R3 Stage C — countdown formatter for the paused banner. ms<1h → "M:SS",
+    // ms>=1h → "H:MM:SS"; non-positive → "0:00". Pure (no DOM/network).
+    function formatCountdown(ms) {
+        var s = Math.max(0, Math.floor((Number(ms) || 0) / 1000));
+        var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+        var two = function (n) { return (n < 10 ? '0' : '') + n; };
+        return h > 0 ? h + ':' + two(m) + ':' + two(sec) : m + ':' + two(sec);
+    }
+
     function showQueueBanner(position, total, message, etaS) {
         let banner = document.getElementById('cu-queue-banner');
         if (!banner) {
@@ -2485,4 +2494,7 @@
     }());
 
     detectPlugins();
+
+    // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
+    window.__cuTest = { formatCountdown: formatCountdown };
 }());
