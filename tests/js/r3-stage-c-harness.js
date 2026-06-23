@@ -48,7 +48,7 @@ function createHarness(opts = {}) {
     sessionStorage: makeStorage(opts.sessionStorage),
     localStorage: makeStorage(opts.localStorage),
     cuScanner: opts.cuScanner || { ajaxUrl: '', nonce: 'n', siteUrl: 's', outbox: { state: 'none' } },
-    fetch: opts.fetch || (() => Promise.reject(new Error('no fetch stub'))),
+    fetch: opts.fetch || (() => Promise.resolve({ ok: true, json: () => Promise.resolve({}) })),  // benign default: detectPlugins() fires fetch on load; a reject here becomes a fatal unhandled rejection (node>=20) after the test's OK.
     setTimeout: (fn, ms) => { const t = { fn, ms, type: 'timeout', cleared: false }; timers.push(t); return t; },
     clearTimeout: (t) => { if (t) t.cleared = true; },
     setInterval: (fn, ms) => { const t = { fn, ms, type: 'interval', cleared: false }; timers.push(t); return t; },

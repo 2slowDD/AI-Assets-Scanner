@@ -355,7 +355,7 @@ class MenuBadge {
         $job_id      = (string) ( $job['job_id']      ?? '' );
         $job_token   = (string) ( $job['job_token']   ?? '' );
         $railway_url = (string) ( $job['railway_url'] ?? '' );
-        $armed_at    = (int)    ( $job['armed_at']    ?? time() );
+        $armed_at    = (int)    ( $job['armed_at']    ?? 0 ); // 0 (not time()): a malformed missing armed_at trips the 20h ceiling at once instead of rescheduling forever.
         if ( $job_id === '' || $job_token === '' || $railway_url === '' ) { return; }
 
         try {
