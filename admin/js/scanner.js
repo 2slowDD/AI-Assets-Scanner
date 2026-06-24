@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.23';
+    const SCANNER_JS_VERSION = '1.0.10.24';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1315,6 +1315,7 @@
     // --- Step 3: Polling + Progress ---
 
     function startPolling() {
+        if (pollTimer) return;   // FU-MAINPAGE-SCAN-RUNNING: already polling — don't stack a 2nd interval
         pollProgress(); // poll immediately, then self-schedule
     }
 
@@ -1407,6 +1408,7 @@
     }
 
     function handleStatusUpdate(data) {
+        var __rn = document.getElementById('cu-resume-notice'); if (__rn) __rn.remove();
         lastKnownStatus = data.status;
 
         // R3 Stage C — one teardown point: clear the live countdown on EVERY
@@ -2577,26 +2579,55 @@
     }());
 
     // --- Resume in-progress scan on page return ---
+    // FU-MAINPAGE-SCAN-RUNNING: a completed result for THIS job is already shown
+    // (Path A restored Step 4 from localStorage) → the still-present server transient
+    // is a race-window straggler; do NOT reattach over the result. Re-reads
+    // localStorage directly (module scanJobId may be unset when this evaluates).
+    function resultAlreadyShownFor(jobId) {
+      try {
+        var raw = localStorage.getItem('cu_scanner_result');
+        if (!raw || !jobId) return false;
+        var d = JSON.parse(raw);
+        return !!(d && d.job_id && String(d.job_id) === String(jobId));
+      } catch (_) { return false; }
+    }
+
+    // Brief notice shown when reattaching a running scan in a fresh tab; removed by
+    // the first real status update (handleStatusUpdate).
+    function showResumingNotice() {
+      if (document.getElementById('cu-resume-notice')) return;
+      var n = document.createElement('div');
+      n.id = 'cu-resume-notice';
+      n.className = 'notice notice-info inline';
+      n.innerHTML = '<p>Resuming your running scan — results will appear here as pages finish.</p>';
+      var wrap = document.getElementById('cu-progress-bar-wrap');
+      if (wrap && wrap.parentNode) { wrap.parentNode.insertBefore(n, wrap); return; }
+      var s3 = document.getElementById('step-3');
+      if (s3) s3.insertBefore(n, s3.firstChild);
+    }
+
     (function checkForActiveJob() {
-        const stored = sessionStorage.getItem('cu_scanner_active_job');
-        if (!stored) return;
-        try {
-            JSON.parse(stored); // validate JSON — corrupt entry falls to catch
-            post('cu_scanner_check_job').then(res => {
-                if (!res.success) {
-                    sessionStorage.removeItem('cu_scanner_active_job');
-                    return;
-                }
-                scanJobId     = res.data.job_id;
-                scanJobToken  = res.data.job_token;
-                railwayUrl    = res.data.railway_url;
-                lastPageIndex = 0;
-                showStep(3);
-                startPolling();
-            });
-        } catch (_) {
-            sessionStorage.removeItem('cu_scanner_active_job');
-        }
+      // FU-MAINPAGE-SCAN-RUNNING: the SERVER transient (cu_scanner_job_<user>) is the
+      // source of truth. A fresh-tab / closed-tab reopen mid-scan has no tab-local
+      // sessionStorage but the scan is still active — so consult check_job
+      // unconditionally (scanner.js is enqueued only on toplevel_page_cu-scanner).
+      const stored = sessionStorage.getItem('cu_scanner_active_job');
+      if (stored) { try { JSON.parse(stored); } catch (_) { sessionStorage.removeItem('cu_scanner_active_job'); } }
+      post('cu_scanner_check_job').then(res => {
+        if (!res || !res.success) { sessionStorage.removeItem('cu_scanner_active_job'); return; }
+        // Precedence (§4): a completed result for the SAME job is already shown → stale transient, don't override.
+        if (resultAlreadyShownFor(res.data.job_id)) { sessionStorage.removeItem('cu_scanner_active_job'); return; }
+        scanJobId     = res.data.job_id;
+        scanJobToken  = res.data.job_token;
+        railwayUrl    = res.data.railway_url;
+        lastPageIndex = 0;
+        sessionStorage.setItem('cu_scanner_active_job', JSON.stringify({
+          job_id: scanJobId, job_token: scanJobToken, railway_url: railwayUrl,
+        }));
+        showResumingNotice();
+        showStep(3);
+        startPolling();
+      });
     }());
 
     // --- Phase O: Re-attach outbox on page load ---
