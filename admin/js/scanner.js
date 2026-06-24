@@ -1315,8 +1315,11 @@
     // --- Step 3: Polling + Progress ---
 
     function startPolling() {
-        if (pollTimer) return;   // FU-MAINPAGE-SCAN-RUNNING: already polling — don't stack a 2nd interval
-        pollProgress(); // poll immediately, then self-schedule
+        // FU-MAINPAGE-SCAN-RUNNING: clear any stale handle first — stopPolling() is a
+        // no-op when pollTimer is null, so this is double-call-safe (two reattach paths
+        // on one load) AND restart-safe (a new scan whose prior timer is still live).
+        stopPolling();
+        pollProgress(); // poll immediately, then self-schedule via scheduleNextPoll
     }
 
     // beginScanPolling() — called on new-scan-start submit paths ONLY (main submit + reQueueRemainder).
