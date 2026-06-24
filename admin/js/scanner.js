@@ -1958,11 +1958,22 @@
         // G6: re-queue partial scans must not clobber already-pushed rules.
         const isRequeue = !!localStorage.getItem('cu_scanner_requeue_' + jobId);
         const syncOnly  = isRequeue && !!hasActiveCuRules;
+        // FU \u2014 a completed scan that produced 0 rules (0 safe + 0 aggressive) has nothing to
+        // push or sync; both buttons stay dormant.
+        const noRules   = ( ( Number( safeCount ) || 0 ) + ( Number( aggCount ) || 0 ) ) === 0;
 
         if (externalOnly) {
             pushBtn.style.display = 'none';
             syncBtn.style.display = 'none';
             pushResult.innerHTML = '<div class="notice notice-info inline"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push/sync to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
+        } else if (noRules) {
+            pushBtn.style.display = '';
+            syncBtn.style.display = '';
+            pushBtn.disabled = true;
+            syncBtn.disabled = true;
+            pushBtn.classList.add('cu-btn-dormant');
+            syncBtn.classList.add('cu-btn-dormant');
+            pushResult.innerHTML = '<div class="notice notice-info inline"><p>This scan produced no rules \u2014 nothing to push or sync.</p></div>';
         } else if (syncOnly) {
             syncBtn.style.display = '';
             pushBtn.style.display = '';
@@ -2619,5 +2630,5 @@
 
     // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
     window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,
-                        renderPartialBanner: renderPartialBanner };
+                        renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4 };
 }());

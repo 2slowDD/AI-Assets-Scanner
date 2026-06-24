@@ -6,15 +6,23 @@ const vm = require('vm');
 
 function makeEl(id) {
   const listeners = {};
+  const classes = new Set();
+  const attrs = {};
   return {
     id, _html: '', style: {}, value: 0, textContent: '', disabled: false,
     children: [],
+    classList: {
+      add: (c) => classes.add(c), remove: (c) => classes.delete(c),
+      contains: (c) => classes.has(c),
+      toggle: (c, f) => { const on = (f === undefined) ? !classes.has(c) : f; if (on) classes.add(c); else classes.delete(c); },
+    },
     set innerHTML(v) { this._html = v; }, get innerHTML() { return this._html; },
     addEventListener(ev, fn) { (listeners[ev] = listeners[ev] || []).push(fn); },
     click() { (listeners['click'] || []).forEach((f) => f({ preventDefault() {} })); },
     appendChild(c) { this.children.push(c); return c; },
     querySelector() { return null; }, removeAttribute() {},
-    _listeners: listeners,
+    setAttribute(k, v) { attrs[k] = v; }, getAttribute(k) { return (k in attrs) ? attrs[k] : null; },
+    _listeners: listeners, _classes: classes, _attrs: attrs,
   };
 }
 
