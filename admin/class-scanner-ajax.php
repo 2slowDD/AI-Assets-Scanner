@@ -739,6 +739,7 @@ class ScannerAjax {
      * ET-blind and under-reported ET continuations (showed 1 where 2 was billed).
      *
      * @param array<int, array<string, mixed>> $pages_raw Per-page status rows from Railway.
+     * @param array                            $by_page   Per-page {safe,aggressive,needed} tallies from CuJsonBuilder; absent → legacy 1-per-ok credit.
      * @return int Total billed credits across all pages.
      */
     public static function billable_credit_total( array $pages_raw, array $by_page = [] ): int {

@@ -4,6 +4,22 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.52b - 2026-06-24
+
+### Fixed — Noopt display parity (FU-NOOPT-ZERO-CREDIT)
+
+- The **Credits** column on the Step-4 results table now displays **0** for any page marked S:0 A:0 ("scanned but produced zero rules"), matching the worker's billing logic (0 credits charged for no-output pages). The column value is single-sourced via a new `AIAS_Scan_Status::page_credit()` helper used by both `build_pages()` and `billable_credit_total()`; Extra-Time pages remain billable per billing status; partial and cancelled rows are unchanged.
+
+### Added — Main page resumes running scans (FU-MAINPAGE-SCAN-RUNNING)
+
+- Opening the scanner page in a fresh tab while a scan is already in progress now displays the live progress view (Step 2–3 via the server transient) instead of the empty pre-scan state, so you can reattach to an ongoing scan without losing visibility.
+
+### Changed — Zero-rule scans don't push/sync
+
+- When a scan produces **no rules** (all pages are S:0 A:0), the **"Push to Code Unloader"** and **"Sync to Code Unloader"** buttons are now both **disabled** — the scanner skips the outbox enqueue, matching the existing per-page behaviour when a previous result already has rules staged. (A fresh scan on an empty result still offers the button; a mixed result where some previous rules exist follows the per-page disable logic.)
+
+_Touched: `admin/class-scanner-ajax.php` (docblock update for new `billable_credit_total()` param), `ai-assets-scanner.php`._
+
 ## 1.7.51b - 2026-06-23
 
 ### Added — R3 Stage C: pause-cooldown UI + wp-cron partial-rebuild backbone
