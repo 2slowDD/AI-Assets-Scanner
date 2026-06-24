@@ -741,11 +741,13 @@ class ScannerAjax {
      * @param array<int, array<string, mixed>> $pages_raw Per-page status rows from Railway.
      * @return int Total billed credits across all pages.
      */
-    public static function billable_credit_total( array $pages_raw ): int {
-        return (int) array_sum( array_map(
-            fn( $p ) => \AIAS_Scan_Status::classify( (array) $p )['credits'],
-            $pages_raw
-        ) );
+    public static function billable_credit_total( array $pages_raw, array $by_page = [] ): int {
+        $total = 0;
+        foreach ( $pages_raw as $i => $page ) {
+            // $by_page absent (legacy callers) → null tally → page_credit keeps legacy 1-per-ok.
+            $total += \AIAS_Scan_Status::page_credit( (array) $page, $by_page[ $i ] ?? null );
+        }
+        return (int) $total;
     }
 
     /**
@@ -1138,7 +1140,7 @@ class ScannerAjax {
         // cancel snapshot). A COMPLETE scan (or no count passed) keeps billable_credit_total.
         $credits_used = ( $is_partial && null !== $charged_count )
             ? max( 0, min( $charged_count, $total ) )
-            : self::billable_credit_total( $pages_raw );
+            : self::billable_credit_total( $pages_raw, $cu_json['by_page'] ?? [] );
         $hist_status = $this->compute_hist_status( $completed, $total );
 
         // A1: aggregate the rate-limited pages' attribution (presence-keyed; null when none / pre-worker-deploy).
