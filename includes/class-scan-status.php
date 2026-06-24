@@ -79,6 +79,30 @@ class AIAS_Scan_Status {
 	}
 
 	/**
+	 * Single source of the per-URL billed credit. = classify() credits, EXCEPT an
+	 * 'ok' page that produced 0 safe AND 0 aggressive rules ("0 new unloads", S:0 A:0)
+	 * bills 0 — matching the worker's noopt exclusion (FU-NOOPT-ZERO-CREDIT). The zero
+	 * applies to the BASE credit only; Extra-Time pages (extra_time_charged) stay billable.
+	 *
+	 * @param array      $page  the raw page (status, broken_devices, extra_time_charged).
+	 * @param array|null $tally per-page {safe,aggressive,needed} from CuJsonBuilder by_page,
+	 *                          or NULL when no tally is available — in which case the noopt
+	 *                          override is NOT applied (legacy 1-per-ok behavior).
+	 */
+	public static function page_credit( array $page, ?array $tally ): int {
+		$st      = self::classify( $page );
+		$credits = (int) $st['credits'];
+		if ( null !== $tally
+			&& 'ok' === $st['class']
+			&& 0 === (int) ( $tally['safe'] ?? 0 )
+			&& 0 === (int) ( $tally['aggressive'] ?? 0 )
+			&& empty( $page['extra_time_charged'] ) ) {
+			return 0;
+		}
+		return $credits;
+	}
+
+	/**
 	 * Build the per-URL pages[] payload for the Step-4 table.
 	 *
 	 * @param array $pages_raw Railway pages (the SAME array passed to CuJsonBuilder::build()).
@@ -105,12 +129,16 @@ class AIAS_Scan_Status {
 			}
 			$tally = $by_page[ $i ] ?? [ 'safe' => 0, 'aggressive' => 0, 'needed' => 0 ];
 			$bail  = isset( $page['deadline_bail_count'] ) ? (int) $page['deadline_bail_count'] : 0;
+			// FU-NOOPT-ZERO-CREDIT: noopt-aware credit (cancelled rows already forced to 0 above).
+			$credit = ( 'cancelled' === $st['class'] )
+				? 0
+				: self::page_credit( $page, $by_page[ $i ] ?? null );
 			$rows[] = [
 				'n'            => $n,
 				'url'          => (string) ( $page['url'] ?? '' ),
 				'status_class' => $st['class'],
 				'status_label' => $st['label'],
-				'credits'      => (int) $st['credits'],
+				'credits'      => $credit,
 				'safe'         => (int) ( $tally['safe'] ?? 0 ),
 				'aggressive'   => (int) ( $tally['aggressive'] ?? 0 ),
 				'needed'       => (int) ( $tally['needed'] ?? 0 ),
