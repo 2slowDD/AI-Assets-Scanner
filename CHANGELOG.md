@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.53b - 2026-06-25
+
+### Fixed — Scanning-table "undefined" URLs (FU-AAS-UNDEFINED-URL)
+
+- The live **Step 3 — Scanning** table no longer shows the literal text **"undefined"** in the URL column for not-yet-started pages. The worker returns pending pages without a `url` — only the in-flight pages (`PAGE_CONCURRENCY` of them) carry one at `0/N` — so rows past the first few rendered `undefined` until each page started. The URL cell now falls back to the resolved submitted URL (`selectedUrls`/`resolvedByUrl`, index-aligned with the worker's `pages[]`) when the worker hasn't echoed one yet, so every row shows its real (redirect-resolved) URL from the start; on a reattach with no client-side list it renders empty rather than "undefined". Scanning-screen cosmetic only — results and billing were always correct. Frontend-only; no worker/SaaS change.
+
 ## 1.7.52b - 2026-06-24
 
 ### Fixed — Noopt display parity (FU-NOOPT-ZERO-CREDIT)

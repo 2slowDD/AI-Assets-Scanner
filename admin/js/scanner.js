@@ -1488,12 +1488,19 @@
             const globalIdx   = idx;
             const existing    = document.getElementById('cu-row-' + globalIdx);
             const statusLabel = page.status === 'done' ? '\u2713 Done' : page.status === 'error' ? '\u2717 Error' : '\u2026';
+            // FU-AAS-UNDEFINED-URL (1.7.53b) \u2014 a pending (not-yet-started) page comes back
+            // without a `url` (worker returns {status:'pending'} for indices beyond
+            // PAGE_CONCURRENCY at 0/N), so page.url was undefined \u2192 esc(undefined) printed the
+            // literal "undefined" in those rows. Fall back to the resolved submitted URL (what
+            // we sent + what the worker echoes) so pending rows match the started rows.
+            // selectedUrls (let) + resolvedByUrl (var) are IIFE-scope \u2192 safe to read here.
+            const rowUrl = page.url || resolvedByUrl[selectedUrls[idx]] || selectedUrls[idx] || '';
             if (existing) {
-                existing.innerHTML = rowHtml(page.url, statusLabel);
+                existing.innerHTML = rowHtml(rowUrl, statusLabel);
             } else {
                 const tr = document.createElement('tr');
                 tr.id = 'cu-row-' + globalIdx;
-                tr.innerHTML = rowHtml(page.url, statusLabel);
+                tr.innerHTML = rowHtml(rowUrl, statusLabel);
                 tbody.appendChild(tr);
             }
         });
@@ -2664,5 +2671,8 @@
 
     // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
     window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,
-                        renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4 };
+                        renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4,
+                        // Seed the IIFE-scoped submitted-URL state so handleStatusUpdate's
+                        // URL-fallback can be exercised without driving the full submit flow.
+                        setScanUrlsForTest: function (sel, resolved) { selectedUrls = sel || []; resolvedByUrl = resolved || {}; } };
 }());
