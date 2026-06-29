@@ -1,0 +1,7 @@
+<p>Version 1.7.55b (beta).</p>
+<p><strong>Fixed - Compliance scan follow-up</strong></p>
+<ul>
+<li>Routed the <code>target_stack_summary</code> POST payload through an explicit sanitizer helper to satisfy the remaining sanitized-input warning.</li>
+<li>Replaced diagnostic <code>var_export()</code> usage in the menu badge heartbeat log with production-safe scalar/type formatting.</li>
+<li>Normalized line endings in the reported PHP files so PHPCS no longer reports mixed endings.</li>
+</ul>

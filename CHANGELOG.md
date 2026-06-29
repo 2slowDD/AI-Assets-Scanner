@@ -4,6 +4,21 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.55b - 2026-06-29
+
+### Fixed - Compliance scan follow-up
+
+- Routed the `target_stack_summary` POST payload through an explicit sanitizer helper to satisfy the remaining sanitized-input warning.
+- Replaced diagnostic `var_export()` usage in the menu badge heartbeat log with production-safe scalar/type formatting.
+- Normalized line endings in the reported PHP files so PHPCS no longer reports mixed endings.
+
+## 1.7.54b - 2026-06-29
+
+### Fixed - Result summary placement
+
+- Moved the Step 4 "Scan complete" summary so it appears directly above the Scan ID / URL results area instead of above the download and Code Unloader action buttons.
+- Hardened AJAX POST handling for probe/submit payloads and escaped the Outbox unknown-dependency exception detail to satisfy the reported `WordPress.Security.*` findings.
+
 ## 1.7.53b - 2026-06-25
 
 ### Fixed — Scanning-table "undefined" URLs (FU-AAS-UNDEFINED-URL)
