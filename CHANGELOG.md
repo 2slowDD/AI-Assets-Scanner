@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.56b - 2026-06-29
+
+### Fixed - Release package checksum repair
+
+- Reissued the 1.7.55b code under a fresh 1.7.56b update URL so WordPress does not reuse a stale cached package after the 1.7.55b checksum mismatch.
+
 ## 1.7.55b - 2026-06-29
 
 ### Fixed - Compliance scan follow-up
