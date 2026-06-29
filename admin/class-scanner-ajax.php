@@ -617,28 +617,13 @@ class ScannerAjax {
         // structure: validate each URL key, validate each suffix value's character
         // class (must match the legal bypass-suffix shape produced by OPTIMIZERS).
         // Anything outside that allowlist is dropped silently.
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
-        $target_bypass_per_url_raw = isset( $_POST['target_bypass_per_url'] )
-            ? (array) wp_unslash( $_POST['target_bypass_per_url'] )
-            : [];
-        $target_bypass_per_url = [];
-        foreach ( $target_bypass_per_url_raw as $u => $suffixes ) {
-            $clean_url = esc_url_raw( (string) $u );
-            if ( $clean_url === '' || ! is_array( $suffixes ) ) {
-                continue;
-            }
-            $clean_suffixes = [];
-            foreach ( $suffixes as $s ) {
-                $candidate = (string) $s;
-                // Legal bypass-suffix shapes: bare flag (e.g. 'nowprocket')
-                // or 'key=value' (e.g. 'ao_noptimize=1', 'LSCWP_CTRL=before_optm').
-                // Allowed chars: A-Z a-z 0-9 _ - . =
-                if ( preg_match( '/^[A-Za-z0-9_=.\-]+$/', $candidate ) ) {
-                    $clean_suffixes[] = $candidate;
-                }
-            }
-            $target_bypass_per_url[ $clean_url ] = $clean_suffixes;
+        $target_bypass_per_url_raw = [];
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() before any submit payload is processed.
+        if ( isset( $_POST['target_bypass_per_url'] ) ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); sanitize_target_bypass_per_url() validates every nested URL key and suffix value.
+            $target_bypass_per_url_raw = wp_unslash( $_POST['target_bypass_per_url'] );
         }
+        $target_bypass_per_url = self::sanitize_target_bypass_per_url( $target_bypass_per_url_raw );
 
         // AC-RC-8a — per-URL submitted_url map. JS sends a parallel submitted_urls[]
         // array, index-aligned with urls[]: urls[i] is the RESOLVED (post-redirect)
@@ -650,15 +635,21 @@ class ScannerAjax {
 
         // FU-NEW-2 Phase 5 (T5.4) — capture target_stack_summary blob (forwarded by
         // JS after the cu_scanner_probe_target_stack step). Null when absent/empty.
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
-        $target_stack_summary_raw = isset( $_POST['target_stack_summary'] )
-            ? wp_unslash( $_POST['target_stack_summary'] )
-            : null;
-        $target_stack_summary = self::capture_target_stack_summary( $target_stack_summary_raw );
+        $target_stack_summary = null;
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() before any submit payload is processed.
+	if ( isset( $_POST['target_stack_summary'] ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); structured POST array is unslashed, sanitized per leaf below, then schema-filtered by sanitize_target_stack_summary().
+		$target_stack_summary_raw = wp_unslash( $_POST['target_stack_summary'] );
+		$target_stack_summary     = self::sanitize_target_stack_summary( map_deep( $target_stack_summary_raw, 'sanitize_text_field' ) );
+	}
 
         // Class C consent: '1' when the operator confirmed in the modal.
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified at top of submit_job via $this->check() / check_ajax_referer().
-        $class_c_consent_given = isset( $_POST['class_c_consent_given'] ) ? sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) ) : '';
+        $class_c_consent_given = '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() before any submit payload is processed.
+        if ( isset( $_POST['class_c_consent_given'] ) ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified at top of submit_job via $this->check() / check_ajax_referer().
+            $class_c_consent_given = sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) );
+        }
 
         // Assemble the scan intent (the parity contract shared with Outbox::dispatch).
         $intent = [
@@ -1573,8 +1564,12 @@ class ScannerAjax {
             return;
         }
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce checked above
-        $urls_raw = isset( $_POST['urls'] ) ? wp_unslash( $_POST['urls'] ) : [];
+        $urls_raw = [];
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked above before processing probe input.
+        if ( isset( $_POST['urls'] ) ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce checked above; each URL is sanitized with esc_url_raw() before use.
+            $urls_raw = wp_unslash( $_POST['urls'] );
+        }
         if ( ! is_array( $urls_raw ) ) {
             wp_send_json( [ 'ok' => false, 'error' => 'urls_must_be_array' ], 400 );
             return;
@@ -1795,6 +1790,42 @@ class ScannerAjax {
             ],
             $page_specs
         );
+    }
+
+    /**
+     * Sanitize the JS probe's URL => bypass suffixes map.
+     *
+     * @param mixed $post_value Raw unslashed target_bypass_per_url value.
+     * @return array<string,array<int,string>>
+     */
+    private static function sanitize_target_bypass_per_url( $post_value ): array {
+        if ( ! is_array( $post_value ) || empty( $post_value ) ) {
+            return [];
+        }
+
+        $target_bypass_per_url = [];
+        foreach ( $post_value as $url => $suffixes ) {
+            $clean_url = esc_url_raw( (string) $url );
+            if ( $clean_url === '' || ! is_array( $suffixes ) ) {
+                continue;
+            }
+
+            $clean_suffixes = [];
+            foreach ( $suffixes as $suffix ) {
+                $candidate = sanitize_text_field( (string) $suffix );
+                if ( preg_match( '/^[A-Za-z0-9_=.\-]+$/', $candidate ) ) {
+                    $clean_suffixes[] = $candidate;
+                }
+            }
+
+            $target_bypass_per_url[ $clean_url ] = $clean_suffixes;
+        }
+
+        return $target_bypass_per_url;
+    }
+
+    private static function sanitize_target_stack_summary( $post_value ): ?array {
+        return self::capture_target_stack_summary( $post_value );
     }
 
     /**
@@ -2147,36 +2178,28 @@ class ScannerAjax {
 
         // wp-compliance Rule 25 / proposed-Rule-27 — nested $_POST map: URL key → suffix-array.
         // Walk and validate each level; drop anything outside the allowlist character class.
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
-        $target_bypass_per_url_raw = isset( $_POST['target_bypass_per_url'] )
-            ? (array) wp_unslash( $_POST['target_bypass_per_url'] )
-            : [];
-        $target_bypass_per_url = [];
-        foreach ( $target_bypass_per_url_raw as $u => $suffixes ) {
-            $clean_url = esc_url_raw( (string) $u );
-            if ( $clean_url === '' || ! is_array( $suffixes ) ) {
-                continue;
-            }
-            $clean_suffixes = [];
-            foreach ( $suffixes as $s ) {
-                $candidate = (string) $s;
-                if ( preg_match( '/^[A-Za-z0-9_=.\-]+$/', $candidate ) ) {
-                    $clean_suffixes[] = $candidate;
-                }
-            }
-            $target_bypass_per_url[ $clean_url ] = $clean_suffixes;
+        $target_bypass_per_url_raw = [];
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() before any intent payload is built.
+        if ( isset( $_POST['target_bypass_per_url'] ) ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); sanitize_target_bypass_per_url() validates every nested URL key and suffix value.
+            $target_bypass_per_url_raw = wp_unslash( $_POST['target_bypass_per_url'] );
         }
+        $target_bypass_per_url = self::sanitize_target_bypass_per_url( $target_bypass_per_url_raw );
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
-        $target_stack_summary_raw = isset( $_POST['target_stack_summary'] )
-            ? wp_unslash( $_POST['target_stack_summary'] )
-            : null;
-        $target_stack_summary = self::capture_target_stack_summary( $target_stack_summary_raw );
+        $target_stack_summary = null;
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() before any intent payload is built.
+	if ( isset( $_POST['target_stack_summary'] ) ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Nonce verified in $this->check(); structured POST array is unslashed, sanitized per leaf below, then schema-filtered by sanitize_target_stack_summary().
+		$target_stack_summary_raw = wp_unslash( $_POST['target_stack_summary'] );
+		$target_stack_summary     = self::sanitize_target_stack_summary( map_deep( $target_stack_summary_raw, 'sanitize_text_field' ) );
+	}
 
-        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified via $this->check() / check_ajax_referer().
-        $class_c_consent_given = isset( $_POST['class_c_consent_given'] )
-            ? sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) )
-            : '';
+        $class_c_consent_given = '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() before any intent payload is built.
+        if ( isset( $_POST['class_c_consent_given'] ) ) {
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified via $this->check() / check_ajax_referer().
+            $class_c_consent_given = sanitize_text_field( wp_unslash( $_POST['class_c_consent_given'] ) );
+        }
 
         return [
             'urls'                  => $urls_raw,

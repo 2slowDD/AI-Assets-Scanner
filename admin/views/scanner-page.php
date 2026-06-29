@@ -167,7 +167,6 @@
     <!-- Step 4: Output -->
     <div id="step-4" class="cu-step cu-body" style="display:none">
         <div id="cu-banner-area"></div>
-        <p id="cu-result-summary"></p>
         <div style="display:flex; gap:16px; margin-top:16px">
             <a id="cu-btn-download" class="button button-primary" href="#">Download CU Import File</a>
             <button id="cu-btn-push" class="button button-primary" style="display:none">Push to Code Unloader</button>
@@ -182,7 +181,8 @@
             <button type="button" class="button button-secondary cu-btn-rescan-et" style="display:none">Rescan ET Candidates</button>
             <button type="button" class="button button-secondary cu-btn-rescan-noopt-all" style="display:none">Rescan 0-Results URLs</button>
         </div>
-    <div id="cu-result-url-list"></div>
+        <p id="cu-result-summary"></p>
+        <div id="cu-result-url-list"></div>
         <div class="cu-rescan-row" style="margin-top:16px; display:flex; gap:12px; align-items:center">
             <button type="button" class="button button-secondary cu-btn-run-another">Run Another Scan</button>
             <button type="button" class="button button-secondary cu-btn-rescan-et" style="display:none">Rescan ET Candidates</button>

@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "plugin": "ai-assets-scanner",
+  "slug": "ai-assets-scanner",
+  "name": "AI Assets Scanner",
+  "channel": "stable",
+  "published": true,
+  "version": "1.7.55b",
+  "requires_wp": "6.2",
+  "tested_wp": "7.0",
+  "requires_php": "8.0",
+  "requires_code_unloader": "1.4.4",
+  "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.55b/ai-assets-scanner.zip",
+  "sha256": "ce77e5e3134596a2e1a702a376222f009cc1f130c2f8c034015057cd801afad2",
+  "signature": "",
+  "released_at": "2026-06-29T00:00:00Z",
+  "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.55b/changelog.html",
+  "sections": {
+    "description": "AI-powered CSS/JS asset scanner for WordPress.",
+    "changelog": "Version 1.7.55b (beta): Compliance scan follow-up. Routes target_stack_summary through an explicit sanitizer helper, removes diagnostic var_export usage, and normalizes reported PHP file line endings."
+  },
+  "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+  "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}

@@ -232,7 +232,17 @@ class MenuBadge {
         // is_array check in 1.4.6, which produced zero entries in both failure
         // modes. Spam bounded — operator enables WP_DEBUG_LOG only during active
         // diagnostic windows.
-        $state_diag = is_array( $state ) ? 'array(' . count( $state ) . ')' : var_export( $state, true );
+        if ( is_array( $state ) ) {
+            $state_diag = 'array(' . count( $state ) . ')';
+        } elseif ( null === $state ) {
+            $state_diag = 'null';
+        } elseif ( is_bool( $state ) ) {
+            $state_diag = $state ? 'true' : 'false';
+        } elseif ( is_scalar( $state ) ) {
+            $state_diag = sanitize_text_field( (string) $state );
+        } else {
+            $state_diag = gettype( $state );
+        }
         self::dbg( '[AI Assets Scanner] menu-badge tick: user=' . $user_id . ' transient=' . $state_diag );
 
         if ( ! is_array( $state ) ) {

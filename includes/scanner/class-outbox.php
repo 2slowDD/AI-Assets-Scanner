@@ -295,7 +295,7 @@ class Outbox {
         }
         // Code-review I-2: a mistyped dep name must fail loudly, not return null silently
         // (which would surface as an opaque "cannot unpack non-array" later).
-        throw new \LogicException( "Outbox::call() unknown dependency: {$name}" );
+        throw new \LogicException( sprintf( 'Outbox::call() unknown dependency: %s', esc_html( (string) $name ) ) );
     }
 
     /**
