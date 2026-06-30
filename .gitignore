@@ -1,3 +1,7 @@
 vendor/
 .phpunit.result.cache
 .superpowers/
+tests/
+tasks/
+docs/superpowers/
+releases/**/*.zip
