@@ -32,6 +32,10 @@ class RulePusher {
         return class_exists( $this->repo );
     }
 
+    public function repository_class(): string {
+        return $this->repo;
+    }
+
     /** True if Code Unloader currently has rules in any enabled group (a push would overwrite them). */
     public function has_active_cu_rules(): bool {
         if ( ! $this->can_push() ) { return false; }
@@ -66,6 +70,9 @@ class RulePusher {
                     'aggressive_count' => 0,
                     'error_count'      => 1,
                     'error_message'    => 'Snapshot failed: ' . $snap_result->get_error_message(),
+                    'created_rule_ids' => [],
+                    'group_ids'        => [],
+                    'created_group_ids'=> [],
                 ];
             }
         }
@@ -79,6 +86,9 @@ class RulePusher {
                 'aggressive_count' => 0,
                 'error_count'      => 1,
                 'error_message'    => 'Version bump failed: ' . $bump_result->get_error_message(),
+                'created_rule_ids' => [],
+                'group_ids'        => [],
+                'created_group_ids'=> [],
             ];
         }
 
@@ -111,7 +121,7 @@ class RulePusher {
      * end enabled. Duplicates are skipped via find_duplicate and reported as
      * already_present, never counted as appended (spec §4.3 / §4.4 — R9).
      *
-     * @return array{appended_safe:int,appended_aggressive:int,already_present:int,error_count:int,error_message:string}
+     * @return array{appended_safe:int,appended_aggressive:int,already_present:int,error_count:int,error_message:string,created_rule_ids:int[],group_ids:int[],created_group_ids:int[]}
      * @throws \RuntimeException if Code Unloader is not active.
      */
     public function sync( array $cu_json ): array {
@@ -120,14 +130,19 @@ class RulePusher {
         }
         $repo = $this->repo;
 
-        $group_ids = [];
+        $group_ids         = [];
+        $created_group_ids = [];
         foreach ( $cu_json['groups'] as $group_def ) {
-            $gid = $this->find_or_create_group( $repo, $group_def['name'], $group_def['description'] ?? '' );
-            if ( \is_wp_error( $gid ) ) {
+            $group_lookup = $this->find_or_create_group( $repo, $group_def['name'], $group_def['description'] ?? '' );
+            if ( \is_wp_error( $group_lookup ) ) {
                 // Group creation precedes rule iteration, so already_present is genuinely 0 here.
-                return [ 'appended_safe' => 0, 'appended_aggressive' => 0, 'already_present' => 0, 'error_count' => 1, 'error_message' => 'Group create failed: ' . $gid->get_error_message() ];
+                return [ 'appended_safe' => 0, 'appended_aggressive' => 0, 'already_present' => 0, 'error_count' => 1, 'error_message' => 'Group create failed: ' . $group_lookup->get_error_message(), 'created_rule_ids' => [], 'group_ids' => [], 'created_group_ids' => [] ];
             }
+            $gid = (int) $group_lookup['id'];
             $group_ids[ $group_def['id'] ] = $gid;
+            if ( ! empty( $group_lookup['created'] ) ) {
+                $created_group_ids[] = $gid;
+            }
         }
         $safe_group_id       = $group_ids[1] ?? null;
         $aggressive_group_id = $group_ids[2] ?? null;
@@ -162,12 +177,12 @@ class RulePusher {
 
         if ( $error_count > 0 ) {
             foreach ( $inserted_rule_ids as $id ) { $repo::delete_rule( $id ); }
-            return [ 'appended_safe' => 0, 'appended_aggressive' => 0, 'already_present' => $already_present, 'error_count' => $error_count, 'error_message' => $first_error ];
+            return [ 'appended_safe' => 0, 'appended_aggressive' => 0, 'already_present' => $already_present, 'error_count' => $error_count, 'error_message' => $first_error, 'created_rule_ids' => [], 'group_ids' => [], 'created_group_ids' => [] ];
         }
 
         $this->enable_both_groups( $repo, $safe_group_id, $aggressive_group_id );
 
-        return [ 'appended_safe' => $appended_safe, 'appended_aggressive' => $appended_aggressive, 'already_present' => $already_present, 'error_count' => 0, 'error_message' => '' ];
+        return [ 'appended_safe' => $appended_safe, 'appended_aggressive' => $appended_aggressive, 'already_present' => $already_present, 'error_count' => 0, 'error_message' => '', 'created_rule_ids' => $inserted_rule_ids, 'group_ids' => array_values( $group_ids ), 'created_group_ids' => array_values( array_unique( $created_group_ids ) ) ];
     }
 
     // -------------------------------------------------------------------------
@@ -181,13 +196,16 @@ class RulePusher {
      */
     private function do_push( array $cu_json, string $repo ): array {
         // Create fresh groups — old ones were renamed, so these always succeed as new.
-        $group_ids = [];
+        $group_ids         = [];
+        $created_group_ids = [];
         foreach ( $cu_json['groups'] as $group_def ) {
             $result = $repo::create_group( $group_def['name'], $group_def['description'] ?? '' );
             if ( \is_wp_error( $result ) ) {
                 throw new \RuntimeException( 'Failed to create group: ' . $result->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Caught by caller's AJAX handler; passed to wp_send_json_error(), not rendered as HTML.
             }
-            $group_ids[ $group_def['id'] ] = $result;
+            $gid = (int) $result;
+            $group_ids[ $group_def['id'] ] = $gid;
+            $created_group_ids[] = $gid;
         }
 
         $safe_count        = 0;
@@ -241,6 +259,9 @@ class RulePusher {
             'aggressive_count' => $aggressive_count,
             'error_count'      => $error_count,
             'error_message'    => $first_error,
+            'created_rule_ids' => $error_count > 0 ? [] : $inserted_rule_ids,
+            'group_ids'        => array_values( $group_ids ),
+            'created_group_ids'=> $error_count > 0 ? [] : array_values( array_unique( $created_group_ids ) ),
         ];
     }
 
@@ -254,14 +275,30 @@ class RulePusher {
      * Return the id of the existing un-versioned group with this exact name, or
      * create it. The bump flow guarantees at most one un-versioned group per base
      * name; if (abnormally) more than one exists, the highest id (most recent) wins.
+     *
+     * @return array{id:int,created:bool}|\WP_Error
      */
-    private function find_or_create_group( string $repo, string $name, string $description ): int|\WP_Error {
+    private function find_or_create_group( string $repo, string $name, string $description ): array|\WP_Error {
         $match = null;
         foreach ( $repo::get_all_groups() as $g ) {
             if ( $g->name === $name && ( $match === null || (int) $g->id > (int) $match->id ) ) { $match = $g; }
         }
-        if ( $match !== null ) { return (int) $match->id; }
-        return $repo::create_group( $name, $description );
+        if ( $match !== null ) {
+            return [
+                'id'      => (int) $match->id,
+                'created' => false,
+            ];
+        }
+
+        $created = $repo::create_group( $name, $description );
+        if ( \is_wp_error( $created ) ) {
+            return $created;
+        }
+
+        return [
+            'id'      => (int) $created,
+            'created' => true,
+        ];
     }
 
     /**

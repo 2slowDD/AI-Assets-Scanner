@@ -167,11 +167,14 @@
     <!-- Step 4: Output -->
     <div id="step-4" class="cu-step cu-body" style="display:none">
         <div id="cu-banner-area"></div>
-        <div style="display:flex; gap:16px; margin-top:16px">
+        <div class="cu-step4-action-row" id="cu-step4-action-row">
             <a id="cu-btn-download" class="button button-primary" href="#">Download CU Import File</a>
             <button id="cu-btn-push" class="button button-primary" style="display:none">Push to Code Unloader</button>
             <button id="cu-btn-sync" class="button button-primary" style="display:none">Sync with Code Unloader</button>
-            <a href="https://wpservice.pro/contact/" target="_blank" rel="noopener" class="button button-secondary cu-contact-btn" style="margin-left:auto">Found a bug? Get in touch</a>
+            <div class="cu-step4-side-actions">
+                <a href="https://wpservice.pro/contact/" target="_blank" rel="noopener" class="button button-secondary cu-contact-btn">Found a bug? Get in touch</a>
+                <button type="button" id="cu-btn-undo-last-push-sync" class="button cu-undo-last-push-sync" disabled>Undo last Push/Sync</button>
+            </div>
         </div>
         <div id="cu-push-result" style="margin-top:12px"></div>
         <!-- Run Another Scan — secondary button, mirrored above + below the results table.

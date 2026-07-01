@@ -3,6 +3,8 @@ namespace CUScanner\Admin;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+use CUScanner\Scanner\LastPushSyncUndo;
+
 class AdminPages {
     public function register(): void {
         add_action( 'admin_menu', [ $this, 'add_menus' ] );
@@ -35,10 +37,11 @@ class AdminPages {
         if ( $hook === 'toplevel_page_cu-scanner' ) {
             wp_enqueue_script( 'cu-scanner-scanner', CU_SCANNER_URL . 'admin/js/scanner.js', [], CU_SCANNER_VERSION, true );
             wp_localize_script( 'cu-scanner-scanner', 'cuScanner', [
-                'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-                'nonce'   => wp_create_nonce( 'cu_scanner_nonce' ),
-                'siteUrl' => get_home_url(),
-                'outbox'  => \CUScanner\Scanner\Outbox::outbox_state_for_user( get_current_user_id() ),
+                'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
+                'nonce'            => wp_create_nonce( 'cu_scanner_nonce' ),
+                'siteUrl'          => get_home_url(),
+                'outbox'           => \CUScanner\Scanner\Outbox::outbox_state_for_user( get_current_user_id() ),
+                'lastPushSyncUndo' => ( new LastPushSyncUndo() )->state_for_ui(),
             ] );
             // Subsystem D-4: nonce for AJAX banner-dismiss endpoint.
             wp_localize_script( 'cu-scanner-scanner', 'aiasBannerL10n', [

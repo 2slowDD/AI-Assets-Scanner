@@ -1,0 +1,6 @@
+<p>Version 1.7.57b (beta).</p>
+<p><strong>Added - Undo last Code Unloader Push/Sync</strong></p>
+<ul>
+<li>Added a dormant <strong>Undo last Push/Sync</strong> button to the Step 4 scan-complete actions. It stays disabled until a successful Code Unloader Push or Sync, then turns red and remains available across browser or WordPress closure via server-side persisted state.</li>
+<li>Undo removes the recorded rules from Code Unloader, deactivates groups created by that last operation instead of deleting them, leaves existing groups untouched, and keeps the undo manifest retryable if Code Unloader cannot delete an existing recorded rule.</li>
+</ul>

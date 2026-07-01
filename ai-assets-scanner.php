@@ -2,7 +2,7 @@
 /**
  * Plugin Name: AI Assets Scanner
  * Description: AI-powered CSS/JS asset scanner by WPservice.pro.
- * Version:     1.7.56b
+ * Version:     1.7.57b
  * Author:      WPservice.pro
  * Author URI:  https://wpservice.pro/
  * Requires PHP: 8.0
@@ -23,7 +23,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-define( 'CU_SCANNER_VERSION', '1.7.56b' );
+define( 'CU_SCANNER_VERSION', '1.7.57b' );
 define( 'CU_SCANNER_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CU_SCANNER_URL', plugin_dir_url( __FILE__ ) );
 define( 'CU_SCANNER_WPSERVICE_BASE', 'https://wpservice.pro' );
@@ -57,6 +57,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\CuJsonBuilder'   => 'includes/scanner/class-cu-json-builder.php',
         'CUScanner\\Scanner\\RatchetMerger'   => 'includes/scanner/class-ratchet-merger.php',
         'CUScanner\\Scanner\\RulePusher'      => 'includes/scanner/class-rule-pusher.php',
+        'CUScanner\\Scanner\\LastPushSyncUndo' => 'includes/scanner/class-last-push-sync-undo.php',
         'CUScanner\\Scanner\\SnapshotManager' => 'includes/scanner/class-snapshot-manager.php',
         'CUScanner\\Scanner\\GroupVersionManager' => 'includes/scanner/class-group-version-manager.php',
         'CUScanner\\Scanner\\Outbox'             => 'includes/scanner/class-outbox.php',

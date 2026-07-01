@@ -12,6 +12,7 @@ use CUScanner\Scanner\PluginDetector;
 use CUScanner\Scanner\BypassManager;
 use CUScanner\Scanner\CuJsonBuilder;
 use CUScanner\Scanner\EventEmitter;
+use CUScanner\Scanner\LastPushSyncUndo;
 use CUScanner\Scanner\RulePusher;
 
 class ScannerAjax {
@@ -29,6 +30,7 @@ class ScannerAjax {
             'cu_scanner_download_json',
             'cu_scanner_push_to_cu',
             'cu_scanner_sync_to_cu',
+            'cu_scanner_undo_last_push_sync',
             'cu_scanner_check_job',
             'cu_scanner_export_history',
             'cu_scanner_delete_history',
@@ -1373,6 +1375,10 @@ class ScannerAjax {
         try {
             $decoded = $this->filter_internal_rules( json_decode( $json, true ) );
             $summary = $pusher->push( $decoded );
+            if ( empty( $summary['error_count'] ) ) {
+                ( new LastPushSyncUndo() )->store_from_summary( 'push', $job_id, $summary );
+            }
+            $summary['undo_state'] = ( new LastPushSyncUndo() )->state_for_ui();
             wp_send_json_success( $summary );
         } catch ( \Throwable $e ) {
             error_log( '[AI Assets Scanner] push_to_cu: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
@@ -1391,11 +1397,34 @@ class ScannerAjax {
             $decoded = $this->filter_internal_rules( json_decode( $json, true ) );
             if ( empty( $decoded['rules'] ) ) { wp_send_json_error( 'No internal rules to sync' ); return; }
             $summary = $pusher->sync( $decoded );
+            if ( empty( $summary['error_count'] ) ) {
+                ( new LastPushSyncUndo() )->store_from_summary( 'sync', $job_id, $summary );
+            }
+            $summary['undo_state'] = ( new LastPushSyncUndo() )->state_for_ui();
             wp_send_json_success( $summary );
         } catch ( \Throwable $e ) {
             error_log( '[AI Assets Scanner] sync_to_cu: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: detail withheld from browser, written to server error log only.
             wp_send_json_error( 'Sync failed. Check server error logs.' );
         }
+    }
+
+    public function undo_last_push_sync(): void {
+        $this->check();
+        $pusher = new RulePusher();
+        if ( ! $pusher->can_push() ) {
+            wp_send_json_error( 'Code Unloader not active' );
+            return;
+        }
+
+        $undo   = new LastPushSyncUndo();
+        $result = $undo->undo( $pusher->repository_class() );
+        if ( \is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+            return;
+        }
+
+        $result['undo_state'] = $undo->state_for_ui();
+        wp_send_json_success( $result );
     }
 
     public function delete_history(): void {

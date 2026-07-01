@@ -4,6 +4,13 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.57b - 2026-07-01
+
+### Added - Undo last Code Unloader Push/Sync
+
+- Added a dormant **Undo last Push/Sync** button to the Step 4 scan-complete actions. It stays disabled until a successful Code Unloader Push or Sync, then turns red and remains available across browser or WordPress closure via server-side persisted state.
+- Undo removes the recorded rules from Code Unloader, deactivates groups created by that last operation instead of deleting them, leaves existing groups untouched, and keeps the undo manifest retryable if Code Unloader cannot delete an existing recorded rule.
+
 ## 1.7.56b - 2026-06-29
 
 ### Fixed - Release package checksum repair

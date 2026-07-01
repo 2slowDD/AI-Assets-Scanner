@@ -387,6 +387,77 @@
 }
 .cu-url-more:hover { background: #f0f0f1; }
 
+/* --- Step 4 action buttons --- */
+#step-4 .cu-step4-action-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+}
+#step-4 .cu-step4-action-row > .button {
+    min-width: 210px;
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.25;
+    padding: 8px 18px;
+}
+#step-4 .cu-step4-side-actions {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    min-width: 240px;
+    width: 240px;
+    max-width: 100%;
+}
+#step-4 .cu-step4-side-actions > .button {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.25;
+    padding: 8px 16px;
+}
+#step-4 .cu-undo-last-push-sync,
+#step-4 .cu-undo-last-push-sync:disabled {
+    border-color: #c3c4c7;
+    background: #dcdcde;
+    color: #646970;
+    box-shadow: none;
+}
+#step-4 .cu-undo-last-push-sync.is-active:not(:disabled) {
+    border-color: #b32d2e;
+    background: #d63638;
+    color: #ffffff;
+}
+#step-4 .cu-undo-last-push-sync:hover:not(:disabled),
+#step-4 .cu-undo-last-push-sync:focus:not(:disabled) {
+    border-color: #8a2424;
+    background: #b32d2e;
+    color: #ffffff;
+}
+#step-4 .cu-undo-last-push-sync:disabled {
+    cursor: not-allowed;
+}
+@media (max-width: 900px) {
+    #step-4 .cu-step4-side-actions {
+        margin-left: 0;
+        width: 100%;
+        min-width: 0;
+    }
+    #step-4 .cu-step4-action-row > .button {
+        flex: 1 1 210px;
+    }
+}
+
 /* --- Settings credit balance widget --- */
 .cu-balance-widget {
     display: flex;

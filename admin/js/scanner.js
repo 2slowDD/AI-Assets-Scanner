@@ -7,6 +7,7 @@
     const ajax    = cuScanner.ajaxUrl;
     const nonce   = cuScanner.nonce;
     const siteUrl = cuScanner.siteUrl || window.location.origin;
+    const initialUndoLastPushSyncState = (cuScanner && cuScanner.lastPushSyncUndo) ? cuScanner.lastPushSyncUndo : { available: false };
 
     // --- State ---
     let discoveredUrls = [];   // full set returned by server
@@ -28,6 +29,7 @@
     let includedUrls   = [];   // include URLs not duplicated in discoveredUrls
     let availableBalance = null; // credit balance fetched from detect_plugins response
     let outboxTickTimer  = null; // interval id for outbox polling (null = not ticking)
+    let undoLastPushSyncState = initialUndoLastPushSyncState;
 
     const STEP_LABELS = {
         1: 'Step 1 \u2014 Discover Pages',
@@ -102,6 +104,27 @@
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    function setUndoLastPushSyncState(state) {
+        const nextState = (state && typeof state === 'object') ? state : { available: false };
+        const isActive = !!nextState.available;
+        undoLastPushSyncState = Object.assign({}, nextState, { available: isActive });
+
+        const btn = document.getElementById('cu-btn-undo-last-push-sync');
+        if (!btn) {
+            return;
+        }
+
+        btn.disabled = !isActive;
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-disabled', isActive ? 'false' : 'true');
+    }
+
+    function activateUndoFromResponse(data) {
+        if (data && data.undo_state) {
+            setUndoLastPushSyncState(data.undo_state);
+        }
     }
 
     function showStep(n) {
@@ -1999,6 +2022,8 @@
             pushBtn.classList.remove('cu-btn-dormant');
         }
 
+        setUndoLastPushSyncState(undoLastPushSyncState);
+
         // Consume the re-queue marker now that the result screen has rendered.
         if (isRequeue) {
             localStorage.removeItem('cu_scanner_requeue_' + jobId);
@@ -2392,6 +2417,7 @@
                     ? ` (${esc(res.data.error_count)} errors — first: ${esc(res.data.error_message)})`
                     : '';
                 el.innerHTML = `<div class="notice notice-success"><p>Rules added to Code Unloader: ${esc(res.data.safe_count)} safe, ${esc(res.data.aggressive_count)} aggressive.${errNote}</p></div>`;
+                activateUndoFromResponse(res.data);
                 cuNotifyRulesChanged();
             } else {
                 el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
@@ -2415,6 +2441,7 @@
                     ? ` (${esc(d.error_count)} errors — first: ${esc(d.error_message)})`
                     : '';
                 el.innerHTML = `<div class="notice notice-success"><p>Synced to Code Unloader — appended ${esc(d.appended_safe)} safe + ${esc(d.appended_aggressive)} aggressive rules (${esc(d.already_present)} already present).${errNote}</p></div>`;
+                activateUndoFromResponse(d);
                 cuNotifyRulesChanged();
             } else {
                 el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
@@ -2426,6 +2453,54 @@
             btn.disabled = false;
         });
     });
+
+    const undoLastPushSyncBtn = document.getElementById('cu-btn-undo-last-push-sync');
+    if (undoLastPushSyncBtn) {
+        undoLastPushSyncBtn.addEventListener('click', function () {
+            if (!undoLastPushSyncState || !undoLastPushSyncState.available) {
+                return;
+            }
+
+            if (!window.confirm('Undo the last AAS Push/Sync? This removes only the rules AAS created in the last operation. Newly created Code Unloader groups will be disabled, not deleted.')) {
+                return;
+            }
+
+            const btn = this;
+            const previousState = undoLastPushSyncState;
+            const el = document.getElementById('cu-push-result');
+
+            btn.disabled = true;
+            btn.classList.remove('is-active');
+            btn.setAttribute('aria-disabled', 'true');
+
+            if (el) {
+                el.innerHTML = '<div class="notice notice-info"><p>Undoing the last Push/Sync...</p></div>';
+            }
+
+            post('cu_scanner_undo_last_push_sync').then(function (res) {
+                if (res.success) {
+                    const d = res.data || {};
+                    if (el) {
+                        el.innerHTML = `<div class="notice notice-success"><p>Undo complete: removed ${esc(d.deleted_rule_count || 0)} rules, skipped ${esc(d.skipped_rule_count || 0)} already-missing rules, disabled ${esc(d.disabled_group_count || 0)} newly created groups.</p></div>`;
+                    }
+                    setUndoLastPushSyncState(d.undo_state || { available: false });
+                    cuNotifyRulesChanged();
+                } else {
+                    if (el) {
+                        el.innerHTML = `<div class="notice notice-error"><p>Error: ${esc(res.data)}</p></div>`;
+                    }
+                    setUndoLastPushSyncState(previousState);
+                }
+            }).catch(function () {
+                if (el) {
+                    el.innerHTML = '<div class="notice notice-error"><p>Undo failed - check server error logs.</p></div>';
+                }
+                setUndoLastPushSyncState(previousState);
+            });
+        });
+    }
+
+    setUndoLastPushSyncState(undoLastPushSyncState);
 
     // --- "Run Another Scan" buttons (above + below the results table) clear the
     // stored result and reload to a fresh Step 1 (buttons don't navigate natively). ---
