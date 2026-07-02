@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.58b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.58b/ai-assets-scanner.zip",
+    "sha256": "967aff5f10190f53fe6828dd12a7059c718a52c49a1e7bf8652fb37980502400",
+    "signature": "",
+    "released_at": "2026-07-02T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.58b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.58b (beta): Fixes a scan that could stay stuck at N-1/N (e.g. 14/15) on screen until a hard refresh. The live progress poll hits a fixed worker URL, so a cached in-progress snapshot could mask scan completion; the poll and the worker status endpoint are now uncacheable (Cache-Control: no-store). The scan itself always finished and was billed correctly."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}

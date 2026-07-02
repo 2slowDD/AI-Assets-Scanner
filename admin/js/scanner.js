@@ -1424,7 +1424,12 @@
 
     function pollProgress() {
         const url = `${railwayUrl}/jobs/${scanJobId}/status?from=${lastPageIndex}`;
-        fetch(url, { headers: { 'Authorization': 'Bearer ' + scanJobToken } })
+        // Live poll MUST bypass the HTTP cache. This is a FIXED url (?from=0 — lastPageIndex
+        // never advances), so any cached response strands a stale in-progress snapshot over
+        // the terminal status:'complete', wedging Step 3 at N-1/N until a hard refresh.
+        // cache:'no-store' forces a fresh network read every tick; pairs with the worker's
+        // Cache-Control: no-store on /status (defense in depth across browser + edge/proxy).
+        fetch(url, { cache: 'no-store', headers: { 'Authorization': 'Bearer ' + scanJobToken } })
             .then(r => r.json())
             .then(data => { handleStatusUpdate(data); })
             .catch(() => {

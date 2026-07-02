@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.58b - 2026-07-02
+
+### Fixed - Scan UI wedged at N-1/N until a hard refresh (live-status caching)
+
+- The Step 3 progress poll hits a **fixed** worker URL (`/status?from=0`), so an HTTP-cached in-progress snapshot could mask the terminal `complete` status and leave the scan stuck at N-1/N (e.g. 14/15) until a hard refresh — even though the scan had finished and was billed correctly. The live poll now uses `cache: 'no-store'`, and the worker `/status` endpoint sends `Cache-Control: no-store`, so no browser or edge/proxy layer can strand a stale snapshot. No credits or scan results were affected by the wedge.
+
 ## 1.7.57b - 2026-07-01
 
 ### Added - Undo last Code Unloader Push/Sync
