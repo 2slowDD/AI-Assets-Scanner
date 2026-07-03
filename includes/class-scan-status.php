@@ -145,6 +145,10 @@ class AIAS_Scan_Status {
 				// FU-AAS-ET-CANDIDATE-COLUMN: ok-only allowlist. Positive `=== 'ok'` (NOT `!== 'error'`)
 				// — also excludes partial/blocked/skipped per the do-NOT.
 				'et_candidate' => ( $bail > 0 && 'ok' === $st['class'] ),
+				// Phase 2 Slice C (C-V1): "a billed ET continuation ran on this page" — the
+				// discriminator the noopt-note copy needs. Selected-but-refunded ET stays false
+				// (deliberate: no ET actually ran, retrying it is legitimate).
+				'et_charged'   => ! empty( $page['extra_time_charged'] ),
 			];
 		}
 		return $rows;
