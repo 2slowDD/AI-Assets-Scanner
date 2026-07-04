@@ -1,0 +1,6 @@
+<p>Version 1.7.65b (beta).</p>
+<p><strong>Fixed - Credits column now matches the SaaS charge on blocked and cancelled scans (FU-BILLING-BLOCKED-NOOPT E3)</strong></p>
+<ul>
+<li>A <strong>blocked/partial</strong> non-ET row that produced zero rules (S:0 A:0) now displays <strong>0 credits</strong>, mirroring the worker's relaxed noopt billing (a blocked page that delivered nothing bills nothing). Previously the display-zero was gated on class 'ok' only, so a blocked S:0 A:0 row showed 1 while the SaaS charged 0.</li>
+<li>On a <strong>user-cancelled</strong> scan the Credits column is now <strong>cancel-aware</strong>: ALL noopt display-zeroing is skipped (the worker's /cancel site bills every done page with no noopt subtraction &mdash; operator ruling 2026-07-04), so the rows sum to the amount actually charged. The terminal source is plumbed from the scanner JS into <code>build_result</code> (whitelist-validated server-side: <code>user_cancel|failed|paused_exhausted|killed</code>; display-only &mdash; it cannot affect billing) and persisted with the Step-4 restore payload, so reloaded/restored views stay consistent. Not-scanned rows keep their forced 0. Known residual: an ET row on a cancelled scan still displays its +1 premium that cancel never charges (pre-existing wrinkle, tracked separately).</li>
+</ul>

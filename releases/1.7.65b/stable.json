@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.65b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.65b/ai-assets-scanner.zip",
+    "sha256": "863573990b57bd85fbe9d22840e758c7b01b45d7202fa93502bdf8f8a3619ecb",
+    "signature": "",
+    "released_at": "2026-07-04T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.65b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.65b (beta): the Credits column now matches the SaaS charge on blocked and cancelled scans. A blocked/partial S:0 A:0 row displays 0 credits (matching the worker's relaxed noopt billing), and a user-cancelled scan's Credits column is now cancel-aware, skipping all noopt display-zeroing so rows sum to the amount actually charged. The terminal source is plumbed from the scanner JS into build_result, whitelist-validated server-side and display-only."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
