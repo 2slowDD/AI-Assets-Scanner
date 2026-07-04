@@ -1615,7 +1615,13 @@
         // completed count) so History's credits_used mirrors the actual charge (= the banner),
         // not the build-time delivered pages a fast-cancel race can inflate.
         const chargedCount = (terminalInfo && terminalInfo.completed != null) ? terminalInfo.completed : '';
-        return post('cu_scanner_build_result', { job_id: scanJobId, job_token: scanJobToken, charged_count: chargedCount })
+        // FU-BILLING-BLOCKED-NOOPT (E3): plumb the terminal source so PHP renders the
+        // Credits column cancel-aware (user_cancel skips ALL noopt display-zeroing —
+        // rows must sum to the charged amount). Only sent when a terminal-incomplete
+        // status is known; a complete scan sends '' (PHP maps it to null). Server-side
+        // whitelist: user_cancel|failed|paused_exhausted|killed.
+        const terminalSource = (terminalInfo && terminalInfo.status) ? terminalInfo.status : '';
+        return post('cu_scanner_build_result', { job_id: scanJobId, job_token: scanJobToken, charged_count: chargedCount, terminal_source: terminalSource })
             .then(res => {
                 if (!res.success) {
                     // For a terminal-incomplete partial, an error here means nothing was

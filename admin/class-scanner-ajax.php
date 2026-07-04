@@ -1002,12 +1002,25 @@ class ScannerAjax {
             $charged_count = absint( wp_unslash( $_POST['charged_count'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check().
         }
 
+        // FU-BILLING-BLOCKED-NOOPT (E3): terminal source plumbed from the JS terminalInfo.
+        // DISPLAY-ONLY trust class (like charged_count): it steers the Credits-column
+        // rendering, never billing — the SaaS charge is worker-owned. Untrusted client
+        // input → sanitize + STRICT whitelist against the known terminal statuses;
+        // missing/empty/unknown → null (normal noopt display-zeroing applies).
+        $terminal_source = null;
+        if ( isset( $_POST['terminal_source'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check() via check_ajax_referer().
+            $raw_source = sanitize_text_field( wp_unslash( $_POST['terminal_source'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce verified in $this->check().
+            if ( in_array( $raw_source, array( 'user_cancel', 'failed', 'paused_exhausted', 'killed' ), true ) ) {
+                $terminal_source = $raw_source;
+            }
+        }
+
         if ( ! $job_id || ! $job_token ) {
             wp_send_json_error( 'Missing job_id or job_token' ); return;
         }
 
         try {
-            $result = $this->do_build_result( $job_id, $job_token, $charged_count );
+            $result = $this->do_build_result( $job_id, $job_token, $charged_count, $terminal_source );
         } catch ( \RuntimeException $e ) {
             error_log( '[AI Assets Scanner] build_result: ' . $e->getMessage() ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging: exception detail is withheld from the browser and written to server error log only.
             wp_send_json_error( 'Could not retrieve scan data. Check server error logs.' ); return;
@@ -1037,9 +1050,13 @@ class ScannerAjax {
      * returns the same response payload the AJAX handler emits (used both as
      * wp_send_json_success arg and consumed directly by the Heartbeat path).
      *
+     * @param string|null $terminal_source Whitelist-validated terminal source (E3) or null;
+     *                                     threads to AIAS_Scan_Status::build_pages() for
+     *                                     cancel-aware Credits rendering. Display-only.
+     *
      * @throws \RuntimeException Railway fetch error or empty coverage data.
      */
-    public function do_build_result( string $job_id, string $job_token, ?int $charged_count = null ): array {
+    public function do_build_result( string $job_id, string $job_token, ?int $charged_count = null, ?string $terminal_source = null ): array {
         // Fetch full coverage dataset from Railway server-side.
         $settings = $this->settings();
         $client   = new RailwayClient( $settings->get_railway_url(), $settings->get_api_key() );
@@ -1221,7 +1238,7 @@ class ScannerAjax {
         // Per-URL Step-4 results table. by_page is keyed by the same $pages_raw
         // index, so build_pages() joins status/credits with S/A/N tallies cleanly.
         // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.
-        $pages_payload = \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [], $is_partial );
+        $pages_payload = \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [], $is_partial, $terminal_source );
 
         // B4 — stamp each page row with ratchet_recovered (int ≥ 0).
         // When the ratchet ran, $merger->recovered_by_pattern is keyed by url_pattern;
@@ -1250,6 +1267,10 @@ class ScannerAjax {
             'total_pages'   => count( $pages_raw ),
             'scan_id'       => $scan_id_display,
             'pages'         => $pages_payload,
+            // FU-BILLING-BLOCKED-NOOPT (E3): persisted for future consumers — the rows
+            // above already carry the cancel-aware credits baked in; RESTORE replays
+            // them verbatim (aias_last_result → get_badge_state → JS restore).
+            'terminal_source' => $terminal_source,
         ], false );
 
         return array_merge( [
