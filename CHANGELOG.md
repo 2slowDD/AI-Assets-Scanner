@@ -4,6 +4,13 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.65b - 2026-07-04
+
+### Fixed - Credits column now matches the SaaS charge on blocked and cancelled scans (FU-BILLING-BLOCKED-NOOPT E3)
+
+- A **blocked/partial** non-ET row that produced zero rules (S:0 A:0) now displays **0 credits**, mirroring the worker's relaxed noopt billing (a blocked page that delivered nothing bills nothing). Previously the display-zero was gated on class 'ok' only, so a blocked S:0 A:0 row showed 1 while the SaaS charged 0.
+- On a **user-cancelled** scan the Credits column is now **cancel-aware**: ALL noopt display-zeroing is skipped (the worker's /cancel site bills every done page with no noopt subtraction — operator ruling 2026-07-04), so the rows sum to the amount actually charged. The terminal source is plumbed from the scanner JS into `build_result` (whitelist-validated server-side: `user_cancel|failed|paused_exhausted|killed`; display-only — it cannot affect billing) and persisted with the Step-4 restore payload, so reloaded/restored views stay consistent. Not-scanned rows keep their forced 0. Known residual: an ET row on a cancelled scan still displays its +1 premium that cancel never charges (pre-existing wrinkle, tracked separately).
+
 ## 1.7.64b - 2026-07-04
 
 ### Fixed - Co-present cache plugin missed when its only signature is an end-of-body comment
