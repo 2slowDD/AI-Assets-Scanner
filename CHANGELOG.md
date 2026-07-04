@@ -4,6 +4,13 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.64b - 2026-07-04
+
+### Fixed - Co-present cache plugin missed when its only signature is an end-of-body comment
+
+- The target-stack probe scans only the first 32 KB of the page (`Range: bytes=0-32767`). A cache plugin that serves warm HITs without running PHP (e.g. **Breeze** on a file-cache HIT) emits no `x-*-cache` header, so its only hit-visible signature is an end-of-body comment (`Cache served by breeze …`) sitting past that window — and when another optimizer (e.g. Perfmatters) was already matched in the head, the probe finished early and never saw the cache. The probe now runs one full-body scan when the head returns a conclusive verdict but **no page-cache layer**, catching the trailing marker. Detection is additive — an existing head match (Perfmatters, WP Rocket, …) is never downgraded. Informational only: these caches are bypassed ambiently by the scan flow's unique-query-string probes, so scan rules and credits are unaffected.
+- Network cost: at most **one additional full-body GET per host per 24 h** (gzip-compressed response, cached), fired only on hosts where the head scan finds no cache layer. A ranged tail fetch was rejected — on compressed origins the server serves the range against the gzip stream and a partial-gzip suffix cannot be decompressed. The positive-detection cache key is bumped `v2 → v3` so already-probed hosts re-evaluate under the new logic.
+
 ## 1.7.63b - 2026-07-04
 
 ### Fixed - Redundant "External URLs scanned" notice on 0-rule external scans

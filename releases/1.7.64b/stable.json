@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.64b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.64b/ai-assets-scanner.zip",
+    "sha256": "09891c4173f895b5636f813a157e66dff1bff28a68fe39747caffe3b103dc15f",
+    "signature": "",
+    "released_at": "2026-07-04T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.64b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.64b (beta): The target-stack probe now runs one full-body scan when the page head shows a conclusive optimizer but no page-cache layer, so a co-present cache whose only signature is an end-of-body comment (e.g. Breeze on a warm file-cache HIT) is detected instead of missed. Additive — existing head detections (Perfmatters, WP Rocket, ...) are never downgraded. Informational only; scan rules and credits are unaffected."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}

@@ -106,6 +106,35 @@ class PluginDetector {
     public static $extract_call_count = 0;
 
     /**
+     * FU-AAS-TAIL-MARKER-DETECT — plugin files that are full-page HTML cache layers.
+     *
+     * A cache in this set can serve a warm HIT with PHP never running (file-cache HITs),
+     * so it emits NO x-*-cache header and its ONLY hit-visible signature is an end-of-body
+     * comment sitting PAST Pass 1's 32KB head window (e.g. Breeze's "Cache served by
+     * breeze"). When Pass 1 detects no plugin from this set, probe_target_stack forces one
+     * full-body scan to catch it. Asset-only optimizers (Perfmatters, Autoptimize, Asset
+     * CleanUp) are deliberately EXCLUDED — they are not page caches, so their presence must
+     * not suppress the tail scan. Keep in sync with the cache entries in OPTIMIZERS; a
+     * missing entry only costs one extra harmless full-body fetch (fail-safe direction).
+     */
+    private const PAGE_CACHE_PLUGINS = [
+        'wp-rocket/wp-rocket.php',
+        'litespeed-cache/litespeed-cache.php',
+        'nitropack/main.php',
+        'wp-fastest-cache/wpFastestCache.php',
+        'w3-total-cache/w3-total-cache.php',
+        'breeze/breeze.php',
+        'cache-enabler/cache-enabler.php',
+        'swift-performance-lite/performance.php',
+        'hummingbird-performance/wp-hummingbird.php',
+        'flying-press/flying-press.php',
+        'sg-cachepress/sg-cachepress.php',
+        'kinsta-mu-plugins/kinsta-mu-plugins.php',
+        'wpengine-common/plugin.php',
+        'pantheon-mu-plugin/pantheon.php',
+    ];
+
+    /**
      * Per-spec §3 optimizer matrix. Keyed by plugin file path.
      * Hummingbird's class/disable_method are null at the constant level — set
      * at runtime by detect_typed() based on `wphb_settings.minify.enabled`.
@@ -835,6 +864,7 @@ class PluginDetector {
 
         // Scan headers + body for each optimizer signature.
         $detected = [];
+        $page_cache_detected = false;
         foreach ( self::OPTIMIZERS as $plugin_file => $entry ) {
             $h_pat = $entry['target_headers']      ?? [];
             $b_pat = $entry['target_body_markers'] ?? [];
@@ -848,6 +878,12 @@ class PluginDetector {
                     'bypass_query' => $entry['bypass_query'] ?? null,
                     'source'       => $h_match ? 'header' : 'body',
                 ];
+                // FU-AAS-TAIL-MARKER-DETECT: note whether any detected plugin is a full-page
+                // cache layer, so probe_target_stack can decide whether an end-of-body tail
+                // scan is still needed.
+                if ( in_array( $plugin_file, self::PAGE_CACHE_PLUGINS, true ) ) {
+                    $page_cache_detected = true;
+                }
             }
         }
         $is_wordpress = self::is_wordpress_target( $headers, $body );
@@ -871,6 +907,7 @@ class PluginDetector {
             'reason'              => null,
             'is_wordpress'        => $is_wordpress,
             'detected'            => $detected,
+            'page_cache_detected' => $page_cache_detected,
             'bypass_suffixes'     => $bypass,
             'probed_url'          => $url,
             'probe_duration_ms'   => $duration_ms,
@@ -972,7 +1009,9 @@ class PluginDetector {
         $scheme = strtolower( $parts['scheme'] ?? 'https' );
         $host   = strtolower( $parts['host']   ?? '' );
         $port   = (string) ( $parts['port']    ?? ( $scheme === 'http' ? '80' : '443' ) );
-        $cache_key = 'cu_scanner_target_stack_v2_' . md5( $scheme . '://' . $host . ':' . $port );
+        // v3 (FU-AAS-TAIL-MARKER-DETECT): forced full-body tail scan when the head finds no
+        // page-cache layer — bumped from v2 so hosts cached under the old logic re-probe.
+        $cache_key = 'cu_scanner_target_stack_v3_' . md5( $scheme . '://' . $host . ':' . $port );
 
         $cached = get_transient( $cache_key );
         if ( $cached !== false && is_array( $cached ) ) {
@@ -1002,7 +1041,9 @@ class PluginDetector {
         // scans the entire body up to the 2MB limit_response_size cap, closing the dead zone
         // between 32KB head and end-of-body for markers at any byte offset.
         // Spec rev 2.1 §3.2 + §3.3 + §3.8.
+        $full_body_scanned = false;
         if ( $result['outcome'] === 'inconclusive' && ( $result['reason'] ?? null ) === null ) {
+            $full_body_scanned = true;
             // Pass 2a: URL1 full body scan.
             $p2_url1 = self::single_probe_attempt(
                 $url,
@@ -1023,6 +1064,28 @@ class PluginDetector {
                 $final = $result;
             }
             $result = $final;
+        }
+
+        // FU-AAS-TAIL-MARKER-DETECT: a headerless warm-HIT page cache (e.g. Breeze on a
+        // file-cache HIT — PHP never runs, so no x-*-cache header) leaves its ONLY signature
+        // as an end-of-body comment, PAST Pass 1's 32KB head window. When Pass 1 returned a
+        // healthy, CONCLUSIVE-POSITIVE verdict but detected no page-cache layer, run one
+        // full-body scan to catch it. Reuses the full-body Pass-2 fetch (no Range header — a
+        // ranged tail fetch is unreliable on compressed origins: the server serves the range
+        // against the gzip stream and a partial-gzip suffix cannot be decompressed). Additive-
+        // upgrade only: the full-body result replaces Pass 1 ONLY if it stays positive AND
+        // newly reveals a cache, so a transient failure on the extra request can never
+        // downgrade an existing detection. Guarded by $full_body_scanned so a full-body scan
+        // never fires twice.
+        if ( ! $full_body_scanned
+             && ( $result['reason'] ?? null ) === null
+             && empty( $result['page_cache_detected'] )
+             && in_array( $result['outcome'], [ 'class_a_clean', 'class_bc_only', 'hybrid_a_plus_bc' ], true ) ) {
+            $p_full = self::single_probe_attempt( $url, $timeout_seconds, false /* full body, no Range */ );
+            if ( ! empty( $p_full['page_cache_detected'] )
+                 && in_array( $p_full['outcome'], [ 'class_a_clean', 'class_bc_only', 'hybrid_a_plus_bc' ], true ) ) {
+                $result = $p_full;
+            }
         }
 
         // Resolve transient 'inconclusive' per §5.4 step 4. A non-null reason means the probe was
