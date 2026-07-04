@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.61b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.61b/ai-assets-scanner.zip",
+    "sha256": "2c330faf4f8ec5dcf71e772073549925b6236f9dfc64a7ed699b9742b84b6c46",
+    "signature": "",
+    "released_at": "2026-07-04T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.61b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.61b (beta): The Rescan ET Candidates button is primary (blue) only while a zero-result Extra-Time-candidate row exists — the state the 'Needs Extra Time' note points at. After an Extra-Time rescan yields results, the button stays available (residual candidates may benefit from another pass) but as a secondary action. Carries 1.7.60b (results-table polish) and 1.7.59b (ET-directing noopt copy)."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
