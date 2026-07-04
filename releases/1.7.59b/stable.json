@@ -17,7 +17,7 @@
     "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.59b/changelog.html",
     "sections": {
         "description": "AI-powered CSS/JS asset scanner for WordPress.",
-        "changelog": "Version 1.7.59b (beta): Zero-result pages that qualify for Extra Time now say so — the results table's note on an S:0 A:0 page that is an Extra-Time candidate (and did not already run a billed Extra-Time continuation) changes from the generic 'Please scan again' to 'Needs Extra Time — rescan with “Rescan ET Candidates”', directing you to the existing Rescan ET Candidates button. Display-only. Also includes the 1.7.58b fix (previously unreleased): the live progress poll and worker status endpoint are now uncacheable (Cache-Control: no-store), so a scan can no longer appear stuck at N-1/N until a hard refresh."
+        "changelog": "Version 1.7.59b (beta): Zero-result pages that qualify for Extra Time now say so — the results table's note on an S:0 A:0 page that is an Extra-Time candidate (and did not already run a billed Extra-Time continuation) changes from the generic 'Please scan again' to 'Needs Extra Time — rescan with “Rescan ET Candidates”', directing you to the existing Rescan ET Candidates button. Display-only. Also carries the 1.7.58b fix: the live progress poll and worker status endpoint are uncacheable (Cache-Control: no-store), so a scan can no longer appear stuck at N-1/N until a hard refresh."
     },
     "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
     "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
