@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.28';
+    const SCANNER_JS_VERSION = '1.0.10.29';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -2028,7 +2028,9 @@
         if (externalOnly) {
             pushBtn.style.display = 'none';
             syncBtn.style.display = 'none';
-            pushResult.innerHTML = '<div class="notice notice-info inline"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push/sync to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
+            // 1.7.63b \u2014 on a 0-rule external scan the Download button is dormant, so the
+            // "rules can only be downloaded" notice is redundant; suppress it.
+            pushResult.innerHTML = noRules ? '' : '<div class="notice notice-info inline"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push/sync to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
         } else if (noRules) {
             pushBtn.style.display = '';
             syncBtn.style.display = '';

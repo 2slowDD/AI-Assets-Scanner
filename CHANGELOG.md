@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.63b - 2026-07-04
+
+### Fixed - Redundant "External URLs scanned" notice on 0-rule external scans
+
+- When a completed external-only scan produced 0 rules, the "**External URLs scanned.** Rules can only be downloaded…" notice still rendered even though the Download button is dormant on 0-rule scans (1.7.60b) — pointing at an action that doesn't exist. The notice is now suppressed when the scan produced no rules; Push/Sync stay hidden as before. Display-only.
+
 ## 1.7.62b - 2026-07-04
 
 ### Fixed - Typing in "Include URLs" erased the carried-over rescan URL
