@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.62b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.62b/ai-assets-scanner.zip",
+    "sha256": "14fedb7310e17462aa784ffd2af2c5f9b21c67661e41d3ec8573292274ee7788",
+    "signature": "",
+    "released_at": "2026-07-04T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.62b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.62b (beta): Fixes carried-over rescan URLs being erased when typing in the Include URLs box — after 'Rescan ET Candidates' or 'Rescan 0-Results URLs' pre-fills Step 1, manually adding more URLs now ADDS to the carried set instead of replacing it. Carries 1.7.61b (Rescan-ET button styling) and 1.7.60b (results-table polish)."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
