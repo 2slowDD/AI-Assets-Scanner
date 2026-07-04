@@ -1,0 +1,5 @@
+<p>Version 1.7.63b (beta).</p>
+<p><strong>Fixed - Redundant "External URLs scanned" notice on 0-rule external scans</strong></p>
+<ul>
+<li>When a completed external-only scan produced 0 rules, the "<strong>External URLs scanned.</strong> Rules can only be downloaded…" notice still rendered even though the Download button is dormant on 0-rule scans (1.7.60b) &mdash; pointing at an action that doesn't exist. The notice is now suppressed when the scan produced no rules; Push/Sync stay hidden as before. Display-only.</li>
+</ul>
