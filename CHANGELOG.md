@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.62b - 2026-07-04
+
+### Fixed - Typing in "Include URLs" erased the carried-over rescan URL
+
+- After "Rescan ET Candidates" / "Rescan 0-Results URLs" primed Step 1 with carried URLs, the first keystroke in the "Include URLs (one per line)" box wiped them from the list: the include-box sync rebuilt the INCLUDED group from the textarea alone, and the carried URLs are prime-injected (not textarea-sourced). The sync now merges the carried set with the typed URLs — typing adds, never replaces. Leaving the carry-over view (e.g. running Discover Pages) restores the previous behavior exactly.
+
 ## 1.7.61b - 2026-07-04
 
 ### Changed - "Rescan ET Candidates" primary styling now tracks the dead-end state only

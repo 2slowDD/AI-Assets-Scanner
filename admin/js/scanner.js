@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.27';
+    const SCANNER_JS_VERSION = '1.0.10.28';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -570,14 +570,27 @@
 
         includedUrls = newIncluded;
 
+        // 1.7.62b fix — in a carry-over view (Rescan ET / Rescan 0-Results prime), the
+        // carried URLs live in groupedUrls.included but are NOT textarea-sourced (the
+        // primes leave #cu-included-urls empty). Rebuilding `included` from the textarea
+        // alone therefore ERASED the carried URLs from the rendered list on the first
+        // keystroke. Typing in the Include box must ADD to the carried set, never
+        // replace it. (Carried URLs are also in discoveredUrls, so newIncluded can never
+        // duplicate them — the extra carriedSet filter is belt-and-braces.)
+        const carried    = ( etCarryOver && Array.isArray( etCarriedUrls ) ) ? etCarriedUrls.slice() : [];
+        const carriedSet = new Set( carried.map( normaliseUrl ) );
+        const mergedIncluded = [ ...carried, ...newIncluded.filter( u => ! carriedSet.has( normaliseUrl( u ) ) ) ];
+
         // 1.4.2 fix — only set the `included` marker when there are actual include URLs.
         // Pre-1.4.2 this line unconditionally set `groupedUrls.included = []` even on the
         // post-Discover sync (line 546) when the textarea was empty, which made the Start
         // Scan handler's `groupedUrls.included !== undefined` predicate (the FU-NEW-6
         // include-only-mode marker, line 841) wrongly TRUE — silent no-op on every
         // Discover→unselect→select→Scan flow with an empty Include URLs textarea.
-        if ( newIncluded.length > 0 ) {
-            groupedUrls.included = newIncluded;
+        // (Carry-over views already carry the marker from the prime, so preserving the
+        // carried URLs here does not change the marker's presence semantics.)
+        if ( mergedIncluded.length > 0 ) {
+            groupedUrls.included = mergedIncluded;
         } else {
             delete groupedUrls.included;
         }
