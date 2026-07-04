@@ -79,21 +79,35 @@ class AIAS_Scan_Status {
 	}
 
 	/**
-	 * Single source of the per-URL billed credit. = classify() credits, EXCEPT an
-	 * 'ok' page that produced 0 safe AND 0 aggressive rules ("0 new unloads", S:0 A:0)
-	 * bills 0 — matching the worker's noopt exclusion (FU-NOOPT-ZERO-CREDIT). The zero
-	 * applies to the BASE credit only; Extra-Time pages (extra_time_charged) stay billable.
+	 * Single source of the per-URL billed credit.
 	 *
-	 * @param array      $page  the raw page (status, broken_devices, extra_time_charged).
-	 * @param array|null $tally per-page {safe,aggressive,needed} from CuJsonBuilder by_page,
-	 *                          or NULL when no tally is available — in which case the noopt
-	 *                          override is NOT applied (legacy 1-per-ok behavior).
+	 * = classify() credits, EXCEPT the noopt display-zero mirroring the worker's
+	 * isNonBillableNoopt (FU-NOOPT-ZERO-CREDIT + FU-BILLING-BLOCKED-NOOPT): a done-class
+	 * row ('ok', 'blocked' or 'partial') that produced 0 safe AND 0 aggressive rules
+	 * ("0 new unloads", S:0 A:0) displays 0 — blocked-device or not. The zero applies
+	 * to the BASE credit only; Extra-Time pages (extra_time_charged) stay billable.
+	 *
+	 * CANCEL-AWARE (M1 display ruling, 2026-07-04): when the scan terminated by
+	 * USER-CANCEL the worker bills ALL done pages with NO noopt zeroing (the /cancel
+	 * full exception), so ALL display-zeroing is skipped here — rows sum to the charge.
+	 *
+	 * @param array       $page            the raw page (status, broken_devices, extra_time_charged).
+	 * @param array|null  $tally           per-page {safe,aggressive,needed} from CuJsonBuilder by_page,
+	 *                                     or NULL when no tally is available — in which case the noopt
+	 *                                     override is NOT applied (legacy 1-per-ok behavior). Error-status
+	 *                                     pages are always NULL here (absent from by_page).
+	 * @param string|null $terminal_source whitelist-validated terminal source from build_result()
+	 *                                     ('user_cancel'|'failed'|'paused_exhausted'|'killed') or NULL.
+	 *                                     DISPLAY-ONLY trust class — never dictates billing.
 	 */
-	public static function page_credit( array $page, ?array $tally ): int {
+	public static function page_credit( array $page, ?array $tally, ?string $terminal_source = null ): int {
 		$st      = self::classify( $page );
 		$credits = (int) $st['credits'];
+		if ( 'user_cancel' === $terminal_source ) {
+			return $credits;
+		}
 		if ( null !== $tally
-			&& 'ok' === $st['class']
+			&& in_array( $st['class'], array( 'ok', 'blocked', 'partial' ), true )
 			&& 0 === (int) ( $tally['safe'] ?? 0 )
 			&& 0 === (int) ( $tally['aggressive'] ?? 0 )
 			&& empty( $page['extra_time_charged'] ) ) {
@@ -105,11 +119,14 @@ class AIAS_Scan_Status {
 	/**
 	 * Build the per-URL pages[] payload for the Step-4 table.
 	 *
-	 * @param array $pages_raw Railway pages (the SAME array passed to CuJsonBuilder::build()).
-	 * @param array $by_page   build()'s per-page tallies, keyed by the SAME page index.
+	 * @param array       $pages_raw       Railway pages (the SAME array passed to CuJsonBuilder::build()).
+	 * @param array       $by_page         build()'s per-page tallies, keyed by the SAME page index.
+	 * @param bool        $is_partial      completed < total (cancelled/failed partial).
+	 * @param string|null $terminal_source whitelist-validated terminal source (E3) or NULL — threads to
+	 *                                     page_credit() for cancel-aware Credits rendering.
 	 * @return array<int,array> Sequential rows; error/absent pages get S/A/N = 0.
 	 */
-	public static function build_pages( array $pages_raw, array $by_page, bool $is_partial = false ): array {
+	public static function build_pages( array $pages_raw, array $by_page, bool $is_partial = false, ?string $terminal_source = null ): array {
 		$rows = [];
 		$n    = 0;
 		foreach ( $pages_raw as $i => $page ) {
@@ -129,10 +146,13 @@ class AIAS_Scan_Status {
 			}
 			$tally = $by_page[ $i ] ?? [ 'safe' => 0, 'aggressive' => 0, 'needed' => 0 ];
 			$bail  = isset( $page['deadline_bail_count'] ) ? (int) $page['deadline_bail_count'] : 0;
-			// FU-NOOPT-ZERO-CREDIT: noopt-aware credit (cancelled rows already forced to 0 above).
+			// FU-NOOPT-ZERO-CREDIT + FU-BILLING-BLOCKED-NOOPT (E3): noopt-aware, cancel-aware
+			// credit (cancelled/not-scanned rows already forced to 0 above — deliberately
+			// ALSO on user-cancelled scans: those rows were never 'done', so E2 bills 0 for
+			// them and the display stays consistent).
 			$credit = ( 'cancelled' === $st['class'] )
 				? 0
-				: self::page_credit( $page, $by_page[ $i ] ?? null );
+				: self::page_credit( $page, $by_page[ $i ] ?? null, $terminal_source );
 			$rows[] = [
 				'n'            => $n,
 				'url'          => (string) ( $page['url'] ?? '' ),
