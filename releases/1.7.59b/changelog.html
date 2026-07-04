@@ -1,0 +1,5 @@
+<p>Version 1.7.59b (beta).</p>
+<p><strong>Added - Noopt-row "Needs Extra Time" directing copy (Phase-2 Slice C, display-only)</strong></p>
+<ul>
+<li>The <code>S:0 A:0</code> "Please scan again" row note now distinguishes rows that are Extra-Time candidates not yet ET-charged: those rows show "Needs Extra Time &mdash; rescan with “Rescan ET Candidates”" instead, styled to match the yellow-row emphasis family. Reads the existing <code>et_candidate</code>/<code>et_charged</code> result-row fields for branching only &mdash; no new input, no new endpoint, display-only. Pairs with the worker's Phase-2 Slice A budget-stop <code>et_candidate</code> flag; the new copy stays unreachable until that flag lights up, but is safe to ship ahead of it.</li>
+</ul>
