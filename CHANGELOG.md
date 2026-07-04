@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.61b - 2026-07-04
+
+### Changed - "Rescan ET Candidates" primary styling now tracks the dead-end state only
+
+- The button renders primary (blue) only while a noopt (S:0 A:0) ET-candidate row exists — the state the "Needs Extra Time" note points at. After an ET rescan yields results, the residual `et_candidate` flag ("still starved after Extra Time") keeps the button available for another pass, but as a secondary action alongside "Run Another Scan".
+
 ## 1.7.60b - 2026-07-04
 
 ### Changed - Results-table polish for the "Needs Extra Time" state (display-only)

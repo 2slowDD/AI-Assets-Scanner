@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.26';
+    const SCANNER_JS_VERSION = '1.0.10.27';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -2062,12 +2062,18 @@
         // Reveal "Rescan ET Candidates" (both rows) when at least one ET candidate exists.
         var hasEtCandidate = Array.isArray(pages) && pages.some(function (p) { return p && p.et_candidate; });
         if (hasEtCandidate) {
-            // 1.7.60b — in the needs-ET situation the ET rescan is the primary next action:
-            // promote the button to primary styling (matches "Download CU Import File").
+            // 1.7.61b — primary (blue) ONLY while a noopt ET-candidate row exists (the
+            // "Needs Extra Time" dead-end the row note points at). After an ET rescan
+            // yields results, the residual et_candidate flag ("still starved after ET")
+            // keeps the button AVAILABLE for another pass, but as a secondary action.
+            var hasNooptEtCandidate = pages.some(function (p) {
+                return p && p.status_class === 'ok' && Number(p.safe) === 0 && Number(p.aggressive) === 0
+                    && p.et_candidate && ! p.et_charged;
+            });
             document.querySelectorAll('#step-4 .cu-btn-rescan-et').forEach(function (btn) {
                 btn.style.display = '';
-                btn.classList.remove('button-secondary');
-                btn.classList.add('button-primary');
+                btn.classList.toggle('button-primary', hasNooptEtCandidate);
+                btn.classList.toggle('button-secondary', ! hasNooptEtCandidate);
             });
         }
 
