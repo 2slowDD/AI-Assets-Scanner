@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.60b - 2026-07-04
+
+### Changed - Results-table polish for the "Needs Extra Time" state (display-only)
+
+- The ET-directing noopt note now breaks after "Needs Extra Time —" (second line carries the button reference), and the URL column keeps a readable minimum width (`min-width: 220px`) instead of being squeezed by the note.
+- When ET candidates exist, the **Rescan ET Candidates** buttons render as primary (blue) — the primary next action in that state.
+- **Download CU Import File** goes dormant on 0-rule scans (same `noRules` gate as Push/Sync; anchor href removed + dimmed).
+
 ## 1.7.59b - 2026-07-04
 
 ### Added - Noopt-row "Needs Extra Time" directing copy (Phase-2 Slice C, display-only)

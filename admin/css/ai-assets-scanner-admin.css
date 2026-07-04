@@ -813,6 +813,10 @@
 /* "Please scan again" note on S:0 A:0 (noopt) rows — replaces the old per-row "Scan again" link. */
 .cu-noopt-note { font-style: italic; }
 .cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; }
+/* 1.7.60b — keep the URL column readable when the ET note is present (it wraps via its own <br>) */
+.cu-url-table th:nth-child(2), .cu-url-table td:nth-child(2) { min-width: 220px; }
+/* 1.7.60b — dormant action buttons/anchors (0-rule download; mirrors push/sync noRules gate) */
+.cu-btn-dormant { opacity: .45; pointer-events: none; cursor: default; }
 
 /* CDN copy icon button — compact 20x20 square with a centered icon.
    Higher specificity than core's `.wp-core-ui .button` so the size/padding actually apply. */

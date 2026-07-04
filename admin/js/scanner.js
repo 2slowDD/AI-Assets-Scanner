@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.25';
+    const SCANNER_JS_VERSION = '1.0.10.26';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -2001,6 +2001,16 @@
         // FU \u2014 a completed scan that produced 0 rules (0 safe + 0 aggressive) has nothing to
         // push or sync; both buttons stay dormant.
         const noRules   = ( ( Number( safeCount ) || 0 ) + ( Number( aggCount ) || 0 ) ) === 0;
+        // 1.7.60b — a 0-rule scan has nothing to import; the Download button goes dormant
+        // (same noRules gate as push/sync below; href removed so the anchor is inert).
+        if ( noRules ) {
+            dlBtn.classList.add( 'cu-btn-dormant' );
+            dlBtn.setAttribute( 'aria-disabled', 'true' );
+            dlBtn.removeAttribute( 'href' );
+        } else {
+            dlBtn.classList.remove( 'cu-btn-dormant' );
+            dlBtn.removeAttribute( 'aria-disabled' );
+        }
 
         if (externalOnly) {
             pushBtn.style.display = 'none';
@@ -2052,7 +2062,13 @@
         // Reveal "Rescan ET Candidates" (both rows) when at least one ET candidate exists.
         var hasEtCandidate = Array.isArray(pages) && pages.some(function (p) { return p && p.et_candidate; });
         if (hasEtCandidate) {
-            document.querySelectorAll('#step-4 .cu-btn-rescan-et').forEach(function (btn) { btn.style.display = ''; });
+            // 1.7.60b — in the needs-ET situation the ET rescan is the primary next action:
+            // promote the button to primary styling (matches "Download CU Import File").
+            document.querySelectorAll('#step-4 .cu-btn-rescan-et').forEach(function (btn) {
+                btn.style.display = '';
+                btn.classList.remove('button-secondary');
+                btn.classList.add('button-primary');
+            });
         }
 
         // Reveal "Rescan 0-Results URLs" (both rows) when at least one S:0 A:0 (noopt) row exists.
@@ -2124,7 +2140,7 @@
                 : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed
                     + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' )
                     + ( noopt ? ( ( p.et_candidate && ! p.et_charged )
-                        ? ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time — rescan with “Rescan ET Candidates”</span>'
+                        ? ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>'
                         : ' <span class="cu-noopt-note">Please scan again</span>' ) : '' ) );
             var origUrl = submittedByResolved[ p.url ];
             var urlCell = cuEscHtml( p.url )
