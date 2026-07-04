@@ -1,0 +1,5 @@
+<p>Version 1.7.58b (beta).</p>
+<p><strong>Fixed - Scan UI wedged at N-1/N until a hard refresh (live-status caching)</strong></p>
+<ul>
+<li>The Step 3 progress poll hits a <strong>fixed</strong> worker URL (<code>/status?from=0</code>), so an HTTP-cached in-progress snapshot could mask the terminal <code>complete</code> status and leave the scan stuck at N-1/N (e.g. 14/15) until a hard refresh &mdash; even though the scan had finished and was billed correctly. The live poll now uses <code>cache: 'no-store'</code>, and the worker <code>/status</code> endpoint sends <code>Cache-Control: no-store</code>, so no browser or edge/proxy layer can strand a stale snapshot. No credits or scan results were affected by the wedge.</li>
+</ul>
