@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.59b - 2026-07-04
+
+### Added - Noopt-row "Needs Extra Time" directing copy (Phase-2 Slice C, display-only)
+
+- The `S:0 A:0` "Please scan again" row note now distinguishes rows that are Extra-Time candidates not yet ET-charged: those rows show "Needs Extra Time — rescan with “Rescan ET Candidates”" instead, styled to match the yellow-row emphasis family. Reads the existing `et_candidate`/`et_charged` result-row fields for branching only — no new input, no new endpoint, display-only. Pairs with the worker's Phase-2 Slice A budget-stop `et_candidate` flag; the new copy stays unreachable until that flag lights up, but is safe to ship ahead of it.
+
+## 1.7.58b - 2026-07-02
+
+### Fixed - Scan UI wedged at N-1/N until a hard refresh (live-status caching)
+
+- The Step 3 progress poll hits a **fixed** worker URL (`/status?from=0`), so an HTTP-cached in-progress snapshot could mask the terminal `complete` status and leave the scan stuck at N-1/N (e.g. 14/15) until a hard refresh — even though the scan had finished and was billed correctly. The live poll now uses `cache: 'no-store'`, and the worker `/status` endpoint sends `Cache-Control: no-store`, so no browser or edge/proxy layer can strand a stale snapshot. No credits or scan results were affected by the wedge.
+
 ## 1.7.57b - 2026-07-01
 
 ### Added - Undo last Code Unloader Push/Sync

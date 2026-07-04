@@ -812,6 +812,7 @@
 .cu-resolved-note { font-size: 11px; color: #787c82; font-style: italic; }
 /* "Please scan again" note on S:0 A:0 (noopt) rows — replaces the old per-row "Scan again" link. */
 .cu-noopt-note { font-style: italic; }
+.cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; }
 
 /* CDN copy icon button — compact 20x20 square with a centered icon.
    Higher specificity than core's `.wp-core-ui .button` so the size/padding actually apply. */

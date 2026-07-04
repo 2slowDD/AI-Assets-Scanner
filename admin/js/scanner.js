@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.24';
+    const SCANNER_JS_VERSION = '1.0.10.25';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1424,7 +1424,12 @@
 
     function pollProgress() {
         const url = `${railwayUrl}/jobs/${scanJobId}/status?from=${lastPageIndex}`;
-        fetch(url, { headers: { 'Authorization': 'Bearer ' + scanJobToken } })
+        // Live poll MUST bypass the HTTP cache. This is a FIXED url (?from=0 — lastPageIndex
+        // never advances), so any cached response strands a stale in-progress snapshot over
+        // the terminal status:'complete', wedging Step 3 at N-1/N until a hard refresh.
+        // cache:'no-store' forces a fresh network read every tick; pairs with the worker's
+        // Cache-Control: no-store on /status (defense in depth across browser + edge/proxy).
+        fetch(url, { cache: 'no-store', headers: { 'Authorization': 'Bearer ' + scanJobToken } })
             .then(r => r.json())
             .then(data => { handleStatusUpdate(data); })
             .catch(() => {
@@ -2118,7 +2123,9 @@
             var san = ( p.status_class === 'error' ) ? '—'
                 : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed
                     + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' )
-                    + ( noopt ? ' <span class="cu-noopt-note">Please scan again</span>' : '' ) );
+                    + ( noopt ? ( ( p.et_candidate && ! p.et_charged )
+                        ? ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time — rescan with “Rescan ET Candidates”</span>'
+                        : ' <span class="cu-noopt-note">Please scan again</span>' ) : '' ) );
             var origUrl = submittedByResolved[ p.url ];
             var urlCell = cuEscHtml( p.url )
                 + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' );
