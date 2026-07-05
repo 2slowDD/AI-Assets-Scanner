@@ -21,6 +21,15 @@ class CuJsonBuilder {
     // (FU-ET-DESKTOP-ABSENT) lands and proves a clean per-device desktop read.
     private const PHASE2A_ASYMMETRIC_SAFE_ENABLED = false;
 
+    // FU-ABSENT-SAFE render-health gate (2026-07-05, spec Rev 2 §2.2). When a page's
+    // render shows optimizer-interception evidence (any asset with a non-empty
+    // delayed_by marker), 'absent' is not trustworthy: absent,absent emits NO rule
+    // (fail-closed to Needed). Clean renders keep absent,absent → Safe.
+    // KEEP IN SYNC with worker classify.js hasDelayedAssets + producesNoRules gate
+    // and worker config ABSENT_SAFE_RENDER_GATE_ENABLED (TEMP retire-PAIR).
+    // Asymmetric cells stay ungated by design — see combine().
+    private const RENDER_HEALTH_GATE_ENABLED = true;
+
     public function build( array $pages, array $flags = [] ): array {
         // Phase 2a — flags carried from the Railway scan-result payload (Option A;
         // see spec §4.3.1). Per Rule 1, this payload is third-party-API input —
@@ -46,6 +55,14 @@ class CuJsonBuilder {
             // reason to string, allowlist {desktop,mobile}; missing/malformed →
             // not blocked (D5 safety: emit proceeds). Mirrors scanner-ajax:603-624.
             $blocked = $this->blocked_devices( $page['broken_devices'] ?? null );
+            // FU-ABSENT-SAFE: page-level interception evidence (spec §2.1 — ONE
+            // definition, both repos): any asset with a non-empty-string delayed_by.
+            // Rule 1 defensive read of third-party (Railway) input.
+            $has_delayed = false;
+            foreach ( $page['assets'] ?? [] as $probe_asset ) {
+                $d = $probe_asset['delayed_by'] ?? null;
+                if ( is_string( $d ) && '' !== $d ) { $has_delayed = true; break; }
+            }
             $s = 0; $a = 0; $n = 0;
             foreach ( $page['assets'] ?? [] as $asset ) {
                 $desktop = $this->classify( $asset['desktop'] );
@@ -59,7 +76,8 @@ class CuJsonBuilder {
                     $combine_asymmetric_absent_enabled,
                     $visual_diff_enabled,
                     $blocked['desktop'],
-                    $blocked['mobile']
+                    $blocked['mobile'],
+                    $has_delayed
                 );
                 if ( empty( $out ) ) {
                     $n++;
@@ -188,7 +206,8 @@ class CuJsonBuilder {
         bool $combine_asymmetric_absent_enabled = false,
         bool $visual_diff_enabled = false,
         bool $desktop_blocked = false,
-        bool $mobile_blocked = false
+        bool $mobile_blocked = false,
+        bool $has_delayed = false
     ): array {
         $safe = self::GROUP_SAFE;
         $agg  = self::GROUP_AGGRESSIVE;
@@ -200,7 +219,12 @@ class CuJsonBuilder {
         $phase2a_effective = $combine_asymmetric_absent_enabled && $visual_diff_enabled;
 
         $map = [
-            'absent,absent'         => [['all',     $safe]],
+            // FU-ABSENT-SAFE render-health gate: on an interception-evidence render,
+            // absent,absent is unverifiable → no rule (Needed). Asymmetric cells are
+            // deliberately UNGATED: their rule is scoped to the device that MEASURED
+            // aggressive — the untrusted absent half contributes no rule, so there is
+            // nothing unsafe to gate. Do NOT extend this per-asset (rejected marker-split).
+            'absent,absent'         => ( self::RENDER_HEALTH_GATE_ENABLED && $has_delayed ) ? [] : [['all', $safe]],
             'absent,aggressive'     => [['mobile',  $agg]],
             // Phase 2a broken-device guard: suppress the per-device safe emit when
             // the device whose 'absent' reading drove it was BLOCKED (D5 default:
