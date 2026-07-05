@@ -4,6 +4,26 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.66b - 2026-07-05
+
+### Fixed — Render-health gate suppresses the false Safe rule on optimizer-intercepted (delay-marker) renders (F-DEG fix, FU-ABSENT-SAFE)
+
+- The `absent,absent` co-occurrence path (an asset absent from BOTH the aggressive and control render) no longer emits a **Safe** rule when the page carries a delay-marker signature — the shape produced when an optimizer (Perfmatters, Autoptimize, etc.) intercepts and defers the asset rather than the asset genuinely being unused. This is the PHP emission-side lockstep of the worker's `absent,absent` co-occurrence gate that already shipped to production; `CuJsonBuilder` now honors the same verdict when building the CU Import File so a delay-marker render can no longer round-trip into a false Safe rule via the PHP side. Gated behind `CuJsonBuilder::RENDER_HEALTH_GATE_ENABLED` (TEMP retire-PAIR with the worker's `ABSENT_SAFE_RENDER_GATE_ENABLED` — both flip to hardcoded-on together once baked).
+
+### Fixed — Target-stack probe transient no longer pins a Class-A-miss for a full day (FU-ABSENT-SAFE B1)
+
+- The per-host optimizer-detection transient now uses a **tiered TTL**: the full 24h cache is granted only to detections that produced a usable bypass suffix (a genuine Class A / A★ optimizer match). A positive-render-but-suffixless outcome — the Class-A-miss shape, e.g. a transient probe block (rate-limit, bot-challenge, momentary WAF) or a detected-but-non-bypassable optimizer — now gets a short TTL instead, so it self-heals on the next scan (~15 min) rather than pinning the miss for a day. The transient cache key is also salted with a new `SIGNATURE_SCHEMA_VERSION` const (bumped `'3' → '4'` for this change), replacing the old manual `v1`/`v2`/`v3` literal discipline — bumping the const now auto-invalidates every host's cached probe result whenever detector signatures or probe logic change, instead of relying on remembering to edit the key string.
+
+### Added — Visible "optimizer detected" note on Step-4 rows, now working on external scans (FU-ABSENT-SAFE B2)
+
+- Step-4 result rows show a note (`cu-bypass-note`) when the scan applied an optimizer-bypass query suffix (`?X`) to reach the real asset list past a caching/optimizer layer. The per-URL bypass-suffix map is now **persisted at submit time** (keyed by `job_id`, built from the exact reshaped `pages[]` sent to the worker) and **read back** when building the result rows, replacing a same-host-only live re-detect that could never fire for external scans (its original purpose) and could drift from what was actually applied at submit. Both internal and external rows are stamped correctly; a URL absent from the map (expired transient, background rebuild) fails closed — the note simply stays off, never a false positive.
+
+### Changed — Scan URL-list rows normalized to 13px (FU-ABSENT-SAFE B3)
+
+- The URL column font-size on the Step-4 results table and the Step-1 URL-list rows is now a consistent `13px`, matching the rest of the scan table typography.
+
+_Touched: `includes/scanner/class-cu-json-builder.php`, `includes/scanner/class-plugin-detector.php`, `admin/class-scanner-ajax.php`, `includes/class-scan-status.php`, `admin/css/ai-assets-scanner-admin.css`, `admin/js/scanner.js`, `includes/scanner/class-outbox.php`, `ai-assets-scanner.php`._
+
 ## 1.7.65b - 2026-07-04
 
 ### Fixed - Credits column now matches the SaaS charge on blocked and cancelled scans (FU-BILLING-BLOCKED-NOOPT E3)
