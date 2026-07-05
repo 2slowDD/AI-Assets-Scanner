@@ -83,6 +83,12 @@ class PluginDetector {
      */
     private const BODY_SCAN_MAX_BYTES = 32768;
 
+    // FU-ABSENT-SAFE Slice B1: transient-key schema version. BUMP THIS whenever
+    // OPTIMIZERS / PAGE_CACHE_PLUGINS signatures or probe logic change — the key
+    // change auto-invalidates every host's cached probe result (replaces the manual
+    // v1/v2/v3 literal discipline that let stale pre-upgrade results pin for 24h).
+    private const SIGNATURE_SCHEMA_VERSION = '4';
+
     /**
      * Rev-2 C1 — injectable-override seams for detector dependencies.
      * Default null = production fall-through (real WPMU_PLUGIN_DIR / PANTHEON_ENVIRONMENT).
@@ -1001,6 +1007,20 @@ class PluginDetector {
     }
 
     /**
+     * FU-ABSENT-SAFE Slice B1 — build the per-host probe transient key.
+     * Salted with SIGNATURE_SCHEMA_VERSION so bumping that const auto-invalidates every
+     * cached result (replaces the old manual v1/v2/v3 literal discipline). Cache key
+     * includes scheme + port to avoid collision (spec §5.3 + d-review M5).
+     */
+    private static function build_cache_key( string $scheme, string $host, string $port ): string {
+        return 'cu_scanner_target_stack_v' . self::SIGNATURE_SCHEMA_VERSION . '_' . md5( $scheme . '://' . $host . ':' . $port );
+    }
+    /** @internal test seam */
+    public static function __test_build_cache_key( string $scheme, string $host, string $port ): string {
+        return self::build_cache_key( $scheme, $host, $port );
+    }
+
+    /**
      * Public wrapper — 2-attempt probe with 24h per-host transient cache.
      * Cache key includes scheme + port to avoid collision (spec §5.3 + d-review M5).
      */
@@ -1009,9 +1029,7 @@ class PluginDetector {
         $scheme = strtolower( $parts['scheme'] ?? 'https' );
         $host   = strtolower( $parts['host']   ?? '' );
         $port   = (string) ( $parts['port']    ?? ( $scheme === 'http' ? '80' : '443' ) );
-        // v3 (FU-AAS-TAIL-MARKER-DETECT): forced full-body tail scan when the head finds no
-        // page-cache layer — bumped from v2 so hosts cached under the old logic re-probe.
-        $cache_key = 'cu_scanner_target_stack_v3_' . md5( $scheme . '://' . $host . ':' . $port );
+        $cache_key = self::build_cache_key( $scheme, $host, $port );
 
         $cached = get_transient( $cache_key );
         if ( $cached !== false && is_array( $cached ) ) {
@@ -1109,13 +1127,30 @@ class PluginDetector {
         $result = self::attach_resolution( $url, $result );
         self::debug_log_resolution( $result );
 
-        // Tiered TTL: cache stable POSITIVE detections for 24h; cache negative/indeterminate
-        // verdicts (non_wordpress / no_clue / probe_failed) for only 15 min so a transient block
-        // (rate-limit, bot-challenge, momentary WAF) self-heals on the next scan instead of being
-        // pinned for a day. Positive set is an allowlist → any unknown outcome gets the short TTL.
-        $positive = in_array( $result['outcome'], [ 'class_a_clean', 'class_bc_only', 'hybrid_a_plus_bc' ], true );
-        $ttl      = $positive ? DAY_IN_SECONDS : 15 * MINUTE_IN_SECONDS;
+        // Tiered TTL (FU-ABSENT-SAFE B1): see positive_cache_ttl() docblock.
+        $ttl = self::positive_cache_ttl( $result );
         set_transient( $cache_key, $result, $ttl );
         return $result;
+    }
+
+    /**
+     * FU-ABSENT-SAFE Slice B1 — tiered TTL decision. 24h ONLY for detections that produced
+     * a usable bypass suffix. A positive-render-but-suffixless outcome (e.g. class_bc_only —
+     * the Class-A-miss shape, Perfmatters detected-present but no Class-A bypass suffix
+     * produced) self-heals in 15 min instead of pinning the miss for a day. Negative/
+     * indeterminate verdicts (non_wordpress / no_clue / probe_failed) also get 15 min so a
+     * transient block (rate-limit, bot-challenge, momentary WAF) self-heals on the next scan
+     * instead of being pinned. Positive set is an allowlist → any unknown outcome gets the
+     * short TTL. Extracted as its own static method (behavior-preserving) so the tiering rule
+     * is unit-testable without stubbing the full probe_target_stack() call chain.
+     */
+    private static function positive_cache_ttl( array $result ): int {
+        $positive = in_array( $result['outcome'], [ 'class_a_clean', 'class_bc_only', 'hybrid_a_plus_bc' ], true )
+            && is_array( $result['bypass_suffixes'] ?? null ) && count( $result['bypass_suffixes'] ) > 0;
+        return $positive ? DAY_IN_SECONDS : 15 * MINUTE_IN_SECONDS;
+    }
+    /** @internal test seam */
+    public static function __test_positive_cache_ttl( array $result ): int {
+        return self::positive_cache_ttl( $result );
     }
 }
