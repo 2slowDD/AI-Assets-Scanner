@@ -1235,6 +1235,30 @@ class ScannerAjax {
         // truncate the 16-char submit-time scan_id to 12). Bug-fix (1.5.4).
         $scan_id_display = substr( $scan_id_complete, 0, 12 );
 
+        // FU-ABSENT-SAFE B2 — stamp the currently-active-optimizer bypass suffix onto
+        // same-host rows for the Step-4 "optimizer detected" note. Railway's
+        // page-analyzer does NOT echo bypass_suffixes back on the per-page result
+        // (analyzePage()'s return object carries only `url`, not the suffix list used
+        // to build it), so there is no submit-time value surviving the round trip to
+        // "carry through" here. Instead, re-run the SAME deterministic detector
+        // build_submit_payload() used at submit time — PluginDetector::
+        // build_bypass_suffixes() is a pure function of the site's CURRENTLY active
+        // plugins (static strings, not user input) — and attach it to same-host rows
+        // only, mirroring build_pages_array()'s host-normalization exactly. External-host
+        // rows keep their per-target probe suffix out of scope (that value is genuinely
+        // ephemeral submit-time data with no durable store today) — fail-closed: the
+        // note simply stays absent for those rows, never a false positive.
+        $home_host_bypass     = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( home_url(), PHP_URL_HOST ) ?: '' ) );
+        $host_bypass_suffixes = PluginDetector::build_bypass_suffixes( ( new PluginDetector() )->detect_typed() );
+        if ( ! empty( $host_bypass_suffixes ) ) {
+            foreach ( $pages_raw as $i => $page ) {
+                $page_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( (string) ( $page['url'] ?? '' ), PHP_URL_HOST ) ?: '' ) );
+                if ( $page_host !== '' && $page_host === $home_host_bypass ) {
+                    $pages_raw[ $i ]['bypass_suffixes'] = $host_bypass_suffixes;
+                }
+            }
+        }
+
         // Per-URL Step-4 results table. by_page is keyed by the same $pages_raw
         // index, so build_pages() joins status/credits with S/A/N tallies cleanly.
         // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.

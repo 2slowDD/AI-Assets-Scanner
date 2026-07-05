@@ -2170,8 +2170,16 @@
                         ? ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>'
                         : ' <span class="cu-noopt-note">Please scan again</span>' ) : '' ) );
             var origUrl = submittedByResolved[ p.url ];
+            // FU-ABSENT-SAFE B2 — visible note when this row's scan URL received an
+            // optimizer-bypass suffix (p.bypass_suffixes threaded server-side by
+            // AIAS_Scan_Status::build_pages()). Gated on non-empty so a miss renders
+            // no note at all (fail-closed, never a false positive).
+            var bypassNote = ( p.bypass_suffixes && p.bypass_suffixes.length )
+                ? ' <span class="cu-bypass-note">optimizer detected — scanned with ?' + cuEscHtml( p.bypass_suffixes.join( '&' ) ) + '</span>'
+                : '';
             var urlCell = cuEscHtml( p.url )
-                + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' );
+                + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' )
+                + bypassNote;
             return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + ( noopt ? ' cu-row-noopt' : '' ) + '">'
                 + '<td>' + cuEscHtml( p.n ) + '</td>'
                 + '<td class="cu-url-cell">' + urlCell + '</td>'

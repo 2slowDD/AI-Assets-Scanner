@@ -348,12 +348,17 @@
 .cu-group-toggle-link:hover { color: #b4d8f7; }
 
 /* Individual URL rows */
+/* FU-ABSENT-SAFE B3 — 11px → 13px. This is the Step-1 URL-list row (page/post/
+   other/included groups), re-rendered by renderUrlList() during the "Rescan ET
+   Candidates" carry-over prime (primeRescanEt(), scanner.js ~2641) — the operator-
+   reported 11px source. .cu-group-header (:298, group title bar) is a distinct
+   element and intentionally left at 11px (uppercase label style, not a URL row). */
 .cu-url-row {
     display: flex;
     align-items: center;
     gap: 9px;
     padding: 5px 12px;
-    font-size: 11px;
+    font-size: 13px;
     border-top: 1px solid #f0f0f1;
     transition: opacity 0.15s;
 }
@@ -809,7 +814,10 @@
 .cu-url-table tr.cu-row-error   { background: #fbe9e9; color: #7a1f1f; box-shadow: inset 3px 0 0 #c0392b; }
 .cu-url-table tr.cu-row-skipped { background: #eef1f4; color: #3a4350; box-shadow: inset 3px 0 0 #8a96a3; }
 .cu-url-pager { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
-.cu-resolved-note { font-size: 11px; color: #787c82; font-style: italic; }
+/* FU-ABSENT-SAFE B3 — normalized 11px → 13px to match the .cu-url-table row base (13px, :801). */
+.cu-resolved-note { font-size: 13px; color: #787c82; font-style: italic; }
+/* FU-ABSENT-SAFE B2 — Step-4 "optimizer detected" note (see cu-bypass-note in scanner.js). */
+.cu-bypass-note { font-size: 13px; color: #2271b1; font-style: italic; }
 /* "Please scan again" note on S:0 A:0 (noopt) rows — replaces the old per-row "Scan again" link. */
 .cu-noopt-note { font-style: italic; }
 .cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; }

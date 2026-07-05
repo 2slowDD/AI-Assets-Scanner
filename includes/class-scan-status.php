@@ -169,6 +169,15 @@ class AIAS_Scan_Status {
 				// discriminator the noopt-note copy needs. Selected-but-refunded ET stays false
 				// (deliberate: no ET actually ran, retrying it is legitimate).
 				'et_charged'   => ! empty( $page['extra_time_charged'] ),
+				// FU-ABSENT-SAFE B2 — optimizer-bypass-suffix fact for the Step-4
+				// "optimizer detected" note. $page['bypass_suffixes'] is stamped onto
+				// same-host rows by do_build_result() (class-scanner-ajax.php) before
+				// this method runs — PluginDetector::build_bypass_suffixes() output,
+				// static strings, not user input. Still defensive-validated here since
+				// $page is otherwise built from untrusted Railway response data.
+				'bypass_suffixes' => is_array( $page['bypass_suffixes'] ?? null )
+					? array_values( array_filter( $page['bypass_suffixes'], 'is_string' ) )
+					: [],
 			];
 		}
 		return $rows;
