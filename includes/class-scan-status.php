@@ -171,9 +171,10 @@ class AIAS_Scan_Status {
 				'et_charged'   => ! empty( $page['extra_time_charged'] ),
 				// FU-ABSENT-SAFE B2 — optimizer-bypass-suffix fact for the Step-4
 				// "optimizer detected" note. $page['bypass_suffixes'] is stamped onto
-				// same-host rows by do_build_result() (class-scanner-ajax.php) before
-				// this method runs — PluginDetector::build_bypass_suffixes() output,
-				// static strings, not user input. Still defensive-validated here since
+				// BOTH internal and external rows by do_build_result() (class-scanner-ajax.php)
+				// before this method runs, read back from the submit-time per-URL map
+				// (cu_scanner_bypass_map_<job_id> transient) keyed by the final scan URL —
+				// static suffix strings, not user input. Still defensive-validated here since
 				// $page is otherwise built from untrusted Railway response data.
 				'bypass_suffixes' => is_array( $page['bypass_suffixes'] ?? null )
 					? array_values( array_filter( $page['bypass_suffixes'], 'is_string' ) )
