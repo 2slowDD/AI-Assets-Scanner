@@ -490,7 +490,7 @@ class ScannerAjax {
      * @param int    $user_id        Originating user id (NOT get_current_user_id()).
      * @return array{job_id:mixed,job_token:string,railway_url:string}
      */
-    public function perform_submit_side_effects( array $result, array $intent, array $detector_typed, string $bypass_token, string $railway_url, string $job_token, int $user_id ): array {
+    public function perform_submit_side_effects( array $result, array $intent, array $detector_typed, string $bypass_token, string $railway_url, string $job_token, int $user_id, array $pages_sent = [] ): array {
         $job_id  = $result['job_id'];
         $urls    = $intent['urls'];
 
@@ -557,6 +557,23 @@ class ScannerAjax {
             'bypass_token' => $bypass_token,
             'railway_url'  => $railway_url,
         ], 7200 );
+
+        // FU-ABSENT-SAFE B2 (review fix) — persist the per-URL bypass-suffix map so
+        // do_build_result() can stamp EACH result row (internal AND external) with the
+        // suffix actually applied at submit, for the Step-4 "optimizer detected" note.
+        // Keyed by JOB_ID (not user_id) because do_build_result() receives $job_id as a
+        // parameter and runs on both the interactive build_result path and the
+        // background MenuBadge heartbeat path (where the user-keyed transient may be
+        // gone), and because cancel_job() deletes cu_scanner_job_ BEFORE build_result
+        // runs — whereas a cancelled scan's completed pages still deserve the note.
+        // Built from the reshaped pages actually sent to Railway ($payload['pages']) so
+        // the key is byte-identical to the pages[].url the worker echoes back verbatim.
+        // TTL matches the job transient. Fail-closed: only pages with a non-empty suffix
+        // list are stored, so a URL absent from the map yields no note (never false).
+        $bypass_map = self::build_bypass_map( $pages_sent );
+        if ( ! empty( $bypass_map ) ) {
+            set_transient( 'cu_scanner_bypass_map_' . $job_id, $bypass_map, 7200 );
+        }
 
         return [
             'job_id'      => $job_id,
@@ -676,7 +693,7 @@ class ScannerAjax {
                 wp_send_json( [ 'ok' => false, 'error' => 'class_c_consent_required', 'class_c_active' => $cc ] );
                 return; // worker job already submitted — unchanged from today's submit-before-consent-gate ordering
             }
-            $out = $this->perform_submit_side_effects( $result, $intent, $detector_typed, $token, $railway_url, $job_token, (int) get_current_user_id() );
+            $out = $this->perform_submit_side_effects( $result, $intent, $detector_typed, $token, $railway_url, $job_token, (int) get_current_user_id(), $payload['pages'] ?? [] );
             wp_send_json_success( $out );
         } catch ( \RuntimeException $e ) {
             ( new BypassManager() )->delete_all_tokens(); // own handle — $bypass is no longer in this scope after extraction
@@ -1235,28 +1252,26 @@ class ScannerAjax {
         // truncate the 16-char submit-time scan_id to 12). Bug-fix (1.5.4).
         $scan_id_display = substr( $scan_id_complete, 0, 12 );
 
-        // FU-ABSENT-SAFE B2 — stamp the currently-active-optimizer bypass suffix onto
-        // same-host rows for the Step-4 "optimizer detected" note. Railway's
-        // page-analyzer does NOT echo bypass_suffixes back on the per-page result
-        // (analyzePage()'s return object carries only `url`, not the suffix list used
-        // to build it), so there is no submit-time value surviving the round trip to
-        // "carry through" here. Instead, re-run the SAME deterministic detector
-        // build_submit_payload() used at submit time — PluginDetector::
-        // build_bypass_suffixes() is a pure function of the site's CURRENTLY active
-        // plugins (static strings, not user input) — and attach it to same-host rows
-        // only, mirroring build_pages_array()'s host-normalization exactly. External-host
-        // rows keep their per-target probe suffix out of scope (that value is genuinely
-        // ephemeral submit-time data with no durable store today) — fail-closed: the
-        // note simply stays absent for those rows, never a false positive.
-        $home_host_bypass     = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( home_url(), PHP_URL_HOST ) ?: '' ) );
-        $host_bypass_suffixes = PluginDetector::build_bypass_suffixes( ( new PluginDetector() )->detect_typed() );
-        if ( ! empty( $host_bypass_suffixes ) ) {
-            foreach ( $pages_raw as $i => $page ) {
-                $page_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( (string) ( $page['url'] ?? '' ), PHP_URL_HOST ) ?: '' ) );
-                if ( $page_host !== '' && $page_host === $home_host_bypass ) {
-                    $pages_raw[ $i ]['bypass_suffixes'] = $host_bypass_suffixes;
-                }
-            }
+        // FU-ABSENT-SAFE B2 (review fix) — stamp each row's optimizer-bypass suffix for
+        // the Step-4 "optimizer detected" note by READING BACK the per-URL map persisted
+        // at submit time (perform_submit_side_effects), keyed by JOB_ID. This replaces
+        // the old live re-detect that (a) only ever matched SAME-HOST rows — so the note
+        // NEVER fired for EXTERNAL scans, which was its whole purpose — and (b) re-ran
+        // the detector against the operator's CURRENTLY-active plugins at result time,
+        // which can differ from what was actually applied at submit (staleness window).
+        //
+        // Key correctness (the load-bearing point): the map is keyed by the SAME final
+        // scan URL string submit built into pages[].url (resolved URL + forced scheme +
+        // appended bypass suffix). The Railway worker echoes pages[].url back VERBATIM —
+        // no strip, no normalization, suffixes never re-appended to the returned value
+        // (confirmed against page-analyzer.js analyzePage() return + job-store round-trip)
+        // — so $pages_raw[$i]['url'] here is byte-identical to the submit-time key. Both
+        // internal and external rows are stamped. Fail-closed: a URL absent from the map
+        // (external target with no probe suffix, expired transient, background rebuild)
+        // leaves bypass_suffixes unset → the note stays off, never a false positive.
+        $bypass_map = get_transient( 'cu_scanner_bypass_map_' . $job_id );
+        if ( is_array( $bypass_map ) && ! empty( $bypass_map ) ) {
+            $pages_raw = self::stamp_bypass_suffixes( $pages_raw, $bypass_map );
         }
 
         // Per-URL Step-4 results table. by_page is keyed by the same $pages_raw
@@ -1864,6 +1879,73 @@ class ScannerAjax {
             ],
             $page_specs
         );
+    }
+
+    /**
+     * FU-ABSENT-SAFE B2 (review fix) — build the per-URL bypass-suffix map persisted at
+     * submit time (perform_submit_side_effects) and read back in do_build_result() for
+     * the Step-4 "optimizer detected" note. Keyed by the FINAL scan URL (pages[].url —
+     * the resolved URL with the bypass suffix already appended by build_scan_url), which
+     * the Railway worker echoes back VERBATIM, so the result-side lookup is an exact
+     * string match against $pages_raw[$i]['url']. Only pages carrying a non-empty suffix
+     * list are stored (fail-closed: a URL absent from the map yields no note).
+     *
+     * Pure function of the reshaped payload pages — no WP calls — so it is unit-testable
+     * in isolation. Suffix strings originate from PluginDetector::OPTIMIZERS (same-host
+     * rows) or the already-validated probe result (external rows), but are re-validated
+     * to string[] defensively here per WP Compliance Rules 1/2 (trust no stored input).
+     *
+     * @param array<int,mixed> $pages_sent Reshaped payload pages ($payload['pages']).
+     * @return array<string,string[]> url => bypass_suffixes (non-empty entries only).
+     */
+    public static function build_bypass_map( array $pages_sent ): array {
+        $map = [];
+        foreach ( $pages_sent as $page ) {
+            if ( ! is_array( $page ) ) {
+                continue;
+            }
+            $url = (string) ( $page['url'] ?? '' );
+            if ( '' === $url ) {
+                continue;
+            }
+            $suffixes = is_array( $page['bypass_suffixes'] ?? null )
+                ? array_values( array_filter( $page['bypass_suffixes'], 'is_string' ) )
+                : [];
+            if ( ! empty( $suffixes ) ) {
+                $map[ $url ] = $suffixes;
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * FU-ABSENT-SAFE B2 (review fix) — stamp each Railway result row's bypass_suffixes
+     * from the persisted per-URL map (build_bypass_map), matched on the exact pages[].url
+     * string the worker echoed back. BOTH same-host and external rows are covered — the
+     * external case is the whole point of the review fix (the old live re-detect could
+     * only ever stamp same-host rows). Fail-closed: a row whose URL is absent from the
+     * map (or whose mapped value is empty / non-array) is left untouched → no note.
+     *
+     * Pure function — no WP calls — so it is unit-testable in isolation. The output
+     * bypass_suffixes is a clean string[]; it is escaped downstream JS-side (cuEscHtml),
+     * so it is NOT escaped here (avoid double-escaping) — WP Compliance Rule 3.
+     *
+     * @param array<int,array<string,mixed>> $pages_raw  Railway per-page result rows.
+     * @param array<string,mixed>            $bypass_map url => bypass_suffixes map.
+     * @return array<int,array<string,mixed>> $pages_raw with bypass_suffixes stamped where matched.
+     */
+    public static function stamp_bypass_suffixes( array $pages_raw, array $bypass_map ): array {
+        foreach ( $pages_raw as $i => $page ) {
+            $url = (string) ( ( is_array( $page ) ? $page['url'] : null ) ?? '' );
+            if ( '' === $url || ! isset( $bypass_map[ $url ] ) || ! is_array( $bypass_map[ $url ] ) ) {
+                continue;
+            }
+            $suffixes = array_values( array_filter( $bypass_map[ $url ], 'is_string' ) );
+            if ( ! empty( $suffixes ) ) {
+                $pages_raw[ $i ]['bypass_suffixes'] = $suffixes;
+            }
+        }
+        return $pages_raw;
     }
 
     /**

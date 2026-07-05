@@ -231,7 +231,7 @@ class Outbox {
             }
 
             try {
-                self::call( $deps, 'side_effects', [ $result, $intent, $detector_typed, $bypass_token, $railway_url, $token, $user_id ] );
+                self::call( $deps, 'side_effects', [ $result, $intent, $detector_typed, $bypass_token, $railway_url, $token, $user_id, $payload['pages'] ?? [] ] );
             } catch ( \Throwable $e ) {
                 // §10.6 safety net: worker job already created + charged -> keep it pollable, do NOT release.
                 set_transient( 'cu_scanner_job_' . $user_id, [
@@ -288,9 +288,9 @@ class Outbox {
             case 'consent_payload':
                 return ( new \CUScanner\Admin\ScannerAjax() )->class_c_consent_payload( $args[0], (string) $args[1] );
             case 'side_effects':
-                // $args: 0=result, 1=intent, 2=detector_typed, 3=bypass_token, 4=railway_url, 5=job_token, 6=user_id
+                // $args: 0=result, 1=intent, 2=detector_typed, 3=bypass_token, 4=railway_url, 5=job_token, 6=user_id, 7=pages_sent
                 return ( new \CUScanner\Admin\ScannerAjax() )->perform_submit_side_effects(
-                    $args[0], $args[1], $args[2], (string) $args[3], (string) $args[4], (string) $args[5], (int) $args[6]
+                    $args[0], $args[1], $args[2], (string) $args[3], (string) $args[4], (string) $args[5], (int) $args[6], (array) ( $args[7] ?? [] )
                 );
         }
         // Code-review I-2: a mistyped dep name must fail loudly, not return null silently
