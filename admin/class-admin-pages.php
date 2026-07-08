@@ -47,6 +47,28 @@ class AdminPages {
             wp_localize_script( 'cu-scanner-scanner', 'aiasBannerL10n', [
                 'nonce' => wp_create_nonce( 'aias_dismiss_banner' ),
             ] );
+
+            // FU-ANTIBLOCK-1 — single-source copy map (spec §3.1): plain text + separate
+            // settings_url; scanner.js DOM-builds anchors. stack_names maps SECURITY_STACKS
+            // ids -> display names for the probe modal (Task 7).
+            $copy_map                = \AIAS_Broken_Banner::export_copy_map();
+            $copy_map['stack_names'] = [
+                'cloudflare'         => __( 'Cloudflare', 'ai-assets-scanner' ),
+                'sucuri'             => __( 'Sucuri', 'ai-assets-scanner' ),
+                'akamai'             => __( 'Akamai', 'ai-assets-scanner' ),
+                'imperva'            => __( 'Imperva/Incapsula', 'ai-assets-scanner' ),
+                'wordfence'          => __( 'Wordfence', 'ai-assets-scanner' ),
+                'siteground_antibot' => __( 'SiteGround Antibot', 'ai-assets-scanner' ),
+            ];
+            wp_localize_script( 'cu-scanner-scanner', 'cuReasonCopy', $copy_map );
+
+            // FU-ANTIBLOCK-2 — same-site pre-scan state (spec §3.4). detect_cached() is
+            // zero-HTTP by contract (d-review M2) — never call detect() here.
+            wp_localize_script( 'cu-scanner-scanner', 'cuLocalStack', [
+                'cdn'              => ( new \CUScanner\Cdn\Detector() )->detect_cached(),
+                'acknowledged'     => ( new \CUScanner\Settings() )->get_acknowledged_cdn(),
+                'security_plugins' => \CUScanner\Scanner\PluginDetector::active_security_warn_ids(),
+            ] );
         }
         if ( $hook === 'ai-assets-scanner_page_cu-scanner-settings' ) {
             wp_enqueue_script( 'cu-scanner-settings', CU_SCANNER_URL . 'admin/js/settings.js', [], CU_SCANNER_VERSION, true );

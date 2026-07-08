@@ -4,6 +4,23 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.67b - 2026-07-08
+
+### Added — Per-reason remediation copy, single-sourced and localized (FU-ANTIBLOCK-1, spec §3.1)
+
+- Scan-blocked-reason copy (challenge/WAF/rate-limit/error phrasing, remediation guidance, and the settings-page bypass anchor) is now built once in `AIAS_Broken_Banner::export_copy_map()` and localized onto the scanner page as `cuReasonCopy`, replacing scattered inline strings with a single translatable source (`__()`-wrapped, `ai-assets-scanner` text domain). Includes a `stack_names` display-name sub-map (Cloudflare/Sucuri/Akamai/Imperva/Wordfence/SiteGround Antibot) for the upcoming probe-result modal.
+
+### Added — Pre-scan security-stack fingerprinting: external probe + same-site check (FU-ANTIBLOCK-2, spec §3.3/§3.4)
+
+- `PluginDetector::SECURITY_STACKS` fingerprints the external target's already-fetched target-stack probe response (zero additional HTTP) for Cloudflare/Sucuri/Akamai/Imperva, feeding a UX-only Cancel/Continue warning (`warning_needed`) that never affects scan outcome or bypass suffixes. On the same-site side, `PluginDetector::active_security_warn_ids()` reports locally-active security plugins (Wordfence, Wordfence Login Security, Cloudflare), and `Cdn\Detector::detect_cached()` — a zero-HTTP, request-header/transient-only read (never the blocking self-sniff fallback) — surfaces the locally detected CDN. Both are localized onto the scanner page as `cuLocalStack` alongside the operator's acknowledged-CDN setting, for a pre-scan same-site warning.
+- Wordfence/SiteGround rows were evaluated for `SECURITY_STACKS` and dropped (no live-capturable signature met the spec §6.2 bar); they remain reachable via the locally-active-plugin (`security_warn`) path.
+
+### Technical
+
+- `PluginDetector::SIGNATURE_SCHEMA_VERSION` bumped `'4' → '5'` — the target-stack probe transient key is schema-salted, so adding `SECURITY_STACKS` matching to the shared probe response auto-invalidates every host's cached probe result.
+
+_Touched: `admin/class-scanner-ajax.php`, `admin/class-admin-pages.php`, `includes/cdn/class-detector.php`, `includes/class-broken-banner.php`, `includes/scanner/class-plugin-detector.php`, `ai-assets-scanner.php`._
+
 ## 1.7.66b - 2026-07-05
 
 ### Fixed — Render-health gate suppresses the false Safe rule on optimizer-intercepted (delay-marker) renders (F-DEG fix, FU-ABSENT-SAFE)
