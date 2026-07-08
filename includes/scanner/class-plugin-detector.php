@@ -44,6 +44,43 @@ class PluginDetector {
     ];
 
     /**
+     * FU-ANTIBLOCK-2 — external-target security-stack fingerprints (spec §3.3/§6.2).
+     * Matched against the SAME probe response as OPTIMIZERS (zero new HTTP).
+     * NO class/bypass_query semantics — detection is UX-gating only (Cancel/Continue
+     * modal); it must never influence outcome/bypass_suffixes (AC-5).
+     * cloudflare/sucuri/akamai signatures mirror includes/cdn/class-detector.php's
+     * registry (local inbound detection) — cross-referenced, intentionally duplicated.
+     * Wordfence/SiteGround rows land in a follow-up task ONLY if live-capture-verified
+     * (spec §6.2 signature bar; unverifiable rows are dropped, not guessed).
+     */
+    private const SECURITY_STACKS = [
+        'cloudflare' => [
+            'name'                => 'Cloudflare',
+            'target_headers'      => [ 'cf-ray', 'cf-cache-status' ],
+            'target_body_markers' => [ '/cdn-cgi/' ],
+            'target_body_pattern' => null,
+        ],
+        'sucuri' => [
+            'name'                => 'Sucuri',
+            'target_headers'      => [ 'x-sucuri-id', 'x-sucuri-cache' ],
+            'target_body_markers' => [],
+            'target_body_pattern' => null,
+        ],
+        'akamai' => [
+            'name'                => 'Akamai',
+            'target_headers'      => [ 'x-akamai-transformed', 'akamaighost' ],
+            'target_body_markers' => [],
+            'target_body_pattern' => null,
+        ],
+        'imperva' => [
+            'name'                => 'Imperva/Incapsula',
+            'target_headers'      => [ 'x-iinfo', 'incap_ses' ],
+            'target_body_markers' => [ '_Incapsula_Resource' ],
+            'target_body_pattern' => null,
+        ],
+    ];
+
+    /**
      * Operator-side hosting fingerprint detection (rev-1.4.1).
      *
      * MU-plugins and hosting-defined constants don't show up in is_plugin_active().
@@ -87,7 +124,7 @@ class PluginDetector {
     // OPTIMIZERS / PAGE_CACHE_PLUGINS signatures or probe logic change — the key
     // change auto-invalidates every host's cached probe result (replaces the manual
     // v1/v2/v3 literal discipline that let stale pre-upgrade results pin for 24h).
-    private const SIGNATURE_SCHEMA_VERSION = '4';
+    private const SIGNATURE_SCHEMA_VERSION = '5';
 
     /**
      * Rev-2 C1 — injectable-override seams for detector dependencies.
@@ -441,6 +478,38 @@ class PluginDetector {
     }
 
     /**
+     * FU-ANTIBLOCK-2 — match SECURITY_STACKS against an already-fetched probe
+     * response. Pure function over ($headers, $body): no HTTP, no state.
+     * Returns stack ids in table order.
+     */
+    public static function detect_security_stacks( array $headers, string $body, bool $use_range ): array {
+        $hits = [];
+        foreach ( self::SECURITY_STACKS as $id => $entry ) {
+            $h = self::header_match( $headers, $entry['target_headers'] ?? [] );
+            $b = self::body_match( $body, $entry['target_body_markers'] ?? [], $use_range )
+              || self::body_match_pattern( self::extract_non_text_zones( $use_range ? substr( $body, 0, self::BODY_SCAN_MAX_BYTES ) : $body ), $entry['target_body_pattern'] ?? null );
+            if ( $h || $b ) {
+                $hits[] = $id;
+            }
+        }
+        return $hits;
+    }
+
+    /**
+     * FU-ANTIBLOCK-2 — locally active SECURITY_WARN plugins for the same-site
+     * pre-scan check (spec §3.4). Admin-context only (is_plugin_active).
+     */
+    public static function active_security_warn_ids(): array {
+        $out = [];
+        foreach ( self::SECURITY_WARN as $plugin_file => $row ) {
+            if ( function_exists( 'is_plugin_active' ) && is_plugin_active( $plugin_file ) ) {
+                $out[] = [ 'label' => (string) $row[0], 'warning' => (string) $row[1], 'anchor' => $row[2] ?? null ];
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Match any of $patterns against any header value (case-insensitive substring).
      * Used by target-probe outcome classification.
      *
@@ -771,6 +840,7 @@ class PluginDetector {
                 'is_wordpress'        => false,
                 'detected'            => [],
                 'bypass_suffixes'     => [],
+                'security_stacks'     => [],
                 'probed_url'          => $url,
                 'probe_duration_ms'   => 0,
                 'protocol_downgrade'  => false,
@@ -812,6 +882,7 @@ class PluginDetector {
                 'is_wordpress'        => false,
                 'detected'            => [],
                 'bypass_suffixes'     => [],
+                'security_stacks'     => [],
                 'probed_url'          => $url,
                 'probe_duration_ms'   => $duration_ms,
                 'protocol_downgrade'  => false,
@@ -836,6 +907,7 @@ class PluginDetector {
                 'is_wordpress'        => false,
                 'detected'            => [],
                 'bypass_suffixes'     => [],
+                'security_stacks'     => [],
                 'probed_url'          => $url,
                 'probe_duration_ms'   => $duration_ms,
                 'protocol_downgrade'  => false,
@@ -852,6 +924,7 @@ class PluginDetector {
                 'is_wordpress'        => false,
                 'detected'            => [],
                 'bypass_suffixes'     => [],
+                'security_stacks'     => [],
                 'probed_url'          => $url,
                 'probe_duration_ms'   => $duration_ms,
                 'protocol_downgrade'  => false,
@@ -892,6 +965,7 @@ class PluginDetector {
                 }
             }
         }
+        $security_stacks = self::detect_security_stacks( $headers, $body, $use_range );
         $is_wordpress = self::is_wordpress_target( $headers, $body );
 
         $outcome = self::classify_outcome( false, $is_wordpress, $detected );
@@ -915,6 +989,7 @@ class PluginDetector {
             'detected'            => $detected,
             'page_cache_detected' => $page_cache_detected,
             'bypass_suffixes'     => $bypass,
+            'security_stacks'     => $security_stacks,
             'probed_url'          => $url,
             'probe_duration_ms'   => $duration_ms,
             'protocol_downgrade'  => false,
