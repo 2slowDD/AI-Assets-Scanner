@@ -180,6 +180,8 @@ class AIAS_Broken_Banner {
 	/**
 	 * Returns a human-readable phrase for a known blocked-reason key.
 	 * Unknown keys fall through to esc_html() of the raw key.
+	 *
+	 * Mirrored by wpservice-saas/admin/class-admin-jobs.php reason_label() — keep the 12-key copy in sync when the enum grows.
 	 */
 	public static function reason_phrase( string $reason ): string {
 		switch ( $reason ) {
