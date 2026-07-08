@@ -1,0 +1,969 @@
+﻿# Provenance: URL=https://www.siteground.com/ | Captured=2026-07-08T10:36:15Z | Tool=PowerShell Invoke-WebRequest | HTTP Status=200 | Note=SiteGround candidate (official hosting company site) - shows SG hosting-infra headers (x-proxy-cache) but not Antibot-specific
+# --- Response Headers ---
+vary: Accept-Encoding
+pragma: public
+x-frame-options: DENY
+x-httpd-modphp: 1
+age: 4575
+strict-transport-security: max-age=31536000; preload
+x-content-type-options: nosniff
+x-xss-protection: 1
+x-server: 0
+host-header: 192fc2e7e50945beb8231a492d6a8024
+x-proxy-cache: MISS
+x-proxy-cache-info: d NC:000000 UP:
+Alt-Svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+Accept-Ranges: bytes
+Content-Length: 114553
+Cache-Control: public, maxage=86400
+Content-Type: text/html; charset=utf-8
+Date: Wed, 08 Jul 2026 10:36:18 GMT
+Expires: Thu, 09 Jul 2026 09:20:02 GMT
+Server: nginx
+Via: 1.1 google
+
+# --- Body (first 64KB) ---
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8"/>
+            <meta name="viewport" content="width=device-width, maximum-scale=5" />
+    
+        <link rel="stylesheet" type="text/css" href="https://static-cdn.siteground.com/css/a2539b7-c8e7b3b.css" />
+    
+	            <title>Web Hosting Perfected - SiteGround</title>
+        <script>
+window.uetq = window.uetq || [];
+window.uetq.push('consent', 'default',
+    { 'ad_storage': 'denied' }
+);
+</script>        
+<script id="Cookiebot" data-culture="en" src="https://consent.cookiebot.com/uc.js" data-cbid="35f00586-f657-44e7-8f33-8a5b055b478d" async type="text/javascript"></script>
+<!-- Google Consent Mode script -->
+<script type="application/javascript">
+    // Define dataLayer and the gtag function.
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+
+    // Default ad_storage to 'denied'.
+    gtag('consent', 'default', {
+        'analytics_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'ad_storage': 'denied',
+        'functionality_storage': 'denied',
+        'personalization_storage': 'denied',
+        'security_storage': 'granted',
+        'wait_for_update': 500,
+    });
+</script>
+<!-- End Google Consent Mode script -->
+<!-- Google Tag Manager -->
+<script type="text/plain" data-cookieconsent="preferences">(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://analytics.siteground.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-NV7S9DK');</script>
+<!-- End Google Tag Manager -->        <meta name="twitter:card" content="summary_large_image" />
+                        
+    <meta name="twitter:site" content="@SiteGround" />
+
+            <meta property="og:title" content="Web Hosting Perfected - SiteGround" />
+    
+            <meta name="description" property="og:description" content="Web hosting services helping 3,000,000+ domains thrive online with ultrafast speed, unmatched security, and 24/7 fast and expert support! Get started now!" />
+    
+            <meta name="twitter:title" content="Web Hosting Perfected - SiteGround" />
+    
+            <meta name="twitter:description" content="Web hosting services helping 3,000,000+ domains thrive online with ultrafast speed, unmatched security, and 24/7 fast and expert support! Get started now!" />
+    
+                                    <link rel="canonical" href="https://eu.siteground.com" />
+            <meta property="og:url" content="https://eu.siteground.com" />
+        
+            
+    
+            <meta property="og:site_name" content="SiteGround" />
+    
+            
+    
+    <meta name="author" content="SiteGround Web Hosting" />
+    <meta name="copyright" content="Copyright by SiteGround Web Hosting. All Rights Reserved." />
+    <meta name="theme-color" content="#f3efe7">
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="white">
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="black">
+
+            <meta property="og:image" content="https://eu.siteground.com/img/other/Meta_Image_1200x630_.jpg" />
+                    <meta name="twitter:image" content="https://eu.siteground.com/img/other/Meta_Image_800x418_.jpg" />
+                
+	<meta property="og:locale" content="en_US" />    
+	<link rel="alternate" hreflang="x-default" href="https://www.siteground.com" />
+	<link rel="alternate" hreflang="en" href="https://world.siteground.com" />
+	<link rel="alternate" hreflang="es-es" href="https://www.siteground.es" />
+	<link rel="alternate" hreflang="en-gb" href="https://www.siteground.co.uk" />
+	<link rel="alternate" hreflang="it-it" href="https://it.siteground.com" />
+	<link rel="alternate" hreflang="es" href="https://es.siteground.com" />
+	<link rel="alternate" hreflang="de-de" href="https://de.siteground.com" />
+	<link rel="alternate" hreflang="de-at" href="https://de.siteground.com" />
+	<link rel="alternate" hreflang="es-us" href="https://www.siteground.com/es" />
+	<link rel="alternate" hreflang="en-au" href="https://au.siteground.com" />
+	<link rel="alternate" hreflang="en-us" href="https://www.siteground.com" />
+	<link rel="alternate" hreflang="en-bg" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-be" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-hr" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-cy" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-cz" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-dk" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ee" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-fi" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-gr" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-hu" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ie" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-lv" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-lt" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-lu" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-mt" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-nl" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-pl" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-pt" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ro" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-sk" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-sl" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-se" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-rs" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ba" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-mk" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-me" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ua" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-md" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ch" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-no" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-li" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ad" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-mc" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-al" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ge" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-is" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-fo" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-ru" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-mf" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-gl" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="en-by" href="https://eu.siteground.com" />
+	<link rel="alternate" hreflang="fr-fr" href="https://fr.siteground.com" />
+	<link rel="alternate" hreflang="fr-ca" href="https://world.siteground.com/fr" />        <link rel="alternate" type="text/markdown" href="https://eu.siteground.com/index.md" />
+    
+	<meta property="fb:app_id" content="118458159537" />
+
+    <link rel='dns-prefetch' href="https://static-cdn.siteground.com" />
+
+    <link href="/img/favicon.ico" rel="shortcut icon" type="image/x-icon" />
+    <link href="/img/apple-touch-icon.png" rel="apple-touch-icon" />
+
+    <script type="text/javascript">
+    var selectedExtraLanguage = '';
+    var ajaxBaseUrl = '';
+    var blogBaseUrl = 'https://www.siteground.com/blog';
+    if (selectedExtraLanguage !== "") {
+        ajaxBaseUrl = "/" + selectedExtraLanguage;
+    }
+
+    function openBlogUrl(url, isNewTab) {
+        var newUrl = ajaxBaseUrl + url;
+        if (url.indexOf('/blog') === 0) {
+            newUrl = blogBaseUrl + url.substring('/blog'.length);
+        }
+        if (isNewTab) {
+            window.open(newUrl, '_blank');
+            return;
+        }
+
+        window.location = newUrl;
+    }
+</script>
+    <script type="text/javascript">
+        var clientidvar = false;
+        const locale_id = 2;
+        var chatpromo = 'Main Prices - EN (EUR)';
+        const varnished = 1;
+        const local_phone = '44.20.71839093';
+        const cur_code = 'EUR';
+        const chatUrl = 'https://siteground.chat-assistance.com';
+        const disablePromoManager = false;
+        const serviceCompanyId = 3;
+        const appEnv = 'production';
+
+        const settings = {
+            language: 'en_EU',
+            chatLanguage: 'en',
+            currencyCode: 'EUR',
+            locale: null,
+            scoCountryCode: 'ES',
+        };
+    </script>
+
+        
+ 	</head>
+<body>
+	<div class="layout--grid layout--index">
+		<!-- Google Tag Manager (noscript) -->
+<noscript><iframe data-cookieconsent="preferences" data-cookieblock-src="https://analytics.siteground.com/ns.html?id=GTM-NV7S9DK" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+
+		<!-- Promo Lenta Banner -->
+
+<script type="text/javascript">
+if (document.querySelectorAll('.counter')[0]) {
+    const promoTimerEndTimeStamp = 1764392400000;
+    const promoTimerStyle = 1;
+    updateCountdown(document.querySelectorAll('.counter')[0], promoTimerEndTimeStamp, promoTimerStyle);
+    if (typeof initCounter == 'function') {
+        initCounter(promoTimerEndTimeStamp, promoTimerStyle);
+    }
+}
+</script>
+<!-- End of Promo Lenta Banner -->
+		<header id="header" class="header header--bg-inherit header--dark" aria-label="Header section">
+
+    <div class="fit-wide">
+		<div class="header-content">
+			<input id="trigger" class="header__burger" type="checkbox" aria-label="Mobile nav button" tabindex="-1">
+			<label for="trigger" class="header__mobile-nav-btn" title="Mobile nav button" tabindex="0">
+				<em class="text--hidden">Mobile nav button</em>
+				<span></span>
+				<span></span>
+				<span></span>
+			</label>
+
+			<div class="header-logo">
+				<a id="logo" href="/" title="SiteGround">
+					<span class="header__logo-size sg-icon" data-icon="/logos/sg_black"></span>
+									</a>
+			</div>
+
+			<nav class="header__nav main" aria-label="Main navigation">
+
+	<ul class="main-dropdown">
+		<li class="first-list">
+			<a class="flex flex--align-center" href="/" title="SiteGround">
+				<span>Home</span>
+			</a>
+		</li>
+		<li class="header__nav__tab">
+			<input id="trigger-hosting" type="checkbox" aria-label="Web Hosting" tabindex="-1">
+			<label for="trigger-hosting" class="flex flex--align-center" data-icon="icons/material/icon_keyboard_arrow_down" title="Web Hosting" tabindex="0">
+				Web Hosting			</label>
+
+			<div class="header__nav__dropdown-wrap">
+				<div class="header__nav__dropdown webhosting__dropdown grid grid--lg-3 grid--gap-l">
+					<ul class="standard-dropdown grid flex--align-content-start">
+						<li>
+							<a class="flex" href="/web-hosting.htm" title="Web Hosting">
+								<div class="flex flex--gap-s flex--align-center">
+                                    <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_dns"></span>
+                                    <p class="header__nav__dropdown__title">Web Hosting</p>
+                                </div>
+								<p>Grow your website with fast and secure web hosting</p>
+							</a>
+						</li>
+                        <li>
+                            <a class="flex" href="/wordpress-hosting.htm" title="For WordPress">
+                                <div class="flex flex--gap-s flex--align-center">
+                                    <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_wordpress"></span>
+                                    <p class="header__nav__dropdown__title">Hosting for WordPress</p>
+                                </div>
+                                <p>Start, migrate, and manage WordPress sites easily</p>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="flex" href="/cloud-hosting.htm" title="Cloud Hosting">
+                                <div class="flex flex--gap-s flex--align-center">
+                                    <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_cloud"></span>
+                                    <p class="header__nav__dropdown__title">Cloud Hosting</p>
+                                </div>
+                                <p>High-performance cloud plans for growing sites</p>
+                            </a>
+                        </li>
+					</ul>
+
+                    <ul class="standard-dropdown grid flex--align-content-start">
+                        <li>
+                                                        <a class="flex" href="/agency-hosting-program" title="Web Hosting for Agencies">
+                                <div class="flex flex--gap-s flex--align-center">
+                                    <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_view_agenda"></span>
+                                    <p class="header__nav__dropdown__title">Agency Program</p>
+                                </div>
+                                <p>Scale your agency with premium hosting</p>
+                            </a>
+                                                    </li>
+                        <li>
+                            <a class="flex" href="/reseller_hosting.htm" title="Reseller Hosting">
+                                <div class="flex flex--gap-s flex--align-center">
+                                    <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_currency_exchange"></span>
+                                    <p class="header__nav__dropdown__title">Reseller Hosting</p>
+                                </div>
+                                <p>Resell hosting and manage multiple sites easily</p>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="flex" href="/affiliates" title="Affiliate Program">
+                                <div class="flex flex--gap-s flex--align-center">
+                                    <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_partner_exchange"></span>
+                                    <p class="header__nav__dropdown__title">Affiliate Program</p>
+                                </div>
+                                <p>High earnings, fast payouts, and top conversions</p>
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="header__nav__tab__add-info flex flex--direction-column flex--gap-m no-display--1280">
+                        <p class="font-family-main text--weight-m text--size-m">
+                            Customer success stories                        </p>
+                        <img class="border--radius-large" loading="lazy" src="https://static-cdn.siteground.com/img/blocks/menu/customer_success.webp" alt="Customer success stories">
+                        <p class="text--size-xs text--color-pri-darkest">
+                            “With SiteGround, you sleep like a baby with a pacifier! <b>Best service so far</b>.”                        </p>
+                        <p class="flex flex--align-center flex--gap-xs">
+                                                        <a class="link--more link--next font-family-main text--weight-l text--size-2xs text--color-pri-darkest text--upper" href="https://www.siteground.com/blog/category/success-stories" title="Customer success stories" target="_blank">
+                                Read More                            </a>
+                            <span class="sg-icon sg-icon--size_20 sg-icon--color-pri-darkest" data-icon="icons/material/icon_arrow_outward"></span>
+                        </p>
+                    </div>
+				</div>
+			</div>
+		</li>
+		<li class="header__nav__tab">
+			<input id="trigger-wp" type="checkbox" aria-label="WordPress" tabindex="-1">
+			<label for="trigger-wp" class="flex flex--align-center" data-icon="icons/material/icon_keyboard_arrow_down" title="WordPress" tabindex="0">
+				WordPress			</label>
+
+			<div class="header__nav__dropdown-wrap">
+				<div class="header__nav__dropdown wordpress__dropdown">
+                    <div class="wrap wrap--w-892 grid grid--lg-tp-column-3-auto grid--gap-column-l flex--align-content-start">
+                        <ul class="standard-dropdown grid">
+                            <li>
+                                <a class="flex" href="/wordpress-hosting.htm" title="For WordPress">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_wordpress"></span>
+                                        <p class="header__nav__dropdown__title">Hosting for WordPress</p>
+                                    </div>
+                                    <p>Start, migrate, and manage WordPress sites easily</p>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="flex" href="/woocommerce-hosting.htm" title="For WooCommerce">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_shopping_bag"></span>
+                                        <p class="header__nav__dropdown__title">Hosting for WooCommerce</p>
+                                    </div>
+                                    <p>Sell easily with reliable hosting for your store</p>
+                                </a>
+                            </li>
+                            <li>
+                                                                <a class="flex" href="/agency-hosting-program" title="Web Hosting for Agencies">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_view_agenda"></span>
+                                        <p class="header__nav__dropdown__title">Agency Program</p>
+                                    </div>
+                                    <p>Scale your agency with premium hosting</p>
+                                </a>
+                                                            </li>
+                        </ul>
+
+                        <div class="wrap wrap--w-1 bg--color-border no-display--1280" style="margin: 0 1.6rem;"></div>
+
+                        <ul class="standard-dropdown">
+                            <li class="grid grid--gap-m">
+                                <a class="grid grid--gap-m" href="/ai-agent-wordpress" title="AI agent for WordPress">
+                                    <div class="flex flex--gap-m flex--align-center">
+                                        <p class="header__nav__dropdown__title">AI agent for WordPress</p>
+                                        <span class="label label--size-m bg--color-salem-lightest text--color-salem">New</span>
+                                    </div>
+
+                                    <div class="density-h--s no-display--1280">
+                                        <img class="border--radius-large" loading="lazy" src="https://static-cdn.siteground.com/img/blocks/menu/ai_agent_wp_en.jpg" alt="SiteGround AI Agent for WordPress interface showing a prompt to create and publish a blog post" width="7" height="3">
+                                    </div>
+
+                                    <p style="font-size: 1.6rem; line-height: 2.4rem;">
+                                        Manage WordPress and WooCommerce sites easily by chatting with AI. Included FREE in all hosting plans for WordPress.                                    </p>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+				</div>
+			</div>
+		</li>
+
+        <li class="header__nav__tab">
+            <input id="trigger-ai" type="checkbox" aria-label="AI" tabindex="-1">
+            <label for="trigger-ai" class="flex flex--align-center" data-icon="icons/material/icon_keyboard_arrow_down" title="AI" tabindex="0">
+                AI            </label>
+
+            <div class="header__nav__dropdown-wrap">
+                <div class="header__nav__dropdown ai__dropdown">
+                    <div class="wrap wrap--w-845">
+                        <ul class="standard-dropdown grid grid--lg-tp-column-3-auto flex--align-content-start">
+                            <li class="grid grid--gap-m">
+                                <a class="flex" href="/ai-studio" title="AI Studio">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_ai"></span>
+                                        <p class="header__nav__dropdown__title">AI Studio</p>
+                                    </div>
+
+                                    <p class="density-bot--s">Your AI workspace to boost growth.</p>
+
+                                    <img class="border--radius-large no-display--1280" loading="lazy" src="https://static-cdn.siteground.com/img/blocks/menu/ai_studio.webp" alt="A smiling woman using her smartphone, surrounded by floating icons for Gemini, Claude, Nano Banana, and ChatGPT, highlighting easy access to diverse AI models.">
+                                </a>
+                            </li>
+                            <li class="wrap wrap--w-1 bg--color-border no-display--1280" style="margin: 0 1.6rem;"></li>
+                            <li class="grid grid--gap-m">
+                                <a class="flex" href="/coderick-ai" title="Coderick AI">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_code"></span>
+                                        <p class="header__nav__dropdown__title">Coderick AI</p>
+                                    </div>
+
+                                    <p class="density-bot--s">Build web apps by simply chatting with AI</p>
+
+                                    <img class="border--radius-large no-display--1280" loading="lazy" src="https://static-cdn.siteground.com/img/blocks/menu/coderick.webp" alt="An abstract digital illustration featuring a vibrant, glowing galaxy or nebula with bright blues, purples, and white light streaks, next to a clean, chat-style text input interface.">
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </li>
+
+        <li class="header__nav__tab">
+            <input id="trigger-website-builder" type="checkbox" aria-label="Website Building" tabindex="-1">
+            <label for="trigger-website-builder" class="flex flex--align-center" data-icon="icons/material/icon_keyboard_arrow_down" title="Website Building" tabindex="0">
+                Website Building            </label>
+
+            <div class="header__nav__dropdown-wrap">
+                <div class="header__nav__dropdown website_builder__dropdown">
+                    <div class="wrap wrap--w-845">
+                        <ul class="standard-dropdown grid grid--lg-tp-column-3-auto flex--align-content-start">
+                            <li class="grid grid--gap-m">
+                                <a class="flex" href="/website-builder" title="Website Builder">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_web"></span>
+                                        <p class="header__nav__dropdown__title">Website Builder</p>
+                                    </div>
+
+                                    <p class="density-bot--s">The simplest way to create a site</p>
+
+                                    <img class="border--radius-large no-display--1280" loading="lazy" src="https://static-cdn.siteground.com/img/blocks/menu/website_builder.webp" alt="A digital design interface showing a plant image on the left and content on the right. A pop-up menu for “Layout” is open, highlighting the vertical split (image/text) option.">
+                                </a>
+                            </li>
+                            <li class="wrap wrap--w-1 bg--color-border no-display--1280" style="margin: 0 1.6rem;"></li>
+                            <li class="grid grid--gap-m">
+                                <a class="flex" href="/coderick-ai" title="Coderick AI">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_code"></span>
+                                        <p class="header__nav__dropdown__title">Coderick AI</p>
+                                    </div>
+
+                                    <p class="density-bot--s">Build web apps by simply chatting with AI</p>
+
+                                    <img class="border--radius-large no-display--1280" loading="lazy" src="https://static-cdn.siteground.com/img/blocks/menu/coderick.webp" alt="An abstract digital illustration featuring a vibrant, glowing galaxy or nebula with bright blues, purples, and white light streaks, next to a clean, chat-style text input interface.">
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </li>
+
+        <li class="header__rounded-tab">
+            <a class="flex flex--align-center" href="/ecommerce" title="Ecommerce">
+                <span>Ecommerce</span>
+            </a>
+        </li>
+
+		<li class="header__rounded-tab">
+			<a class="flex flex--align-center" href="/email-marketing" title="Email Marketing">
+				<span>Email Marketing</span>
+			</a>
+		</li>
+
+        <li class="header__rounded-tab">
+            <a class="flex flex--align-center" href="/domain_names" title="Domains">
+                <span>Domains</span>
+            </a>
+        </li>
+
+        <li class="header__nav__tab no-display--1281">
+            <input id="trigger-about" type="checkbox" aria-label="About" tabindex="-1">
+            <label for="trigger-about" class="flex flex--align-center" data-icon="icons/material/icon_keyboard_arrow_down" title="About" tabindex="0">
+                About            </label>
+
+            <div class="header__nav__dropdown-wrap">
+                <div class="header__nav__dropdown wordpress__dropdown">
+                    <div class="wrap wrap--w-892 grid grid--lg-2 grid--gap-2xl">
+                        <ul class="standard-dropdown grid">
+                            <li>
+                                <a class="flex" href="/company" title="translate.site.layouts.pieces.mainmenu.about.siteground">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_info"></span>
+                                        <p class="header__nav__dropdown__title">About SiteGround</p>
+                                    </div>
+                                    <p>translate.site.layouts.pieces.mainmenu.who.we.are</p>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="flex" href="https://www.siteground.com/blog" title="Our Blog">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_edit_note"></span>
+                                        <p class="header__nav__dropdown__title">Our Blog</p>
+                                    </div>
+                                    <p>The latest news and company updates.</p>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="flex" href="https://www.siteground.com/kb/" title="Knowledge base">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_menu_book"></span>
+                                        <p class="header__nav__dropdown__title">Knowledge base</p>
+                                    </div>
+                                    <p>Get answers to all FAQs.</p>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </li>
+	</ul>
+</nav>
+			<div class="header-help flex flex--align-center flex--justify-flex-end">
+												<input type="hidden" id="phone_12" phone="61.1800.357221" value="61.1800.357221"/>
+								<input type="hidden" id="phone_10" phone="43.800.802295" value="43.800.802295"/>
+								<input type="hidden" id="phone_4" phone="44.20.71839093" value="44.20.71839093"/>
+								<input type="hidden" id="phone_6" phone="33.805.080522" value="33.805.080522"/>
+								<input type="hidden" id="phone_9" phone="44.20.71839093" value="44.20.71839093"/>
+								<input type="hidden" id="phone_5" phone="44.20.71839093" value="44.20.71839093"/>
+								<input type="hidden" id="phone_14" phone="1.866.605.2484" value="1.866.605.2484"/>
+								<input type="hidden" id="phone_15" phone="1.866.605.2484" value="1.866.605.2484"/>
+								<input type="hidden" id="phone_8" phone="31.2.07084102" value="31.2.07084102"/>
+								<input type="hidden" id="phone_2" phone="44.20.71839093" value="44.20.71839093"/>
+								<input type="hidden" id="phone_3" phone="44.800.8620379" value="44.800.8620379"/>
+								<input type="hidden" id="phone_13" phone="1.800.828.9231" value="1.800.828.9231"/>
+								<input type="hidden" id="phone_1" phone="1.866.605.2484" value="1.866.605.2484"/>
+								
+				<div class="flex flex--align-center flex--gap-m flex--flex-wrap-nowrap">
+																									
+					<nav class="header__nav" aria-label="Help Navigation">
+    <ul class="main-dropdown flex flex--align-center">
+        <li class="header__nav__tab no-display--1280">
+            <input id="trigger-about" type="checkbox" aria-label="About">
+            <label for="trigger-about" class="flex flex--align-center" data-text="About" data-icon="icons/material/icon_keyboard_arrow_down" title="About">
+                About            </label>
+
+            <div class="header__nav__dropdown-wrap">
+                <div class="header__nav__dropdown wordpress__dropdown">
+                    <div class="wrap wrap--w-860 grid grid--lg-2 grid--gap-2xl">
+                        <ul class="standard-dropdown grid flex--align-content-start">
+                            <li>
+                                <a class="flex" href="/company" title="About SiteGround">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_info"></span>
+                                        <p class="header__nav__dropdown__title">About SiteGround</p>
+                                    </div>
+                                    <p>Who we are and what we do best.</p>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="flex" href="https://www.siteground.com/blog" title="Our Blog">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_edit_note"></span>
+                                        <p class="header__nav__dropdown__title">Our Blog</p>
+                                    </div>
+                                    <p>The latest news and company updates.</p>
+                                </a>
+                            </li>
+                            <li>
+                                <a class="flex" href="https://www.siteground.com/kb/" title="Knowledge base">
+                                    <div class="flex flex--gap-s flex--align-center">
+                                        <span aria-hidden="true" class="desktop-icon sg-icon sg-icon--size_40 sg-icon--color-pri-darkest" data-icon="icons/material/icon_menu_book"></span>
+                                        <p class="header__nav__dropdown__title">Knowledge base</p>
+                                    </div>
+                                    <p>Get answers to all FAQs.</p>
+                                </a>
+                            </li>
+                        </ul>
+
+                        <div class="header__nav__tab__add-info flex flex--direction-column flex--gap-m no-display--1280">
+                            <p class="font-family-main text--weight-m text--size-m">
+                                Customer success stories                            </p>
+                            <img class="border--radius-large" loading="lazy" src="https://static-cdn.siteground.com/img/blocks/menu/customer_success_menu_about.jpg" alt="A testimonial for SiteGround featuring photographer Anna Lee, a quote, and a preview of her website.">
+                            <p class="text--size-xs text--color-pri-darkest">
+                                “When it comes to website hosting, I always recommend SiteGround, as it’s such a positive contrast to my previous experiences.“                            </p>
+                            <p class="flex flex--align-center flex--gap-xs">
+                                                                <a class="link--more link--next font-family-main text--weight-l text--size-2xs text--color-pri-darkest text--upper" href="/client-stories" target="_blank">
+                                    Read Story                                </a>
+                                                                <span class="sg-icon sg-icon--size_20 sg-icon--color-pri-darkest" data-icon="icons/material/icon_arrow_outward"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </li>
+
+                <li id="header_chat_visible" class="header__nav__tab header-help__channel header_chat_visible" style="display: none">
+            <input id="trigger-get-in-touch" type="checkbox" aria-label="Get in touch">
+            <label for="trigger-get-in-touch" class="flex flex--align-center"  title="Get in touch">
+                <span class="header-help__channel__tab__text flex flex--align-center" data-text="Get in touch" data-icon="icons/material/icon_keyboard_arrow_down">
+                    Get in touch                </span>
+                <em aria-hidden="true" data-icon="icons/material/icon_contact_support" class="header-help__channel__tab__icon sg-icon sg-icon--size_24 sg-icon--color-pri-darkest"></em>
+            </label>
+
+
+            <div class="get-in-touch header__nav__dropdown-wrap bg--color-white">
+                <div class="header__nav__dropdown wordpress__dropdown wrap wrap--w-860 grid grid--gap-l">
+                    <div class="grid grid--sm-2 grid--gap-m density-w--l density-h--l bg--color-black-low border--radius-large">
+                        <div class="grid grid--gap-l flex--justify-flex-start">
+                            <div class="grid grid--gap-xs">
+                                <p class="font-family-main text--weight-m text--size-s text--color-pri-darkest">
+                                    Live chat 24/7                                </p>
+                                <a href="#" onclick="launchChat(); return false;" class="btn btn--m btn--bg-dark">
+                                    <span>
+                                        Chat now                                    </span>
+                                </a>
+                            </div>
+                            <div class="grid grid--gap-2xs">
+                                <p class="font-family-main text--weight-m text--size-s text--color-pri-darkest">
+                                    Call us                                </p>
+                                <a id="phoneNumberByRegion" href="tel:+44 800 862 0280" class="font-family-main text--weight-l text--size-2xs text--color-pri">
+                                    +44 800 862 0280
+                                </a>
+                            </div>
+                        </div>
+                        <img class="border--radius-large wrap--w-168" loading="lazy" src="https://static-cdn.siteground.com/img/blocks/menu/get_in_touch.jpg" alt="Two SiteGround employees collaborating and smiling while working together on a laptop.">
+                    </div>
+
+                    <div class="grid grid--sm-2 grid--gap-m flex--align-center density-w--l density-h--l bg--color-black-low border--radius-large">
+                        <p class="text--size-s text--color-pri-darkest text--weight-m">
+                            Existing customers                        </p>
+                        <a href="https://login.siteground.com?lang=en" class="flex flex--gap-2xs flex--align-center flex--justify-flex-end flex--justify-content-start-767 flex--flex-wrap-nowrap">
+                            <span class="link--more link--text text--size-3xs text--color-pri text--upper">Login for support</span>
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_18 sg-icon--color-pri" data-icon="icons/material/icon_arrow_outward"></span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </li>
+        
+        <li class="header-help__channel header__rounded-tab">
+            <a class="header-help__channel__tab" href="https://login.siteground.com?lang=en" title="Login to Site Area">
+                <em aria-hidden="true" data-icon="icons/material/icon_account_circle" class="header-help__channel__tab__icon sg-icon sg-icon--size_24 sg-icon--color-pri-darkest"></em>
+                <span class="header-help__channel__tab__text" data-text="Login">Login</span>
+            </a>
+        </li>
+    </ul>
+</nav>
+
+<script>
+    function launchChat() {
+                    var js = document.createElement("script");
+
+            js.type = "text/javascript";
+            js.src = "https://www.recaptcha.net/recaptcha/api.js?render=6LcZEF0sAAAAAAc8vSFdZPsSeMYoTQj5DKKYq1S8";
+
+            js.onload = function() {
+                Live.launch(event);
+            };
+
+            document.body.appendChild(js);
+            }
+</script>									</div>
+			</div>
+		</div>
+	</div>
+	</header>
+		<main class="wrapper" id="main-content">
+			<section class="hero full-bleed">
+    <div class="fit-wide flex flex--align-center">
+        <article class="hero__content hero__content--tpl flex flex--flex-wrap-nowrap flex--align-center">
+
+            <div class="hero__content__text grid grid--sm-1">
+                <div class="flex flex--direction-column flex--align-flex-start flex--gap-2xl wrap--w-688">
+                    <div class="flex flex--direction-column flex--align-flex-start flex--gap-l">
+                        <h1 class="bg--glass bg--color-label text--color-white text--weight-l text--size-2xs border--radius-small density-h--2xs density-w--xs text--upper">
+                            Web hosting & beyond                        </h1>
+                        <h2 class="title--6xl text--color-white text--align-center--767 text--wrap-balance">
+                            Build, host, grow your online presence                        </h2>
+                        <p class="text--color-white text--size-l">
+                            Your all-in-one platform for online success.                        </p>
+                    </div>
+
+                    <div>
+                        <a href="#website-services" class="btn btn--bg-contrast btn--l">
+                            <span>Explore Services</span>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="wrap1 flex">
+                    <img fetchpriority="high" src="https://static-cdn.siteground.com/img/home/woman_overlay.webp" alt="Everything you need to succeed online in one place." width="2" height="1">
+                    
+                    <div id="container" class="container-boxes grid">
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="1">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_local_mall"></span>
+                            <span class="text--size-xs text--weight-m">Sell online</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="2">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_wordpress"></span>
+                            <span class="text--size-xs text--weight-m">Transfer WordPress sites</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="3">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_web"></span>
+                            <span class="text--size-xs text--weight-m">Launch a website</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="4">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_ai"></span>
+                            <span class="text--size-xs text--weight-m">Code with AI</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="5">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_mail"></span>
+                            <span class="text--size-xs text--weight-m">Send email campaigns</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="6">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_local_mall"></span>
+                            <span class="text--size-xs text--weight-m">Sell online</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="7">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_wordpress"></span>
+                            <span class="text--size-xs text--weight-m">Transfer WordPress sites</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="8">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_web"></span>
+                            <span class="text--size-xs text--weight-m">Launch a website</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="9">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_ai"></span>
+                            <span class="text--size-xs text--weight-m">Code with AI</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+
+                        <div class="rotating-boxes flex flex--justify-center flex--align-center flex--gap-l" data-order="10">
+                            <span aria-hidden="true" class="sg-icon sg-icon--size_33 sg-icon--color-white" data-icon="icons/material/icon_mail"></span>
+                            <span class="text--size-xs text--weight-m">Send email campaigns</span>
+                            <div class="selected-indicator flex flex--justify-center flex--align-center">
+                                <span aria-hidden="true" class="sg-icon sg-icon--size_22" data-icon="icons/material/icon_check"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="trustpilot--wrapper text--color-white">
+    <article class="grid flex--gap-xs flex--align-center flex--justify-center text--align-center">
+        <div class="flex flex--gap-xs flex--justify-center flex--align-center">
+            <p class="text--size-s text--color-inherit no-display--767">
+                Excellent            </p>
+            <a class="flex" target="_blank"
+                                    href="https://www.trustpilot.com/review/www.siteground.com"
+                >
+                <span aria-hidden="true" class="sg-icon sg-icon--size_88" data-icon="shapes/trustpilot_stars"></span>
+            </a>
+            <a aria-hidden="true" target="_blank" class="sg-icon sg-icon--size_100 no-display--767" data-icon="logos/trustpilot-greenstar"
+                                    href="https://www.trustpilot.com/review/www.siteground.com"
+                >
+            </a>
+        </div>
+        <p class="text--size-s text--color-inherit">
+                        Top industry rating - <a class="link--text" href="https://www.trustpilot.com/review/www.siteground.com" target="_blank" rel="nofollow">4.9 out of 5 stars</a>. Trusted by the owners of 3 Million domains.                    </p>
+    </article>
+</div>            </div>
+        </article>
+    </div>
+</section>
+<section id="website-services" class="fade-up-section full-bleed bg--color-white">
+    <div class="fit-wide grid grid--gap-5xl">
+        <h2 class="title--4xl wrap wrap--s text--align-center text--align-left-767">
+                        Fast, secure, smarter <br>AI-powered website services                    </h2>
+
+        <div class="grid grid--sm-12 grid--gap-l">
+            <div class="bento__item bg--color-sec-lightest grid grid--sm-col-1-span-12 grid--m-col-1-span-4 grid--lg-col-1-span-6 grid--sm-2 grid--m-1 grid--lg-2 grid--gap-xl density-w--2xl density-h--2xl border--radius-x-large">
+                <div class="flex flex--direction-column flex--justify-space-between flex--align-flex-start flex--gap-xl">
+                    <div class="flex flex--direction-column flex--gap-m">
+                        <h3 class="title--2xl">Hosting for WordPress</h3>
+                        <p class="text--size-s text-color-pri-darkest">Start or migrate WordPress on our ultrafast hosting.</p>
+                    </div>
+                    <a href="/wordpress-hosting.htm" class="btn btn--bg-dark btn--l">
+                        <span>Get started</span>
+                    </a>
+                </div>
+                <div class="video--wrap">
+                    <img loading="lazy" src="https://static-cdn.siteground.com/img/home/hover-videos/covers/wordpress_hosting_en.webp" alt="Start or move your WordPress site to SiteGround's lightning-fast, worry-free managed hosting for WordPress." width="5" height="4">
+                    <video class="lazy" muted playsinline preload="none">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/wordpress_hosting_en.mov" type="video/quicktime">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/wordpress_hosting_en.webm" type="video/webm">
+                        Your browser does not support the video tag.                    </video>
+                </div>
+            </div>
+
+            <div class="bento__item bg--color-light-gray grid grid--sm-col-1-span-12 grid--m-col-5-span-4 grid--lg-col-7-span-6 grid--sm-2 grid--m-1 grid--lg-2 grid--gap-xl density-w--2xl density-h--2xl border--radius-x-large">
+                <div class="flex flex--direction-column flex--justify-space-between flex--align-flex-start flex--gap-xl">
+                    <div class="flex flex--direction-column flex--gap-m">
+                        <h3 class="title--2xl wrap--w-225">Website Builder</h3>
+                        <p class="text--size-s text-color-pri-darkest">Create a website and get online easily and quickly.</p>
+                    </div>
+                    <a href="/website-builder" class="btn btn--bg-dark btn--l">
+                        <span>Start free</span>
+                    </a>
+                </div>
+                <div class="video--wrap">
+                    <img loading="lazy" src="https://static-cdn.siteground.com/img/home/hover-videos/covers/website_builder.webp" alt="Launch a stunning, AI-powered website effortlessly with SiteGround's Website Builder - no tech skills required." width="4" height="3">
+                    <video class="lazy" muted playsinline preload="none">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/website_builder_en.mov" type="video/quicktime">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/website_builder_en.webm" type="video/webm">
+                        Your browser does not support the video tag.                    </video>
+                </div>
+            </div>
+
+            <div class="bento__item bg--color-royal-lightest fade-up-element grid grid--sm-col-1-span-12 grid--m-col-9-span-4 grid--lg-col-1-span-6 grid--gap-xl density-w--2xl density-h--2xl border--radius-x-large grid--lg-row-2-span-2">
+                <div class="flex flex--direction-column flex--align-flex-start flex--gap-xl flex--justify-space-between">
+                    <div class="flex flex--direction-column flex--gap-m">
+                        <h3 class="title--2xl">Coderick AI</h3>
+                        <p class="text--size-s text-color-pri-darkest">Build apps and websites by chatting with AI. Launch faster and host them on our all-inclusive hosting platform.</p>
+                    </div>
+                    <a href="/coderick-ai" class="btn btn--bg-dark btn--l">
+                        <span>Start Building</span>
+                    </a>
+                </div>
+                <div class="video--wrap">
+                    <img loading="lazy" src="https://static-cdn.siteground.com/img/home/hover-videos/covers/coderick_ai_en.webp" alt="Create powerful business apps in minutes with SideGround's AI App builder, Coderick, and let AI handle the hard work." width="12" height="8">
+                    <video class="lazy" muted playsinline preload="none">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/coderick_ai_en.mov" type="video/quicktime">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/coderick_ai_en.webm" type="video/webm">
+                        Your browser does not support the video tag.                    </video>
+                </div>
+            </div>
+
+            <div class="bento__item bg--color-salem-lightest fade-up-element grid grid--sm-col-1-span-6 grid--m-col-1-span-6 grid--m-row-2-span-1 grid--lg-row-2-span-1 grid--lg-col-7-span-3 grid--gap-l density-w--2xl density-h--2xl border--radius-x-large density-bot--none">
+                <div class="flex flex--direction-column flex--align-flex-start flex--gap-l">
+                    <div class="flex flex--direction-column flex--gap-m">
+                        <h3 class="title--2xl">Web Hosting</h3>
+                        <p class="text--size-s text-color-pri-darkest">Build and grow your site with our fast & reliable hosting.</p>
+                    </div>
+                    <a href="/web-hosting.htm" class="flex flex--gap-xs flex--align-center flex--justify-flex-start flex--flex-wrap-nowrap">
+                        <span class="link--more link--next text--size-xs text--color-pri-darkest">View plans</span>
+                        <span aria-hidden="true" class="sg-icon sg-icon--size_24 sg-icon--color-white sg-icon--color-pri-darkest" data-icon="icons/material/icon_arrow_outward"></span>
+                    </a>
+                </div>
+                <div class="video--wrap wrap wrap--w-320">
+                    <img loading="lazy" src="https://static-cdn.siteground.com/img/home/hover-videos/covers/web_hosting.webp" alt="Host your website on a secure, high-performance platform built for business growth." width="4" height="2">
+                    <video class="lazy" muted playsinline preload="none">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/web_hosting_en.mov" type="video/quicktime">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/web_hosting_en.webm" type="video/webm">
+                        Your browser does not support the video tag.                    </video>
+                </div>
+            </div>
+
+            <div class="bento__item bg--color-sunset-lightest fade-up-element grid grid--sm-col-7-span-6 grid--m-col-1-span-6 grid--m-row-3-span-1 grid--lg-row-2-span-1 grid--lg-col-10-span-3 grid--gap-l density-w--2xl density-h--2xl border--radius-x-large density-bot--none">
+                <div class="flex flex--direction-column flex--align-flex-start flex--gap-l">
+                    <div class="flex flex--direction-column flex--gap-m">
+                        <h3 class="title--2xl">Online store</h3>
+                        <p class="text--size-s text-color-pri-darkest">Build your online store easily and start selling within hours.</p>
+                    </div>
+                    <a href="/ecommerce" class="flex flex--gap-xs flex--align-center flex--justify-flex-start flex--flex-wrap-nowrap">
+                        <span class="link--more link--next text--size-xs text--color-pri-darkest">Try free</span>
+                        <span aria-hidden="true" class="sg-icon sg-icon--size_24 sg-icon--color-white sg-icon--color-pri-darkest" data-icon="icons/material/icon_arrow_outward"></span>
+                    </a>
+                </div>
+                <div class="video--wrap wrap wrap--w-320">
+                    <img loading="lazy" src="https://static-cdn.siteground.com/img/home/hover-videos/covers/online_store.webp" alt="Build, manage, and grow your online store with SiteGround Ecommerce" width="5" height="3">
+                    <video class="lazy" muted playsinline preload="none">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/online_store_en.mov" type="video/quicktime">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/online_store_en.webm" type="video/webm">
+                        Your browser does not support the video tag.                    </video>
+                </div>
+            </div>
+
+            <div class="bento__item bg--color-light-gray fade-up-element grid grid--sm-col-1-span-12 grid--m-col-7-span-6 grid--m-row-2-span-2 grid--lg-row-3-span-1 grid--sm-2 grid--m-1 grid--lg-2 grid--gap-xl density-w--2xl density-h--2xl border--radius-x-large">
+                <div class="flex flex--direction-column flex--align-flex-start flex--gap-xl flex--justify-space-between">
+                    <div class="flex flex--direction-column flex--align-flex-start flex--gap-m">
+                        <h3 class="title--2xl">Email Marketing</h3>
+                        <p class="text--size-s text-color-pri-darkest">Grow your business with easy and effective email marketing.</p>
+                    </div>
+                    <a href="/email-marketing" class="btn btn--bg-dark btn--l">
+                        <span>Learn more</span>
+                    </a>
+                </div>
+                <div class="video--wrap wrap wrap--w-300">
+                    <img loading="lazy" src="https://static-cdn.siteground.com/img/home/hover-videos/covers/email_marketing.webp" alt="Convert more leads with SiteGround Email Marketing tool, built for easy and smart automated email campaigns that drive results." width="5" height="4">
+                    <video class="lazy" muted playsinline preload="none">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/email_marketing.mov" type="video/quicktime">
+                                                <source data-src="https://static-cdn.siteground.com/img/home/hover-videos/email_marketing.webm" type="video/webm">
+                        Your browser does not support the video tag.                    </video>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="fade-up-section full-bleed section--bg">
+    <div class="fit-wide flex flex--direction-column flex--align-center flex--align-content-start-767 flex--gap-5xl">
+        <div class="grid grid--gap-l">
+            <h2 class="fade-up-element title--4xl text--align-center text--color-white text--align-left-767">
+                Secure your domain from just <span class="vatPriceElement">17.99 &#0128;</span>/yr            </h2>
+
+            <div class="tooltip--container flex flex--align-center flex--justify-center grid--gap-row-m grid--gap-column-xl flex--justify-content-start-767">
+                <button class="flex flex--align-center flex--gap-xs flex--flex-wrap-nowrap" data-tooltip="Keep your personal details private in WHOIS databases to prevent spam. Free for the 1st year for domains where Domain Privacy Protection can be added.">
+                    <span class="sg-icon sg-icon--size_24 sg-icon--color-white" data-icon="icons/material/icon_verified_user"></span>
+                    <span class="tooltip--text text--size-s text--color-white">
+						1-year Free Domain Privacy					</span>
+                </button>
+                <button class="flex flex--align-center flex--gap-xs flex--flex-wrap-nowrap" data-tooltip="Add an extra layer of security and prevent unauthorised users from gaining access to your domain.">
+                    <span class="sg-icon sg-icon--size_24 sg-icon--color-white" data-icon="icons/material/icon_lock"></span>
+                    <span class="tooltip--text text--size-s text--color-white">
+						2-factor Authentication					</span>
+                </button>
+                <button class="flex flex--align-center flex--gap-xs flex--flex-wrap-nowrap" data-tooltip="Round-the-clock assistance from top-rated domain & hosting specialists with over 20 years of experience.">
+                    <span class="sg-icon sg-icon--size_24 sg-icon--color-white" data-icon="icons/material/icon_support"></span>
+                    <span class="tooltip--text text--size-s text--color-white">
+						24/7 Expert Support					</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid--gap-xl">
+            <div class="wrap wrap--w-1200 card--mask-40 card--field-wrapper density-w--l density-h--l">
+                <span class="field-wrapper field-wrapper--2xl field-wrapper--addon flex flex--justify-space-between flex--align-center flex--gap-s flex--flex-wrap-nowrap">
+                    <span class="field--addon--component">
+                        <input id="webhostingDomainSearchDomain" class="field" aria-label="Domain search" name="domain_search_field" type="text" data-placeholder="Start with your idea or business name" placeholder="Start with your idea or business name" onfocus="this.placeholder=''" onblur="this.placeholder='Start with your idea or business name';" />
+                    </span>
+
+                    <span class="field--addon field--addon--component field--addon--component-suffix flex--justify-self-center">
+                        <button id="aiDomainGenerateSubmit" class="btn btn--bg-dark btn--l" aria-label="Search" title="Sea

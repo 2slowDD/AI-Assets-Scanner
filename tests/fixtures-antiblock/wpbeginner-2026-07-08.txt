@@ -1,0 +1,777 @@
+﻿# Provenance: URL=https://www.wpbeginner.com/ | Captured=2026-07-08T10:36:15Z | Tool=PowerShell Invoke-WebRequest | HTTP Status=200 | Note=SiteGround candidate (confirmed real SG-hosted customer per public sourcing) - Cloudflare-fronted, masks all origin SG headers
+# --- Response Headers ---
+Transfer-Encoding: chunked
+Connection: keep-alive
+CF-Ray: a17e7279ddf875ad-BUD
+CF-Cache-Status: HIT
+Age: 15349
+Link: <https://www.wpbeginner.com/>; rel=shortlink
+Vary: Accept-Encoding
+Pragma: no-cache
+Alt-Svc: h3=":443"; ma=86400
+Cf-Edge-Cache: cache,platform=wordpress
+Content-Security-Policy: upgrade-insecure-requests;
+Permissions-Policy: private-state-token-redemption=(self "https://www.google.com" "https://www.gstatic.com" "https://recaptcha.net" "https://challenges.cloudflare.com" "https://hcaptcha.com"), private-state-token-issuance=(self "https://www.google.com" "https://www.gstatic.com" "https://recaptcha.net" "https://challenges.cloudflare.com" "https://hcaptcha.com")
+cf-apo-via: tcache
+Server-Timing: cfCacheStatus;desc="HIT",cfEdge;dur=10,cfOrigin;dur=0
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Yx%2FeVbMjlYJUL0APMSemjEsQSkvyT65ufBwo%2BIqduxGXYi8%2B3hd1M2n%2F2sh9J0TPeKug9tZn1E0KuHX13nun%2BuMWOqugYyRA%2FgxDZOhlnDjm0V8JpLVJkgYTsEKlndlI9sFmag%3D%3D"}]}
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Cache-Control: no-store, no-cache, must-revalidate
+Content-Type: text/html; charset=UTF-8
+Date: Wed, 08 Jul 2026 10:36:18 GMT
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Last-Modified: Wed, 08 Jul 2026 08:53:59 GMT
+Server: cloudflare
+Via: 1.1 google
+X-Powered-By: PHP/8.0.30
+
+# --- Body (first 64KB) ---
+<!DOCTYPE html>
+<html dir="ltr" lang="en-US" prefix="og: https://ogp.me/ns#">
+<head itemscope itemtype="https://schema.org/WebSite">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WPBeginner - Beginner's Guide for WordPress</title>
+
+		<!-- All in One SEO Pro 4.9.9 - aioseo.com -->
+	<meta name="description" content="WPBeginner is the largest WordPress resource site for WordPress Beginners with easy to understand WordPress tutorials for mastering the basics and beyond." />
+	<meta name="robots" content="max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+	<meta name="p:domain_verify" content="7a814ba2a9486f59b188d9ea4633a67a" />
+	<link rel="canonical" href="https://www.wpbeginner.com/" />
+	<meta name="generator" content="All in One SEO Pro (AIOSEO) 4.9.9" />
+		<meta property="og:locale" content="en_US" />
+		<meta property="og:site_name" content="WPBeginner" />
+		<meta property="og:type" content="article" />
+		<meta property="og:title" content="WPBeginner - Beginner&#039;s Guide for WordPress" />
+		<meta property="og:description" content="WPBeginner is the largest WordPress resource site for WordPress Beginners with easy to understand WordPress tutorials for mastering the basics and beyond." />
+		<meta property="og:url" content="https://www.wpbeginner.com/" />
+		<meta property="fb:admins" content="1107000098" />
+		<meta property="og:image" content="https://www.wpbeginner.com/wp-content/uploads/2012/07/logo.jpg" />
+		<meta property="og:image:secure_url" content="https://www.wpbeginner.com/wp-content/uploads/2012/07/logo.jpg" />
+		<meta property="og:image:width" content="370" />
+		<meta property="og:image:height" content="350" />
+		<meta property="article:published_time" content="2023-12-19T08:26:15+00:00" />
+		<meta property="article:modified_time" content="2026-04-14T15:34:27+00:00" />
+		<meta property="article:publisher" content="https://facebook.com/wpbeginner" />
+		<meta property="article:author" content="https://facebook.com/syedbalkhi" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:site" content="@wpbeginner" />
+		<meta name="twitter:title" content="WPBeginner - Beginner&#039;s Guide for WordPress" />
+		<meta name="twitter:description" content="WPBeginner is the largest WordPress resource site for WordPress Beginners with easy to understand WordPress tutorials for mastering the basics and beyond." />
+		<meta name="twitter:creator" content="@syedbalkhi" />
+		<meta name="twitter:image" content="https://www.wpbeginner.com/wp-content/uploads/2012/07/logo.jpg" />
+		<meta name="twitter:label1" content="Written by" />
+		<meta name="twitter:data1" content="Editorial Staff" />
+		<script type="application/ld+json" class="aioseo-schema">
+			{"@context":"https:\/\/schema.org","@graph":[{"@type":"BreadcrumbList","@id":"https:\/\/www.wpbeginner.com\/#breadcrumblist","itemListElement":[{"@type":"ListItem","@id":"https:\/\/www.wpbeginner.com#listItem","position":1,"name":"Home"}]},{"@type":"Organization","@id":"https:\/\/www.wpbeginner.com\/#organization","name":"WPBeginner","description":"Beginner's Guide for WordPress","url":"https:\/\/www.wpbeginner.com\/","email":"support@wpbeginner.com","logo":{"@type":"ImageObject","url":"https:\/\/www.wpbeginner.com\/wp-content\/uploads\/2010\/02\/wpbeginner-logo-520.png","@id":"https:\/\/www.wpbeginner.com\/#organizationLogo","width":520,"height":130,"caption":"WPBeginner Logo"},"image":{"@id":"https:\/\/www.wpbeginner.com\/#organizationLogo"},"sameAs":["https:\/\/facebook.com\/wpbeginner","https:\/\/twitter.com\/wpbeginner","https:\/\/instagram.com\/wpbeginner","https:\/\/www.pinterest.com\/wpbeginner\/","https:\/\/youtube.com\/wpbeginner","https:\/\/www.linkedin.com\/company\/wpbeginner\/"]},{"@type":"WebPage","@id":"https:\/\/www.wpbeginner.com\/#webpage","url":"https:\/\/www.wpbeginner.com\/","name":"WPBeginner - Beginner's Guide for WordPress","description":"WPBeginner is the largest WordPress resource site for WordPress Beginners with easy to understand WordPress tutorials for mastering the basics and beyond.","inLanguage":"en-US","isPartOf":{"@id":"https:\/\/www.wpbeginner.com\/#website"},"breadcrumb":{"@id":"https:\/\/www.wpbeginner.com\/#breadcrumblist"},"datePublished":"2023-12-19T03:26:15-05:00","dateModified":"2026-04-14T11:34:27-04:00","reviewedBy":{"@type":"Person","@id":"https:\/\/www.wpbeginner.com\/author\/syedb\/#author","url":"https:\/\/www.wpbeginner.com\/author\/syedb\/","name":"Syed Balkhi","image":{"@type":"ImageObject","url":"https:\/\/www.wpbeginner.com\/wp-content\/uploads\/2022\/07\/syed-balkhi-profile-photo-96x96.png"},"sameAs":["https:\/\/facebook.com\/syedbalkhi","https:\/\/twitter.com\/syedbalkhi","https:\/\/www.instagram.com\/syedbalkhi\/","https:\/\/linkedin.com\/in\/syedbalkhi","https:\/\/www.entrepreneur.com\/author\/syed-balkhi","https:\/\/profiles.wordpress.org\/smub\/","https:\/\/adage.com\/author\/syed-balkhi\/7616","https:\/\/readwrite.com\/author\/syed\/","https:\/\/getflywheel.com\/layout\/author\/syedbalkhi\/","https:\/\/www.socialmediaexaminer.com\/author\/syed-balkhi\/"],"description":"Highlights  Founder and CEO of WPBeginner and Awesome Motive Inc, one of the most prominent WordPress software companies in the industry. Over 25 million websites use WordPress plugins and software apps developed by Syed Balkhi and his team. Started using WordPress in 2006 and has over 16 years of experience building websites with WordPress. WordPress Core Contributor along with many other Open Source software contributions  Experience Syed Balkhi is one of the most well-known WordPress experts in the world with over 16 years of experience. He graduated from University of Florida and have been building WordPress websites since 2006. In 2009, Syed created WPBeginner as a free online resource to help beginners and non-techy small business owners learn WordPress. At the time, no other WordPress training resource existed for beginners, and this led to WPBeginner growing in popularity and becoming the Wikipedia for WordPress.\u00a0 Syed was recognized as the top 100 entrepreneur under the age of 30 by the United Nations, and his work is featured in top publications like Entrepreneur, Forbes, Inc, Business Insider, The Guardian, Wired Magazine, and more. Over the years, Syed has been a featured speaker at highly reputed conferences all around the world including Traffic &amp; Conversion Summit, Affiliate Summit, Marketing School Live, Blog World Expo, dozens of WordCamps, and more. About WPBeginner WPBeginner is the largest free WordPress resource for beginners to learn WordPress. We are part of the Awesome Motive family and reach over 100 million visitors every year. Our content is fact checked and reviewed by our Editorial team for accuracy and integrity. You can learn more about us and our editorial process.","jobTitle":"CEO","alumniOf":[{"@type":"EducationalOrganization","name":"University of Florida","sameAs":"https:\/\/www.ufl.edu\/"}],"knowsAbout":[{"@type":"Thing","name":"WordPress","url":"https:\/\/wordpress.org","sameAs":["https:\/\/en.wikipedia.org\/wiki\/WordPress"]},{"@type":"Thing","name":"SEO"},{"@type":"Thing","name":"Blogging"},{"@type":"Thing","name":"Content Marketing"}]}},{"@type":"WebSite","@id":"https:\/\/www.wpbeginner.com\/#website","url":"https:\/\/www.wpbeginner.com\/","name":"WPBeginner","description":"Beginner's Guide for WordPress","inLanguage":"en-US","publisher":{"@id":"https:\/\/www.wpbeginner.com\/#organization"}}]}
+		</script>
+		<script type="pmdelayedscript" data-perfmatters-type="text/javascript" data-cfasync="false" data-no-optimize="1" data-no-defer="1" data-no-minify="1">
+			(function(c,l,a,r,i,t,y){
+			c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;
+			t.src="https://www.clarity.ms/tag/"+i+"?ref=aioseo";y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+		})(window, document, "clarity", "script", "l9feqf74nf");
+		</script>
+		<!-- All in One SEO Pro -->
+
+<script type="pmdelayedscript" data-perfmatters-type="text/javascript" data-cfasync="false" data-no-optimize="1" data-no-defer="1" data-no-minify="1">function parentIsEvil() { var html = null; try { var doc = top.location.pathname; } catch(err){ }; if(typeof doc === "undefined") { return true } else { return false }; }; if (parentIsEvil()) { top.location = self.location.href; };var url = "https://www.wpbeginner.com/";if(url.indexOf("stfi.re") != -1) { var canonical = ""; var links = document.getElementsByTagName("link"); for (var i = 0; i < links.length; i ++) { if (links[i].getAttribute("rel") === "canonical") { canonical = links[i].getAttribute("href")}}; canonical = canonical.replace("?sfr=1", "");top.location = canonical; console.log(canonical);};</script>
+<!-- Universally hreflang tags -->
+<link rel="alternate" hreflang="en-us" href="https://www.wpbeginner.com/" />
+<link rel="alternate" hreflang="es-mx" href="https://www.wpbeginner.com/es/" />
+<link rel="alternate" hreflang="ro-ro" href="https://www.wpbeginner.com/ro/" />
+<link rel="alternate" hreflang="pt-br" href="https://www.wpbeginner.com/pt/" />
+<link rel="alternate" hreflang="fr-fr" href="https://www.wpbeginner.com/fr/" />
+<link rel="alternate" hreflang="it-it" href="https://www.wpbeginner.com/it/" />
+<link rel="alternate" hreflang="de-de" href="https://www.wpbeginner.com/de/" />
+<link rel="alternate" hreflang="ja-jp" href="https://www.wpbeginner.com/ja/" />
+<link rel="alternate" hreflang="tr-tr" href="https://www.wpbeginner.com/tr/" />
+<link rel="alternate" hreflang="sv-se" href="https://www.wpbeginner.com/sv/" />
+<link rel="alternate" hreflang="pl-pl" href="https://www.wpbeginner.com/pl/" />
+<link rel="alternate" hreflang="x-default" href="https://www.wpbeginner.com/" />
+    <!-- Schema.org -->
+    <meta itemprop="name" content="#site_title #separator_sa #tagline"/>
+    <meta itemprop="headline" content="#site_title #separator_sa #tagline"/>
+    <meta itemprop="description" content="WPBeginner is the largest WordPress resource site for WordPress Beginners with easy to understand WordPress tutorials for mastering the basics and beyond."/>
+    <meta itemprop="image" content="https://www.wpbeginner.com/wp-content/uploads/2012/07/logo.jpg"/>
+    <meta itemprop="datePublished" content="2023-12-18 09:42:12"/>
+    <meta itemprop="dateModified" content="2026-06-30 20:07:49"/>
+    <!-- / Schema.org -->
+	<link rel='dns-prefetch' href='//ajax.googleapis.com' />
+<link rel='dns-prefetch' href='//a.omappapi.com' />
+<link rel='dns-prefetch' href='//use.typekit.net' />
+<link rel="alternate" type="application/rss+xml" title="WPBeginner &raquo; Feed" href="https://www.wpbeginner.com/feed/" />
+<link rel="alternate" type="application/rss+xml" title="WPBeginner &raquo; Comments Feed" href="https://www.wpbeginner.com/comments/feed/" />
+	<meta name="revised" content="Tuesday, April 14, 2026, 11:34 am"/>
+	<meta name="theme-color" content="#ff6200"/>
+			<!-- This site uses the Google Analytics by MonsterInsights plugin v11.0.0 - Using Analytics tracking - https://www.monsterinsights.com/ -->
+							<script src="//www.googletagmanager.com/gtag/js?id=G-YFDKLJ5Q0T" data-cfasync="false" data-wpfc-render="false" type="pmdelayedscript" async data-perfmatters-type="text/javascript" data-no-optimize="1" data-no-defer="1" data-no-minify="1"></script>
+			<script data-cfasync="false" data-wpfc-render="false" type="pmdelayedscript" data-perfmatters-type="text/javascript" data-no-optimize="1" data-no-defer="1" data-no-minify="1">
+				var mi_version = '11.0.0';
+				var mi_track_user = true;
+				var mi_no_track_reason = '';
+								var MonsterInsightsDefaultLocations = {"page_location":"https:\/\/www.wpbeginner.com\/"};
+								if ( typeof MonsterInsightsPrivacyGuardFilter === 'function' ) {
+					var MonsterInsightsLocations = (typeof MonsterInsightsExcludeQuery === 'object') ? MonsterInsightsPrivacyGuardFilter( MonsterInsightsExcludeQuery ) : MonsterInsightsPrivacyGuardFilter( MonsterInsightsDefaultLocations );
+				} else {
+					var MonsterInsightsLocations = (typeof MonsterInsightsExcludeQuery === 'object') ? MonsterInsightsExcludeQuery : MonsterInsightsDefaultLocations;
+				}
+
+								var disableStrs = [
+										'ga-disable-G-YFDKLJ5Q0T',
+									];
+
+				/* Function to detect opted out users */
+				function __gtagTrackerIsOptedOut() {
+					for (var index = 0; index < disableStrs.length; index++) {
+						if (document.cookie.indexOf(disableStrs[index] + '=true') > -1) {
+							return true;
+						}
+					}
+
+					return false;
+				}
+
+				/* Disable tracking if the opt-out cookie exists. */
+				if (__gtagTrackerIsOptedOut()) {
+					for (var index = 0; index < disableStrs.length; index++) {
+						window[disableStrs[index]] = true;
+					}
+				}
+
+				/* Opt-out function */
+				function __gtagTrackerOptout() {
+					for (var index = 0; index < disableStrs.length; index++) {
+						document.cookie = disableStrs[index] + '=true; expires=Thu, 31 Dec 2099 23:59:59 UTC; path=/';
+						window[disableStrs[index]] = true;
+					}
+				}
+
+				if ('undefined' === typeof gaOptout) {
+					function gaOptout() {
+						__gtagTrackerOptout();
+					}
+				}
+								window.dataLayer = window.dataLayer || [];
+
+				window.MonsterInsightsDualTracker = {
+					helpers: {},
+					trackers: {},
+				};
+				if (mi_track_user) {
+					function __gtagDataLayer() {
+						dataLayer.push(arguments);
+					}
+
+					function __gtagTracker(type, name, parameters) {
+						if (!parameters) {
+							parameters = {};
+						}
+
+						if (parameters.send_to) {
+							__gtagDataLayer.apply(null, arguments);
+							return;
+						}
+
+						if (type === 'event') {
+														parameters.send_to = monsterinsights_frontend.v4_id;
+							var hookName = name;
+							if (typeof parameters['event_category'] !== 'undefined') {
+								hookName = parameters['event_category'] + ':' + name;
+							}
+
+							if (typeof MonsterInsightsDualTracker.trackers[hookName] !== 'undefined') {
+								MonsterInsightsDualTracker.trackers[hookName](parameters);
+							} else {
+								__gtagDataLayer('event', name, parameters);
+							}
+							
+						} else {
+							__gtagDataLayer.apply(null, arguments);
+						}
+					}
+
+					__gtagTracker('js', new Date());
+					__gtagTracker('set', {
+						'developer_id.dZGIzZG': true,
+											});
+					if ( MonsterInsightsLocations.page_location ) {
+						__gtagTracker('set', MonsterInsightsLocations);
+					}
+										__gtagTracker('config', 'G-YFDKLJ5Q0T', {"forceSSL":"true","post_type":"page"} );
+										window.gtag = __gtagTracker;										(function () {
+						/* https://developers.google.com/analytics/devguides/collection/analyticsjs/ */
+						/* ga and __gaTracker compatibility shim. */
+						var noopfn = function () {
+							return null;
+						};
+						var newtracker = function () {
+							return new Tracker();
+						};
+						var Tracker = function () {
+							return null;
+						};
+						var p = Tracker.prototype;
+						p.get = noopfn;
+						p.set = noopfn;
+						p.send = function () {
+							var args = Array.prototype.slice.call(arguments);
+							args.unshift('send');
+							__gaTracker.apply(null, args);
+						};
+						var __gaTracker = function () {
+							var len = arguments.length;
+							if (len === 0) {
+								return;
+							}
+							var f = arguments[len - 1];
+							if (typeof f !== 'object' || f === null || typeof f.hitCallback !== 'function') {
+								if ('send' === arguments[0]) {
+									var hitConverted, hitObject = false, action;
+									if ('event' === arguments[1]) {
+										if ('undefined' !== typeof arguments[3]) {
+											hitObject = {
+												'eventAction': arguments[3],
+												'eventCategory': arguments[2],
+												'eventLabel': arguments[4],
+												'value': arguments[5] ? arguments[5] : 1,
+											}
+										}
+									}
+									if ('pageview' === arguments[1]) {
+										if ('undefined' !== typeof arguments[2]) {
+											hitObject = {
+												'eventAction': 'page_view',
+												'page_path': arguments[2],
+											}
+										}
+									}
+									if (typeof arguments[2] === 'object') {
+										hitObject = arguments[2];
+									}
+									if (typeof arguments[5] === 'object') {
+										Object.assign(hitObject, arguments[5]);
+									}
+									if ('undefined' !== typeof arguments[1].hitType) {
+										hitObject = arguments[1];
+										if ('pageview' === hitObject.hitType) {
+											hitObject.eventAction = 'page_view';
+										}
+									}
+									if (hitObject) {
+										action = 'timing' === arguments[1].hitType ? 'timing_complete' : hitObject.eventAction;
+										hitConverted = mapArgs(hitObject);
+										__gtagTracker('event', action, hitConverted);
+									}
+								}
+								return;
+							}
+
+							function mapArgs(args) {
+								var arg, hit = {};
+								var gaMap = {
+									'eventCategory': 'event_category',
+									'eventAction': 'event_action',
+									'eventLabel': 'event_label',
+									'eventValue': 'event_value',
+									'nonInteraction': 'non_interaction',
+									'timingCategory': 'event_category',
+									'timingVar': 'name',
+									'timingValue': 'value',
+									'timingLabel': 'event_label',
+									'page': 'page_path',
+									'location': 'page_location',
+									'title': 'page_title',
+									'referrer' : 'page_referrer',
+								};
+								for (arg in args) {
+																		if (!(!args.hasOwnProperty(arg) || !gaMap.hasOwnProperty(arg))) {
+										hit[gaMap[arg]] = args[arg];
+									} else {
+										hit[arg] = args[arg];
+									}
+								}
+								return hit;
+							}
+
+							try {
+								f.hitCallback();
+							} catch (ex) {
+							}
+						};
+						__gaTracker.create = newtracker;
+						__gaTracker.getByName = newtracker;
+						__gaTracker.getAll = function () {
+							return [];
+						};
+						__gaTracker.remove = noopfn;
+						__gaTracker.loaded = true;
+						window['__gaTracker'] = __gaTracker;
+					})();
+									} else {
+										console.log("");
+					(function () {
+						function __gtagTracker() {
+							return null;
+						}
+
+						window['__gtagTracker'] = __gtagTracker;
+						window['gtag'] = __gtagTracker;
+					})();
+									}
+			</script>
+							<!-- / Google Analytics by MonsterInsights -->
+		<style id="wp-img-auto-sizes-contain-inline-css">
+img:is([sizes=auto i],[sizes^="auto," i]){contain-intrinsic-size:3000px 1500px}
+/*# sourceURL=wp-img-auto-sizes-contain-inline-css */
+</style>
+<style id="classic-theme-styles-inline-css">
+/*! This file is auto-generated */
+.wp-block-button__link{color:#fff;background-color:#32373c;border-radius:9999px;box-shadow:none;text-decoration:none;padding:calc(.667em + 2px) calc(1.333em + 2px);font-size:1.125em}.wp-block-file__button{background:#32373c;color:#fff;text-decoration:none}
+/*# sourceURL=/wp-includes/css/classic-themes.min.css */
+</style>
+
+<style id="global-styles-inline-css">
+:root{--wp--preset--aspect-ratio--square: 1;--wp--preset--aspect-ratio--4-3: 4/3;--wp--preset--aspect-ratio--3-4: 3/4;--wp--preset--aspect-ratio--3-2: 3/2;--wp--preset--aspect-ratio--2-3: 2/3;--wp--preset--aspect-ratio--16-9: 16/9;--wp--preset--aspect-ratio--9-16: 9/16;--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #FFFFFF;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--color--primary: #FF6200;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgb(6,147,227) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgb(252,185,0) 0%,rgb(255,105,0) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgb(255,105,0) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--font-size--small: 15px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 22px;--wp--preset--font-size--x-large: 42px;--wp--preset--font-size--normal: 16px;--wp--preset--spacing--20: 0.44rem;--wp--preset--spacing--30: 0.67rem;--wp--preset--spacing--40: 1rem;--wp--preset--spacing--50: 1.5rem;--wp--preset--spacing--60: 2.25rem;--wp--preset--spacing--70: 3.38rem;--wp--preset--spacing--80: 5.06rem;--wp--preset--shadow--natural: 6px 6px 9px rgba(0, 0, 0, 0.2);--wp--preset--shadow--deep: 12px 12px 50px rgba(0, 0, 0, 0.4);--wp--preset--shadow--sharp: 6px 6px 0px rgba(0, 0, 0, 0.2);--wp--preset--shadow--outlined: 6px 6px 0px -3px rgb(255, 255, 255), 6px 6px rgb(0, 0, 0);--wp--preset--shadow--crisp: 6px 6px 0px rgb(0, 0, 0);}:where(body) { margin: 0; }:where(.is-layout-flex){gap: 0.5em;}:where(.is-layout-grid){gap: 0.5em;}body .is-layout-flex{display: flex;}.is-layout-flex{flex-wrap: wrap;align-items: center;}.is-layout-flex > :is(*, div){margin: 0;}body .is-layout-grid{display: grid;}.is-layout-grid > :is(*, div){margin: 0;}body{padding-top: 0px;padding-right: 0px;padding-bottom: 0px;padding-left: 0px;}:root :where(.wp-element-button, .wp-block-button__link){background-color: #32373c;border-width: 0;color: #fff;font-family: inherit;font-size: inherit;font-style: inherit;font-weight: inherit;letter-spacing: inherit;line-height: inherit;padding-top: calc(0.667em + 2px);padding-right: calc(1.333em + 2px);padding-bottom: calc(0.667em + 2px);padding-left: calc(1.333em + 2px);text-decoration: none;text-transform: inherit;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-primary-color{color: var(--wp--preset--color--primary) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-primary-background-color{background-color: var(--wp--preset--color--primary) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-primary-border-color{border-color: var(--wp--preset--color--primary) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}.has-normal-font-size{font-size: var(--wp--preset--font-size--normal) !important;}
+/*# sourceURL=global-styles-inline-css */
+</style>
+
+<link rel='stylesheet' id='wpforms-form-locker-frontend-css' href='https://www.wpbeginner.com/wp-content/plugins/wpforms-form-locker/assets/css/frontend.min.css?ver=2.8.0' media='all' />
+<link rel='stylesheet' id='wpb-typekit-font-css' href='https://use.typekit.net/xgi6nih.css?ver=7.0' media='all' />
+<link rel='stylesheet' id='theme-style-css' href='https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/css/main.min.css?ver=1751478079' media='all' />
+<script async data-wp-strategy="async" id="monsterinsights-frontend-script-js" src="https://www.wpbeginner.com/wp-content/plugins/google-analytics-premium/assets/js/frontend-gtag.js?ver=11.0.0" type="pmdelayedscript" data-cfasync="false" data-no-optimize="1" data-no-defer="1" data-no-minify="1"></script>
+<script data-cfasync="false" data-wpfc-render="false" type="pmdelayedscript" id="monsterinsights-frontend-script-js-extra" data-perfmatters-type="text/javascript" data-no-optimize="1" data-no-defer="1" data-no-minify="1">/* <![CDATA[ */
+var monsterinsights_frontend = {"js_events_tracking":"true","download_extensions":"pdf,doc,ppt,xls,zip,docx,pptx,xlsx","inbound_paths":"[{\"path\":\"\\\/refer\\\/\",\"label\":\"aff\"}]","home_url":"https:\/\/www.wpbeginner.com","hash_tracking":"false","v4_id":"G-YFDKLJ5Q0T"};/* ]]> */
+</script>
+<script id="jquery-js" src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js?ver=3.5.1" type="pmdelayedscript" data-cfasync="false" data-no-optimize="1" data-no-defer="1" data-no-minify="1"></script>
+<link rel='shortlink' href='https://www.wpbeginner.com/' />
+    <link rel="shortcut icon" href="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/favicon.png"/>
+    <link rel="icon" href="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/favicon.png" sizes="32x32"/>
+    <link rel="icon" href="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/favicon.png" sizes="192x192"/>
+    <link rel="apple-touch-icon" href="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/favicon.png"/>
+    <meta name="msapplication-TileImage"
+          content="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/favicon.png"/>
+	<meta property="twitter:account_id" content="40516848" />
+
+<!--<script> window._peq = window._peq || []; window._peq.push(["init"]); </script>-->
+<!--<script src="https://clientcdn.pushengage.com/core/2a3b9d23-bdb3-4038-9a66-14b22d22.js" async></script>-->
+<style id="wp-custom-css">
+/* 
+ * Testimonials Grid.
+ * 
+ * This is a 3 columns layout that's using the default "Columns" block. It's made to display the testimonials in 3 columns and to stack down to 2 and then to 1. Responsive. 
+ * 
+ * @author Andrei
+ * */
+.wpb-testimonials-3-columns,
+.wpb-testimonials-3-columns.is-layout-flex{
+	align-items: normal;
+	flex-wrap: wrap;
+}
+
+.wpb-testimonials-3-columns .wp-block-quote{
+	margin-top: 40px;
+	margin-bottom: 40px
+}
+
+@media (max-width: 900px) {
+	.wpb-testimonials-3-columns,
+	.wpb-testimonials-3-columns.is-layout-flex{
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+@media (max-width: 580px) {
+	.wpb-testimonials-3-columns,
+	.wpb-testimonials-3-columns.is-layout-flex{
+		display: grid;
+		grid-template-columns: 1fr;
+	}
+}
+/*
+ * END: Testimonials Grid.
+ */
+
+/*
+ * START: Sticky Comment
+ */
+#comment-3462883 {
+	padding-bottom: 1.3rem;
+	margin-bottom: 0
+}
+
+#comment-3462883 .comment-content{
+	padding: 24px;
+}
+
+#comment-3462883 .comment-content a{
+	font-weight: 600;
+}
+/*
+ * END: Sticky Comment
+ */
+
+/*
+ * Cookie consent extra styles
+ */
+.wpconsent-cookie-policy-table {
+    border: 1px solid #e7e7e7;
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin: 24px auto 24px;
+    min-width: 0;
+    width: 100%;
+		font-size: 15px;
+		line-height: 1.6;
+}
+
+.wpconsent-cookie-policy-table tbody, 
+.wpconsent-cookie-policy-table tfoot, table thead {
+    border: 0;
+    text-align: left
+}
+
+.wpconsent-cookie-policy-table tbody tr, 
+.wpconsent-cookie-policy-table thead tr {
+    border-bottom: 1px solid #e7e7e7;
+}
+
+.wpconsent-cookie-policy-table tfoot tr {
+    border-top: 2px solid #e7e7e7;
+}
+
+.wpconsent-cookie-policy-table td, 
+.wpconsent-cookie-policy-table th {
+    border: 1px solid #e7e7e7;
+    padding: 7px;
+}
+
+.wpconsent-cookie-policy-table tfoot td, 
+.wpconsent-cookie-policy-table thead td, 
+.wpconsent-cookie-policy-table thead th {
+    font-weight: 800;
+}
+
+.wpconsent-cookie-policy-table tr th:first-of-type,
+.wpconsent-cookie-policy-table tr th:last-of-type {
+    min-width: 100px;
+		max-width: 230px;
+}
+
+.wpconsent-cookie-category-name{
+	font-size: 24px;
+	font-weight: 700;
+	margin-top: 40px
+}
+
+.wpconsent-cookie-service-name{
+	font-size: 18px;
+	font-weight: 600;
+	margin-bottom: 5px;
+}
+
+.wpconsent-cookie-service-description{
+	margin-bottom: 5px
+}
+
+.wpconsent-cookie-service-description + a{
+	font-weight: 600;
+}
+
+
+#wpconsent-container{
+    --wpconsent-min-width: 350px;
+}
+
+.wpb-site-footer__hiring{
+	margin-bottom: 20px;
+}
+
+
+.workshop-info-group{
+	padding: 50px 0;
+	font-size: 18px;
+}
+
+.workshop-info-group__form{
+	margin: 50px 0;
+}
+
+.workshop-info-group__form input,
+.workshop-info-group__form select,
+.workshop-info-group__form button{
+	padding: 16px!important;
+	height: auto!important;
+	font-size: 16px!important;
+	font-weight: 500!important;
+	border-radius: 5px!important
+}
+
+.workshop-info-group__form button{
+	min-width: 140px!important;
+	font-weight: 700!important;
+	padding: 18px!important;
+}
+
+
+
+
+
+
+</style>
+<noscript><style>.perfmatters-lazy[data-src]{display:none !important;}</style></noscript><style id="wp-block-heading-inline-css">
+h1:where(.wp-block-heading).has-background,h2:where(.wp-block-heading).has-background,h3:where(.wp-block-heading).has-background,h4:where(.wp-block-heading).has-background,h5:where(.wp-block-heading).has-background,h6:where(.wp-block-heading).has-background{padding:1.25em 2.375em}h1.has-text-align-left[style*=writing-mode]:where([style*=vertical-lr]),h1.has-text-align-right[style*=writing-mode]:where([style*=vertical-rl]),h2.has-text-align-left[style*=writing-mode]:where([style*=vertical-lr]),h2.has-text-align-right[style*=writing-mode]:where([style*=vertical-rl]),h3.has-text-align-left[style*=writing-mode]:where([style*=vertical-lr]),h3.has-text-align-right[style*=writing-mode]:where([style*=vertical-rl]),h4.has-text-align-left[style*=writing-mode]:where([style*=vertical-lr]),h4.has-text-align-right[style*=writing-mode]:where([style*=vertical-rl]),h5.has-text-align-left[style*=writing-mode]:where([style*=vertical-lr]),h5.has-text-align-right[style*=writing-mode]:where([style*=vertical-rl]),h6.has-text-align-left[style*=writing-mode]:where([style*=vertical-lr]),h6.has-text-align-right[style*=writing-mode]:where([style*=vertical-rl]){rotate:180deg}
+/*# sourceURL=https://www.wpbeginner.com/wp-includes/blocks/heading/style.min.css */
+</style>
+<style id="wp-block-list-inline-css">
+ol,ul{box-sizing:border-box}:root :where(.wp-block-list.has-background){padding:1.25em 2.375em}
+/*# sourceURL=https://www.wpbeginner.com/wp-includes/blocks/list/style.min.css */
+</style>
+<style id="wp-block-paragraph-inline-css">
+.is-small-text{font-size:.875em}.is-regular-text{font-size:1em}.is-large-text{font-size:2.25em}.is-larger-text{font-size:3em}.has-drop-cap:not(:focus):first-letter{float:left;font-size:8.4em;font-style:normal;font-weight:100;line-height:.68;margin:.05em .1em 0 0;text-transform:uppercase}body.rtl .has-drop-cap:not(:focus):first-letter{float:none;margin-left:.1em}p.has-drop-cap.has-background{overflow:hidden}:root :where(p.has-background){padding:1.25em 2.375em}:where(p.has-text-color:not(.has-link-color)) a{color:inherit}p.has-text-align-left[style*="writing-mode:vertical-lr"],p.has-text-align-right[style*="writing-mode:vertical-rl"]{rotate:180deg}
+/*# sourceURL=https://www.wpbeginner.com/wp-includes/blocks/paragraph/style.min.css */
+</style>
+<link rel='stylesheet' id='wpforms-layout-css' href='https://www.wpbeginner.com/wp-content/plugins/wpforms/assets/pro/css/fields/layout.min.css?ver=1.10.2.1' media='all' />
+<link rel='stylesheet' id='wpforms-layout-screen-big-css' href='https://www.wpbeginner.com/wp-content/plugins/wpforms/assets/pro/css/fields/layout-screen-big.min.css?ver=1.10.2.1' media='(min-width: 601px)' />
+<link rel='stylesheet' id='wpforms-layout-screen-small-css' href='https://www.wpbeginner.com/wp-content/plugins/wpforms/assets/pro/css/fields/layout-screen-small.min.css?ver=1.10.2.1' media='(max-width: 600px)' />
+<link rel='stylesheet' id='wpforms-classic-full-css' href='https://www.wpbeginner.com/wp-content/plugins/wpforms/assets/css/frontend/classic/wpforms-full.min.css?ver=1.10.2.1' media='all' />
+
+</head>
+<body class="home page full-width-content singular wpb-homepage" itemscope itemtype="https://schema.org/WebPage" id="top"><div class="site-container"><ul class="genesis-skip-link"><li><a href="#genesis-nav-primary" class="screen-reader-shortcut"> Skip to primary navigation</a></li><li><a href="#main-content" class="screen-reader-shortcut"> Skip to main content</a></li></ul><header class="site-header" itemscope itemtype="https://schema.org/WPHeader"><div class="wrap"><div class="title-area"><p class="site-title" itemprop="headline"><a href="https://www.wpbeginner.com/" title="WPBeginner - Beginners Guide for WordPress">WPBeginner - WordPress Tutorials for Beginners</a></p></div><div class="header-toggles"><button aria-label="Search" class="search-toggle"><svg class="open" width="17" height="17" aria-hidden="true" role="img" focusable="false"><use xlink:href="#solid-search"></use></svg><svg class="close" width="17" height="17" aria-hidden="true" role="img" focusable="false"><use xlink:href="#solid-times"></use></svg></button><button aria-label="Menu" class="menu-toggle"><svg class="open" width="17" height="17" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-bars"></use></svg><svg class="close" width="17" height="17" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-times"></use></svg></button></div><nav class="nav-menu" role="navigation"><div class="nav-primary"><ul id="primary-menu" class="menu"><li id="menu-item-38548" class="menu-item menu-item-has-children"><a href="https://www.wpbeginner.com/blog/" class="translate">Blog</a><button aria-label="Submenu Dropdown" class="submenu-expand" tabindex="-1"><svg width="10" height="10" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-chevron-down"></use></svg></button><div class="sub-menu-wrap"><div class="sub-menu-main"><p class="submenu-title">Categories</p><ul>	<li id="menu-item-38551" class="menu-item"><a href="https://www.wpbeginner.com/category/beginners-guide/">Beginners Guide</a></li>
+	<li id="menu-item-38552" class="menu-item"><a href="https://www.wpbeginner.com/category/news/">News</a></li>
+	<li id="menu-item-38555" class="menu-item"><a href="https://www.wpbeginner.com/category/opinion/">Opinion</a></li>
+	<li id="menu-item-38554" class="menu-item"><a href="https://www.wpbeginner.com/category/showcase/">Showcase</a></li>
+	<li id="menu-item-38553" class="menu-item"><a href="https://www.wpbeginner.com/category/wp-themes/">Themes</a></li>
+	<li id="menu-item-38550" class="menu-item"><a href="https://www.wpbeginner.com/category/wp-tutorials/">Tutorials</a></li>
+	<li id="menu-item-38549" class="menu-item"><a href="https://www.wpbeginner.com/category/plugins/">WordPress Plugins</a></li>
+</ul></div><div class="sub-menu-extra"><p class="submenu-title">Popular Posts</p>
+<ul class="wp-block-list is-style-arrow">
+<li><a href="https://www.wpbeginner.com/showcase/24-must-have-wordpress-plugins-for-business-websites/">24 Must Have WordPress Plugins for Websites (Expert Pick)</a></li>
+
+
+
+<li><a href="https://www.wpbeginner.com/beginners-guide/how-to-install-google-analytics-in-wordpress/">How to Install Google Analytics in WordPress for Beginners</a></li>
+
+
+
+<li><a href="https://www.wpbeginner.com/showcase/best-ai-website-builders-for-wordpress/" title="7 Best AI Website Builders for WordPress">7 Best AI Website Builders for WordPress</a></li>
+
+
+
+<li><a href="https://www.wpbeginner.com/showcase/best-wordpress-themes/" title="2026's Most Popular &amp; Best WordPress Themes">2026's Most Popular &amp; Best WordPress Themes</a></li>
+
+
+
+<li><a href="https://www.wpbeginner.com/common-wordpress-errors-and-how-to-fix-them/" title="63 Most Common WordPress Errors and How to Fix Them">63 Most Common WordPress Errors and How to Fix Them</a></li>
+</ul>
+
+
+
+<p class="wp-block-paragraph"></p>
+</div></div></li>
+<li id="menu-item-38556" class="two-col menu-item menu-item-has-children"><a href="https://www.wpbeginner.com/start-here/" class="translate">Start Here</a><button aria-label="Submenu Dropdown" class="submenu-expand" tabindex="-1"><svg width="10" height="10" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-chevron-down"></use></svg></button><div class="sub-menu-wrap"><div class="sub-menu-main"><p class="submenu-title">Starter Guides</p><ul>	<li id="menu-item-58934" class="menu-item"><a href="https://www.wpbeginner.com/start-a-wordpress-blog/">How to Start a Blog</a></li>
+	<li id="menu-item-58936" class="menu-item"><a href="https://www.wpbeginner.com/guides/">Create a Website</a></li>
+	<li id="menu-item-58937" class="menu-item"><a href="https://www.wpbeginner.com/wp-tutorials/how-to-start-an-online-store/">Start an Online Store</a></li>
+	<li id="menu-item-104926" class="menu-item"><a href="https://www.wpbeginner.com/wp-tutorials/how-to-create-online-course-in-wordpress/">Sell Online Courses</a></li>
+	<li id="menu-item-58938" class="menu-item"><a href="https://www.wpbeginner.com/beginners-guide/how-to-choose-the-best-website-builder/">Best Website Builder</a></li>
+	<li id="menu-item-58939" class="menu-item"><a href="https://www.wpbeginner.com/showcase/best-email-marketing-services/">Email Marketing</a></li>
+	<li id="menu-item-58942" class="menu-item"><a href="https://www.wpbeginner.com/wordpress-hosting/">WordPress Hosting</a></li>
+	<li id="menu-item-104922" class="menu-item"><a href="https://www.wpbeginner.com/wordpress-seo/">WordPress SEO</a></li>
+	<li id="menu-item-104921" class="menu-item"><a href="https://www.wpbeginner.com/wordpress-performance-speed/">Speed up WordPress</a></li>
+	<li id="menu-item-104923" class="menu-item"><a href="https://www.wpbeginner.com/wordpress-security/">WordPress Security</a></li>
+	<li id="menu-item-104924" class="menu-item"><a href="https://www.wpbeginner.com/beginners-guide/how-to-choose-the-best-blogging-platform/">Best Blogging Platform</a></li>
+	<li id="menu-item-104925" class="menu-item"><a href="https://www.wpbeginner.com/beginners-guide/how-to-register-a-domain-name-simple-tip-to-get-it-for-free/">Register Domain Name</a></li>
+</ul></div><div class="sub-menu-extra"><p class="submenu-title">Helpful Resources</p>
+<ul class="is-style-arrow wp-block-list">
+<li><strong><a href="https://videos.wpbeginner.com/" target="_blank" rel="noreferrer noopener">WordPress Video Tutorials</a></strong> WPBeginner’s WordPress 101 video tutorials will teach you how to create and manage your own site(s) for FREE.</li>
+
+
+
+<li><strong><a href="https://www.facebook.com/groups/wpbeginner" target="_blank" rel="noreferrer noopener">WPBeginner Facebook Group</a></strong> Get our WordPress experts and community of 95,000+ smart website owners (it's free).</li>
+
+
+
+<li><strong><a href="https://www.wpbeginner.com/glossary/">WordPress Glossary</a></strong> WPBeginner’s WordPress Glossary lists and explain the most commonly used terms in WordPress tutorials.</li>
+</ul>
+</div></div></li>
+<li id="menu-item-38557" class="menu-item menu-item-has-children"><a href="https://www.wpbeginner.com/deals/" class="translate">Deals</a><button aria-label="Submenu Dropdown" class="submenu-expand" tabindex="-1"><svg width="10" height="10" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-chevron-down"></use></svg></button><ul class="sub-menu">	<li id="menu-item-328113" class="menu-item"><a href="https://www.wpbeginner.com/deals/bluehost-coupon/">Bluehost Coupon</a></li>
+	<li id="menu-item-328114" class="menu-item"><a href="https://www.wpbeginner.com/deals/siteground-coupon/">SiteGround Coupon</a></li>
+	<li id="menu-item-328120" class="menu-item"><a href="https://www.wpbeginner.com/deals/hostinger-coupon/">Hostinger Coupon</a></li>
+	<li id="menu-item-407458" class="menu-item"><a href="https://www.wpbeginner.com/deals/wordpress-com-coupon/">WordPress.com Coupon</a></li>
+	<li id="menu-item-328115" class="menu-item"><a href="https://www.wpbeginner.com/deals/wpengine-coupon/">WP Engine Coupon</a></li>
+	<li id="menu-item-407460" class="menu-item"><a href="https://www.wpbeginner.com/deals/rocket-coupon/">Rocket.net Coupon</a></li>
+	<li id="menu-item-407461" class="menu-item"><a href="https://www.wpbeginner.com/deals/memberpress-coupon/">MemberPress Coupon</a></li>
+	<li id="menu-item-407462" class="menu-item"><a href="https://www.wpbeginner.com/deals/dreamhost-coupon/">DreamHost Coupon</a></li>
+	<li id="menu-item-64586" class="menu-item"><a href="https://www.wpbeginner.com/deals/">View All Deals »</a></li>
+</ul></li></li>
+<li id="menu-item-233447" class="menu-item menu-item-has-children"><a href="https://videos.wpbeginner.com/" class="translate">Training</a><button aria-label="Submenu Dropdown" class="submenu-expand" tabindex="-1"><svg width="10" height="10" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-chevron-down"></use></svg></button><div class="sub-menu-wrap"><div class="sub-menu-main"><p class="submenu-title">WordPress Plugin Training</p><ul>	<li id="menu-item-256399" class="menu-item"><a href="https://videos.wpbeginner.com/courses/wpforms-101/">How to Use WPForms</a></li>
+	<li id="menu-item-256400" class="menu-item"><a href="https://videos.wpbeginner.com/courses/aioseo-101/">How to Use All in One SEO</a></li>
+	<li id="menu-item-256402" class="menu-item"><a href="https://videos.wpbeginner.com/courses/seedprod-101/">How to Use SeedProd</a></li>
+	<li id="menu-item-319810" class="menu-item"><a href="https://videos.wpbeginner.com/courses/wp-mail-smtp-101-get-started-with-wp-mail-smtp/">How to Use WP Mail SMTP</a></li>
+	<li id="menu-item-307123" class="menu-item"><a href="https://videos.wpbeginner.com/courses/wpcode/">How to Use WPCode</a></li>
+	<li id="menu-item-256403" class="menu-item"><a href="https://videos.wpbeginner.com/courses/woocommerce-101/">How to Use WooCommerce</a></li>
+	<li id="menu-item-319811" class="menu-item"><a href="https://videos.wpbeginner.com/courses/sell-digital-products-with-easy-digital-downloads/">How to Use Easy Digital Downloads</a></li>
+	<li id="menu-item-256818" class="menu-item"><a href="https://videos.wpbeginner.com/course-category/wordpress-plugins/">All Plugin Training Courses »</a></li>
+</ul></div><div class="sub-menu-extra"><p class="submenu-title">Premium WordPress Courses (for FREE!)</p>
+<ul class="wp-block-list is-style-arrow">
+<li><strong><a href="https://www.wpbeginner.com/workshop/" title="Live WordPress Workshop">FREE WPBeginner Workshop!</a></strong> Master your WordPress, SEO, and marketing skills by joining our Workshop and get live training from industry experts.</li>
+
+
+
+<li><strong><a href="https://videos.wpbeginner.com/courses/wordpress-101/">WordPress 101 Training</a></strong> Learn everything you need to know about building and managing a WordPress website or a blog on your own.</li>
+
+
+
+<li><strong><a href="https://videos.wpbeginner.com/courses/wordpress-seo-for-beginners/">WordPress SEO for Beginners</a></strong> Learn how to improve your site’s SEO like a Pro and start ranking in Google search results.</li>
+
+
+
+<li><strong><a href="https://videos.wpbeginner.com/courses/how-to-become-a-better-blogger/" title="How to Become a Better Blogger">How to Become a Better Blogger</a></strong> Learn how to start a blog, find new topic ideas, structure your blog posts for faster writing, and much more.</li>
+</ul>
+</div></div></li>
+<li id="menu-item-38561" class="two-col menu-item menu-item-has-children"><a href="https://www.wpbeginner.com/wordpress-plugins/" class="translate">Products</a><button aria-label="Submenu Dropdown" class="submenu-expand" tabindex="-1"><svg width="10" height="10" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-chevron-down"></use></svg></button><div class="sub-menu-wrap"><div class="sub-menu-main"><p class="submenu-title">Our Products</p><ul>	<li id="menu-item-407444" class="menu-item"><a href="https://www.wpbeginner.com/solutions/wpforms/">WPForms</a></li>
+	<li id="menu-item-407447" class="menu-item"><a href="https://www.wpbeginner.com/solutions/all-in-one-seo/">AIOSEO</a></li>
+	<li id="menu-item-230615" class="menu-item"><a href="https://www.wpbeginner.com/solutions/duplicator/">Duplicator</a></li>
+	<li id="menu-item-407445" class="menu-item"><a href="https://www.wpbeginner.com/solutions/wpconsent/">WPConsent</a></li>
+	<li id="menu-item-407446" class="menu-item"><a href="https://www.wpbeginner.com/solutions/optinmonster/">OptinMonster</a></li>
+	<li id="menu-item-230618" class="menu-item"><a href="https://www.wpbeginner.com/solutions/easy-digital-downloads/">Easy Digital Downloads</a></li>
+	<li id="menu-item-230617" class="menu-item"><a href="https://www.wpbeginner.com/solutions/wp-simple-pay/">WP Simple Pay</a></li>
+	<li id="menu-item-230616" class="menu-item"><a href="https://www.wpbeginner.com/solutions/wpcode/">WPCode</a></li>
+	<li id="menu-item-407449" class="menu-item"><a href="https://www.wpbeginner.com/solutions/wp-charitable/">WP Charitable</a></li>
+	<li id="menu-item-407448" class="menu-item"><a href="https://www.wpbeginner.com/solutions/wp-mail-smtp/">WP Mail SMTP</a></li>
+	<li id="menu-item-407450" class="menu-item"><a href="https://www.wpbeginner.com/solutions/affiliatewp/">AffiliateWP</a></li>
+	<li id="menu-item-407451" class="menu-item"><a href="https://www.wpbeginner.com/solutions/buddyboss/">BuddyBoss</a></li>
+	<li id="menu-item-407452" class="menu-item"><a href="https://www.wpbeginner.com/solutions/seedprod/">SeedProd</a></li>
+	<li id="menu-item-407453" class="menu-item"><a href="https://www.wpbeginner.com/solutions/universally/">Universally</a></li>
+	<li id="menu-item-407455" class="menu-item"><a href="https://www.wpbeginner.com/solutions/smash-balloon/">Smash Balloon</a></li>
+	<li id="menu-item-407456" class="menu-item"><a href="https://www.wpbeginner.com/solutions/searchwp/">SearchWP</a></li>
+</ul></div><div class="sub-menu-extra"><p class="submenu-title">Free Tools</p>
+<ul class="wp-block-list is-style-arrow">
+<li><strong><a href="https://wpvibe.ai" target="_blank" rel="noopener" title="WPVibe.ai">WPVibe.ai</a></strong> Free MCP server for WordPress, manage your WordPress site with AI.</li>
+
+
+
+<li><strong><a href="https://www.wpbeginner.com/tools/wordpress-theme-detector/" title="WordPress Theme Detector">WordPress Theme Detector</a></strong> Free tool that helps you see which theme a specific WordPress site is using.</li>
+
+
+
+<li><strong><a href="https://www.wpbeginner.com/tools/keyword-generator-tool/" title="WordPress Theme Detector">Free Keyword Generator</a></strong> Keyword research easy. Get 300+ keyword ideas about your topic from Google.</li>
+
+
+
+<li><strong><a href="https://www.wpbeginner.com/tools/" title="Free Business Tools">27+ Free Business Tools</a></strong> See all other free small business tools our team has created.</li>
+
+
+
+<li><strong><a href="https://www.wpbeginner.com/solutions/" title="Free Business Tools">WPBeginner Solution Center</a></strong> Quickly find the best WordPress tools curated by our WordPress experts.</li>
+</ul>
+</div></div></li>
+<li id="menu-item-293468" class="menu-item menu-item-has-children"><a href="https://www.wpbeginner.com/blog/" class="translate">#Trending</a><button aria-label="Submenu Dropdown" class="submenu-expand" tabindex="-1"><svg width="10" height="10" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-chevron-down"></use></svg></button><div class="sub-menu-wrap"><div class="sub-menu-main"><p class="submenu-title">Best Of</p><ul>	<li id="menu-item-293469" class="menu-item"><a href="https://www.wpbeginner.com/showcase/best-wordpress-themes/">Best WordPress Themes</a></li>
+	<li id="menu-item-293470" class="menu-item"><a href="https://www.wpbeginner.com/showcase/best-free-wordpress-blog-themes/">Best Free Blog Themes</a></li>
+	<li id="menu-item-293471" class="menu-item"><a href="https://www.wpbeginner.com/plugins/5-best-contact-form-plugins-for-wordpress-compared/">Best Contact Form Plugins</a></li>
+	<li id="menu-item-293472" class="menu-item"><a href="https://www.wpbeginner.com/beginners-guide/best-drag-and-drop-page-builders-for-wordpress/">Best WordPress Page Builders</a></li>
+	<li id="menu-item-293473" class="menu-item"><a href="https://www.wpbeginner.com/plugins/7-best-wordpress-backup-plugins-compared-pros-and-cons/">Best WordPress Backup Plugins</a></li>
+	<li id="menu-item-293474" class="menu-item"><a href="https://www.wpbeginner.com/showcase/9-best-wordpress-seo-plugins-and-tools-that-you-should-use/">Best WordPress SEO Plugins</a></li>
+	<li id="menu-item-293476" class="menu-item"><a href="https://www.wpbeginner.com/showcase/best-email-marketing-services/">Best Email Marketing Services</a></li>
+	<li id="menu-item-293483" class="menu-item"><a href="https://www.wpbeginner.com/plugins/5-best-wordpress-membership-plugins-compared/">Best Membership Plugins</a></li>
+	<li id="menu-item-293479" class="menu-item"><a href="https://www.wpbeginner.com/wordpress-hosting/">Best WordPress Hosting</a></li>
+	<li id="menu-item-407473" class="menu-item"><a href="https://www.wpbeginner.com/plugins/which-is-the-best-wordpress-calendar-plugin/">Best WordPress Calendar Plugins</a></li>
+</ul></div><div class="sub-menu-extra"><p class="submenu-title">How Tos</p>
+<ul id="block-a98777d5-5e2d-458a-aaad-572a714d2fb5" class="wp-block-list is-style-arrow">
+<li><a href="https://www.wpbeginner.com/guides/" title="How to Make a WordPress Website in 2024 (Ultimate Guide)">How to Make a WordPress Website (Step by Step)</a></li>
+
+
+
+<li><a href="https://www.wpbeginner.com/wp-tutorials/ultimate-guide-to-creating-a-wordpress-membership-site/" title="How to Create a Membership Site in WordPress">Ultimate Guide to Creating a WordPress Membership Site</a></li>
+
+
+
+<li><a href="https://www.wpbeginner.com/wp-tutorials/how-to-automatically-translate-wordpress-easy-method/" title="How to Automatically Translate Your WordPress site">How to Automatically Translate Your WordPress site</a></li>
+
+
+
+<li><a href="https://www.wpbeginner.com/beginners-guide/how-to-clear-your-cache-in-wordpress/" title="How to Clear Your Cache in WordPress (Step by Step)">How to Clear Your Cache in WordPress (Step by Step)</a> </li>
+
+
+
+<li><a href="https://www.wpbeginner.com/wp-tutorials/fix-wordpress-memory-exhausted-error-increase-php-memory/" title="How to Fix WordPress Memory Exhausted Error">How to Fix WordPress Memory Exhausted Error</a></li>
+
+
+
+<li><a href="https://www.wpbeginner.com/how-to-install-wordpress/" title="How to Install WordPress – Complete WordPress Installation Tutorial">How to Install WordPress – Complete WordPress Installation Tutorial</a></li>
+
+
+
+<li><a href="https://youtube.com/wpbeginner?sub_confirmation=1" target="_blank" rel="noreferrer noopener nofollow" title="WPBeginner on YouTube">900+ Free WordPress Video Tutorials</a></li>
+</ul>
+
+
+
+<p class="wp-block-paragraph"></p>
+</div></div></li>
+</ul></div></nav><div class="header-socials"><span class="social-label">Follow us:</span><div class="social-links"><a href="https://facebook.com/wpbeginner" target="_blank" rel="noopener nofollow" class="facebook" title="Join WPBeginner on Facebook"><svg width="24" height="24" aria-hidden="true" role="img" focusable="false"><use xlink:href="#brands-facebook-square"></use></svg></a><a href="https://x.com/wpbeginner" target="_blank" rel="noopener nofollow" class="x-color" title="Follow WPBeginner on X"><svg width="26" height="26" aria-hidden="true" role="img" focusable="false"><use xlink:href="#wpb-social-x-color"></use></svg></a><a href="https://youtube.com/wpbeginner?sub_confirmation=1" target="_blank" rel="noopener nofollow" class="youtube" title="Subscribe to WPBeginner on YouTube"><svg width="24" height="24" aria-hidden="true" role="img" focusable="false"><use xlink:href="#brands-youtube"></use></svg></a><a href="https://www.instagram.com/wpbeginner/" target="_blank" rel="noopener nofollow" class="instagram" title="Follow WPBeginner on Instagram"><svg width="24" height="24" aria-hidden="true" role="img" focusable="false"><use xlink:href="#brands-instagram"></use></svg></a><a href="https://www.facebook.com/groups/wpbeginner" target="_blank" rel="noopener nofollow" class="facebook" title="Join the WPBeginner group on Facebook"><svg width="24" height="24" aria-hidden="true" role="img" focusable="false"><use xlink:href="#solid-users"></use></svg></a><a href="https://www.pinterest.com/wpbeginner/" target="_blank" rel="noopener nofollow" class="pinterest" title="Follow WPBeginner on Pinterest"><svg width="24" height="24" aria-hidden="true" role="img" focusable="false"><use xlink:href="#brands-pinterest"></use></svg></a><a href="https://www.linkedin.com/company/wpbeginner/" target="_blank" rel="noopener nofollow" class="linkedin" title="Join WPBeginner on LinkedIn"><svg width="24" height="24" aria-hidden="true" role="img" focusable="false"><use xlink:href="#brands-linkedin"></use></svg></a><a href="https://app.monstercampaigns.com/c/vmrqpgrbcgdztg90fueg/" target="_blank" rel="noopener nofollow" class="manual-optin-trigger email" title="Join WPBeginner Weekly Email Newsletter"><svg width="24" height="24" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-envelope"></use></svg></a></div></div></div></header>    <div class="wpb-top-orange-bar">
+        <div class="wrap wpb-top-orange-bar__pre-wrap">
+            <div class="wpb-top-orange-bar__wrap">
+                <div>
+                    <div class="wpb-top-orange-bar__text">
+                        <div class="translate">Trusted WordPress tutorials, when you need them most.</div>
+                        <div class="translate">Beginner’s Guide to WordPress</div>
+                    </div>
+                    <div class="wpb-top-orange-bar__cup">
+                        <img src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/orange-cup.svg"
+                             alt="WPB Cup"
+                             width="84"
+                             height="72"
+                        />
+                    </div>
+                </div>
+		        			        <a href="https://www.wpbeginner.com/wordpress-plugins/" class="wpb-top-orange-bar__fact">                    <div class="wpb-top-orange-bar__fact--value translate">30 Million+</div>
+                    <div class="wpb-top-orange-bar__fact--label">
+                        <span class="translate">Websites using our plugins</span>
+                        <span><svg width="12" height="12" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-arrow-right"></use></svg></span>
+                    </div>
+			        </a>		        			        <a href="https://www.wpbeginner.com/about-wpbeginner/" class="wpb-top-orange-bar__fact">                    <div class="wpb-top-orange-bar__fact--value translate">20+</div>
+                    <div class="wpb-top-orange-bar__fact--label">
+                        <span class="translate">Years of WordPress experience</span>
+                        <span><svg width="12" height="12" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-arrow-right"></use></svg></span>
+                    </div>
+			        </a>		        			        <a href="https://www.wpbeginner.com/blog/" class="wpb-top-orange-bar__fact">                    <div class="wpb-top-orange-bar__fact--value translate">3000+</div>
+                    <div class="wpb-top-orange-bar__fact--label">
+                        <span class="translate">WordPress tutorials by experts</span>
+                        <span><svg width="12" height="12" aria-hidden="true" role="img" focusable="false"><use xlink:href="#regular-arrow-right"></use></svg></span>
+                    </div>
+			        </a>		                    </div>
+
+            <img src="data:image/svg+xml,%3Csvg%20xmlns=&#039;http://www.w3.org/2000/svg&#039;%20width=&#039;13&#039;%20height=&#039;12&#039;%20viewBox=&#039;0%200%2013%2012&#039;%3E%3C/svg%3E" alt width="13" height="12" class="wpb-top-orange-bar__deco-orange-left perfmatters-lazy" data-src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/deco-orange.svg" /><noscript><img src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/deco-orange.svg"
+                 alt=""
+                 width="13"
+                 height="12"
+                 class="wpb-top-orange-bar__deco-orange-left"
+            /></noscript>
+            <img src="data:image/svg+xml,%3Csvg%20xmlns=&#039;http://www.w3.org/2000/svg&#039;%20width=&#039;15&#039;%20height=&#039;16&#039;%20viewBox=&#039;0%200%2015%2016&#039;%3E%3C/svg%3E" alt width="15" height="16" class="wpb-top-orange-bar__deco-orange-star-left perfmatters-lazy" data-src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/deco-orange-star.svg" /><noscript><img src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/deco-orange-star.svg"
+                 alt=""
+                 width="15"
+                 height="16"
+                 class="wpb-top-orange-bar__deco-orange-star-left"
+            /></noscript>
+            <img src="data:image/svg+xml,%3Csvg%20xmlns=&#039;http://www.w3.org/2000/svg&#039;%20width=&#039;17&#039;%20height=&#039;16&#039;%20viewBox=&#039;0%200%2017%2016&#039;%3E%3C/svg%3E" alt width="17" height="16" class="wpb-top-orange-bar__deco-orange-right perfmatters-lazy" data-src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/deco-orange.svg" /><noscript><img src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/deco-orange.svg"
+                 alt=""
+                 width="17"
+                 height="16"
+                 class="wpb-top-orange-bar__deco-orange-right"
+            /></noscript>
+            <img src="data:image/svg+xml,%3Csvg%20xmlns=&#039;http://www.w3.org/2000/svg&#039;%20width=&#039;17&#039;%20height=&#039;19&#039;%20viewBox=&#039;0%200%2017%2019&#039;%3E%3C/svg%3E" alt width="17" height="19" class="wpb-top-orange-bar__deco-orange-star-right perfmatters-lazy" data-src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/deco-orange-star.svg" /><noscript><img src="https://www.wpbeginner.com/wp-content/themes/wpbv7/assets/images/deco-orange-star.svg"
+                 alt=""
+                 width="17"
+                 height="19"
+                 class="wpb-top-orange-bar__deco-orange-star-right"
+            /></noscript>
+        </div>
+    </div>
+	<div class="site-inner" id="main-content"><div class="wrap"><div class="content-area"><main class="site-main" id="genesis-content"><article class="type-page entry" aria-label="WPBeginner &#8211; Beginner&#8217;s Guide for WordPress" itemscope itemtype="https://schema.org/CreativeWork"><div class="entry-content" itemprop="text"><div class="wpb-block-section wpb-block-intro">
+    <div class="wpb-block-intro__columns">
+        <div>
+            <h1>Learn the Ins and Outs of WordPress from the Real WordPress Experts</h1>
+            <article class="translate">We built several WordPress brands used by over 25 million websites. Subscribe to learn the lessons we wish we knew when started.</article>
+
+            <div class="wpb-block-intro__keywords">
+				<a href='https://www.wpbeginner.com/start-a-wordpress-blog/' class='wpb-block-intro__keyword' style="--wpb-icon-color: #eab308"><svg width="20" height="20" aria-hidden="true" role="img" focusable="false" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.0341 13.0171L8.19244 13.6254C8.08167 13.6376 7.96989 13.6376 7.85911 13.6254C7.46493 13.6288 7.08616 13.4725 6.80911 13.1921C6.45305 12.8269 6.3057 12.3064 6.41744 11.8088L7.02578 8.97544C7.15501 8.41831 7.44473 7.91129 7.85911 7.5171L12.6091 2.7671H5.10911C4.17965 2.75581 3.28495 3.12005 2.62767 3.77733C1.97039 4.43461 1.60615 5.32931 1.61744 6.25877V14.8838C1.61744 16.7892 3.16206 18.3338 5.06744 18.3338H13.7008C15.6062 18.3338 17.1508 16.7892 17.1508 14.8838V7.55877L12.5008 12.2171C12.1004 12.6211 11.5905 12.8992 11.0341 13.0171Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M13.9758 2.5921C14.9402 1.48566 16.6147 1.35942 17.7341 2.30877C18.2033 2.849 18.4373 3.55425 18.3841 4.2678C18.3309 4.98135 17.9949 5.64409 17.4508 6.10877L11.8924 11.6671C11.5993 11.9444 11.2314 12.1298 10.8341 12.2004L8.01744 12.8338C7.7857 12.9013 7.53565 12.8331 7.37032 12.6572C7.20499 12.4813 7.15236

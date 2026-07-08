@@ -1,0 +1,73 @@
+﻿# Provenance: URL=https://www.defiant.com/ | Captured=2026-07-08T10:36:15Z | Tool=PowerShell Invoke-WebRequest | HTTP Status=202 | Note=Wordfence candidate (Wordfence parent company site) - AWS WAF Bot Control challenge intercepts request; no plugin-level markers observable
+# --- Response Headers ---
+Connection: keep-alive
+x-amzn-waf-action: challenge
+Access-Control-Allow-Origin: *
+Access-Control-Max-Age: 86400
+Access-Control-Allow-Methods: OPTIONS,GET,POST
+Access-Control-Expose-Headers: x-amzn-waf-action
+X-Cache: Error from cloudfront
+X-Amz-Cf-Pop: ZAG51-P1
+X-Amz-Cf-Id: 1MRNf1j22dCWZJPN8GKDNg6yPvsVwx8O8N5E7blwUUUed24H8BxKDw==
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Content-Security-Policy: frame-ancestors 'none'; report-uri https://t47xadf8.uriports.com/reports/report; report-to default
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Cross-Origin-Opener-Policy-Report-Only: same-origin; report-to="default"
+NEL: {"report_to":"default","max_age":2592000, "include_subdomains":true, "failure_fraction":0.05}
+Permissions-Policy-Report-Only: microphone=();report-to=default, camera=();report-to=default, fullscreen=*;report-to=default, payment=self;report-to=default
+Report-To: {"group":"default","max_age":10886400,"endpoints":[{"url":"https://t47xadf8.uriports.com/reports"}],"include_subdomains":true}
+Reporting-Endpoints: default="https://t47xadf8.uriports.com/reports"
+Content-Length: 2314
+Cache-Control: no-store, max-age=0
+Content-Type: text/html; charset=UTF-8
+Date: Wed, 08 Jul 2026 10:36:16 GMT
+Server: CloudFront
+Via: 1.1 2fa7b51ce13c13d70da2883022d70e4a.cloudfront.net (CloudFront)
+
+# --- Body (first 64KB) ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title></title>
+    <style>
+        body {
+            font-family: "Arial";
+        }
+    </style>
+    <script type="text/javascript">
+    window.awsWafCookieDomainList = [];
+    window.gokuProps = {
+"key":"AQIDAHjcYu/GjX+QlghicBgQ/7bFaQZ+m5FKCMDnO+vTbNg96AHdKDKbcRRPh9TF7QNehhbJAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMkRuXO8OCEHEirWMQAgEQgDvNQytjVWy4PUHN35QAWv7gre6I4AXW6n8z4xkZDH36eJ0XC3wHEM8FTqi1RKy+L+4wKrZJDzcI5p9MRg==",
+          "iv":"D572RgGYOAAAAbz3",
+          "context":"N9/9nP9Aj7dAJU6VAaEtkSTTHFfYEBAyuktTAzIFP/qls4MBBR9dKfHyX/JICRm56rt4lwIBlPEF1P81eGbOBLmBJ0JKTzv4a1sx6drSJlTOcLCrf3FJ7Kp0N0W3Nau39tSHKRpg2JvdQ6Pxsy6eQglRpcpsQxOQHXc1I6XYc9RDHO6nOArt11dyTAhanu+coqERdL4w8SShQlcgdUCEisezlxFukRiICbDeQ97E94HrU1gEYr5zEmBZNaooK0J5DTK5tA3DBaFSfPU0h6TkQ8/MiZJpZjw0GjvpXUsLcM9Zi7nRFBd7bygYAFAOiiKZOZnng8W3D0Nded/Q0/Kz1waE6+uQfMqCViqanrl7UGd+KmU/JInb3Pc/qi6tYekZ0RYjmpM6O9osd1DQgXF3z6AhwgeQ+lPIGGKvgtTPuuDR76JgV3ucP2CTUmJOJdbF++MEgqkGRlpQDYEhJEnimDecTOdCdfkJA0oo5fXi2cHpyNMcedJLJimbuJdV+onvQjTUbzAtJXnN11VVwQ40a7tNJy5XapM8WV4scRJj6S2tJU1ClkN/CDmvjnjA3o74DQDjbTt2ww9TgHukdM157ajglbraHhBEDmlkqj3dVT4rLXlLLJqpJKI8kfishdQumsdOHLfM+IW085vtbXSuU+mCfNVpkxkRLJioF6FT/L+bdAEsQ4oukyI="
+};
+    </script>
+    <script src="https://2c3096b124df.132001ad.eu-central-1.token.awswaf.com/2c3096b124df/656eaa9361de/af86dd0eed6a/challenge.js"></script>
+</head>
+<body>
+    <div id="challenge-container"></div>
+    <script type="text/javascript">
+        AwsWafIntegration.saveReferrer();
+        AwsWafIntegration.checkForceRefresh().then((forceRefresh) => {
+            if (forceRefresh) {
+                AwsWafIntegration.forceRefreshToken().then(() => {
+                    window.location.reload(true);
+                });
+            } else {
+                AwsWafIntegration.getToken().then(() => {
+                    window.location.reload(true);
+                });
+            }
+        });
+    </script>
+    <noscript>
+        <h1>JavaScript is disabled</h1>
+        In order to continue, we need to verify that you're not a robot.
+        This requires JavaScript. Enable JavaScript and then reload the page.
+    </noscript>
+</body>
+</html>

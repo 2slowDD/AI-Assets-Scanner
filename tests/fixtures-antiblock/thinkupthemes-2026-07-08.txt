@@ -1,0 +1,945 @@
+﻿# Provenance: URL=https://www.thinkupthemes.com/ | Captured=2026-07-08T10:36:15Z | Tool=PowerShell Invoke-WebRequest | HTTP Status=200 | Note=Wordfence candidate - confirmed live Wordfence Live Traffic marker (wordfence_lh / WordfenceTestMonBot) present in body
+# --- Response Headers ---
+Vary: Accept-Encoding
+Keep-Alive: timeout=5, max=100
+Connection: Keep-Alive
+Transfer-Encoding: chunked
+Cache-Control: max-age=0
+Content-Type: text/html; charset=UTF-8
+Date: Wed, 08 Jul 2026 10:36:16 GMT
+Expires: Wed, 08 Jul 2026 10:36:16 GMT
+Last-Modified: Tue, 07 Jul 2026 10:41:52 GMT
+Server: Apache
+X-Powered-By: PHP/7.4.33
+
+# --- Body (first 64KB) ---
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head><meta charset="UTF-8" /><script>if(navigator.userAgent.match(/MSIE|Internet Explorer/i)||navigator.userAgent.match(/Trident\/7\..*?rv:11/i)){var href=document.location.href;if(!href.match(/[?&]nowprocket/)){if(href.indexOf("?")==-1){if(href.indexOf("#")==-1){document.location.href=href+"?nowprocket=1"}else{document.location.href=href.replace("#","?nowprocket=1#")}}else{if(href.indexOf("#")==-1){document.location.href=href+"&nowprocket=1"}else{document.location.href=href.replace("#","&nowprocket=1#")}}}}</script><script>class RocketLazyLoadScripts{constructor(){this.triggerEvents=["keydown","mousedown","mousemove","touchmove","touchstart","touchend","wheel"],this.userEventHandler=this._triggerListener.bind(this),this.touchStartHandler=this._onTouchStart.bind(this),this.touchMoveHandler=this._onTouchMove.bind(this),this.touchEndHandler=this._onTouchEnd.bind(this),this.clickHandler=this._onClick.bind(this),this.interceptedClicks=[],window.addEventListener("pageshow",(e=>{this.persisted=e.persisted})),window.addEventListener("DOMContentLoaded",(()=>{this._preconnect3rdParties()})),this.delayedScripts={normal:[],async:[],defer:[]},this.allJQueries=[]}_addUserInteractionListener(e){document.hidden?e._triggerListener():(this.triggerEvents.forEach((t=>window.addEventListener(t,e.userEventHandler,{passive:!0}))),window.addEventListener("touchstart",e.touchStartHandler,{passive:!0}),window.addEventListener("mousedown",e.touchStartHandler),document.addEventListener("visibilitychange",e.userEventHandler))}_removeUserInteractionListener(){this.triggerEvents.forEach((e=>window.removeEventListener(e,this.userEventHandler,{passive:!0}))),document.removeEventListener("visibilitychange",this.userEventHandler)}_onTouchStart(e){"HTML"!==e.target.tagName&&(window.addEventListener("touchend",this.touchEndHandler),window.addEventListener("mouseup",this.touchEndHandler),window.addEventListener("touchmove",this.touchMoveHandler,{passive:!0}),window.addEventListener("mousemove",this.touchMoveHandler),e.target.addEventListener("click",this.clickHandler),this._renameDOMAttribute(e.target,"onclick","rocket-onclick"))}_onTouchMove(e){window.removeEventListener("touchend",this.touchEndHandler),window.removeEventListener("mouseup",this.touchEndHandler),window.removeEventListener("touchmove",this.touchMoveHandler,{passive:!0}),window.removeEventListener("mousemove",this.touchMoveHandler),e.target.removeEventListener("click",this.clickHandler),this._renameDOMAttribute(e.target,"rocket-onclick","onclick")}_onTouchEnd(e){window.removeEventListener("touchend",this.touchEndHandler),window.removeEventListener("mouseup",this.touchEndHandler),window.removeEventListener("touchmove",this.touchMoveHandler,{passive:!0}),window.removeEventListener("mousemove",this.touchMoveHandler)}_onClick(e){e.target.removeEventListener("click",this.clickHandler),this._renameDOMAttribute(e.target,"rocket-onclick","onclick"),this.interceptedClicks.push(e),e.preventDefault(),e.stopPropagation(),e.stopImmediatePropagation()}_replayClicks(){window.removeEventListener("touchstart",this.touchStartHandler,{passive:!0}),window.removeEventListener("mousedown",this.touchStartHandler),this.interceptedClicks.forEach((e=>{e.target.dispatchEvent(new MouseEvent("click",{view:e.view,bubbles:!0,cancelable:!0}))}))}_renameDOMAttribute(e,t,n){e.hasAttribute&&e.hasAttribute(t)&&(event.target.setAttribute(n,event.target.getAttribute(t)),event.target.removeAttribute(t))}_triggerListener(){this._removeUserInteractionListener(this),"loading"===document.readyState?document.addEventListener("DOMContentLoaded",this._loadEverythingNow.bind(this)):this._loadEverythingNow()}_preconnect3rdParties(){let e=[];document.querySelectorAll("script[type=rocketlazyloadscript]").forEach((t=>{if(t.hasAttribute("src")){const n=new URL(t.src).origin;n!==location.origin&&e.push({src:n,crossOrigin:t.crossOrigin||"module"===t.getAttribute("data-rocket-type")})}})),e=[...new Map(e.map((e=>[JSON.stringify(e),e]))).values()],this._batchInjectResourceHints(e,"preconnect")}async _loadEverythingNow(){this.lastBreath=Date.now(),this._delayEventListeners(),this._delayJQueryReady(this),this._handleDocumentWrite(),this._registerAllDelayedScripts(),this._preloadAllScripts(),await this._loadScriptsFromList(this.delayedScripts.normal),await this._loadScriptsFromList(this.delayedScripts.defer),await this._loadScriptsFromList(this.delayedScripts.async);try{await this._triggerDOMContentLoaded(),await this._triggerWindowLoad()}catch(e){}window.dispatchEvent(new Event("rocket-allScriptsLoaded")),this._replayClicks()}_registerAllDelayedScripts(){document.querySelectorAll("script[type=rocketlazyloadscript]").forEach((e=>{e.hasAttribute("src")?e.hasAttribute("async")&&!1!==e.async?this.delayedScripts.async.push(e):e.hasAttribute("defer")&&!1!==e.defer||"module"===e.getAttribute("data-rocket-type")?this.delayedScripts.defer.push(e):this.delayedScripts.normal.push(e):this.delayedScripts.normal.push(e)}))}async _transformScript(e){return await this._littleBreath(),new Promise((t=>{const n=document.createElement("script");[...e.attributes].forEach((e=>{let t=e.nodeName;"type"!==t&&("data-rocket-type"===t&&(t="type"),n.setAttribute(t,e.nodeValue))})),e.hasAttribute("src")?(n.addEventListener("load",t),n.addEventListener("error",t)):(n.text=e.text,t());try{e.parentNode.replaceChild(n,e)}catch(e){t()}}))}async _loadScriptsFromList(e){const t=e.shift();return t?(await this._transformScript(t),this._loadScriptsFromList(e)):Promise.resolve()}_preloadAllScripts(){this._batchInjectResourceHints([...this.delayedScripts.normal,...this.delayedScripts.defer,...this.delayedScripts.async],"preload")}_batchInjectResourceHints(e,t){var n=document.createDocumentFragment();e.forEach((e=>{if(e.src){const i=document.createElement("link");i.href=e.src,i.rel=t,"preconnect"!==t&&(i.as="script"),e.getAttribute&&"module"===e.getAttribute("data-rocket-type")&&(i.crossOrigin=!0),e.crossOrigin&&(i.crossOrigin=e.crossOrigin),n.appendChild(i)}})),document.head.appendChild(n)}_delayEventListeners(){let e={};function t(t,n){!function(t){function n(n){return e[t].eventsToRewrite.indexOf(n)>=0?"rocket-"+n:n}e[t]||(e[t]={originalFunctions:{add:t.addEventListener,remove:t.removeEventListener},eventsToRewrite:[]},t.addEventListener=function(){arguments[0]=n(arguments[0]),e[t].originalFunctions.add.apply(t,arguments)},t.removeEventListener=function(){arguments[0]=n(arguments[0]),e[t].originalFunctions.remove.apply(t,arguments)})}(t),e[t].eventsToRewrite.push(n)}function n(e,t){let n=e[t];Object.defineProperty(e,t,{get:()=>n||function(){},set(i){e["rocket"+t]=n=i}})}t(document,"DOMContentLoaded"),t(window,"DOMContentLoaded"),t(window,"load"),t(window,"pageshow"),t(document,"readystatechange"),n(document,"onreadystatechange"),n(window,"onload"),n(window,"onpageshow")}_delayJQueryReady(e){let t=window.jQuery;Object.defineProperty(window,"jQuery",{get:()=>t,set(n){if(n&&n.fn&&!e.allJQueries.includes(n)){n.fn.ready=n.fn.init.prototype.ready=function(t){e.domReadyFired?t.bind(document)(n):document.addEventListener("rocket-DOMContentLoaded",(()=>t.bind(document)(n)))};const t=n.fn.on;n.fn.on=n.fn.init.prototype.on=function(){if(this[0]===window){function e(e){return e.split(" ").map((e=>"load"===e||0===e.indexOf("load.")?"rocket-jquery-load":e)).join(" ")}"string"==typeof arguments[0]||arguments[0]instanceof String?arguments[0]=e(arguments[0]):"object"==typeof arguments[0]&&Object.keys(arguments[0]).forEach((t=>{delete Object.assign(arguments[0],{[e(t)]:arguments[0][t]})[t]}))}return t.apply(this,arguments),this},e.allJQueries.push(n)}t=n}})}async _triggerDOMContentLoaded(){this.domReadyFired=!0,await this._littleBreath(),document.dispatchEvent(new Event("rocket-DOMContentLoaded")),await this._littleBreath(),window.dispatchEvent(new Event("rocket-DOMContentLoaded")),await this._littleBreath(),document.dispatchEvent(new Event("rocket-readystatechange")),await this._littleBreath(),document.rocketonreadystatechange&&document.rocketonreadystatechange()}async _triggerWindowLoad(){await this._littleBreath(),window.dispatchEvent(new Event("rocket-load")),await this._littleBreath(),window.rocketonload&&window.rocketonload(),await this._littleBreath(),this.allJQueries.forEach((e=>e(window).trigger("rocket-jquery-load"))),await this._littleBreath();const e=new Event("rocket-pageshow");e.persisted=this.persisted,window.dispatchEvent(e),await this._littleBreath(),window.rocketonpageshow&&window.rocketonpageshow({persisted:this.persisted})}_handleDocumentWrite(){const e=new Map;document.write=document.writeln=function(t){const n=document.currentScript,i=document.createRange(),r=n.parentElement;let o=e.get(n);void 0===o&&(o=n.nextSibling,e.set(n,o));const s=document.createDocumentFragment();i.setStart(s,0),s.appendChild(i.createContextualFragment(t)),r.insertBefore(s,o)}}async _littleBreath(){Date.now()-this.lastBreath>45&&(await this._requestAnimFrame(),this.lastBreath=Date.now())}async _requestAnimFrame(){return document.hidden?new Promise((e=>setTimeout(e))):new Promise((e=>requestAnimationFrame(e)))}static run(){const e=new RocketLazyLoadScripts;e._addUserInteractionListener(e)}}RocketLazyLoadScripts.run();</script>
+
+<meta name="viewport" content="width=device-width" />
+<link rel="profile" href="//gmpg.org/xfn/11" />
+<link rel="pingback" href="https://www.thinkupthemes.com/xmlrpc.php" />
+
+<!--
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&family=Raleway:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+-->
+
+<!-- Formilla -->
+<!--
+<script type="rocketlazyloadscript" data-rocket-type="text/javascript">
+    (function () {
+        var head = document.getElementsByTagName("head").item(0);
+        var script = document.createElement("script");
+
+        var src = (document.location.protocol == 'https:'
+            ? 'https://www.formilla.com/scripts/feedback.js'
+            : 'http://www.formilla.com/scripts/feedback.js');
+
+        script.setAttribute("type", "text/javascript");
+        script.setAttribute("src", src); script.setAttribute("async", true);
+
+        var complete = false;
+
+        script.onload = script.onreadystatechange = function () {
+            if (!complete && (!this.readyState
+                    || this.readyState == 'loaded'
+                    || this.readyState == 'complete')) {
+                complete = true;
+                Formilla.guid = 'cs1cd664-011a-4c89-8727-8b4cffcb0311';
+                Formilla.loadWidgets();
+            }
+        };
+
+        head.appendChild(script);
+    })();
+</script>
+ -->
+
+
+<!--
+<link rel="preload" as="font" href="/wp-content/themes/tut/lib/extentions/fontawesome-pro/webfonts/fa-light-300.woff2" crossorigin>
+<link rel="preload" as="font" href="/wp-content/themes/tut/lib/extentions/fontawesome-pro/webfonts/fa-regular-400.woff2" crossorigin>
+<link rel="preload" as="font" href="/wp-content/themes/tut/lib/extentions/fontawesome-pro/webfonts/fa-solid-900.woff2" crossorigin>
+<link rel="preload" as="font" href="/wp-content/themes/tut/lib/extentions/fontawesome-pro/webfonts/fa-duotone-900.woff2" crossorigin>
+-->
+
+<meta name='robots' content='index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1' />
+	<style>img:is([sizes="auto" i], [sizes^="auto," i]) { contain-intrinsic-size: 3000px 1500px }</style>
+	<link rel="preconnect" href="https://cdn.justfeedback.com">
+	<!-- This site is optimized with the Yoast SEO plugin v20.8 - https://yoast.com/wordpress/plugins/seo/ -->
+	<title>Think Up Themes | Premium WordPress Themes</title>
+	<meta name="description" content="Beautiful Premium WordPress Themes with a powerful theme options panel and great support! Responsive, HD Ready, 100+ shortcodes and so much more!" />
+	<link rel="canonical" href="https://www.thinkupthemes.com/" />
+	<meta property="og:locale" content="en_US" />
+	<meta property="og:type" content="website" />
+	<meta property="og:title" content="Think Up Themes | Premium WordPress Themes" />
+	<meta property="og:description" content="Beautiful Premium WordPress Themes with a powerful theme options panel and great support! Responsive, HD Ready, 100+ shortcodes and so much more!" />
+	<meta property="og:url" content="https://www.thinkupthemes.com/" />
+	<meta property="og:site_name" content="Think Up Themes" />
+	<meta property="article:modified_time" content="2022-10-24T20:24:04+00:00" />
+	<script type="application/ld+json" class="yoast-schema-graph">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.thinkupthemes.com/","url":"https://www.thinkupthemes.com/","name":"Think Up Themes | Premium WordPress Themes","isPartOf":{"@id":"https://www.thinkupthemes.com/#website"},"datePublished":"2013-09-21T19:47:01+00:00","dateModified":"2022-10-24T20:24:04+00:00","description":"Beautiful Premium WordPress Themes with a powerful theme options panel and great support! Responsive, HD Ready, 100+ shortcodes and so much more!","breadcrumb":{"@id":"https://www.thinkupthemes.com/#breadcrumb"},"inLanguage":"en-US","potentialAction":[{"@type":"ReadAction","target":["https://www.thinkupthemes.com/"]}]},{"@type":"BreadcrumbList","@id":"https://www.thinkupthemes.com/#breadcrumb","itemListElement":[{"@type":"ListItem","position":1,"name":"Home"}]},{"@type":"WebSite","@id":"https://www.thinkupthemes.com/#website","url":"https://www.thinkupthemes.com/","name":"Think Up Themes","description":"Premium WordPress Themes","potentialAction":[{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://www.thinkupthemes.com/?s={search_term_string}"},"query-input":"required name=search_term_string"}],"inLanguage":"en-US"}]}</script>
+	<!-- / Yoast SEO plugin. -->
+
+
+<link rel='dns-prefetch' href='//js.stripe.com' />
+<link rel='dns-prefetch' href='//fonts.googleapis.com' />
+<link rel='dns-prefetch' href='//ajax.googleapis.com' />
+<link rel='dns-prefetch' href='//connect.facebook.net' />
+<link rel='dns-prefetch' href='//www.google-analytics.com' />
+<link rel='dns-prefetch' href='//www.googletagmanager.com' />
+<link rel='dns-prefetch' href='//maps.google.com' />
+<link rel='dns-prefetch' href='//rum-static.pingdom.net' />
+<link rel="alternate" type="application/rss+xml" title="Think Up Themes &raquo; Feed" href="https://www.thinkupthemes.com/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Think Up Themes &raquo; Comments Feed" href="https://www.thinkupthemes.com/comments/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Think Up Themes &raquo; Home Comments Feed" href="https://www.thinkupthemes.com/home-2/feed/" />
+<style id='wp-emoji-styles-inline-css' type='text/css'>
+
+	img.wp-smiley, img.emoji {
+		display: inline !important;
+		border: none !important;
+		box-shadow: none !important;
+		height: 1em !important;
+		width: 1em !important;
+		margin: 0 0.07em !important;
+		vertical-align: -0.1em !important;
+		background: none !important;
+		padding: 0 !important;
+	}
+</style>
+<style id='global-styles-inline-css' type='text/css'>
+:root{--wp--preset--aspect-ratio--square: 1;--wp--preset--aspect-ratio--4-3: 4/3;--wp--preset--aspect-ratio--3-4: 3/4;--wp--preset--aspect-ratio--3-2: 3/2;--wp--preset--aspect-ratio--2-3: 2/3;--wp--preset--aspect-ratio--16-9: 16/9;--wp--preset--aspect-ratio--9-16: 9/16;--wp--preset--color--black: #000000;--wp--preset--color--cyan-bluish-gray: #abb8c3;--wp--preset--color--white: #ffffff;--wp--preset--color--pale-pink: #f78da7;--wp--preset--color--vivid-red: #cf2e2e;--wp--preset--color--luminous-vivid-orange: #ff6900;--wp--preset--color--luminous-vivid-amber: #fcb900;--wp--preset--color--light-green-cyan: #7bdcb5;--wp--preset--color--vivid-green-cyan: #00d084;--wp--preset--color--pale-cyan-blue: #8ed1fc;--wp--preset--color--vivid-cyan-blue: #0693e3;--wp--preset--color--vivid-purple: #9b51e0;--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple: linear-gradient(135deg,rgba(6,147,227,1) 0%,rgb(155,81,224) 100%);--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan: linear-gradient(135deg,rgb(122,220,180) 0%,rgb(0,208,130) 100%);--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange: linear-gradient(135deg,rgba(252,185,0,1) 0%,rgba(255,105,0,1) 100%);--wp--preset--gradient--luminous-vivid-orange-to-vivid-red: linear-gradient(135deg,rgba(255,105,0,1) 0%,rgb(207,46,46) 100%);--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray: linear-gradient(135deg,rgb(238,238,238) 0%,rgb(169,184,195) 100%);--wp--preset--gradient--cool-to-warm-spectrum: linear-gradient(135deg,rgb(74,234,220) 0%,rgb(151,120,209) 20%,rgb(207,42,186) 40%,rgb(238,44,130) 60%,rgb(251,105,98) 80%,rgb(254,248,76) 100%);--wp--preset--gradient--blush-light-purple: linear-gradient(135deg,rgb(255,206,236) 0%,rgb(152,150,240) 100%);--wp--preset--gradient--blush-bordeaux: linear-gradient(135deg,rgb(254,205,165) 0%,rgb(254,45,45) 50%,rgb(107,0,62) 100%);--wp--preset--gradient--luminous-dusk: linear-gradient(135deg,rgb(255,203,112) 0%,rgb(199,81,192) 50%,rgb(65,88,208) 100%);--wp--preset--gradient--pale-ocean: linear-gradient(135deg,rgb(255,245,203) 0%,rgb(182,227,212) 50%,rgb(51,167,181) 100%);--wp--preset--gradient--electric-grass: linear-gradient(135deg,rgb(202,248,128) 0%,rgb(113,206,126) 100%);--wp--preset--gradient--midnight: linear-gradient(135deg,rgb(2,3,129) 0%,rgb(40,116,252) 100%);--wp--preset--font-size--small: 13px;--wp--preset--font-size--medium: 20px;--wp--preset--font-size--large: 36px;--wp--preset--font-size--x-large: 42px;--wp--preset--spacing--20: 0.44rem;--wp--preset--spacing--30: 0.67rem;--wp--preset--spacing--40: 1rem;--wp--preset--spacing--50: 1.5rem;--wp--preset--spacing--60: 2.25rem;--wp--preset--spacing--70: 3.38rem;--wp--preset--spacing--80: 5.06rem;--wp--preset--shadow--natural: 6px 6px 9px rgba(0, 0, 0, 0.2);--wp--preset--shadow--deep: 12px 12px 50px rgba(0, 0, 0, 0.4);--wp--preset--shadow--sharp: 6px 6px 0px rgba(0, 0, 0, 0.2);--wp--preset--shadow--outlined: 6px 6px 0px -3px rgba(255, 255, 255, 1), 6px 6px rgba(0, 0, 0, 1);--wp--preset--shadow--crisp: 6px 6px 0px rgba(0, 0, 0, 1);}:where(.is-layout-flex){gap: 0.5em;}:where(.is-layout-grid){gap: 0.5em;}body .is-layout-flex{display: flex;}.is-layout-flex{flex-wrap: wrap;align-items: center;}.is-layout-flex > :is(*, div){margin: 0;}body .is-layout-grid{display: grid;}.is-layout-grid > :is(*, div){margin: 0;}:where(.wp-block-columns.is-layout-flex){gap: 2em;}:where(.wp-block-columns.is-layout-grid){gap: 2em;}:where(.wp-block-post-template.is-layout-flex){gap: 1.25em;}:where(.wp-block-post-template.is-layout-grid){gap: 1.25em;}.has-black-color{color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-color{color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-color{color: var(--wp--preset--color--white) !important;}.has-pale-pink-color{color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-color{color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-color{color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-color{color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-color{color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-color{color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-color{color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-color{color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-color{color: var(--wp--preset--color--vivid-purple) !important;}.has-black-background-color{background-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-background-color{background-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-background-color{background-color: var(--wp--preset--color--white) !important;}.has-pale-pink-background-color{background-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-background-color{background-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-background-color{background-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-background-color{background-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-background-color{background-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-background-color{background-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-background-color{background-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-background-color{background-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-background-color{background-color: var(--wp--preset--color--vivid-purple) !important;}.has-black-border-color{border-color: var(--wp--preset--color--black) !important;}.has-cyan-bluish-gray-border-color{border-color: var(--wp--preset--color--cyan-bluish-gray) !important;}.has-white-border-color{border-color: var(--wp--preset--color--white) !important;}.has-pale-pink-border-color{border-color: var(--wp--preset--color--pale-pink) !important;}.has-vivid-red-border-color{border-color: var(--wp--preset--color--vivid-red) !important;}.has-luminous-vivid-orange-border-color{border-color: var(--wp--preset--color--luminous-vivid-orange) !important;}.has-luminous-vivid-amber-border-color{border-color: var(--wp--preset--color--luminous-vivid-amber) !important;}.has-light-green-cyan-border-color{border-color: var(--wp--preset--color--light-green-cyan) !important;}.has-vivid-green-cyan-border-color{border-color: var(--wp--preset--color--vivid-green-cyan) !important;}.has-pale-cyan-blue-border-color{border-color: var(--wp--preset--color--pale-cyan-blue) !important;}.has-vivid-cyan-blue-border-color{border-color: var(--wp--preset--color--vivid-cyan-blue) !important;}.has-vivid-purple-border-color{border-color: var(--wp--preset--color--vivid-purple) !important;}.has-vivid-cyan-blue-to-vivid-purple-gradient-background{background: var(--wp--preset--gradient--vivid-cyan-blue-to-vivid-purple) !important;}.has-light-green-cyan-to-vivid-green-cyan-gradient-background{background: var(--wp--preset--gradient--light-green-cyan-to-vivid-green-cyan) !important;}.has-luminous-vivid-amber-to-luminous-vivid-orange-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-amber-to-luminous-vivid-orange) !important;}.has-luminous-vivid-orange-to-vivid-red-gradient-background{background: var(--wp--preset--gradient--luminous-vivid-orange-to-vivid-red) !important;}.has-very-light-gray-to-cyan-bluish-gray-gradient-background{background: var(--wp--preset--gradient--very-light-gray-to-cyan-bluish-gray) !important;}.has-cool-to-warm-spectrum-gradient-background{background: var(--wp--preset--gradient--cool-to-warm-spectrum) !important;}.has-blush-light-purple-gradient-background{background: var(--wp--preset--gradient--blush-light-purple) !important;}.has-blush-bordeaux-gradient-background{background: var(--wp--preset--gradient--blush-bordeaux) !important;}.has-luminous-dusk-gradient-background{background: var(--wp--preset--gradient--luminous-dusk) !important;}.has-pale-ocean-gradient-background{background: var(--wp--preset--gradient--pale-ocean) !important;}.has-electric-grass-gradient-background{background: var(--wp--preset--gradient--electric-grass) !important;}.has-midnight-gradient-background{background: var(--wp--preset--gradient--midnight) !important;}.has-small-font-size{font-size: var(--wp--preset--font-size--small) !important;}.has-medium-font-size{font-size: var(--wp--preset--font-size--medium) !important;}.has-large-font-size{font-size: var(--wp--preset--font-size--large) !important;}.has-x-large-font-size{font-size: var(--wp--preset--font-size--x-large) !important;}
+:where(.wp-block-post-template.is-layout-flex){gap: 1.25em;}:where(.wp-block-post-template.is-layout-grid){gap: 1.25em;}
+:where(.wp-block-columns.is-layout-flex){gap: 2em;}:where(.wp-block-columns.is-layout-grid){gap: 2em;}
+:root :where(.wp-block-pullquote){font-size: 1.5em;line-height: 1.6;}
+</style>
+<link data-minify="1" rel='stylesheet' id='contact-form-7-css' href='https://www.thinkupthemes.com/wp-content/cache/min/1/wp-content/plugins/contact-form-7/includes/css/styles.css?ver=1779454702' type='text/css' media='all' />
+<style id='woocommerce-inline-inline-css' type='text/css'>
+.woocommerce form .form-row .required { visibility: visible; }
+</style>
+<link data-minify="1" rel='stylesheet' id='thinkup-normalize-css' href='https://www.thinkupthemes.com/wp-content/cache/min/1/wp-content/themes/tut/lib/extentions/normalize/normalize.css?ver=1779454702' type='text/css' media='all' />
+<link rel='stylesheet' id='thinkup-uikit-css' href='https://www.thinkupthemes.com/wp-content/themes/tut/lib/extentions/uikit/css/uikit.min.css?ver=3.6.22' type='text/css' media='all' />
+<link data-minify="1" rel='stylesheet' id='font-awesome-pro-css' href='https://www.thinkupthemes.com/wp-content/cache/min/1/wp-content/themes/tut/lib/extentions/fontawesome-pro/css/all.css?ver=1779454702' type='text/css' media='all' />
+<link data-minify="1" rel='stylesheet' id='thinkup-app-css' href='https://www.thinkupthemes.com/wp-content/cache/min/1/wp-content/themes/tut/custom-css/app.css?ver=1779454702' type='text/css' media='all' />
+<link rel='stylesheet' id='thinkup-style-css' href='https://www.thinkupthemes.com/wp-content/themes/tut/style.css?ver=202604021743' type='text/css' media='all' />
+<script type="rocketlazyloadscript" data-rocket-type="text/javascript" >var siteUrl = "https://www.thinkupthemes.com";var birthday_selector = "no";</script><script type="text/javascript" src="https://www.thinkupthemes.com/wp-includes/js/jquery/jquery.min.js?ver=3.7.1" id="jquery-core-js"></script>
+<script type="text/javascript" src="https://www.thinkupthemes.com/wp-includes/js/jquery/jquery-migrate.min.js?ver=3.4.1" id="jquery-migrate-js"></script>
+<script type="rocketlazyloadscript" data-rocket-type="text/javascript" src="https://www.thinkupthemes.com/wp-content/plugins/feedfocal/public/js/feedfocal-public.js?ver=1.2.0" id="feedfocal-js" defer></script>
+<script type="rocketlazyloadscript" data-rocket-type="text/javascript" id="feedfocal-js-after">
+/* <![CDATA[ */
+<!-- JustFeedback Survey Code -->
+
+(function(j,u,s,t,f,b,k){
+j.justfeedback=function(){j.justfeedback.push(arg)};
+j.justfeedback.jf={t:'f',u:'c5733cff',s:'e52f4ec9',f:'141f8441'};
+t=u.getElementsByTagName('head')[0];
+f=u.createElement('script');f.async=1;
+f.src=s;t.appendChild(f);j.justfbk={};
+})(window,document,'https://cdn.justfeedback.com/s/jf.js');
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://js.stripe.com/v3/" id="stripe-js"></script>
+<script type="rocketlazyloadscript" data-minify="1" data-rocket-type="text/javascript" src="https://www.thinkupthemes.com/wp-content/cache/min/1/wp-content/plugins/hnfollowupemail/js/abandoned-cart.js?ver=1779454702" id="hnfue-js" defer></script>
+<link rel="https://api.w.org/" href="https://www.thinkupthemes.com/wp-json/" /><link rel="alternate" title="JSON" type="application/json" href="https://www.thinkupthemes.com/wp-json/wp/v2/pages/9523" /><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://www.thinkupthemes.com/xmlrpc.php?rsd" />
+
+<link rel='shortlink' href='https://www.thinkupthemes.com/' />
+<link rel="alternate" title="oEmbed (JSON)" type="application/json+oembed" href="https://www.thinkupthemes.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.thinkupthemes.com%2F" />
+<link rel="alternate" title="oEmbed (XML)" type="text/xml+oembed" href="https://www.thinkupthemes.com/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fwww.thinkupthemes.com%2F&#038;format=xml" />
+<!-- start Simple Custom CSS and JS -->
+<script src="https://cdn.logr-in.com/LogRocket.min.js" crossorigin="anonymous"></script>
+<script>window.LogRocket && window.LogRocket.init('43fmvl/thinkupthemes');</script><!-- end Simple Custom CSS and JS -->
+<!-- start Simple Custom CSS and JS -->
+<!-- Google tag (gtag.js) -->
+<script type="rocketlazyloadscript" async src="https://www.googletagmanager.com/gtag/js?id=G-PQDX3JWH0R"></script>
+<script type="rocketlazyloadscript">
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PQDX3JWH0R');
+</script>
+
+<!-- Track Events -->
+<script type="rocketlazyloadscript" id="tut-ga-event" strategy="afterInteractive">
+	document.addEventListener('click', function(e) {
+
+		// Assign selectors
+		const target_buy  = e.target.closest( '.button-link-cart' );
+		const target_demo = e.target.closest( '.button-link-demo' );
+
+		// Event - Button - Buy Now
+		if( target_buy ) {
+
+			console.log( 'GA4: click_buy_now - 1' );
+
+			// Assign option selector
+			const check_option = target_buy.getAttribute( 'data-option' );
+
+			// Always send the base event
+			gtag('event', 'click_buy_now', {
+				page_path: window.location.pathname
+			});
+
+			// If data-option exists, send the suffixed event too
+			if( check_option ) {
+
+				console.log( 'GA4: click_buy_now - 2' );
+
+				gtag('event', `click_buy_now_${check_option}`, {
+					page_path: window.location.pathname
+				});
+			}
+
+			return;
+		}
+
+		// Event - Button - View Demo
+		if( target_demo ) {
+
+			console.log( 'GA4: click_view_demo - 1' );
+
+			// Assign option selector
+			const check_option = target_demo.getAttribute( 'data-option' );
+
+			// Always send the base event
+			gtag('event', 'click_view_demo', {
+				page_path: window.location.pathname
+			});
+
+			// If data-option exists, send the suffixed event too
+			if( check_option ) {
+
+				console.log( 'GA4: click_view_demo - 2' );
+
+				gtag('event', `click_view_demo_${check_option}`, {
+					page_path: window.location.pathname
+				});
+			}
+
+			return;
+		}
+
+	});
+</script>
+<!-- end Simple Custom CSS and JS -->
+<meta name="generator" content="Heroic Knowledge Base v2.15.0" />
+<script type="rocketlazyloadscript" data-rocket-type="text/javascript">
+(function(url){
+	if(/(?:Chrome\/26\.0\.1410\.63 Safari\/537\.31|WordfenceTestMonBot)/.test(navigator.userAgent)){ return; }
+	var addEvent = function(evt, handler) {
+		if (window.addEventListener) {
+			document.addEventListener(evt, handler, false);
+		} else if (window.attachEvent) {
+			document.attachEvent('on' + evt, handler);
+		}
+	};
+	var removeEvent = function(evt, handler) {
+		if (window.removeEventListener) {
+			document.removeEventListener(evt, handler, false);
+		} else if (window.detachEvent) {
+			document.detachEvent('on' + evt, handler);
+		}
+	};
+	var evts = 'contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop keydown keypress keyup mousedown mousemove mouseout mouseover mouseup mousewheel scroll'.split(' ');
+	var logHuman = function() {
+		if (window.wfLogHumanRan) { return; }
+		window.wfLogHumanRan = true;
+		var wfscr = document.createElement('script');
+		wfscr.type = 'text/javascript';
+		wfscr.async = true;
+		wfscr.src = url + '&r=' + Math.random();
+		(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(wfscr);
+		for (var i = 0; i < evts.length; i++) {
+			removeEvent(evts[i], logHuman);
+		}
+	};
+	for (var i = 0; i < evts.length; i++) {
+		addEvent(evts[i], logHuman);
+	}
+})('//www.thinkupthemes.com/?wordfence_lh=1&hid=50BF86372E6FC2DD210E3B8BD0A72463');
+</script>
+<link rel="preload" as="font" href="https://www.thinkupthemes.com/wp-content/themes/tut/lib/extentions/fontawesome-pro/webfonts/fa-light-300.woff2" crossorigin>
+<link rel="preload" as="font" href="https://www.thinkupthemes.com/wp-content/themes/tut/lib/extentions/fontawesome-pro/webfonts/fa-regular-400.woff2" crossorigin>
+<link rel="preload" as="font" href="https://www.thinkupthemes.com/wp-content/themes/tut/lib/extentions/fontawesome-pro/webfonts/fa-solid-900.woff2" crossorigin>
+<link rel="preload" as="font" href="https://www.thinkupthemes.com/wp-content/themes/tut/lib/extentions/fontawesome-pro/webfonts/fa-duotone-900.woff2" crossorigin>	<noscript><style>.woocommerce-product-gallery{ opacity: 1 !important; }</style></noscript>
+	<link rel="icon" href="https://www.thinkupthemes.com/wp-content/uploads/2021/06/logo-80x80-1.png" sizes="32x32" />
+<link rel="icon" href="https://www.thinkupthemes.com/wp-content/uploads/2021/06/logo-80x80-1.png" sizes="192x192" />
+<link rel="apple-touch-icon" href="https://www.thinkupthemes.com/wp-content/uploads/2021/06/logo-80x80-1.png" />
+<meta name="msapplication-TileImage" content="https://www.thinkupthemes.com/wp-content/uploads/2021/06/logo-80x80-1.png" />
+<noscript><style id="rocket-lazyload-nojs-css">.rll-youtube-player, [data-lazy-src]{display:none !important;}</style></noscript></head>
+
+<body class="home page-template page-template-templates page-template-template-home page-template-templatestemplate-home-php page page-id-9523 theme-tut woocommerce-no-js logged-out header-style1">
+<div id="body-core" class="hfeed site">
+
+		<section id="header-notice" class="container page-intro header-notice header-notice-style1">
+	<div class="container-core">
+
+		<div class="block-text">
+			<p>25% off Theme Club. Get all 27 themes for $199! <button class = "button button-s button-v2 button-link xff6f91"><a class = "button-link-cart-OFF" href = "https://www.thinkupthemes.com/checkout/?add-to-cart=239925" data-option = "theme_club">Buy Now</a></button></p>
+		</div>
+
+	</div>
+</section>	
+	<header id="site-header">
+
+		
+		<div id="pre-header">
+		<div class="wrap-safari">
+		<div id="pre-header-core" class="main-navigation">
+
+			
+		</div>
+		</div>
+		</div>
+		<!-- #pre-header -->
+
+		<div id="header" class="w800-hide">
+		<div id="header-core">
+
+			<div id="logo">
+				<a href="https://www.thinkupthemes.com"><img src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2040%2040'%3E%3C/svg%3E" alt="Logo" width="40" height="40" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/misc/logo-40x40.png"><noscript><img src="https://www.thinkupthemes.com/wp-content/themes/tut/images/misc/logo-40x40.png" alt="Logo" width="40" height="40"></noscript></a>
+			</div>
+
+			<div id="header-links" class="main-navigation">
+			<div id="header-links-inner" class="header-links">
+				<ul id="menu-1-header-logged-out" class="menu"><li id="menu-item-274023" class="menu-notice menu-notice-new hidden menu-item menu-item-type-post_type menu-item-object-page menu-item-274023"><a href="https://www.thinkupthemes.com/hire/">Hire Developers</a></li>
+<li id="menu-item-239896" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-239896"><a href="https://www.thinkupthemes.com/why-join/">Why Join?</a></li>
+<li id="menu-item-239897" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-239897"><a href="https://www.thinkupthemes.com/page-builder/">Page Builder</a></li>
+<li id="menu-item-239898" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-239898"><a href="https://www.thinkupthemes.com/themes/">Themes</a></li>
+<li id="menu-item-239899" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-239899"><a href="https://www.thinkupthemes.com/pricing/">Pricing</a></li>
+<li id="menu-item-239900" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-239900"><a href="https://www.thinkupthemes.com/contact/">Contact</a></li>
+<li id="menu-item-239928" class="logged-out-hide menu-item menu-item-type-post_type menu-item-object-page menu-item-239928"><a href="https://www.thinkupthemes.com/support/">Support</a></li>
+<li id="menu-item-239901" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-239901"><a href="https://www.thinkupthemes.com/my-account/">My Account</a></li>
+</ul>			</div>
+			</div>
+			<!-- #header-links .main-navigation -->
+
+		</div>
+		</div>
+		<!-- #header -->
+
+		<div id="header-mobile" class="uk-scope wrapper w800-show">
+<div id="header-mobile-core" class="wrapper-core" uk-sticky="sel-target: .uk-navbar-container; cls-active: uk-navbar-sticky">
+
+	<nav id="header-mobile-sticky" class="block-flex uk-navbar-container uk-navbar-transparent uk-navbar" uk-navbar>
+
+		<div id="header-mobile-logo" class="menu-logo">
+			<a class="uk-navbar-item uk-logo" href="https://www.thinkupthemes.com">
+				<img alt="Logo" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2040%2040'%3E%3C/svg%3E" data-lazy-srcset="https://www.thinkupthemes.com/wp-content/themes/tut/images/misc/logo-80x80.png" width="40" height="40" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/misc/logo-40x40.png"><noscript><img alt="Logo" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/misc/logo-40x40.png" srcset="https://www.thinkupthemes.com/wp-content/themes/tut/images/misc/logo-80x80.png" width="40" height="40"></noscript>
+			</a>
+		</div>
+
+
+		<div id="header-mobile-toggle" class="menu-toggle">
+ 			<span class="header-toggle uk-navbar-toggle" uk-toggle="target: #header-mobile-menu">
+			 	<span class="header-toggle-bar"></span>
+			 	<span class="header-toggle-bar"></span>
+			 	<span class="header-toggle-bar"></span>
+			</span>
+		</div>
+
+	</nav>
+	<!-- #header-mobile-sticky -->
+
+	<div id="header-mobile-menu" class="uk-offcanvas" uk-offcanvas="overlay: true">
+
+		<div id="header-mobile-menu-core" class="uk-offcanvas-bar uk-flex uk-flex-column">
+
+	    <!-- This is an anchor toggling the off-canvas -->
+    	<a href="#my-id" uk-toggle></a>
+		<button	button class="uk-offcanvas-close" type="button" uk-close></button>
+
+			<ul class="uk-nav uk-nav-primary uk-margin-auto-vertical">
+
+				<li class="menu-item menu-item-top menu-item-button menu-item-login">
+					<button class="button button-link button-s button-v1 border-radius-5">
+						<a href="https://www.thinkupthemes.com/my-account">My Account</a>
+					</button>
+				</li>
+
+				<li class="menu-item menu-item-top menu-item-link menu-item-pricing">
+					<a href="https://www.thinkupthemes.com/pricing">
+						<span class="menu-name">Pricing</span>
+						<span class="menu-highlight"></span>
+					</a>
+				</li>
+
+				<li class="menu-item menu-item-top menu-item-link menu-item-themes">
+					<a href="https://www.thinkupthemes.com/themes">
+						<span class="menu-name">Themes</span>
+						<span class="menu-highlight"></span>
+					</a>
+				</li>
+
+				<li class="menu-item menu-item-top menu-item-link menu-item-builder">
+					<a href="https://www.thinkupthemes.com/page-builder">
+						<span class="menu-name">Page Builder</span>
+						<span class="menu-highlight"></span>
+					</a>
+				</li>
+
+				<li class="menu-item menu-item-top menu-item-link menu-item-why">
+					<a href="https://www.thinkupthemes.com/why-join">
+						<span class="menu-name">Why Join?</span>
+						<span class="menu-highlight"></span>
+					</a>
+				</li>
+
+				<li class="menu-item menu-item-top menu-item-link menu-item-why menu-notice menu-notice-new">
+					<a href="https://www.thinkupthemes.com/hire">
+						<span class="menu-name">Hire Developers</span>
+						<span class="menu-highlight"></span>
+					</a>
+				</li>
+
+				<li class="menu-item menu-item-top menu-item-link menu-item-contact">
+					<a href="https://www.thinkupthemes.com/contact">
+						<span class="menu-name">Contact</span>
+						<span class="menu-highlight"></span>
+					</a>
+				</li>
+
+			</ul>
+
+  		</div>
+	</div>
+	<!-- #header-mobile-menu -->
+
+</div>
+</div>
+<!-- #header-mobile -->
+	</header>
+	<!-- header -->
+
+	<main id="main" role="main">
+	<section class="container page-intro page-section page-section1 home-section home-section1">
+	<div class="container-core">
+
+		<div class="container-col home-section1-row1">
+
+			<div class="block-header">
+				<h3 class="block-title">Over 5 Million Downloads</h3>
+				<div class="block-text"><p><span class="w360-hide">We create awesome</span> WordPress Themes that look great and are easy to use. <span class="w480-hide">Take control & make hundreds of changes from our theme control panel!</span></p></div>
+			</div>
+
+			<div class="block-body">
+
+				<div class="block-buttons">
+
+					<button class="button button-link button-m button-v1 button-cart border-radius-5 margin-right-0" data-upify-event="button-cta-trial">
+						<a href="https://www.thinkupthemes.com/themes">Browse Themes</a>
+					</button>
+
+				</div>
+
+			</div>
+
+		</div>
+		<!-- .home-section1-col1 -->
+
+		<div class="container-col home-section1-row2">
+
+			<div class="block-grid grid-col-2 block-grid-center">
+
+				<div class="block-card block-style2 block-link item-1 w480-hide">
+					<a class="padding-0" href="https://www.thinkupthemes.com/themes/harest">
+						<div class="block-image">
+							<img width="1700" height="1064" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201700%201064'%3E%3C/svg%3E" alt="Harest" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/harest-desktop.jpg" /><noscript><img width="1700" height="1064" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/harest-desktop.jpg" alt="Harest" /></noscript>
+						</div>
+					</a>
+				</div>
+
+				<div class="block-card block-style2 block-link item-2 w360-hide">
+					<a class="padding-0" href="https://www.thinkupthemes.com/themes/renden">
+						<div class="block-image">
+							<img width="1700" height="1064" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201700%201064'%3E%3C/svg%3E" alt="Renden" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/renden-desktop.jpg" /><noscript><img width="1700" height="1064" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/renden-desktop.jpg" alt="Renden" /></noscript>
+						</div>
+					</a>
+				</div>
+
+				<div class="block-card block-style2 block-link item-3">
+					<a class="padding-0" href="https://www.thinkupthemes.com/themes/alante">
+						<div class="block-image">
+							<img width="1700" height="1064" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201700%201064'%3E%3C/svg%3E" alt="Alante" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/alante-desktop.jpg" /><noscript><img width="1700" height="1064" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/alante-desktop.jpg" alt="Alante" /></noscript>
+						</div>
+					</a>
+				</div>
+
+				<div class="block-card block-style2 block-link item-4 w360-hide">
+					<a class="padding-0" href="https://www.thinkupthemes.com/themes/grow">
+						<div class="block-image">
+							<img width="1700" height="1064" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201700%201064'%3E%3C/svg%3E" alt="Grow" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/grow-desktop.jpg" /><noscript><img width="1700" height="1064" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/grow-desktop.jpg" alt="Grow" /></noscript>
+						</div>
+					</a>
+				</div>
+
+				<div class="block-card block-style2 block-link item-5 w480-hide">
+					<a class="padding-0" href="https://www.thinkupthemes.com/themes/experon">
+						<div class="block-image">
+							<img width="1700" height="1064" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201700%201064'%3E%3C/svg%3E" alt="Experon" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/experon-desktop.jpg" /><noscript><img width="1700" height="1064" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/experon-desktop.jpg" alt="Experon" /></noscript>
+						</div>
+					</a>
+				</div>
+
+			</div>
+
+		</div>
+		<!-- .home-section1-col2 -->
+
+	</div>
+</section>		<section class="container page-section page-section3 home-section home-section3">
+	<div class="container-core">
+
+		<div class="container-row home-section3-row1">
+
+			<h3 class="block-title">Used by the best!</h3>
+
+		</div>
+
+		<div class="container-row home-section3-row2">
+
+			<div class="block-sites block-flex w800-block-flex-column-reverse">
+
+				<div class="block-image flex-col-5">
+					<a href="https://www.iff-braunschweig.de/" target="_blank" rel="nofollow"><img width="145" height="30" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20145%2030'%3E%3C/svg%3E" alt="iff" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/iff.png" /><noscript><img width="145" height="30" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/iff.png" alt="iff" /></noscript></a>
+				</div>
+
+				<div class="block-image flex-col-5">
+					<a href="https://www.compbiomed.eu/" target="_blank" rel="nofollow"><img width="123" height="30" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20123%2030'%3E%3C/svg%3E" alt="compbiomed" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/compbiomed.png" /><noscript><img width="123" height="30" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/compbiomed.png" alt="compbiomed" /></noscript></a>
+				</div>
+
+				<div class="block-image flex-col-5">
+					<a href="https://bhfcrc.org/" target="_blank" rel="nofollow"><img width="138" height="30" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20138%2030'%3E%3C/svg%3E" alt="bhfcrc" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/bhfcrc.png" /><noscript><img width="138" height="30" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/bhfcrc.png" alt="bhfcrc" /></noscript></a>
+				</div>
+
+				<div class="block-image flex-col-5">
+					<a href="https://starthub.london.edu/" target="_blank" rel="nofollow"><img width="182" height="30" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20182%2030'%3E%3C/svg%3E" alt="lbsioiae" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/lbsioiae.png" /><noscript><img width="182" height="30" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/lbsioiae.png" alt="lbsioiae" /></noscript></a>
+				</div>
+
+				<div class="block-image flex-col-5">
+					<a href="http://jerugroup.eng.ox.ac.uk/" target="_blank" rel="nofollow"><img width="105" height="30" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20105%2030'%3E%3C/svg%3E" class="opacity-45" alt="oxfordcmm" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/oxfordcmm.png" /><noscript><img width="105" height="30" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/users/png/oxfordcmm.png" class="opacity-45" alt="oxfordcmm" /></noscript></a>
+				</div>
+
+			</div>
+
+		</div>
+
+	</div>
+</section>	<section class="container page-section page-section4 home-section home-section4">
+	<div class="container-core">
+
+		<div class="container-row home-section4-row1">
+
+			<h3 class="block-title">We're here for our members!</h3>
+
+		</div>
+
+		<div class="container-row home-section4-row2">
+
+			<div class="block-testimonials block-style1 block-grid grid-col-3 grid-row-gap-50 grid-column-gap-40 w800-grid-col-2 w480-grid-col-1">
+
+			
+			
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/1487428828063303" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 1487428828063303" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/1487428828063303.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/1487428828063303.jpg" alt="Testimonial 1487428828063303" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>Huge thanks to Manoj from the support team for efficiently and helpfully dealing with a tech issue to do with my theme. I have very little tech knowledge, but was not made to feel...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/1456561894483330" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 1456561894483330" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/1456561894483330.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/1456561894483330.jpg" alt="Testimonial 1456561894483330" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>These guys rock - I use their themes pretty much exclusively as I have never found the need to go elsewhere, I can develop everything I need based on Thinkup products. Customer service is...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/1283414798464708" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 1283414798464708" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/1283414798464708.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/1283414798464708.jpg" alt="Testimonial 1283414798464708" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>This is a review for Think Up Themes. The time difference seems to create delays, however the service proves to be spot on. They do take you through to where you need to be...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/1111178322355024" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 1111178322355024" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/1111178322355024.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/1111178322355024.jpg" alt="Testimonial 1111178322355024" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>Manoj was so helpful via email when I just couldn't find the setting that changed a look on the website I was working on. So nice to get a timely reply. Thank You!</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/972873356185522" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 972873356185522" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/972873356185522.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/972873356185522.jpg" alt="Testimonial 972873356185522" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>I had a small problem with installing to Melos (Pro) in WordPress that I could not solve myself was written for ThinkUpThemes Support via a ticket. Mr. Afzaal answered back to me and he...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/831741413632051" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 831741413632051" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/831741413632051.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/831741413632051.jpg" alt="Testimonial 831741413632051" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>I have been with ThinkupThemes for a couple of years now and use a number of themes through my annual subscription. It is well worth the affordable annual fee, and when you do need...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/779143018891891" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="148" height="148" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20148%20148'%3E%3C/svg%3E" alt="Testimonial 779143018891891" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/779143018891891.jpg" /><noscript><img width="148" height="148" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/779143018891891.jpg" alt="Testimonial 779143018891891" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>Excellent support! I had some issues that were solved with a very detailed explanation of what to do to fix them. I recommend ThinkUpThemes if you're looking for a WordPress template.</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/759430660863127" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 759430660863127" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/759430660863127.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/759430660863127.jpg" alt="Testimonial 759430660863127" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>Thanks for the great support today with issue now resolved. Very friendly and a strong desire to help find a solution. It's reassuring to know this level of support is available. Thanks very much!...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/364059940400203" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 364059940400203" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/364059940400203.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/364059940400203.jpg" alt="Testimonial 364059940400203" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>Think Up Themes has provided great support!  Not only did they respond quickly to tickets but they even added features I wanted.  They also offered to help with a WordPress that wasn't...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/356297514509779" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="180" height="180" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20180%20180'%3E%3C/svg%3E" alt="Testimonial 356297514509779" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/356297514509779.jpg" /><noscript><img width="180" height="180" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/356297514509779.jpg" alt="Testimonial 356297514509779" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>I just wanted to send a quick message to you and say thank you for developing a great set of themes.  I have been working with Misteek for just over a week now...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/353953391410858" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 353953391410858" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/353953391410858.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/353953391410858.jpg" alt="Testimonial 353953391410858" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>After the installation of a theme, I had a problem with a plugin. I opened a ticket on the support. I had contact with a professional person worried about my request. The problem was...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+				<div class="block-testimonial block-link">
+
+					<a href="https://www.facebook.com/ThinkUpThemes/posts/349011311905066" target="_blank" rel="nofollow">
+
+						<div class="block-image">
+							<img width="200" height="200" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3C/svg%3E" alt="Testimonial 349011311905066" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/349011311905066.jpg" /><noscript><img width="200" height="200" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/testimonials/jpg/349011311905066.jpg" alt="Testimonial 349011311905066" /></noscript>
+						</div>
+
+						<div class="block-text">
+							<p>Just started using the engrave theme today for our stores website and we love it. The support is excellent and the features are easy enough. It takes some getting used to but after playing...</p>
+						</div>
+
+						<div class="block-media">
+							<i class="fad fa-quote-right"></i>
+						</div>
+
+					</a>
+
+				</div>
+
+			
+			</div>
+
+		</div>
+
+	</div>
+</section>	<section class="container page-section page-section2 home-section home-section5">
+	<div class="container-core">
+
+		<div class="container-row home-section5-row1">
+
+			<h3 class="block-title">Choose from 27 amazing themes!</h3>
+
+		</div>
+
+		<div class="container-row home-section5-row2">
+
+			
+			<div class="block-products block-style1 block-grid grid-col-3 grid-row-gap-30 grid-column-gap-30 w800-grid-col-2 w480-grid-col-1">
+
+				
+					<div class="block-product">
+
+						<a class="block-link" href="https://www.thinkupthemes.com/themes/consulting/">
+
+							<div class="block-header">
+
+								<div class="block-media">
+									<img width="1700" height="1064" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201700%201064'%3E%3C/svg%3E" alt="consulting" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/consulting-desktop.jpg" ><noscript><img width="1700" height="1064" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/consulting-desktop.jpg" alt="consulting" ></noscript>
+								</div>
+
+							</div>
+							<!-- .block-header -->
+
+							<div class="block-body">
+
+								<div class="block-text">
+									Engage with your visitors like never before
+with the beauty of Consulting (Pro)								</div>
+
+							</div>
+							<!-- .block-body -->
+
+							<div class="block-footer block-flex">
+
+								<div class="block-text block-name flex-col-2">
+									Consulting Pro								</div>
+
+								<div class="block-text block-price flex-col-2">
+									from $								</div>
+
+							</div>
+							<!-- .block-footer -->
+
+						</a>
+						<!-- .block-link -->
+
+					</div>
+					<!-- .block-product -->
+
+				
+					<div class="block-product">
+
+						<a class="block-link" href="https://www.thinkupthemes.com/themes/harest/">
+
+							<div class="block-header">
+
+								<div class="block-media">
+									<img width="1700" height="1064" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201700%201064'%3E%3C/svg%3E" alt="harest" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/harest-desktop.jpg" ><noscript><img width="1700" height="1064" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/harest-desktop.jpg" alt="harest" ></noscript>
+								</div>
+
+							</div>
+							<!-- .block-header -->
+
+							<div class="block-body">
+
+								<div class="block-text">
+									So simple to use, yet so powerful!
+Harest (Pro) truly has it all.								</div>
+
+							</div>
+							<!-- .block-body -->
+
+							<div class="block-footer block-flex">
+
+								<div class="block-text block-name flex-col-2">
+									Harest Pro								</div>
+
+								<div class="block-text block-price flex-col-2">
+									from $								</div>
+
+							</div>
+							<!-- .block-footer -->
+
+						</a>
+						<!-- .block-link -->
+
+					</div>
+					<!-- .block-product -->
+
+				
+					<div class="block-product">
+
+						<a class="block-link" href="https://www.thinkupthemes.com/themes/minamaze/">
+
+							<div class="block-header">
+
+								<div class="block-media">
+									<img width="1700" height="1064" src="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%201700%201064'%3E%3C/svg%3E" alt="minamaze" data-lazy-src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/minamaze-desktop.jpg" ><noscript><img width="1700" height="1064" src="https://www.thinkupthemes.com/wp-content/themes/tut/images/themes/pro/desktop/minamaze-desktop.jpg" alt="minamaze" ></noscript>
+								</div>
+
+							</div>
+							<!-- .block-header -->
+
+							<div class="block-body">
+
+								<div class="block-text">
+									Show off your business in style with this beautiful minimal design.								</div>
+
+							</div>
+							<!-- .block-body -->
+
+							<div class="block-footer block-flex">
+
+								<div class="block-text block-name flex-col-2">
+									Minamaze Pro								</div>
+
+								<div class="block-text block-price flex-col-2">
+									from $								</div>
+
+							</div>
+							<!-- .block-footer -->
+
+						</a>
+						<!-- .block-link -->
+
+					</div>
+					<!-- .block-product -->
+
+				
+					<div class="block-product">
+
+						<a class="block-link" href="https://www.thinkupthemes.com/themes/ryan/">
+
+							<div class="block-header">
+
+								<div class="block-media">
+			

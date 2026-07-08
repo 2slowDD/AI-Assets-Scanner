@@ -1,0 +1,70 @@
+﻿# Provenance: URL=https://www.wordfence.com/ | Captured=2026-07-08T10:36:15Z | Tool=PowerShell Invoke-WebRequest | HTTP Status=202 | Note=Wordfence candidate (official product site) - AWS WAF Bot Control challenge intercepts request; no plugin-level markers observable
+# --- Response Headers ---
+Connection: keep-alive
+x-amzn-waf-action: challenge
+Access-Control-Allow-Origin: *
+Access-Control-Max-Age: 86400
+Access-Control-Allow-Methods: OPTIONS,GET,POST
+Access-Control-Expose-Headers: x-amzn-waf-action
+X-Cache: Error from cloudfront
+X-Amz-Cf-Pop: ZAG51-P1
+Alt-Svc: h3=":443"; ma=86400
+X-Amz-Cf-Id: 7xIsKHEDrZKkhmbRzuoRxSMe4386JhdbEms21plFS4WV9J5f7kGqhg==
+X-XSS-Protection: 1; mode=block
+X-Frame-Options: SAMEORIGIN
+Referrer-Policy: strict-origin-when-cross-origin
+Content-Security-Policy: frame-ancestors 'self'; report-uri https://t47xadf8.uriports.com/reports/report; report-to default
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=31536000
+Content-Length: 2278
+Cache-Control: no-store, max-age=0
+Content-Type: text/html; charset=UTF-8
+Date: Wed, 08 Jul 2026 10:36:16 GMT
+Server: CloudFront
+Via: 1.1 5d91042bb00778529e617fce80ae1068.cloudfront.net (CloudFront)
+
+# --- Body (first 64KB) ---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title></title>
+    <style>
+        body {
+            font-family: "Arial";
+        }
+    </style>
+    <script type="text/javascript">
+    window.awsWafCookieDomainList = [];
+    window.gokuProps = {
+"key":"AQIDAHjcYu/GjX+QlghicBgQ/7bFaQZ+m5FKCMDnO+vTbNg96AHdKDKbcRRPh9TF7QNehhbJAAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMkRuXO8OCEHEirWMQAgEQgDvNQytjVWy4PUHN35QAWv7gre6I4AXW6n8z4xkZDH36eJ0XC3wHEM8FTqi1RKy+L+4wKrZJDzcI5p9MRg==",
+          "iv":"D572aAGbRAAAAZ6c",
+          "context":"nft9yyQMGgUU1VYL3ebcBFjNlhKJbcKCoXnChyd+hjOTwQ8RwcD3VIOPrs2oLzPuqdt/edm+DtVpZdfm+qb4b8sJwgDKrytP4vsdDZh6081kYXVe0gWSrhkG8Ub6PG17iV1XZnCZM9P1RtHHqZ84tkofPx/idbqeNyxYnkGQAfeVXfRwrhLTKZp1l9pOTfBsh6VYp2Pj4Zy8kRWSLqRxz3ztNEMOiZgj1OXusKpCbYsoHBCjNimyUYNFXlHXV2W9CwNHlBpnq+dSyPJrXn28LRuItbmGteV+ieF9yvRgo/yQWJBd2Z/R2Zf5NaVvqYC9yawm9yvazdhQe/Msv8BBHBy3nPAr09OzL3SrrHzFjVCvNvSXnkdRBgdm7Tut8Vl5axiuyu7UH3Asj0Y0sfaZpILm/EosSPXUcOEg/TPWgOkcGCjz3acUfU4w58oUljNSloNRvndLNd2+5nLDAGPI1iyHbUR1bUKDzEXW6KX2eDvLQGzFDifZCuDkdfjoA2jVeFg/Zw4xZ4qk3zqXW70JvAP7wUkPyaDnEupcVuET/ao0Zc6lrN7ktpVkTuGBr22qs32eRAuppNhgI3L9Dh+LAe04SSbr7VaYkPY9dCopfxPJ6QNgvRL0+ZkwEn8e4DUo/4qHEmBMvRE9TOZSrg=="
+};
+    </script>
+    <script src="https://124e5c20ff6f.c864d3c5.eu-central-1.token.awswaf.com/124e5c20ff6f/61401095f0aa/2dfc86b92487/challenge.js"></script>
+</head>
+<body>
+    <div id="challenge-container"></div>
+    <script type="text/javascript">
+        AwsWafIntegration.saveReferrer();
+        AwsWafIntegration.checkForceRefresh().then((forceRefresh) => {
+            if (forceRefresh) {
+                AwsWafIntegration.forceRefreshToken().then(() => {
+                    window.location.reload(true);
+                });
+            } else {
+                AwsWafIntegration.getToken().then(() => {
+                    window.location.reload(true);
+                });
+            }
+        });
+    </script>
+    <noscript>
+        <h1>JavaScript is disabled</h1>
+        In order to continue, we need to verify that you're not a robot.
+        This requires JavaScript. Enable JavaScript and then reload the page.
+    </noscript>
+</body>
+</html>
