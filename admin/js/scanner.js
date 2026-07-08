@@ -331,12 +331,23 @@
                 '<div class="cu-probe-dialog-body">' +
                     '<h2>Target site detection</h2>' +
                     summaryHtml +
-                    '<p>Continue with scan?</p>' +
+                    '<p class="cu-probe-continue-prompt">Continue with scan?</p>' +
                     '<div class="cu-probe-dialog-actions">' +
                         '<button type="button" class="button button-secondary cu-probe-cancel">Cancel</button>' +
                         '<button type="button" class="button button-primary cu-probe-continue">Continue</button>' +
                     '</div>' +
                 '</div>';
+
+            // FU-ANTIBLOCK-1 (spec §3.3) — surface any security stacks detected on the
+            // probed hosts (security_stacks[] from Tasks 2/4) BEFORE the continue prompt,
+            // so the operator can bail before spending credits. DOM insertion (not string
+            // concat into innerHTML) — stack ids come from the wire, treated as untrusted.
+            const secBlock = buildSecurityStackBlock(probeData.per_host_results || []);
+            if (secBlock) {
+                const body = dialog.querySelector('.cu-probe-dialog-body');
+                const continuePrompt = body.querySelector('.cu-probe-continue-prompt');
+                body.insertBefore(secBlock, continuePrompt);
+            }
 
             let resolved = false;
             function done(value) {
@@ -351,6 +362,131 @@
                 done(false);
             });
             dialog.querySelector('.cu-probe-continue').addEventListener('click', function () {
+                done(true);
+            });
+            dialog.addEventListener('click', function (e) {
+                if (e.target === dialog) done(false);
+            });
+            dialog.addEventListener('close', function () { done(false); });
+
+            document.body.appendChild(dialog);
+            dialog.showModal();
+        });
+    }
+
+    /**
+     * FU-ANTIBLOCK-1 (spec §3.3) — build a DOM block listing the security stacks
+     * detected across the probed hosts (per_host_results[].security_stacks, wired
+     * in Tasks 2/4). Returns null when no host reported any stack ids. All dynamic
+     * bits (stack ids, joined names) go in via textContent/createTextNode — never
+     * string-concatenated into innerHTML — because stack ids come from the wire.
+     */
+    function buildSecurityStackBlock(results) {
+        const ids = [];
+        (results || []).forEach(function (r) {
+            (r.security_stacks || []).forEach(function (id) { if (ids.indexOf(id) === -1) ids.push(id); });
+        });
+        if (!ids.length) return null;
+        const names = (typeof cuReasonCopy === 'object' && cuReasonCopy && cuReasonCopy.stack_names) || {};
+        const wrap = document.createElement('div');
+        wrap.className = 'cu-security-stack-block';
+        const h = document.createElement('p');
+        h.innerHTML = '<strong>Security stack detected:</strong> ';
+        h.appendChild(document.createTextNode(ids.map(function (id) { return names[id] || id; }).join(', ')));
+        wrap.appendChild(h);
+        const p = document.createElement('p');
+        p.textContent = 'The scan may be challenged or blocked. Set up the scanner exemption before spending credits, or continue anyway.';
+        wrap.appendChild(p);
+        if (typeof cuReasonCopy === 'object' && cuReasonCopy && cuReasonCopy.settings_url) {
+            const a = document.createElement('a');
+            a.setAttribute('href', cuReasonCopy.settings_url);
+            a.setAttribute('target', '_blank');
+            a.textContent = 'Open the exemption instructions';
+            wrap.appendChild(a);
+        }
+        return wrap;
+    }
+
+    /**
+     * FU-ANTIBLOCK-2 (spec §3.4) — same-site pre-scan warning dialog. Mirrors the
+     * showProbeOutcomeDialog() skeleton above (Promise<boolean>, cancel/continue
+     * buttons, backdrop-click + close both resolve false). Fires when a same-site
+     * URL is selected AND either the detected CDN is unacknowledged or a security
+     * plugin is active on this site (gate lives at the Start-Scan click handler,
+     * AFTER the external probe modal — AC-6b ordering).
+     */
+    function showLocalStackDialog(ls, cdnUnacked, secPlugins) {
+        return new Promise(function (resolve) {
+            const dialog = document.createElement('dialog');
+            dialog.className = 'cu-local-stack-dialog';
+
+            const names       = (typeof cuReasonCopy === 'object' && cuReasonCopy && cuReasonCopy.stack_names) || {};
+            const settingsUrl = (typeof cuReasonCopy === 'object' && cuReasonCopy && cuReasonCopy.settings_url) || '';
+
+            dialog.innerHTML =
+                '<div class="cu-probe-dialog-body">' +
+                    '<h2>Your site’s security stack</h2>' +
+                    '<ul class="cu-local-stack-list"></ul>' +
+                    '<p class="cu-probe-continue-prompt">Continue with scan?</p>' +
+                    '<div class="cu-probe-dialog-actions">' +
+                        '<button type="button" class="button button-secondary cu-local-cancel">Cancel</button>' +
+                        '<button type="button" class="button button-primary cu-local-continue">Continue</button>' +
+                    '</div>' +
+                '</div>';
+
+            const list = dialog.querySelector('.cu-local-stack-list');
+
+            // CDN leg — reuses the appendRemediation-style shape (line + settings anchor)
+            // from renderBrokenBanner: textContent for all dynamic bits, DOM-built anchor.
+            if (cdnUnacked) {
+                const li = document.createElement('li');
+                const label = document.createElement('strong');
+                label.textContent = (names[ls.cdn] || ls.cdn) + ': ';
+                li.appendChild(label);
+                li.appendChild(document.createTextNode(
+                    'This CDN may challenge or block the scanner. Consider temporarily disabling it, or setting up the scanner exemption before scanning. '
+                ));
+                if (settingsUrl) {
+                    const a = document.createElement('a');
+                    a.setAttribute('href', settingsUrl);
+                    a.setAttribute('target', '_blank');
+                    a.textContent = 'Open the exemption instructions';
+                    li.appendChild(a);
+                }
+                list.appendChild(li);
+            }
+
+            // Plugin legs — one <li> per active security plugin (label + warning via
+            // textContent); optional settings anchor when the plugin ships one.
+            (secPlugins || []).forEach(function (p) {
+                const li = document.createElement('li');
+                const label = document.createElement('strong');
+                label.textContent = (p.label || 'Security plugin') + ': ';
+                li.appendChild(label);
+                li.appendChild(document.createTextNode(p.warning || ''));
+                if (p.anchor) {
+                    li.appendChild(document.createTextNode(' '));
+                    const a = document.createElement('a');
+                    a.setAttribute('href', 'admin.php?page=cu-scanner-settings#' + p.anchor);
+                    a.textContent = 'Open settings';
+                    li.appendChild(a);
+                }
+                list.appendChild(li);
+            });
+
+            let resolved = false;
+            function done(value) {
+                if (resolved) return;
+                resolved = true;
+                resolve(value);
+                if (dialog.open) dialog.close();
+                dialog.remove();
+            }
+
+            dialog.querySelector('.cu-local-cancel').addEventListener('click', function () {
+                done(false);
+            });
+            dialog.querySelector('.cu-local-continue').addEventListener('click', function () {
                 done(true);
             });
             dialog.addEventListener('click', function (e) {
@@ -1199,6 +1335,17 @@
                 // was detected as a passive inline notice (FU-AAS-CACHE-STACK-NOTICE-MISSING).
                 renderTargetStackNotice(probeResult.data);
             }
+        }
+
+        // FU-ANTIBLOCK-2 (spec §3.4) — same-site pre-scan warning. Fires at most
+        // once per Start-Scan, AFTER the external probe modal (AC-6b ordering).
+        const hasSameSite = selectedUrls.some(function (u) { return !isExternalUrl(u); });
+        const ls = (typeof cuLocalStack === 'object' && cuLocalStack) || {};
+        const cdnUnacked = ls.cdn && ls.cdn !== ls.acknowledged;
+        const secPlugins = ls.security_plugins || [];
+        if (hasSameSite && (cdnUnacked || secPlugins.length > 0)) {
+            const proceed = await showLocalStackDialog(ls, cdnUnacked, secPlugins);
+            if (!proceed) return; // Cancel aborts BEFORE cu_scanner_reserve_job (AC-6b)
         }
 
         // FU-AAS-SUFFIX-DROP-ON-RESOLVE — carried-over ET URLs are scanned byte-identically;
@@ -2261,39 +2408,46 @@
         if ( blockedD > 0 ) bits.push( 'Desktop scanner blocked on ' + blockedD + ' of ' + total + ' pages.' );
         if ( blockedM > 0 ) bits.push( 'Mobile scanner blocked on '  + blockedM + ' of ' + total + ' pages.' );
 
-        const phraseMap = {
-            tier2_cf_challenge:       'Cloudflare challenge',
-            tier2_akamai_challenge:   'Akamai Bot Manager',
-            tier2_imperva_challenge:  'Imperva WAF',
-            tier2_waf_challenge:      'firewall/WAF',
-            tier2_unknown_challenge:  'bot/firewall protection (unidentified)',
-            tier2_rocket_loader_stub: 'Cloudflare Rocket-Loader stub',
-            tier2_small_body:         'asymmetric stub response',
-            tier1_zero_bytes:         'empty response',
-            tier1_http_4xx:           'site denial (4xx)',
-            tier1_http_5xx:           'site error (5xx)',
-            tier1_http_rate_limit:    'rate limit (429)',
-            tier1_transport_error:    'unreachable',
-            // FU-NEW-X-A (2026-05-17 PM late): synthetic reason used by the AAS PHP
-            // fallback at class-scanner-ajax.php:~594 when a page has status='error'
-            // but no broken_devices payload (scan errored before broken-device
-            // detection populated). Keeps the banner visible on hard-error external
-            // scans (e.g., pre-probe-confirmed 403 that proceeds to a failing scan).
-            scan_errored:             'scan errored',
-        };
-        const phrases = [...new Set( Object.keys(reasons).map( k => phraseMap[k] || k ) )];
+        // FU-ANTIBLOCK-1 — copy comes from PHP single source (class-broken-banner.php
+        // export_copy_map via cuReasonCopy). Defensive defaults keep the banner
+        // functional (raw keys) if localization is absent (AC-4).
+        const REASON_COPY = (typeof cuReasonCopy === 'object' && cuReasonCopy) || {};
+        const PHRASES     = REASON_COPY.phrases || {};
+        const REMEDIATION = REASON_COPY.remediation || {};
+        const CATEGORIES  = REASON_COPY.categories || {};
+        // PHP-side fallback key kept from the old literal:
+        if (!PHRASES.scan_errored) PHRASES.scan_errored = 'scan errored';
+        function reasonPhrase(k) { return PHRASES[k] || k; }
+        function reasonCategory(k) { return CATEGORIES[k] || 'bot'; }
+
+        // appendRemediation() — appends a per-reason remediation line (plain text via
+        // textContent) to the banner body node, plus a DOM-built settings anchor when
+        // this reason is one of the settings_link_keys (AC-4 — never string-concat the
+        // URL into innerHTML). Called once per distinct reason key after the banner's
+        // innerHTML is assigned (see call site below).
+        function appendRemediation(container, reasonKey) {
+            const line = REMEDIATION[reasonKey];
+            if (!line) return;
+            const div = document.createElement('div');
+            div.className = 'cu-reason-remediation';
+            div.textContent = line;
+            if ((REASON_COPY.settings_link_keys || []).indexOf(reasonKey) !== -1 && REASON_COPY.settings_url) {
+                div.appendChild(document.createTextNode(' '));
+                const a = document.createElement('a');
+                a.setAttribute('href', REASON_COPY.settings_url);
+                a.textContent = 'Open AI Assets Scanner settings';
+                div.appendChild(a);
+            }
+            container.appendChild(div);
+        }
+
+        const phrases = [...new Set( Object.keys(reasons).map( k => reasonPhrase(k) ) )];
         const reasonClause = phrases.length ? ' (' + phrases.map(esc).join(', ') + ')' : '';
 
         // Per-reason action copy — must match class-broken-banner.php:108-156
-        // (reason_category + action_clause). Mixed-category reasons fall back to
-        // the generic 'bot' clause, matching the PHP-side fallback.
-        function reasonCategory( reason ) {
-            if ( reason === 'tier1_http_rate_limit' ) return 'rate';
-            // 'scan_errored' is the PHP-side synthetic reason from class-scanner-ajax.php
-            // when a page has status='error' but no broken_devices — maps to 'error' copy.
-            if ( reason === 'tier1_http_4xx' || reason === 'tier1_http_5xx' || reason === 'tier1_transport_error' || reason === 'scan_errored' ) return 'error';
-            return 'bot';
-        }
+        // (reason_category + action_clause, now sourced from cuReasonCopy.categories
+        // instead of a duplicated local map/function). Mixed-category reasons fall
+        // back to the generic 'bot' clause, matching the PHP-side fallback.
         const categories = [...new Set( Object.keys(reasons).map(reasonCategory) )];
         let action;
         if ( categories.length === 1 && categories[0] === 'rate' ) {
@@ -2320,6 +2474,15 @@
             '<p>' + copy + cdnLink + '</p>' +
             '<p><button type="button" class="button aias-dismiss-banner">Got it \u2014 don\'t show again for this scan</button></p>' +
             '</div>';
+
+        // FU-ANTIBLOCK-1 (spec 3.1) - append per-reason remediation copy (once per
+        // distinct blocked_reasons key) to the freshly-rendered banner body node.
+        const bannerEl = area.querySelector('.aias-broken-banner');
+        if (bannerEl) {
+            Object.keys(reasons).forEach(function (reasonKey) {
+                appendRemediation(bannerEl, reasonKey);
+            });
+        }
     }
 
     // Dismiss banner via AJAX (event delegation \u2014 banner is injected dynamically).
