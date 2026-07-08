@@ -79,6 +79,25 @@ final class Detector {
     }
 
     /**
+     * FU-ANTIBLOCK-2 (spec §3.4 / d-review M2) — non-sniffing read for hot paths
+     * (scanner-page render). Inbound-request detection + transient cache ONLY;
+     * returns null on cold cache instead of self-sniffing. The full detect()
+     * (with its blocking wp_remote_get fallback) stays settings-page-only.
+     */
+    public function detect_cached(): ?string {
+        $from_request = $this->detect_from_request();
+        if ( null !== $from_request ) {
+            set_transient( self::CACHE_KEY, $from_request, self::TTL_HIT );
+            return $from_request;
+        }
+        $cached = get_transient( self::CACHE_KEY );
+        if ( $cached !== false ) {
+            return $cached === '' ? null : $cached;
+        }
+        return null;
+    }
+
+    /**
      * Detect CDN from the current inbound request's $_SERVER headers.
      *
      * Normalises HTTP_* keys (strip prefix, lowercase, underscores → dashes) and
