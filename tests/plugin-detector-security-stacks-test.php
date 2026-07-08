@@ -33,6 +33,12 @@ aias_assert( PluginDetector::detect_security_stacks( $clean_headers, $clean_body
 $cf_body = '<html><head><script src="/cdn-cgi/challenge-platform/h/b/orchestrate"></script></head></html>';
 aias_assert( PluginDetector::detect_security_stacks( $clean_headers, $cf_body, true ) === [ 'cloudflare' ], 'CF via body marker' );
 
+// ── AC-T2-6 hoist invariant: detect_security_stacks must NEVER recompute the scoped body ──
+$extract_before = PluginDetector::$extract_call_count;
+PluginDetector::detect_security_stacks( $cf_headers, $imperva_body, true );
+PluginDetector::detect_security_stacks( $clean_headers, $clean_body, false, '<head>pre-hoisted scoped body</head>' );
+aias_assert( PluginDetector::$extract_call_count === $extract_before, 'detect_security_stacks never calls extract_non_text_zones (AC-T2-6 hoist invariant)' );
+
 // ── active_security_warn_ids (same-site leg, spec §3.4) ──
 $GLOBALS['aias_test_active'] = [ 'wordfence/wordfence.php' ];
 $ids = PluginDetector::active_security_warn_ids();

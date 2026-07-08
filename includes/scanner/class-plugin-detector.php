@@ -481,13 +481,19 @@ class PluginDetector {
      * FU-ANTIBLOCK-2 — match SECURITY_STACKS against an already-fetched probe
      * response. Pure function over ($headers, $body): no HTTP, no state.
      * Returns stack ids in table order.
+     *
+     * $scoped_body MUST be the caller's pre-hoisted extract_non_text_zones()
+     * output (AC-T2-6: never recompute here). Null = no scoped body available;
+     * pattern rows are skipped.
      */
-    public static function detect_security_stacks( array $headers, string $body, bool $use_range ): array {
+    public static function detect_security_stacks( array $headers, string $body, bool $use_range, ?string $scoped_body = null ): array {
         $hits = [];
         foreach ( self::SECURITY_STACKS as $id => $entry ) {
             $h = self::header_match( $headers, $entry['target_headers'] ?? [] );
-            $b = self::body_match( $body, $entry['target_body_markers'] ?? [], $use_range )
-              || self::body_match_pattern( self::extract_non_text_zones( $use_range ? substr( $body, 0, self::BODY_SCAN_MAX_BYTES ) : $body ), $entry['target_body_pattern'] ?? null );
+            $b = self::body_match( $body, $entry['target_body_markers'] ?? [], $use_range );
+            if ( ! $b && null !== ( $entry['target_body_pattern'] ?? null ) && null !== $scoped_body ) {
+                $b = self::body_match_pattern( $scoped_body, $entry['target_body_pattern'] );
+            }
             if ( $h || $b ) {
                 $hits[] = $id;
             }
@@ -965,7 +971,7 @@ class PluginDetector {
                 }
             }
         }
-        $security_stacks = self::detect_security_stacks( $headers, $body, $use_range );
+        $security_stacks = self::detect_security_stacks( $headers, $body, $use_range, $scoped_body );
         $is_wordpress = self::is_wordpress_target( $headers, $body );
 
         $outcome = self::classify_outcome( false, $is_wordpress, $detected );
