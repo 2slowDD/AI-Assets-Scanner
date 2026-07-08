@@ -1783,7 +1783,8 @@ class ScannerAjax {
     private static function strip_to_whitelist( array $r ): array {
         static $allowed = [ 'host','outcome','detected','bypass_suffixes','is_wordpress',
                             'probed_url_1','probed_url_2','probe_failed','probe_duration_ms',
-                            'cache_hit','reason','protocol_downgrade' ];
+                            'cache_hit','reason','protocol_downgrade',
+                            'security_stacks' /* internal SECURITY_STACKS registry ids only (spec 3.3); never raw response content — safe through the AC-N2-SSRF allowlist */ ];
         return array_intersect_key( $r, array_flip( $allowed ) );
     }
 
