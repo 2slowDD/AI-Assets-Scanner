@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.68b - 2026-07-08
+
+### Added — "Don't show this again" on the same-site security-stack warning (FU-ANTIBLOCK-2 follow-up)
+
+- The pre-scan same-site security-stack dialog (the Cloudflare / active-security-plugin warning) gains a **Don't show this again** button. Clicking it proceeds with the current scan (same as Continue) and suppresses the dialog on all future scans via a browser-local flag (`localStorage['cu_suppress_local_stack_warn']`, per-browser; undo by clearing the key). Cancel and Continue behave as before, and the storage read/write is guarded so a browser that blocks `localStorage` simply keeps showing the dialog.
+
+_Touched: `admin/js/scanner.js`._
+
 ## 1.7.67b - 2026-07-08
 
 ### Added — Per-reason remediation copy, single-sourced and localized (FU-ANTIBLOCK-1, spec §3.1)

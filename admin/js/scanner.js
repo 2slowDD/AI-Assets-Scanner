@@ -429,6 +429,7 @@
                     '<ul class="cu-local-stack-list"></ul>' +
                     '<p class="cu-probe-continue-prompt">Continue with scan?</p>' +
                     '<div class="cu-probe-dialog-actions">' +
+                        '<button type="button" class="button button-secondary cu-local-suppress">Don&rsquo;t show this again</button>' +
                         '<button type="button" class="button button-secondary cu-local-cancel">Cancel</button>' +
                         '<button type="button" class="button button-primary cu-local-continue">Continue</button>' +
                     '</div>' +
@@ -487,6 +488,12 @@
                 done(false);
             });
             dialog.querySelector('.cu-local-continue').addEventListener('click', function () {
+                done(true);
+            });
+            // "Don't show this again" — persist browser-local suppression, then proceed
+            // with this scan (same as Continue). Undo by clearing the localStorage key.
+            dialog.querySelector('.cu-local-suppress').addEventListener('click', function () {
+                try { window.localStorage.setItem('cu_suppress_local_stack_warn', '1'); } catch (e) {}
                 done(true);
             });
             dialog.addEventListener('click', function (e) {
@@ -1343,7 +1350,11 @@
         const ls = (typeof cuLocalStack === 'object' && cuLocalStack) || {};
         const cdnUnacked = ls.cdn && ls.cdn !== ls.acknowledged;
         const secPlugins = ls.security_plugins || [];
-        if (hasSameSite && (cdnUnacked || secPlugins.length > 0)) {
+        // "Don't show this again" — browser-local suppression of the same-site warning
+        // (localStorage; per-browser). Guarded in case storage is unavailable/blocked.
+        let localStackSuppressed = false;
+        try { localStackSuppressed = window.localStorage.getItem('cu_suppress_local_stack_warn') === '1'; } catch (e) {}
+        if (hasSameSite && !localStackSuppressed && (cdnUnacked || secPlugins.length > 0)) {
             const proceed = await showLocalStackDialog(ls, cdnUnacked, secPlugins);
             if (!proceed) return; // Cancel aborts BEFORE cu_scanner_reserve_job (AC-6b)
         }
