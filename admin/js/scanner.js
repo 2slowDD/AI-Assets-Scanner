@@ -2417,6 +2417,9 @@
         const CATEGORIES  = REASON_COPY.categories || {};
         // PHP-side fallback key kept from the old literal:
         if (!PHRASES.scan_errored) PHRASES.scan_errored = 'scan errored';
+        // scan_errored is PHP-side synthetic (class-scanner-ajax.php), not in the
+        // localized 12-key map - category was 'error' in the pre-dedup reasonCategory().
+        if (!CATEGORIES.scan_errored) CATEGORIES.scan_errored = 'error';
         function reasonPhrase(k) { return PHRASES[k] || k; }
         function reasonCategory(k) { return CATEGORIES[k] || 'bot'; }
 
