@@ -159,16 +159,18 @@ class AIAS_Broken_Banner {
 			'ai-assets-scanner'
 		);
 		$settings_url = esc_url( admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ) );
-		$base        .= ' ' . wp_kses_post( sprintf(
-			/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
-			__( 'Behind Cloudflare or another CDN? Set up the scanner exemption so future scans aren\'t blocked — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ),
-			$settings_url
-		) );
 		if ( in_array( 'rate', $categories, true ) ) {
-			$settings_url = esc_url( admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ) );
+			// Mixed-with-rate: the rate-specific sentence is the single settings
+			// link — the generic bot one is gated off to avoid duplicate copy.
 			$base .= ' ' . wp_kses_post( sprintf(
 				/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
 				__( 'Behind Cloudflare or another CDN? Set up the scanner rate-limit exemption so future scans aren\'t throttled — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ),
+				$settings_url
+			) );
+		} else {
+			$base .= ' ' . wp_kses_post( sprintf(
+				/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
+				__( 'Behind Cloudflare or another CDN? Set up the scanner exemption so future scans aren\'t blocked — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ),
 				$settings_url
 			) );
 		}
