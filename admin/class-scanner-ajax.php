@@ -1712,14 +1712,8 @@ class ScannerAjax {
             }
         }
 
-        // Determine warning_needed (any host has outcome other than class_a_clean).
-        $warning_needed = false;
-        foreach ( $per_host_results as $r ) {
-            if ( ( $r['outcome'] ?? '' ) !== 'class_a_clean' ) {
-                $warning_needed = true;
-                break;
-            }
-        }
+        // Determine warning_needed (any host non-clean outcome OR any detected security stack).
+        $warning_needed = self::compute_warning_needed( $per_host_results );
 
         // Strip non-whitelist fields from each per_host_results entry per AC-N2-SSRF (iii).
         $per_host_results = array_map( [ self::class, 'strip_to_whitelist' ], $per_host_results );
@@ -1763,6 +1757,23 @@ class ScannerAjax {
             if ( ( $r['host'] ?? null ) === $host ) return $r;
         }
         return null;
+    }
+
+    /**
+     * FU-ANTIBLOCK-2 — warning gate: any non-clean outcome (pre-existing rule)
+     * OR any detected security stack (spec §3.3). Tolerates cached pre-v5
+     * results that lack the security_stacks key.
+     */
+    public static function compute_warning_needed( array $per_host_results ): bool {
+        foreach ( $per_host_results as $r ) {
+            if ( ( $r['outcome'] ?? '' ) !== 'class_a_clean' ) {
+                return true;
+            }
+            if ( ! empty( $r['security_stacks'] ) ) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
