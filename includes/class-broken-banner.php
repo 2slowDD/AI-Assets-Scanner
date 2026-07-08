@@ -158,6 +158,12 @@ class AIAS_Broken_Banner {
 			'Your bot protection denied the scanner. The rules from the unblocked device are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.',
 			'ai-assets-scanner'
 		);
+		$settings_url = esc_url( admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ) );
+		$base        .= ' ' . wp_kses_post( sprintf(
+			/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
+			__( 'Behind Cloudflare or another CDN? Set up the scanner exemption so future scans aren\'t blocked — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ),
+			$settings_url
+		) );
 		if ( in_array( 'rate', $categories, true ) ) {
 			$settings_url = esc_url( admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ) );
 			$base .= ' ' . wp_kses_post( sprintf(
@@ -202,6 +208,94 @@ class AIAS_Broken_Banner {
 			default:
 				return esc_html( $reason );
 		}
+	}
+
+	/**
+	 * FU-ANTIBLOCK-1 — one actionable remediation line per blocked-reason key.
+	 * PLAIN TEXT ONLY (spec Rev 2 §3.1 / d-review M1): no HTML here — settings
+	 * links travel separately via export_copy_map()['settings_url'] and are
+	 * DOM-built by scanner.js / escaped by PHP render sites.
+	 * Unknown keys fall back to the reason's category clause (plain-text form).
+	 */
+	public static function reason_remediation( string $reason ): string {
+		switch ( $reason ) {
+			case 'tier2_cf_challenge':
+				return __( 'Cloudflare bot protection challenged the scanner. Set up the one-time WAF exemption in AI Assets Scanner settings. Free Cloudflare plan: also turn Bot Fight Mode off during scans (a Skip rule cannot bypass it). Alternative rule key for admins: skip on query strings containing cu_scan_token.', 'ai-assets-scanner' );
+			case 'tier2_rocket_loader_stub':
+				return __( 'Cloudflare Rocket Loader served a stub page to the scanner. The WAF exemption rule in AI Assets Scanner settings also skips this.', 'ai-assets-scanner' );
+			case 'tier1_http_rate_limit':
+				return __( 'Your server rate-limited the scanner. The rules from the unblocked device (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans. Behind Cloudflare or another CDN: set up the scanner exemption in AI Assets Scanner settings.', 'ai-assets-scanner' );
+			case 'tier2_akamai_challenge':
+				return __( 'Akamai Bot Manager blocked the scan. Ask your CDN admin to allowlist requests carrying the x-cu-scanner header (value: your Scanner Secret, shown in AI Assets Scanner settings).', 'ai-assets-scanner' );
+			case 'tier2_imperva_challenge':
+				return __( 'Imperva/Incapsula blocked the scan. Ask your security admin to allowlist requests carrying the x-cu-scanner header (value: your Scanner Secret, shown in AI Assets Scanner settings).', 'ai-assets-scanner' );
+			case 'tier2_waf_challenge':
+				return __( 'A firewall/WAF challenged the scanner. Wordfence: enable Learning Mode during scans, or allowlist the scanner. Behind a CDN: set up the exemption in AI Assets Scanner settings.', 'ai-assets-scanner' );
+			case 'tier2_unknown_challenge':
+				return __( 'Unidentified bot protection denied the scanner. Try the CDN exemption in AI Assets Scanner settings, or temporarily disable bot protection during scans.', 'ai-assets-scanner' );
+			case 'tier2_small_body':
+				return __( 'The site served a reduced page to the scanner (likely bot protection). Set up the CDN exemption in AI Assets Scanner settings, or temporarily disable bot protection during scans.', 'ai-assets-scanner' );
+			case 'tier1_zero_bytes':
+				return __( 'Empty response. Check your host/WAF security logs for blocked requests, then re-scan.', 'ai-assets-scanner' );
+			case 'tier1_http_4xx':
+				return __( 'The site denied the request. Check security-plugin blocklists or IP bans — allowlist by the x-cu-scanner header, not by IP (scanner IPs change).', 'ai-assets-scanner' );
+			case 'tier1_http_5xx':
+				return __( 'The server errored. Re-scan later; if persistent, check site health and host status.', 'ai-assets-scanner' );
+			case 'tier1_transport_error':
+				return __( 'The site was unreachable (DNS/TLS/timeout). Verify the URL loads from outside your network, then re-scan.', 'ai-assets-scanner' );
+			default:
+				// Category-clause fallback, plain-text (mirrors action_clause() semantics without HTML).
+				$cat = self::reason_category( $reason );
+				if ( 'rate' === $cat ) {
+					return __( 'Your server rate-limited the scanner. Wait a few minutes between scans, or temporarily raise rate limits during scans.', 'ai-assets-scanner' );
+				}
+				if ( 'error' === $cat ) {
+					return __( 'Your server returned an error or did not respond. Try again later, or check site health.', 'ai-assets-scanner' );
+				}
+				return __( 'Your bot protection denied the scanner. For full coverage, set up the CDN exemption in AI Assets Scanner settings or temporarily disable bot protection during scans.', 'ai-assets-scanner' );
+		}
+	}
+
+	/**
+	 * FU-ANTIBLOCK-1 — single-source copy map for wp_localize_script (spec §3.1).
+	 * Everything here is plugin-authored plain text (unescaped __()), zero HTML,
+	 * zero secrets. scanner.js DOM-builds the settings anchor from settings_url
+	 * for the keys in settings_link_keys.
+	 */
+	public static function export_copy_map(): array {
+		$keys = [
+			'tier2_cf_challenge', 'tier2_akamai_challenge', 'tier2_imperva_challenge',
+			'tier2_waf_challenge', 'tier2_unknown_challenge', 'tier2_rocket_loader_stub',
+			'tier2_small_body', 'tier1_zero_bytes', 'tier1_http_4xx', 'tier1_http_5xx',
+			'tier1_http_rate_limit', 'tier1_transport_error',
+		];
+		$phrases = [
+			'tier2_cf_challenge'      => __( 'Cloudflare challenge', 'ai-assets-scanner' ),
+			'tier2_akamai_challenge'  => __( 'Akamai Bot Manager', 'ai-assets-scanner' ),
+			'tier2_imperva_challenge' => __( 'Imperva WAF', 'ai-assets-scanner' ),
+			'tier2_waf_challenge'     => __( 'firewall/WAF', 'ai-assets-scanner' ),
+			'tier2_unknown_challenge' => __( 'bot/firewall protection (unidentified)', 'ai-assets-scanner' ),
+			'tier2_rocket_loader_stub' => __( 'Cloudflare Rocket-Loader stub', 'ai-assets-scanner' ),
+			'tier2_small_body'        => __( 'asymmetric stub response', 'ai-assets-scanner' ),
+			'tier1_zero_bytes'        => __( 'empty response', 'ai-assets-scanner' ),
+			'tier1_http_4xx'          => __( 'site denial (4xx)', 'ai-assets-scanner' ),
+			'tier1_http_5xx'          => __( 'site error (5xx)', 'ai-assets-scanner' ),
+			'tier1_http_rate_limit'   => __( 'rate limit (429)', 'ai-assets-scanner' ),
+			'tier1_transport_error'   => __( 'unreachable', 'ai-assets-scanner' ),
+		];
+		$remediation = [];
+		$categories  = [];
+		foreach ( $keys as $k ) {
+			$remediation[ $k ] = self::reason_remediation( $k );
+			$categories[ $k ]  = self::reason_category( $k );
+		}
+		return [
+			'phrases'            => $phrases,
+			'remediation'        => $remediation,
+			'categories'         => $categories,
+			'settings_url'       => esc_url( admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ) ),
+			'settings_link_keys' => [ 'tier2_cf_challenge', 'tier2_rocket_loader_stub', 'tier1_http_rate_limit', 'tier2_waf_challenge', 'tier2_unknown_challenge' ],
+		];
 	}
 
 	/**
