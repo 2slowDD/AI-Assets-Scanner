@@ -907,13 +907,20 @@ class PluginDetector {
         $body = (string) wp_remote_retrieve_body( $response );
 
         if ( $status >= 500 || $status === 403 || $status === 429 ) {
+            // FU-ANTIBLOCK-FAILURE-SHAPE-FINGERPRINT — block-shaped failure ($headers +
+            // $body already fetched above): name the security stack that blocked us
+            // (cf-ray / x-sucuri-id / ...) so the modal shows the stack alongside "HTTP 403"
+            // instead of a bare status. Pure header/body match, no new HTTP. $scoped_body is
+            // not hoisted on this path (all SECURITY_STACKS body-pattern rows are null → no
+            // loss); header + body-marker signatures still fire. The other-4xx path below
+            // stays [] on purpose: a 404/401 is inconclusive, not a block.
             return [
                 'outcome'             => 'probe_failed',
                 'reason'              => 'HTTP ' . $status,
                 'is_wordpress'        => false,
                 'detected'            => [],
                 'bypass_suffixes'     => [],
-                'security_stacks'     => [],
+                'security_stacks'     => self::detect_security_stacks( $headers, $body, $use_range ),
                 'probed_url'          => $url,
                 'probe_duration_ms'   => $duration_ms,
                 'protocol_downgrade'  => false,
