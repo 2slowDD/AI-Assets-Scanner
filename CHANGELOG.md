@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.70b - 2026-07-09
+
+### Fixed — Duplicate remediation text in the post-scan "couldn't be fully scanned" banner
+
+- The post-scan warning banner (`admin/js/scanner.js`) rendered the rate-limit / error / bot remediation copy **twice** — once in the aggregate message above the dismiss button, and again as a per-reason block below it. The `appendRemediation()` path added in 1.7.67b was never de-duplicated against the pre-existing aggregate `action` clause. Removed the below-button per-reason render so the banner shows a single remediation paragraph, matching the server-side initial banner (`class-broken-banner.php`), which was never affected. No copy is lost — the aggregate clause already carries the CDN-exemption settings link.
+
+_Touched: `admin/js/scanner.js`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.69b - 2026-07-09
 
 ### Added — Name the security stack on block-shaped scan failures (FU-ANTIBLOCK-FAILURE-SHAPE-FINGERPRINT)
