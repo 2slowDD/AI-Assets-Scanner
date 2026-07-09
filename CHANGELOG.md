@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.69b - 2026-07-09
+
+### Added — Name the security stack on block-shaped scan failures (FU-ANTIBLOCK-FAILURE-SHAPE-FINGERPRINT)
+
+- When the external target-stack probe hits a block shape (HTTP 403 / 429 / 5xx), `PluginDetector` now runs `detect_security_stacks()` over the already-fetched response headers + body instead of hard-coding an empty `security_stacks` list. The pre-scan modal can now name the blocking stack (Cloudflare via `cf-ray`, Sucuri via `x-sucuri-id`, …) alongside the bare "HTTP 403" reason. Zero additional HTTP — a pure header/body signature match on the response already in hand. The inconclusive-4xx path (404 / 401) deliberately stays empty: a not-found / unauthorized is not a block.
+
+### Fixed — CDN display names for the same-site dialog (FU-ANTIBLOCK-STACK-NAMES-BUNNY-FASTLY)
+
+- Added `bunnycdn` and `fastly` rows to the `stack_names` display-name map so the same-site CDN leg (which keys on `Cdn\Detector::detect_cached()` ids) renders "BunnyCDN" / "Fastly" instead of the raw id. The id must match `Detector::name()` — it is `bunnycdn`, not `bunny` (a `bunny` row would have been a silent no-op). Rewrote the map's provenance comment: it feeds two scanner.js consumers — the external-probe modal over `SECURITY_STACKS` ids and the same-site CDN leg over `Cdn\Detector` ids; the `wordfence` / `siteground_antibot` rows are unconsumed today (same-site plugin legs render via their own `p.label`) and are retained as reserved display names.
+
+_Touched: `includes/scanner/class-plugin-detector.php`, `admin/class-admin-pages.php`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.68b - 2026-07-08
 
 ### Added — "Don't show this again" on the same-site security-stack warning (FU-ANTIBLOCK-2 follow-up)
