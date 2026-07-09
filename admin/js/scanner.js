@@ -2424,7 +2424,6 @@
         // functional (raw keys) if localization is absent (AC-4).
         const REASON_COPY = (typeof cuReasonCopy === 'object' && cuReasonCopy) || {};
         const PHRASES     = REASON_COPY.phrases || {};
-        const REMEDIATION = REASON_COPY.remediation || {};
         const CATEGORIES  = REASON_COPY.categories || {};
         // PHP-side fallback key kept from the old literal:
         if (!PHRASES.scan_errored) PHRASES.scan_errored = 'scan errored';
@@ -2433,27 +2432,6 @@
         if (!CATEGORIES.scan_errored) CATEGORIES.scan_errored = 'error';
         function reasonPhrase(k) { return PHRASES[k] || k; }
         function reasonCategory(k) { return CATEGORIES[k] || 'bot'; }
-
-        // appendRemediation() — appends a per-reason remediation line (plain text via
-        // textContent) to the banner body node, plus a DOM-built settings anchor when
-        // this reason is one of the settings_link_keys (AC-4 — never string-concat the
-        // URL into innerHTML). Called once per distinct reason key after the banner's
-        // innerHTML is assigned (see call site below).
-        function appendRemediation(container, reasonKey) {
-            const line = REMEDIATION[reasonKey];
-            if (!line) return;
-            const div = document.createElement('div');
-            div.className = 'cu-reason-remediation';
-            div.textContent = line;
-            if ((REASON_COPY.settings_link_keys || []).indexOf(reasonKey) !== -1 && REASON_COPY.settings_url) {
-                div.appendChild(document.createTextNode(' '));
-                const a = document.createElement('a');
-                a.setAttribute('href', REASON_COPY.settings_url);
-                a.textContent = 'Open AI Assets Scanner settings';
-                div.appendChild(a);
-            }
-            container.appendChild(div);
-        }
 
         const phrases = [...new Set( Object.keys(reasons).map( k => reasonPhrase(k) ) )];
         const reasonClause = phrases.length ? ' (' + phrases.map(esc).join(', ') + ')' : '';
@@ -2488,15 +2466,6 @@
             '<p>' + copy + cdnLink + '</p>' +
             '<p><button type="button" class="button aias-dismiss-banner">Got it \u2014 don\'t show again for this scan</button></p>' +
             '</div>';
-
-        // FU-ANTIBLOCK-1 (spec 3.1) - append per-reason remediation copy (once per
-        // distinct blocked_reasons key) to the freshly-rendered banner body node.
-        const bannerEl = area.querySelector('.aias-broken-banner');
-        if (bannerEl) {
-            Object.keys(reasons).forEach(function (reasonKey) {
-                appendRemediation(bannerEl, reasonKey);
-            });
-        }
     }
 
     // Dismiss banner via AJAX (event delegation \u2014 banner is injected dynamically).
