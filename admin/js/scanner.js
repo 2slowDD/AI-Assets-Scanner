@@ -1273,6 +1273,16 @@
             // checked discovery pages on selectedUrls and adds the include URLs.
             syncIncludedUrls();
             totalPages = selectedUrls.length;
+            // 1.7.71b — empty-selection guard (mirrors the include-only branch's guard
+            // above, but loud). Without it an empty selection sailed into Step 2 and
+            // failed server-side with the opaque "Invalid page count" (reserve_job
+            // page_count<1). Reachable via a restored carry-over view with nothing
+            // checked, or an include-box URL swallowed by syncIncludedUrls()'s
+            // already-discovered dedupe.
+            if (selectedUrls.length === 0) {
+                alert('No URLs selected. Tick at least one URL in the list (or add one under Include URLs) before starting the scan.');
+                return;
+            }
         }
 
         // FU-NEW-2 Phase 6 — target-stack-aware bypass routing for external URLs.

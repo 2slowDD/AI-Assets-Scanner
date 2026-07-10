@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.71b - 2026-07-10
+
+### Fixed — "Error: Invalid page count" on Start Scan with an empty selection
+
+- Start Scan in Discover/carry-over mode had no empty-selection guard (the include-only branch always had one), so an empty `selectedUrls` sailed past the external-probe and same-site gates (both no-op on empty arrays) straight into Step 2, where the server-side `reserve_job` validation rejected `page_count: 0` with the opaque browser alert "Error: Invalid page count". Reachable two ways: (a) a restored ET/rescan carry-over view whose persisted selection was empty (list renders unchecked, Start Scan still visible — button visibility keys on discovered/included, not selection); (b) typing an already-listed URL into Include URLs, which `syncIncludedUrls()`'s already-discovered dedupe silently drops without selecting the matching row. Now guarded loudly in `admin/js/scanner.js` before any Step-2 transition: "No URLs selected. Tick at least one URL in the list (or add one under Include URLs) before starting the scan." Server-side validation stays as defense-in-depth. Follow-up filed (not in this release): make typing an already-listed URL check its row instead of being dropped.
+
 ## 1.7.70b - 2026-07-09
 
 ### Fixed — Duplicate remediation text in the post-scan "couldn't be fully scanned" banner
