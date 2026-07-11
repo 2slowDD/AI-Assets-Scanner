@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.72b - 2026-07-11
+
+### Changed — Single-source the security-stack/CDN display names (FU-ANTIBLOCK-STACK-NAMES drift-guard)
+
+- The stack id → display-name map (Cloudflare, Sucuri, Akamai, Imperva/Incapsula, BunnyCDN, Fastly + reserved Wordfence / SiteGround Antibot rows) now lives in exactly ONE place: the new canonical `PluginDetector::stack_display_names()`. The admin page's `cuReasonCopy.stack_names` localization consumes it instead of carrying its own inline copy, and the dead per-row `name` fields inside the `SECURITY_STACKS` fingerprint table (never read by `detect_security_stacks()`) were deleted. The localized payload is byte-identical — no visible change in the pre-scan modal or the same-site CDN dialog.
+- New drift-guard test `tests/stack-display-names-test.php` pins the exact strings and asserts every id either registry can surface (`SECURITY_STACKS` keys + `Cdn\Detector` adapter names) has a display row — a future one-sided rename/drop now fails an executable test instead of rendering a raw id.
+
+_Touched: `includes/scanner/class-plugin-detector.php`, `admin/class-admin-pages.php`, `tests/stack-display-names-test.php`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.71b - 2026-07-10
 
 ### Fixed — "Error: Invalid page count" on Start Scan with an empty selection
