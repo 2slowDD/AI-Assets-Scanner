@@ -52,28 +52,25 @@ class PluginDetector {
      * registry (local inbound detection) — cross-referenced, intentionally duplicated.
      * Wordfence/SiteGround rows land in a follow-up task ONLY if live-capture-verified
      * (spec §6.2 signature bar; unverifiable rows are dropped, not guessed).
+     * Display names live ONLY in stack_display_names() (FU-ANTIBLOCK-STACK-NAMES).
      */
     private const SECURITY_STACKS = [
         'cloudflare' => [
-            'name'                => 'Cloudflare',
             'target_headers'      => [ 'cf-ray', 'cf-cache-status' ],
             'target_body_markers' => [ '/cdn-cgi/' ],
             'target_body_pattern' => null,
         ],
         'sucuri' => [
-            'name'                => 'Sucuri',
             'target_headers'      => [ 'x-sucuri-id', 'x-sucuri-cache' ],
             'target_body_markers' => [],
             'target_body_pattern' => null,
         ],
         'akamai' => [
-            'name'                => 'Akamai',
             'target_headers'      => [ 'x-akamai-transformed', 'akamaighost' ],
             'target_body_markers' => [],
             'target_body_pattern' => null,
         ],
         'imperva' => [
-            'name'                => 'Imperva/Incapsula',
             'target_headers'      => [ 'x-iinfo', 'incap_ses' ],
             'target_body_markers' => [ '_Incapsula_Resource' ],
             'target_body_pattern' => null,
@@ -513,6 +510,35 @@ class PluginDetector {
             }
         }
         return $out;
+    }
+
+    /**
+     * FU-ANTIBLOCK-STACK-NAMES — CANONICAL stack id -> display-name map (single
+     * source; drift-guard: tests/stack-display-names-test.php pins coverage +
+     * exact strings). Localized to JS as cuReasonCopy.stack_names in
+     * Admin_Pages::enqueue_assets() for TWO scanner.js consumers: the
+     * external-probe modal (buildSecurityStackBlock) over SECURITY_STACKS ids,
+     * and the same-site dialog's CDN leg (showLocalStackDialog) over
+     * Cdn\Detector::detect_cached() ids — each id must match a Detector adapter
+     * name(). The same-site *plugin* legs render via their own p.label
+     * (active_security_warn_ids()), NOT this map. wordfence/siteground_antibot
+     * are unconsumed today (dropped from SECURITY_STACKS per spec §6.2 signature
+     * bar) — reserved display names for a future signature-verified re-add.
+     */
+    public static function stack_display_names(): array {
+        return [
+            // SECURITY_STACKS (probe modal) + Cdn\Detector (same-site CDN leg):
+            'cloudflare'         => __( 'Cloudflare', 'ai-assets-scanner' ),
+            'sucuri'             => __( 'Sucuri', 'ai-assets-scanner' ),
+            'akamai'             => __( 'Akamai', 'ai-assets-scanner' ),
+            'imperva'            => __( 'Imperva/Incapsula', 'ai-assets-scanner' ),
+            // Cdn\Detector-only ids (same-site CDN leg):
+            'bunnycdn'           => __( 'BunnyCDN', 'ai-assets-scanner' ),
+            'fastly'             => __( 'Fastly', 'ai-assets-scanner' ),
+            // Reserved (unconsumed today — see doc block):
+            'wordfence'          => __( 'Wordfence', 'ai-assets-scanner' ),
+            'siteground_antibot' => __( 'SiteGround Antibot', 'ai-assets-scanner' ),
+        ];
     }
 
     /**
