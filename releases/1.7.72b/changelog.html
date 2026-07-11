@@ -1,0 +1,7 @@
+<p>Version 1.7.72b (beta).</p>
+<p><strong>Changed &mdash; Single-source the security-stack/CDN display names (FU-ANTIBLOCK-STACK-NAMES drift-guard)</strong></p>
+<ul>
+<li>The stack id &rarr; display-name map (Cloudflare, Sucuri, Akamai, Imperva/Incapsula, BunnyCDN, Fastly + reserved Wordfence / SiteGround Antibot rows) now lives in exactly ONE place: the new canonical <code>PluginDetector::stack_display_names()</code>. The admin page's <code>cuReasonCopy.stack_names</code> localization consumes it instead of carrying its own inline copy, and the dead per-row <code>name</code> fields inside the <code>SECURITY_STACKS</code> fingerprint table (never read by <code>detect_security_stacks()</code>) were deleted. The localized payload is byte-identical &mdash; no visible change in the pre-scan modal or the same-site CDN dialog.</li>
+<li>New drift-guard test <code>tests/stack-display-names-test.php</code> pins the exact strings and asserts every id either registry can surface (<code>SECURITY_STACKS</code> keys + <code>Cdn\Detector</code> adapter names) has a display row &mdash; a future one-sided rename/drop now fails an executable test instead of rendering a raw id.</li>
+</ul>
+<p><em>Touched: <code>includes/scanner/class-plugin-detector.php</code>, <code>admin/class-admin-pages.php</code>, <code>tests/stack-display-names-test.php</code>, <code>ai-assets-scanner.php</code>, <code>README.md</code>.</em></p>
