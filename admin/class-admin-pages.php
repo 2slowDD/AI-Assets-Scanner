@@ -49,30 +49,11 @@ class AdminPages {
             ] );
 
             // FU-ANTIBLOCK-1/2 — single-source copy map (spec §3.1): plain text + separate
-            // settings_url; scanner.js DOM-builds anchors. stack_names maps stack ids ->
-            // display names for TWO scanner.js consumers: the external-probe modal
-            // (buildSecurityStackBlock) over SECURITY_STACKS ids [cloudflare/sucuri/akamai/
-            // imperva], and the same-site dialog's CDN leg (showLocalStackDialog:445) over
-            // Cdn\Detector::detect_cached() ids [cloudflare/bunnycdn/fastly/akamai/sucuri].
-            // The same-site *plugin* legs render via their own p.label
-            // (active_security_warn_ids()), NOT this map. wordfence/siteground_antibot rows
-            // are unconsumed today (dropped from SECURITY_STACKS per spec §6.2 signature bar;
-            // SECURITY_WARN uses p.label) — retained as reserved display names for a future
-            // signature-verified SECURITY_STACKS re-add. (FU-ANTIBLOCK-STACK-NAMES-BUNNY-FASTLY.)
+            // settings_url; scanner.js DOM-builds anchors. stack_names comes from the
+            // CANONICAL map PluginDetector::stack_display_names() (FU-ANTIBLOCK-STACK-NAMES
+            // drift-guard — consumer + reserved-row provenance documented there).
             $copy_map                = \AIAS_Broken_Banner::export_copy_map();
-            $copy_map['stack_names'] = [
-                // SECURITY_STACKS (probe modal) + Cdn\Detector (same-site CDN leg):
-                'cloudflare'         => __( 'Cloudflare', 'ai-assets-scanner' ),
-                'sucuri'             => __( 'Sucuri', 'ai-assets-scanner' ),
-                'akamai'             => __( 'Akamai', 'ai-assets-scanner' ),
-                'imperva'            => __( 'Imperva/Incapsula', 'ai-assets-scanner' ),
-                // Cdn\Detector-only ids (same-site CDN leg) — id must match Detector::name():
-                'bunnycdn'           => __( 'BunnyCDN', 'ai-assets-scanner' ),
-                'fastly'             => __( 'Fastly', 'ai-assets-scanner' ),
-                // Reserved (unconsumed today — see block comment above):
-                'wordfence'          => __( 'Wordfence', 'ai-assets-scanner' ),
-                'siteground_antibot' => __( 'SiteGround Antibot', 'ai-assets-scanner' ),
-            ];
+            $copy_map['stack_names'] = \CUScanner\Scanner\PluginDetector::stack_display_names();
             wp_localize_script( 'cu-scanner-scanner', 'cuReasonCopy', $copy_map );
 
             // FU-ANTIBLOCK-2 — same-site pre-scan state (spec §3.4). detect_cached() is
