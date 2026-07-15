@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.77b - 2026-07-15
+
+### Fixed — ET Result Ratchet now engages on zero-yield Extra-Time rescans
+
+- The ratchet's "is this an Extra-Time rescan?" gate keyed only on the worker's per-page `extra_time_charged` billing flag. Since the worker's 2026-07-05 billing change, a zero-yield ET rescan (one that returns S:0 A:0 — the exact case the ratchet floor exists for) arrives **un-stamped**, so the ratchet silently skipped: the initial scan's aggressive rules were dropped with no `↩` recovery badge, and the empty rescan overwrote the saved baseline. AAS now detects the ET rescan from its own submit-time intent (the URLs the operator flagged for Extra Time), persisted as a job-keyed marker — so the ratchet engages independently of billing, and the baseline is no longer clobbered. The old billing-stamp path is retained as a fallback. The ratchet's page-break (F-DEG) drop/restore policy is unchanged.
+
+_Touched: `admin/class-scanner-ajax.php`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.76b - 2026-07-15
 
 ### Added — SWIS Performance (EWWW IO) cache/optimization plugin detection
