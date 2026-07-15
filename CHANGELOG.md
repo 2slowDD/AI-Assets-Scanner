@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.73b - 2026-07-15
+
+### Changed — "Please scan again" no longer shown on converged no-unloads rows
+
+- A completed S:0 A:0 row that the worker did NOT flag as an ET candidate is a converged verdict — the scan finished with budget to spare and found nothing to unload; a rescan reproduces the same result (verified live: two scans of the same page 2.5 min apart returned identical S:0 A:0 N:3). Those rows now read "Nothing to unload found on this page — a rescan occasionally finds more" instead of the misleading "Please scan again". Rows the worker DID flag as ET candidates keep the existing notes: "Needs Extra Time — rescan with 'Rescan ET Candidates'" (uncharged), "Please scan again" (already ET-charged, still zero).
+
+### Added — S / A / N column tooltip
+
+- The Step-4 results table's S / A / N header now carries the same "?" hover/focus tooltip as the ET candidate and Extra Time headers, defining the three buckets: Safe (high-confidence unload rules, tested and confirmed safe to unload), Aggressive (broader rules with slightly lower confidence, tested and confirmed safe to unload), Needed (assets required by the page — they remain loaded when rules are pushed).
+
+_Touched: `admin/js/scanner.js`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.72b - 2026-07-11
 
 ### Changed — Single-source the security-stack/CDN display names (FU-ANTIBLOCK-STACK-NAMES drift-guard)

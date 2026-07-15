@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.7.72b-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.7.73b-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 

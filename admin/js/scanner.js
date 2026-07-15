@@ -2336,7 +2336,13 @@
                     + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' )
                     + ( noopt ? ( ( p.et_candidate && ! p.et_charged )
                         ? ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>'
-                        : ' <span class="cu-noopt-note">Please scan again</span>' ) : '' ) );
+                        // et_candidate is the worker's own "this zero may be budget-starved" flag.
+                        // Absent it, the scan converged on a genuine no-unloads verdict — high
+                        // confidence, so don't tell the operator to rescan. A residual ET candidate
+                        // that already got Extra Time (et_charged) keeps the old rescan prompt.
+                        : ( p.et_candidate
+                            ? ' <span class="cu-noopt-note">Please scan again</span>'
+                            : ' <span class="cu-noopt-note">Nothing to unload found on this page —<br>a rescan occasionally finds more</span>' ) ) : '' ) );
             var origUrl = submittedByResolved[ p.url ];
             // FU-ABSENT-SAFE B2 — visible note when this row's scan URL received an
             // optimizer-bypass suffix (p.bypass_suffixes threaded server-side by
@@ -2367,7 +2373,7 @@
         host.innerHTML =
             '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error · ' + c.cancelled + ' cancelled (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N</th><th>ET candidate <span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></th><th>Extra Time <span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th>S / A / N <span class="cu-help" tabindex="0" aria-label="Safe: high-confidence unload rules with a low risk of affecting the page — tested and confirmed safe to unload. Aggressive: broader unload rules with slightly lower confidence — tested and confirmed safe to unload. Needed: assets required by the page — they will remain loaded when you push the rules."><span class="cu-help-box"><strong>Safe:</strong> High-confidence unload rules with a low risk of affecting the page. Tested and confirmed safe to unload.<br><strong>Aggressive:</strong> Broader unload rules with slightly lower confidence. Tested and confirmed safe to unload.<br><strong>Needed:</strong> Assets required by the page. They will remain loaded when you push the rules.</span></span></th><th>ET candidate <span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></th><th>Extra Time <span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
           + '<p class="cu-et-result-all-row"><label><input type="checkbox" id="cu-et-result-all"> Extra Time: all ET candidates</label></p>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }

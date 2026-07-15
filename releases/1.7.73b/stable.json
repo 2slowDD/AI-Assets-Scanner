@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.73b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.73b/ai-assets-scanner.zip",
+    "sha256": "c4e86398bd91945832d0787b2e24f0191f15f5d631b54cfb0e14733db1b07a9e",
+    "signature": "",
+    "released_at": "2026-07-15T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.73b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.73b (beta): results-table clarity. A completed S:0 A:0 row the worker did not flag as an ET candidate is a converged no-unloads verdict, so it now reads 'Nothing to unload found on this page — a rescan occasionally finds more' instead of the misleading 'Please scan again' (ET-candidate rows keep their existing rescan prompts). The S / A / N results column gains a '?' tooltip defining Safe, Aggressive, and Needed. Carries all of 1.7.72b (security-stack/CDN name single-sourcing) and earlier."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
