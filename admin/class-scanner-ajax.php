@@ -575,6 +575,17 @@ class ScannerAjax {
             set_transient( 'cu_scanner_bypass_map_' . $job_id, $bypass_map, 7200 );
         }
 
+        // FU-ET-STAMP-SEVERS-RATCHET — persist a job-keyed ET-rescan marker so
+        // do_build_result()'s ratchet gate detects an ET rescan independently of the
+        // worker billing stamp (extra_time_charged), which a zero-yield continuation
+        // legitimately omits (worker 7a4a161, W1). Same job-keying rationale as the
+        // bypass_map above (do_build_result receives $job_id; survives the cancel +
+        // heartbeat paths where the user-keyed transient is gone). Only set when the
+        // operator requested Extra Time for >=1 URL — a normal scan leaves no marker.
+        if ( self::intent_requests_extra_time( $intent ) ) {
+            set_transient( self::et_rescan_marker_key( $job_id ), 1, 7200 );
+        }
+
         return [
             'job_id'      => $job_id,
             'job_token'   => $job_token,
@@ -1095,7 +1106,7 @@ class ScannerAjax {
         $flags   = isset( $status['flags'] ) && is_array( $status['flags'] ) ? $status['flags'] : [];
         $cu_json = ( new CuJsonBuilder() )->build( $pages_raw, $flags );
 
-        $is_et   = $this->is_et_rescan( $pages_raw );
+        $is_et   = $this->resolve_is_et_rescan( $pages_raw, $job_id );
         $enabled = $this->ratchet_enabled();
 
         // B2 — persist R_orig on non-ET scans so a subsequent ET rescan can ratchet against it.
@@ -2055,6 +2066,57 @@ class ScannerAjax {
     }
 
     /**
+     * Composite key for the job-scoped ET-rescan marker transient. ONE helper shared
+     * by the writer (perform_submit_side_effects) and the reader (et_rescan_requested)
+     * so the two keys can never drift — the failure mode that motivated the bypass_map
+     * key discipline. $job_id is server-minted (reserve_job), never user input.
+     *
+     * @param string $job_id Reserved job id.
+     * @return string Transient key.
+     */
+    public static function et_rescan_marker_key( string $job_id ): string {
+        return 'cu_scanner_et_rescan_' . $job_id;
+    }
+
+    /**
+     * True iff the submit intent flagged >=1 URL for Extra Time — i.e. the operator
+     * launched this scan as an ET rescan. This is the billing-INDEPENDENT truth the
+     * ratchet gate needs; the worker's extra_time_charged stamp is a downstream billing
+     * outcome that a zero-yield continuation legitimately omits (worker 7a4a161, W1).
+     *
+     * @param array $intent Scan intent (build_submit_payload contract).
+     * @return bool
+     */
+    public static function intent_requests_extra_time( array $intent ): bool {
+        return ! empty( $intent['extra_time_urls'] );
+    }
+
+    /**
+     * True iff AAS persisted an ET-rescan marker for this job at submit time.
+     *
+     * @param string $job_id Reserved job id.
+     * @return bool
+     */
+    private function et_rescan_requested( string $job_id ): bool {
+        return (bool) get_transient( self::et_rescan_marker_key( $job_id ) );
+    }
+
+    /**
+     * Whole-scan ET-rescan decision for the ratchet gate: the submit-time marker
+     * (billing-independent — set on any ET rescan) OR the worker's per-page
+     * extra_time_charged stamp (retained for back-compat + defence in depth). Consumed
+     * by do_build_result() for BOTH the persist gate and the merge gate, so the two
+     * decisions can never disagree.
+     *
+     * @param array  $pages_raw Per-page Railway result rows.
+     * @param string $job_id    Reserved job id.
+     * @return bool
+     */
+    private function resolve_is_et_rescan( array $pages_raw, string $job_id ): bool {
+        return $this->is_et_rescan( $pages_raw ) || $this->et_rescan_requested( $job_id );
+    }
+
+    /**
      * B2 — Persist R_orig (per-rule identity keys + scanned URL set) to a
      * user-scoped transient so a subsequent ET rescan can merge against it.
      * Called only on non-ET scans, after CuJsonBuilder::build() returns.
@@ -2184,8 +2246,10 @@ class ScannerAjax {
     // --- Test seams (public; call into private helpers for unit testing) ---
     public function __test_ratchet_enabled(): bool { return $this->ratchet_enabled(); }
     public function __test_is_et_rescan( array $pages_raw ): bool { return $this->is_et_rescan( $pages_raw ); }
+    public function __test_et_rescan_requested( string $job_id ): bool { return $this->et_rescan_requested( $job_id ); }
+    public function __test_resolve_is_et_rescan( array $pages_raw, string $job_id ): bool { return $this->resolve_is_et_rescan( $pages_raw, $job_id ); }
     public function __test_persist_r_orig( array $cu_json, array $pages_raw ): void { $this->persist_r_orig( $cu_json, $pages_raw ); }
-    public function __test_should_persist_r_orig( array $pages_raw ): bool { return $this->ratchet_enabled() && ! $this->is_et_rescan( $pages_raw ); }
+    public function __test_should_persist_r_orig( array $pages_raw, string $job_id ): bool { return $this->ratchet_enabled() && ! $this->resolve_is_et_rescan( $pages_raw, $job_id ); }
     public function __test_r_orig_matches( $r_orig, array $pages_raw ): bool { return $this->r_orig_matches( $r_orig, $pages_raw ); }
     public function __test_recompute_by_page( array $rules, array $pages_raw, array $orig_by_page ): array { return $this->recompute_by_page( $rules, $pages_raw, $orig_by_page ); }
     public function __test_ratchet_skip_reason( bool $enabled, bool $is_et, $r_orig, bool $matches ): ?string {

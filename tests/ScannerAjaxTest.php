@@ -567,7 +567,60 @@ class ScannerAjaxTest extends TestCase {
         ];
 
         $ajax = new ScannerAjax();
-        $this->assertFalse( $ajax->__test_should_persist_r_orig( $pages_raw ), 'ratchet disabled → should_persist_r_orig false' );
+        // ratchet_enabled()=false short-circuits before resolve_is_et_rescan → job_id unused.
+        $this->assertFalse( $ajax->__test_should_persist_r_orig( $pages_raw, 'job-x' ), 'ratchet disabled → should_persist_r_orig false' );
+    }
+
+    /**
+     * FU-ET-STAMP-SEVERS-RATCHET — the ratchet gate must ENGAGE on an ET rescan whose
+     * pages carry NO extra_time_charged (a zero-yield continuation, worker 7a4a161/W1),
+     * via the job-keyed submit-time marker. Regression it fixes: is_et_rescan() keyed
+     * only on the billing stamp, so a zero-yield rescan silently skipped the ratchet.
+     */
+    public function test_b4_marker_engages_gate_without_billing_stamp(): void {
+        $unstamped = [ [ 'url' => 'https://s.com/p', 'status' => 'done', 'assets' => [] ] ];
+        $ajax = new ScannerAjax();
+
+        // Marker present for this job → gate TRUE even though no page is billing-stamped.
+        WP_Mock::userFunction( 'get_transient' )->with( 'cu_scanner_et_rescan_job-et' )->andReturn( 1 );
+        $this->assertTrue(
+            $ajax->__test_resolve_is_et_rescan( $unstamped, 'job-et' ),
+            'marker set + unstamped pages → gate TRUE (the fix)'
+        );
+
+        // No marker → a normal scan; gate stays false.
+        WP_Mock::userFunction( 'get_transient' )->with( 'cu_scanner_et_rescan_job-normal' )->andReturn( false );
+        $this->assertFalse(
+            $ajax->__test_resolve_is_et_rescan( $unstamped, 'job-normal' ),
+            'no marker + unstamped pages → gate false (normal scan)'
+        );
+    }
+
+    /**
+     * FU-ET-STAMP-SEVERS-RATCHET — persist_r_orig must be SKIPPED for a marked ET
+     * rescan, so the (often degraded) rescan result cannot clobber the baseline R_orig.
+     */
+    public function test_b4_no_persist_for_marked_et_rescan(): void {
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_ratchet_enabled', true )->andReturn( true );
+        WP_Mock::userFunction( 'get_transient' )->with( 'cu_scanner_et_rescan_job-et' )->andReturn( 1 );
+
+        $unstamped = [ [ 'url' => 'https://s.com/p', 'status' => 'done', 'assets' => [] ] ];
+        $ajax = new ScannerAjax();
+        $this->assertFalse(
+            $ajax->__test_should_persist_r_orig( $unstamped, 'job-et' ),
+            'marked ET rescan → do NOT persist (no baseline clobber)'
+        );
+    }
+
+    /**
+     * FU-ET-STAMP-SEVERS-RATCHET — the key writer and reader share one helper, so the
+     * submit-side marker and the build-side lookup can never drift (bypass_map lesson).
+     */
+    public function test_b4_marker_key_shape_and_intent_predicate(): void {
+        $this->assertSame( 'cu_scanner_et_rescan_abc', ScannerAjax::et_rescan_marker_key( 'abc' ) );
+        $this->assertTrue(  ScannerAjax::intent_requests_extra_time( [ 'extra_time_urls' => [ 'https://s.com/p' ] ] ) );
+        $this->assertFalse( ScannerAjax::intent_requests_extra_time( [ 'extra_time_urls' => [] ] ) );
+        $this->assertFalse( ScannerAjax::intent_requests_extra_time( [] ) );
     }
 
     /**
