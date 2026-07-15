@@ -17,6 +17,13 @@ class PluginDetector {
         'w3-total-cache/w3-total-cache.php'                          => [ 'W3 Total Cache',  'Minification may be active. Disable JS/CSS minification before scanning.' ],
         'swift-performance-lite/swift-performance-lite.php'          => [ 'Swift Performance', 'Asset optimization active. Disable before scanning.' ],
         'flying-scripts/flying-scripts.php'                          => [ 'Flying Scripts',  'Delays network fetch of scripts until user interaction — passive scan will miss those scripts, producing incorrect Safe rules.' ],
+        // SWIS Performance (EWWW IO) — optimization suite (JS defer/delay-until-interaction,
+        // CSS minify, unused-JS/CSS "Slim"). Same class as NitroPack/Swift above: the page
+        // cache is harmless (busted by the scan token) but the JS/CSS optimization has NO
+        // per-request bypass, so it must be disabled before an own-site scan. Slug confirmed
+        // via MainWP Child's hardcoded basename map. detect() runs in admin context so
+        // is_plugin_active() is available (no need for the function_exists('swis') seam).
+        'swis-performance/swis-performance.php'                      => [ 'SWIS Performance', 'Delays/defers JS and optimizes CSS server-side with no per-request bypass. Disable JS/CSS optimization in SWIS before scanning, or delayed scripts may be missed — producing incorrect Safe rules.' ],
     ];
 
     private const SOFT_WARN = [
@@ -121,7 +128,7 @@ class PluginDetector {
     // OPTIMIZERS / PAGE_CACHE_PLUGINS signatures or probe logic change — the key
     // change auto-invalidates every host's cached probe result (replaces the manual
     // v1/v2/v3 literal discipline that let stale pre-upgrade results pin for 24h).
-    private const SIGNATURE_SCHEMA_VERSION = '5';
+    private const SIGNATURE_SCHEMA_VERSION = '6';
 
     /**
      * Rev-2 C1 — injectable-override seams for detector dependencies.
@@ -169,6 +176,7 @@ class PluginDetector {
         'hummingbird-performance/wp-hummingbird.php',
         'flying-press/flying-press.php',
         'sg-cachepress/sg-cachepress.php',
+        'swis-performance/swis-performance.php',
         'kinsta-mu-plugins/kinsta-mu-plugins.php',
         'wpengine-common/plugin.php',
         'pantheon-mu-plugin/pantheon.php',
@@ -261,6 +269,22 @@ class PluginDetector {
             'target_headers' => ['swift3: ', 'x-cache-status: identical', 'x-cache-status: changed', 'x-cache-status: not-modified'],
             'target_body_markers' => ['Cached by Swift Performance', 'swift-performance'],
             'target_body_pattern' => '/\bswift[- _]?performance\b/i',
+        ],
+        // SWIS Performance (EWWW IO) — full-page disk cache + JS/CSS defer/delay/minify.
+        // Class B: SWIS treats any non-whitelisted query string as a cache MISS (its
+        // SWIS_CACHE_EXCLUDED_QUERY_STRINGS default whitelists only known tracking params),
+        // so AAS's unique scan-token query string already busts the page cache — no suffix
+        // needed. There is NO URL flag to disable the JS/CSS defer/delay optimization, so a
+        // detected-but-suffixless result is correct: the class_bc_only outcome message warns
+        // that results may be incomplete (delayed-until-interaction scripts). The header fires
+        // in Pass 1; the end-of-body '<!-- SWIS Cache @ ... -->' comment sits past the 32KB
+        // head window and is caught in Pass 2 / the PAGE_CACHE_PLUGINS full-body scan.
+        'swis-performance/swis-performance.php' => [
+            'name' => 'SWIS Performance', 'class' => 'B', 'bypass_query' => null,
+            'disable_method' => null, 'warning' => null,
+            'target_headers' => ['x-cache-handler: swis-cache-engine'],
+            'target_body_markers' => ['SWIS Cache @'],
+            'target_body_pattern' => '/\bswis[- _]?cache\b/i',
         ],
         'hummingbird-performance/wp-hummingbird.php' => [
             'name' => 'Hummingbird', 'class' => null, 'bypass_query' => null,
@@ -438,6 +462,7 @@ class PluginDetector {
             'hummingbird-performance/wp-hummingbird.php' => 'hummingbird',
             'flying-press/flying-press.php'              => 'flying_press',
             'sg-cachepress/sg-cachepress.php'            => 'sg_optimizer',
+            'swis-performance/swis-performance.php'      => 'swis',
         ];
         return $map[ $file ] ?? 'unknown';
     }

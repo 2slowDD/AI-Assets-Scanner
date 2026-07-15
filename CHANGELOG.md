@@ -4,6 +4,16 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.76b - 2026-07-15
+
+### Added — SWIS Performance (EWWW IO) cache/optimization plugin detection
+
+- The target-stack probe now fingerprints **SWIS Performance** (the EWWW IO speed suite; identifies as "SWIS Cache" via the `x-cache-handler: swis-cache-engine` response header and an end-of-body `<!-- SWIS Cache @ … -->` comment). Previously a SWIS-powered external target matched nothing and returned "Couldn't detect target caching stack"; it is now detected as a **Class B** page cache — the scanner's unique query token already busts its page cache, so no bypass suffix is needed, and results surface the honest "detected, results may be incomplete" notice. Not to be confused with Swift Performance (a different plugin — `swis` ≠ `swift`).
+- **Own-site coverage:** SWIS is added to the pre-scan SOFT_BLOCK list (optimization-suite class, alongside NitroPack / Swift / Hummingbird) — scanning your own SWIS-powered site now warns to disable its JS/CSS defer/delay first, since delayed-until-interaction scripts can otherwise be missed and produce incorrect Safe rules.
+- **Telemetry:** `plugin_file_to_enum()` maps SWIS to the `swis` optimizer enum (paired with the SaaS-side `optimizer_detected.plugin` enum registration in CU Scanner SaaS 1.2.41, so the event is no longer rejected on ingest).
+
+_Touched: `includes/scanner/class-plugin-detector.php`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.75b - 2026-07-15
 
 ### Fixed — Results-table header tooltips vertically centered with the "?" centered below each label
