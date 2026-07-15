@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.75b - 2026-07-15
+
+### Fixed — Results-table header tooltips vertically centered with the "?" centered below each label
+
+- Follow-up to 1.7.73b/1.7.74b. The S / A / N, ET candidate, and Extra Time header labels now sit on the vertical center of the header row (level with #, URL, Status, Credits), and each "?" icon is centered horizontally under its own label with a 3px gap — instead of rendering inline or top-aligned. Implemented by wrapping each tooltip label in an inline-block and absolutely positioning the "?" below it; header cells use `white-space: nowrap` so the two-word labels never wrap and knock the icons onto a third line.
+
+_Touched: `admin/js/scanner.js`, `admin/css/ai-assets-scanner-admin.css`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.74b - 2026-07-15
 
 ### Fixed — S / A / N tooltip icon now sits below the header, matching the other two

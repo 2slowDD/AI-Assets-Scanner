@@ -1,0 +1,6 @@
+<p>Version 1.7.75b (beta).</p>
+<p><strong>Fixed &mdash; Results-table header tooltips vertically centered with the "?" centered below each label</strong></p>
+<ul>
+<li>Follow-up to 1.7.73b/1.7.74b. The S / A / N, ET candidate, and Extra Time header labels now sit on the vertical center of the header row (level with #, URL, Status, Credits), and each "?" icon is centered horizontally under its own label with a 3px gap &mdash; instead of rendering inline or top-aligned. Implemented by wrapping each tooltip label in an inline-block and absolutely positioning the "?" below it; header cells use <code>white-space: nowrap</code> so the two-word labels never wrap and knock the icons onto a third line.</li>
+</ul>
+<p><em>Touched: <code>admin/js/scanner.js</code>, <code>admin/css/ai-assets-scanner-admin.css</code>, <code>ai-assets-scanner.php</code>, <code>README.md</code>.</em></p>

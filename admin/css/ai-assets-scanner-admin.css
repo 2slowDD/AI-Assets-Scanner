@@ -823,6 +823,11 @@
 .cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; }
 /* 1.7.60b — keep the URL column readable when the ET note is present (it wraps via its own <br>) */
 .cu-url-table th:nth-child(2), .cu-url-table td:nth-child(2) { min-width: 220px; }
+/* 1.7.75b — results-table header tooltips: label vertically centered in the row,
+   "?" centered horizontally under its label with a 3px gap (not inline / top-aligned). */
+.cu-url-table thead th { white-space: nowrap; height: 46px; }
+.cu-url-table thead th .cu-th-inner { position: relative; display: inline-block; }
+.cu-url-table thead th .cu-help { position: absolute; left: 50%; transform: translateX(-50%); top: 100%; margin-top: 3px; margin-left: 0; }
 /* 1.7.60b — dormant action buttons/anchors (0-rule download; mirrors push/sync noRules gate) */
 .cu-btn-dormant { opacity: .45; pointer-events: none; cursor: default; }
 
