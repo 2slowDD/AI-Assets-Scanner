@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.74b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.74b/ai-assets-scanner.zip",
+    "sha256": "5772978aa0b827f4356ae49293a6eaed0d221271a21a129c7a90124e8401c54b",
+    "signature": "",
+    "released_at": "2026-07-15T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.74b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.74b (beta): UI fix — the S / A / N results-table header tooltip icon now sits on its own line below the text, matching the ET candidate and Extra Time tooltips (the wider S / A / N column previously kept the icon inline). Carries all of 1.7.73b (converged S:0 A:0 copy fix + S / A / N tooltip) and earlier."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}

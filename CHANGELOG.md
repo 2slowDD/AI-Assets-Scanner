@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.74b - 2026-07-15
+
+### Fixed — S / A / N tooltip icon now sits below the header, matching the other two
+
+- The "?" help icon on the S / A / N results-table header rendered inline on the same line as the text, unlike the ET candidate and Extra Time tooltips, which sit on a second line. Those two columns are narrow enough that the icon wraps naturally; the S / A / N column is wide (its data cells are long), so it never wrapped. Forced the icon onto its own line with a break so all three header tooltips render consistently.
+
+_Touched: `admin/js/scanner.js`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.73b - 2026-07-15
 
 ### Changed — "Please scan again" no longer shown on converged no-unloads rows
