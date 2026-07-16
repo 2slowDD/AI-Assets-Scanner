@@ -9,6 +9,10 @@ class PluginDetector {
         'wp-rocket/wp-rocket.php'     => [ 'WP Rocket',   [ 'nowprocket' ] ],
         'autoptimize/autoptimize.php' => [ 'Autoptimize', [ 'ao_noptimize=1' ] ],
         'litespeed-cache/litespeed-cache.php' => [ 'LiteSpeed Cache', [ 'LSCWP_CTRL=before_optm' ] ],
+        // Live-verified 2026-07-15: disables SWIS optimization per-request AND busts
+        // its page cache (see the OPTIMIZERS entry). Moved here from SOFT_BLOCK in
+        // 1.7.78b — no manual disable needed.
+        'swis-performance/swis-performance.php' => [ 'SWIS Performance', [ 'swis_disable=1' ] ],
     ];
 
     private const SOFT_BLOCK = [
@@ -17,13 +21,6 @@ class PluginDetector {
         'w3-total-cache/w3-total-cache.php'                          => [ 'W3 Total Cache',  'Minification may be active. Disable JS/CSS minification before scanning.' ],
         'swift-performance-lite/swift-performance-lite.php'          => [ 'Swift Performance', 'Asset optimization active. Disable before scanning.' ],
         'flying-scripts/flying-scripts.php'                          => [ 'Flying Scripts',  'Delays network fetch of scripts until user interaction — passive scan will miss those scripts, producing incorrect Safe rules.' ],
-        // SWIS Performance (EWWW IO) — optimization suite (JS defer/delay-until-interaction,
-        // CSS minify, unused-JS/CSS "Slim"). Same class as NitroPack/Swift above: the page
-        // cache is harmless (busted by the scan token) but the JS/CSS optimization has NO
-        // per-request bypass, so it must be disabled before an own-site scan. Slug confirmed
-        // via MainWP Child's hardcoded basename map. detect() runs in admin context so
-        // is_plugin_active() is available (no need for the function_exists('swis') seam).
-        'swis-performance/swis-performance.php'                      => [ 'SWIS Performance', 'Delays/defers JS and optimizes CSS server-side with no per-request bypass. Disable JS/CSS optimization in SWIS before scanning, or delayed scripts may be missed — producing incorrect Safe rules.' ],
     ];
 
     private const SOFT_WARN = [
@@ -128,7 +125,7 @@ class PluginDetector {
     // OPTIMIZERS / PAGE_CACHE_PLUGINS signatures or probe logic change — the key
     // change auto-invalidates every host's cached probe result (replaces the manual
     // v1/v2/v3 literal discipline that let stale pre-upgrade results pin for 24h).
-    private const SIGNATURE_SCHEMA_VERSION = '6';
+    private const SIGNATURE_SCHEMA_VERSION = '7';
 
     /**
      * Rev-2 C1 — injectable-override seams for detector dependencies.
@@ -271,16 +268,17 @@ class PluginDetector {
             'target_body_pattern' => '/\bswift[- _]?performance\b/i',
         ],
         // SWIS Performance (EWWW IO) — full-page disk cache + JS/CSS defer/delay/minify.
-        // Class B: SWIS treats any non-whitelisted query string as a cache MISS (its
-        // SWIS_CACHE_EXCLUDED_QUERY_STRINGS default whitelists only known tracking params),
-        // so AAS's unique scan-token query string already busts the page cache — no suffix
-        // needed. There is NO URL flag to disable the JS/CSS defer/delay optimization, so a
-        // detected-but-suffixless result is correct: the class_bc_only outcome message warns
-        // that results may be incomplete (delayed-until-interaction scripts). The header fires
-        // in Pass 1; the end-of-body '<!-- SWIS Cache @ ... -->' comment sits past the 32KB
-        // head window and is caught in Pass 2 / the PAGE_CACHE_PLUGINS full-body scan.
+        // Class A (reclassified B->A in 1.7.78b): `?swis_disable=1` disables SWIS's
+        // optimization per-request — LIVE-VERIFIED 2026-07-15 on test.exactlywww.com
+        // vs a random cache-buster control: /wp-content/swis/ bundle refs 74->0,
+        // deferred scripts 6->1, scripts un-combined 12->15, body -39KB (undocumented
+        // in SWIS docs; behavioral test is the source of truth). The param also busts
+        // the page cache (not on SWIS's tracking-param whitelist), so one suffix does
+        // both. The header fires in Pass 1; the end-of-body '<!-- SWIS Cache @ ... -->'
+        // comment sits past the 32KB head window and is caught in Pass 2 / the
+        // PAGE_CACHE_PLUGINS full-body scan.
         'swis-performance/swis-performance.php' => [
-            'name' => 'SWIS Performance', 'class' => 'B', 'bypass_query' => null,
+            'name' => 'SWIS Performance', 'class' => 'A', 'bypass_query' => 'swis_disable=1',
             'disable_method' => null, 'warning' => null,
             'target_headers' => ['x-cache-handler: swis-cache-engine'],
             'target_body_markers' => ['SWIS Cache @'],

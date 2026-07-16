@@ -4,6 +4,17 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.78b - 2026-07-15
+
+### Changed — SWIS Performance reclassified Class B → Class A (`?swis_disable=1` auto-bypass)
+
+- Operator-sourced and live-verified: `?swis_disable=1` disables SWIS Performance's JS/CSS optimization per-request (undocumented in SWIS docs; behavioral A/B against a random cache-buster on a live SWIS site showed `/wp-content/swis/` bundle refs 74→0, deferred scripts 6→1, scripts un-combined 12→15, −39 KB body). Supersedes 1.7.76b's Class-B "no proper bypass" handling.
+- **External targets:** the probe now auto-appends `?swis_disable=1`, so the scanner analyzes the raw WP-enqueued assets instead of SWIS's combined/deferred bundles — correct rule generation instead of a "results may be incomplete" warning (F-MISS fix).
+- **Own-site scans:** SWIS moves from SOFT_BLOCK ("disable manually before scanning") to AUTO_BYPASS — the suffix is appended automatically; no manual step. The same param also busts SWIS's page cache.
+- Target-stack probe cache schema bumped 6 → 7 (auto-invalidates cached Class-B probe results).
+
+_Touched: `includes/scanner/class-plugin-detector.php`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.77b - 2026-07-15
 
 ### Fixed — ET Result Ratchet now engages on zero-yield Extra-Time rescans
