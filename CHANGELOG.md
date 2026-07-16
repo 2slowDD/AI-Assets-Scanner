@@ -13,7 +13,11 @@ All notable changes to AI Assets Scanner are documented here.
 - **Own-site scans:** SWIS moves from SOFT_BLOCK ("disable manually before scanning") to AUTO_BYPASS — the suffix is appended automatically; no manual step. The same param also busts SWIS's page cache.
 - Target-stack probe cache schema bumped 6 → 7 (auto-invalidates cached Class-B probe results).
 
-_Touched: `includes/scanner/class-plugin-detector.php`, `ai-assets-scanner.php`, `README.md`._
+### Fixed — S:0 A:0 result copy no longer over-claims "Nothing to unload found on this page"
+
+- The 1.7.73b copy for a converged S:0 A:0 non-ET row inferred "genuinely nothing to unload" from the mere absence of the ET-candidate flag — but that flag's absence only means the zero was not budget-starved (repro: scan `e1271ec1fd71`, a page scoring S:0 A:0 N:63 whose prior scan had proven A:8, got told "Nothing to unload found on this page"). The note now claims only what the scan observed and always invites a retry: "This scan found nothing to unload — a rescan occasionally finds more. Please rescan." ET-candidate branches (Needs Extra Time / Please scan again) are unchanged.
+
+_Touched: `includes/scanner/class-plugin-detector.php`, `admin/js/scanner.js`, `ai-assets-scanner.php`, `README.md`._
 
 ## 1.7.77b - 2026-07-15
 

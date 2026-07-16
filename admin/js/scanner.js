@@ -2337,12 +2337,15 @@
                     + ( noopt ? ( ( p.et_candidate && ! p.et_charged )
                         ? ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>'
                         // et_candidate is the worker's own "this zero may be budget-starved" flag.
-                        // Absent it, the scan converged on a genuine no-unloads verdict — high
-                        // confidence, so don't tell the operator to rescan. A residual ET candidate
-                        // that already got Extra Time (et_charged) keeps the old rescan prompt.
+                        // Its ABSENCE only means "not budget-starved" — it does NOT establish
+                        // "genuinely nothing to unload" (1.7.78b fix: scan e1271ec1fd71 showed
+                        // S:0 A:0 N:63 on a page with proven prior A:8 — a demote-all zero, not
+                        // an empty page). So the copy claims only what THIS SCAN found and always
+                        // prompts a rescan. A residual ET candidate that already got Extra Time
+                        // (et_charged) keeps the plain rescan prompt.
                         : ( p.et_candidate
                             ? ' <span class="cu-noopt-note">Please scan again</span>'
-                            : ' <span class="cu-noopt-note">Nothing to unload found on this page —<br>a rescan occasionally finds more</span>' ) ) : '' ) );
+                            : ' <span class="cu-noopt-note">This scan found nothing to unload —<br>a rescan occasionally finds more. Please rescan.</span>' ) ) : '' ) );
             var origUrl = submittedByResolved[ p.url ];
             // FU-ABSENT-SAFE B2 — visible note when this row's scan URL received an
             // optimizer-bypass suffix (p.bypass_suffixes threaded server-side by
