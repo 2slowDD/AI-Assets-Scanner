@@ -22,9 +22,13 @@ class RatchetMerger {
     private const RESCUED_SENTINEL = 0.001;
 
     /**
-     * Per-pattern count of rules RESTORED from R_orig by the last merge() call.
-     * Keyed by url_pattern; value = number of per-device rule legs re-included
-     * from R_orig that were NOT already present in R_et.
+     * Per-pattern count of distinct rules RESTORED from R_orig by the last
+     * merge() call. Keyed by url_pattern; value = number of distinct recollapse
+     * keys (url_pattern|asset_handle|asset_type|group_id) restored from R_orig
+     * that were NOT already present in R_et. RULE-domain: a rule that applies to
+     * both devices is restored as two per-device legs but counts ONCE — the
+     * customer-facing S/A/N and the "↩ +N" badge are rule-domain, because
+     * merge() returns recollapse(...).
      * Populated by merge(); reset at the start of each merge() call.
      *
      * @var array<string,int>
@@ -36,10 +40,11 @@ class RatchetMerger {
      * read by the AAS boundary for WP_DEBUG_LOG-gated logging. Never alters
      * merge output. Shape: [ 'counts'=>[], 'outcomes'=>[outcome=>int], 'handles'=>[ {...} ] ].
      *
-     * Note: the four 'counts' fields (r_et, r_orig, recovered, final) AND the
-     * 'outcomes' tallies are all in the per-device-leg domain (post-explode_all),
-     * consistent with recovered_by_pattern — a rule that applies to both devices
-     * counts as 2, not 1.
+     * Note: r_et, r_orig, final and the 'outcomes' tallies are in the
+     * per-device-leg domain (post-explode_all) — a rule that applies to both
+     * devices counts as 2. The 'recovered' count is the exception: it mirrors
+     * recovered_by_pattern and is RULE-domain (distinct recollapsed rules). This
+     * mixed domain is intentional and diagnostic-only.
      *
      * @var array<string,mixed>
      */
@@ -123,12 +128,7 @@ class RatchetMerger {
                 $pairs[ 'pass_' . $i ] = [ 'rule' => $r, 'done' => true ];
                 continue;
             }
-            $pair_key = implode( '|', [
-                $r['url_pattern'],
-                $r['asset_handle'],
-                $r['asset_type'],
-                $r['group_id'],
-            ] );
+            $pair_key = $this->recollapse_key( $r );
             $pairs[ $pair_key ][ $r['device_type'] ] = $r;
         }
 
@@ -283,6 +283,12 @@ class RatchetMerger {
         // Step 5: start with all of R_et.
         $final = $r_et;
 
+        // recovered_by_pattern is RULE-domain (see the property docblock): a rule
+        // restored on both devices is two per-device legs but ONE recollapsed rule.
+        // Accumulate each restored leg's recollapse key into a per-pattern set, then
+        // count distinct keys after the walk — never once per leg.
+        $recovered_keys = [];
+
         // Step 6: walk R_orig and selectively restore rules not already in R_et.
         foreach ( $orig as $r ) {
             $ikey = $this->identity_key( $r );
@@ -298,7 +304,7 @@ class RatchetMerger {
                 $fs = $state['failsafe'][ $page_pattern ];
                 if ( 'benign' === $fs ) {
                     $final[] = $r;
-                    $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
+                    $recovered_keys[ $page_pattern ][ $this->recollapse_key( $r ) ] = true;
                     $this->record_diag( $r, 'failsafe_benign', null, 'benign' );
                 } else {
                     $this->record_diag( $r, 'failsafe_validated', null, $fs );
@@ -311,7 +317,7 @@ class RatchetMerger {
 
             if ( null === $asset_state ) {
                 $final[] = $r;
-                $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
+                $recovered_keys[ $page_pattern ][ $this->recollapse_key( $r ) ] = true;
                 $this->record_diag( $r, 'absent_restore', null, null );
                 continue;
             }
@@ -324,16 +330,23 @@ class RatchetMerger {
             $dc = $asset_state['demote_class'];
             if ( 'benign' === $dc ) {
                 $final[] = $r;
-                $this->recovered_by_pattern[ $page_pattern ] = ( $this->recovered_by_pattern[ $page_pattern ] ?? 0 ) + 1;
+                $recovered_keys[ $page_pattern ][ $this->recollapse_key( $r ) ] = true;
                 $this->record_diag( $r, 'benign_restore', $dc, null );
             } else {
                 $this->record_diag( $r, ( 'validated' === $dc ) ? 'validated_drop' : 'unknown_drop', $dc, null );
             }
         }
 
+        // Collapse the per-pattern recollapse-key sets to distinct-rule counts.
+        foreach ( $recovered_keys as $pat => $keys ) {
+            $this->recovered_by_pattern[ $pat ] = count( $keys );
+        }
+
         $this->last_merge_diag['counts'] = [
             'r_et'      => count( $r_et ),
             'r_orig'    => count( $orig ),
+            // 'recovered' is RULE-domain (distinct recollapsed rules); r_et/r_orig/
+            // final and the 'outcomes' tallies stay leg-domain. Diagnostic-only.
             'recovered' => array_sum( $this->recovered_by_pattern ),
             'final'     => count( $final ),
         ];
@@ -388,6 +401,25 @@ class RatchetMerger {
             'script' => 'js',
             default  => $type,
         };
+    }
+
+    /**
+     * Device-independent recollapse key for a rule leg — the key on which
+     * recollapse() pairs desktop+mobile legs back into one device_type='all'
+     * rule (url_pattern|asset_handle|asset_type|group_id; excludes device_type,
+     * unlike identity_key). Shared by recollapse() and merge()'s restore
+     * counting so the two never drift.
+     *
+     * @param array $rule Per-device CU rule array.
+     * @return string Pipe-delimited recollapse key.
+     */
+    private function recollapse_key( array $rule ): string {
+        return implode( '|', [
+            $rule['url_pattern'],
+            $rule['asset_handle'],
+            $rule['asset_type'],
+            $rule['group_id'],
+        ] );
     }
 
     /**

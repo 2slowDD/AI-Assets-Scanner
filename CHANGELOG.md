@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.79b - 2026-07-17
+
+### Fixed — ET-ratchet "↩ +N" badge counts distinct restored rules, not device legs
+
+- The "↩ +N" ratchet-recovered badge on the results table could exceed a page's Aggressive count (e.g. `A:20 ↩ +39`), which is nonsensical (recovered > total). Root cause: `RatchetMerger::merge()` incremented `recovered_by_pattern` once per restored **per-device rule leg** (desktop + mobile), but the customer-facing S/A/N are rule-domain because `merge()` returns `recollapse(...)` — so a rule restored on both devices double-counted. The badge now counts **distinct restored rules** (a per-pattern set of recollapse keys `url_pattern|handle|type|group_id`), so a both-device restore counts once instead of twice — eliminating the leg-domain double-count that produced counts like `A:20 ↩ +39`. The ratchet's actual restoration behavior (demotion-aware union) is unchanged — only the displayed count's domain was wrong.
+
+### Changed — "↩ +N" badge restyled so it isn't mistaken for the S/A/N counts
+
+- The ratchet badge now renders in muted grey (`#787c82`) and one step smaller (12px vs the 13px Safe/Aggressive/Needed counts).
+
+_Touched: `includes/scanner/class-ratchet-merger.php`, `admin/css/ai-assets-scanner-admin.css`, `ai-assets-scanner.php`, `README.md`._
+
 ## 1.7.78b - 2026-07-15
 
 ### Changed — SWIS Performance reclassified Class B → Class A (`?swis_disable=1` auto-bypass)

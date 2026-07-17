@@ -740,6 +740,87 @@ class RatchetMergerTest extends TestCase {
         );
     }
 
+    /**
+     * AC-ETR-B4-4 — recovered_by_pattern is RULE-domain, not leg-domain.
+     *
+     * A single device_type='all' R_orig rule that the rescan benignly demotes on
+     * BOTH devices explodes to two per-device legs and is restored twice — but it
+     * collapses back to ONE rule via recollapse(), and the customer-facing S/A/N
+     * are rule-domain. So the "↩ +N" badge (recovered_by_pattern) must count the
+     * distinct restored RULE once, not once per device leg.
+     */
+    public function test_recovered_by_pattern_both_device_restore_counts_one(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h', 'all', 2, 'css', $pat ) ]; // both-device rule
+        $rescan_pages = [
+            $this->page_with_asset(
+                $pat,
+                'h',
+                'style',
+                [
+                    'bucket_desktop' => 'needed',
+                    'bucket_mobile'  => 'needed',
+                    'cov_desktop'    => 0.001,
+                    'cov_mobile'     => 0.001,
+                    'demote_class'   => 'benign',
+                ]
+            ),
+        ];
+        $merger = new RatchetMerger();
+        $merger->merge( $r_orig, $rescan_pages );
+
+        $this->assertSame(
+            1,
+            $merger->recovered_by_pattern[ $pat ] ?? 0,
+            'a both-device restore is ONE recollapsed rule → recovered count must be 1, not 2'
+        );
+    }
+
+    /**
+     * AC-ETR-B4-5 — recovered_by_pattern counts distinct rules, mixing device widths.
+     *
+     * One both-device ('all') rule + one desktop-only rule on the same pattern,
+     * both benignly restored. The 'all' rule = 2 legs but 1 recollapse key; the
+     * desktop-only rule = 1 leg / 1 key. Distinct rules restored = 2 (not 3 legs).
+     */
+    public function test_recovered_by_pattern_mixed_all_and_desktop_counts_distinct_rules(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [
+            $this->rule( 'h_all',  'all',     2, 'css', $pat ), // 2 legs, 1 rule
+            $this->rule( 'h_desk', 'desktop', 2, 'css', $pat ), // 1 leg, 1 rule
+        ];
+        $rescan_pages = [
+            [
+                'url'    => $pat,
+                'status' => 'done',
+                'assets' => [
+                    [
+                        'handle'       => 'h_all',
+                        'type'         => 'style',
+                        'desktop'      => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                        'mobile'       => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                        'demote_class' => 'benign',
+                    ],
+                    [
+                        'handle'       => 'h_desk',
+                        'type'         => 'style',
+                        'desktop'      => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                        'mobile'       => [ 'loaded' => true, 'coverage' => 0.001, 'bucket' => 'needed' ],
+                        'demote_class' => 'benign',
+                    ],
+                ],
+            ],
+        ];
+        $merger = new RatchetMerger();
+        $merger->merge( $r_orig, $rescan_pages );
+
+        $this->assertSame(
+            2,
+            $merger->recovered_by_pattern[ $pat ] ?? 0,
+            'two distinct restored rules (one both-device, one desktop-only) → recovered count must be 2, not 3'
+        );
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // AC-1 — last_merge_diag decision trail
     // ─────────────────────────────────────────────────────────────────────
