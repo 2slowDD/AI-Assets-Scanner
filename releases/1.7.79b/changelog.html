@@ -1,0 +1,10 @@
+<p>Version 1.7.79b (beta).</p>
+<p><strong>Fixed &mdash; ET-ratchet "↩ +N" badge counts distinct restored rules, not device legs</strong></p>
+<ul>
+<li>The "↩ +N" ratchet-recovered badge on the results table could exceed a page's Aggressive count (e.g. <code>A:20 ↩ +39</code>), which is nonsensical (recovered &gt; total). Root cause: <code>RatchetMerger::merge()</code> incremented <code>recovered_by_pattern</code> once per restored <strong>per-device rule leg</strong> (desktop + mobile), but the customer-facing S/A/N are rule-domain because <code>merge()</code> returns <code>recollapse(...)</code> &mdash; so a rule restored on both devices double-counted. The badge now counts <strong>distinct restored rules</strong> (a per-pattern set of recollapse keys <code>url_pattern|handle|type|group_id</code>), so a both-device restore counts once instead of twice &mdash; eliminating the leg-domain double-count that produced counts like <code>A:20 ↩ +39</code>. The ratchet's actual restoration behavior (demotion-aware union) is unchanged &mdash; only the displayed count's domain was wrong.</li>
+</ul>
+<p><strong>Changed &mdash; "↩ +N" badge restyled so it isn't mistaken for the S/A/N counts</strong></p>
+<ul>
+<li>The ratchet badge now renders in muted grey (<code>#787c82</code>) and one step smaller (12px vs the 13px Safe/Aggressive/Needed counts).</li>
+</ul>
+<p><em>Touched: <code>includes/scanner/class-ratchet-merger.php</code>, <code>admin/css/ai-assets-scanner-admin.css</code>, <code>ai-assets-scanner.php</code>, <code>README.md</code>.</em></p>

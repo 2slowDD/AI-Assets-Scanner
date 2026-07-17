@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.79b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.79b/ai-assets-scanner.zip",
+    "sha256": "512ea709ab01ca4cab5a7830976a188a3e383f8c46a39d56547a0e009195a0d5",
+    "signature": "",
+    "released_at": "2026-07-17T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.79b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.79b (beta): the ET Result Ratchet's \"↩ +N\" recovered-rules badge on the scan results table counted per-device rule legs instead of distinct rules, so a rule restored on both desktop and mobile double-counted — the badge could exceed a page's Aggressive (A) count (e.g. A:20 shown \"↩ +39\"). It now counts distinct restored rules (a per-pattern set of recollapse keys url_pattern|handle|type|group_id), so a both-device restore counts once. The ratchet's actual restoration behavior (demotion-aware union) is unchanged — only the displayed count's domain was wrong. The badge is also restyled (muted grey, one font-size smaller) so it isn't mistaken for the S/A/N counts."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
