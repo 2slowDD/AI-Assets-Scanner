@@ -312,12 +312,81 @@
         };
     }
 
+    // FDEG Plan B Task 4 — lifetime of the non-blocking outcome toast, and how long
+    // before that it starts fading (matches the .cu-probe-toast opacity transition).
+    const PROBE_TOAST_MS = 10000;
+    const PROBE_TOAST_FADE_MS = 400;
+
+    /**
+     * FDEG Plan B Task 4 — non-blocking counterpart of showProbeOutcomeDialog() for
+     * the case where NO host reported a security stack: there is nothing to bail on,
+     * so the same summary is shown as a self-dismissing toast instead of a modal.
+     *
+     * Escaping discipline is identical to the dialog: static chrome goes in via
+     * textContent, and the ONLY thing assigned to innerHTML is the output of the
+     * shared buildUniformMessage()/buildPerHostList() builders, which esc() every
+     * wire-derived value (host, detected names) before interpolating it.
+     */
+    function showProbeOutcomeToast(probeData, results) {
+        const toast = document.createElement('div');
+        toast.className = 'cu-probe-toast';
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
+
+        const title = document.createElement('p');
+        title.className = 'cu-probe-toast-title';
+        title.textContent = 'Target site detection';
+        toast.appendChild(title);
+
+        const uniform = !!(probeData && probeData.summary && probeData.summary.uniform_outcome);
+        const bodyEl = document.createElement('div');
+        bodyEl.className = 'cu-probe-toast-body';
+        bodyEl.innerHTML = uniform ? buildUniformMessage(results) : buildPerHostList(results);
+        toast.appendChild(bodyEl);
+
+        document.body.appendChild(toast);
+
+        // Fade, then detach — the CSS transitions opacity, so the class flip has to
+        // land PROBE_TOAST_FADE_MS before the node goes away or nothing is visible.
+        setTimeout(function () { toast.classList.add('cu-probe-toast-hide'); },
+            PROBE_TOAST_MS - PROBE_TOAST_FADE_MS);
+        setTimeout(function () { toast.remove(); }, PROBE_TOAST_MS);
+    }
+
     /**
      * FU-NEW-2 Phase 6 — Render an outcome-specific dialog from
      * cu_scanner_probe_target_stack result. Returns Promise<boolean>:
      * true = continue with scan, false = cancel. Dialog content per spec §6.3.
+     *
+     * FDEG Plan B Task 4 — the blocking modal below is the WAF bail-BEFORE-credits
+     * gate. Only the INFORMATIONAL case is downgraded to a non-blocking toast.
+     *
+     * The guard deliberately does NOT key on "no security stack" alone. This
+     * function has exactly ONE call site and it is gated on warning_needed, and
+     * compute_warning_needed() (class-scanner-ajax.php:1778) is broader than
+     * stacks: it also fires on ANY host whose outcome !== 'class_a_clean'. So a
+     * stack-only guard would silently auto-proceed — spending credits — on
+     * probe_failed (the probe was blocked, possibly by a WAF we could not
+     * identify), no_clue, and non_wordpress. Those are precisely the states the
+     * bail-before-credits gate exists for. Toast only when every host landed on
+     * an informational outcome AND no stack was detected; block otherwise.
      */
+    const PROBE_INFORMATIONAL_OUTCOMES = ['class_a_clean', 'class_bc_only', 'hybrid_a_plus_bc'];
+
     function showProbeOutcomeDialog(probeData) {
+        const hostResults = (probeData && probeData.per_host_results) || [];
+        const hasStack = hostResults.some(function (r) {
+            return !!(r && r.security_stacks && r.security_stacks.length);
+        });
+        // Empty/absent results are NOT treated as informational — unknown state blocks.
+        const allInformational = hostResults.length > 0 && hostResults.every(function (r) {
+            return PROBE_INFORMATIONAL_OUTCOMES.indexOf((r && r.outcome) || '') !== -1;
+        });
+        if (!hasStack && allInformational) {
+            showProbeOutcomeToast(probeData, hostResults);
+            return Promise.resolve(true);
+        }
+
         return new Promise(function (resolve) {
             const dialog = document.createElement('dialog');
             dialog.className = 'cu-probe-outcome-dialog';
@@ -2970,6 +3039,7 @@
     // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
     window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,
                         renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4,
+                        showProbeOutcomeDialog: showProbeOutcomeDialog,
                         // Seed the IIFE-scoped submitted-URL state so handleStatusUpdate's
                         // URL-fallback can be exercised without driving the full submit flow.
                         setScanUrlsForTest: function (sel, resolved) { selectedUrls = sel || []; resolvedByUrl = resolved || {}; } };

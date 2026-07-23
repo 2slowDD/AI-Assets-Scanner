@@ -769,6 +769,54 @@
     min-width: 90px;
 }
 
+/* FDEG Plan B Task 4 — non-blocking outcome toast (clean case: no security stack
+   detected, so nothing to bail on). Same copy as .cu-probe-outcome-dialog above, but
+   fixed top-right instead of modal. scanner.js adds .cu-probe-toast-hide ~400ms
+   before removing the node, so the opacity transition below is what is actually seen.
+   top: 46px clears the WP admin bar; z-index sits just above it (#wpadminbar: 99999). */
+.cu-probe-toast {
+    position: fixed;
+    top: 46px;
+    right: 20px;
+    z-index: 100000;
+    max-width: 380px;
+    padding: 12px 16px;
+    border: 1px solid #c3c4c7;
+    border-left: 4px solid #2271b1;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    background: #fff;
+    color: #1d2327;
+    font-size: 13px;
+    line-height: 1.5;
+    opacity: 1;
+    transition: opacity 0.4s ease;
+}
+.cu-probe-toast-hide {
+    opacity: 0;
+}
+.cu-probe-toast p {
+    margin: 6px 0;
+}
+.cu-probe-toast .cu-probe-toast-title {
+    margin: 0 0 6px;
+    font-weight: 600;
+}
+.cu-probe-toast em {
+    color: #50575e;
+}
+.cu-probe-toast ul.cu-probe-host-list {
+    margin: 6px 0 0 18px;
+    padding: 0;
+    list-style: disc;
+}
+.cu-probe-toast ul.cu-probe-host-list li {
+    margin-bottom: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+    .cu-probe-toast { transition: none; }
+}
+
 /* FU-NEW-2 Phase 6 — Inline spinner during target stack probe (spec §9). */
 .cu-probe-spinner {
     display: flex;
