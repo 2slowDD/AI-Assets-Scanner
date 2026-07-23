@@ -494,6 +494,53 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( [], $pages[0]['bypass_suffixes'] );
     }
 
+    // FDEG Plan B Task 3 — is_external flag on pages[]. The worker uses this as the
+    // island_expected denominator: distinguishes "plugin didn't deliver a dependency
+    // island" from "we never asked, because this page is on someone else's host".
+    // Must be emitted as an int (0|1), never a bool — the worker's telemetry coercion
+    // has no bool branch and would silently drop a true/false.
+
+    public function test_build_pages_array_threads_is_external_flag(): void {
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( string $url, ?int $component = null ) {
+            $parts = parse_url( $url );
+            return ( PHP_URL_HOST === $component ) ? ( $parts['host'] ?? null ) : $parts;
+        } );
+
+        $pages = ScannerAjax::__test_build_pages_array(
+            [ 'https://x/a', 'https://external.example/b' ], [], [], 'https://x/'
+        );
+
+        $this->assertSame( 0, $pages[0]['is_external'], 'same-host URL → is_external 0' );
+        $this->assertSame( 1, $pages[1]['is_external'], 'external URL → is_external 1' );
+        $this->assertIsInt( $pages[0]['is_external'], 'must be int, not bool' );
+        $this->assertIsInt( $pages[1]['is_external'], 'must be int, not bool' );
+    }
+
+    /**
+     * Same hardcoded-key-seam hazard as extra_time (see comment above
+     * test_reshape_page_specs_carries_extra_time_through): a key added only in
+     * build_pages_array() is SILENTLY DROPPED by the reshape array_map unless the
+     * map carries it through explicitly. This test is RED until the reshape
+     * carries is_external through.
+     */
+    public function test_reshape_page_specs_carries_is_external_through(): void {
+        $specs = [
+            [ 'url' => 'https://x/a', 'bypass_suffixes' => [], 'is_external' => 0 ],
+            [ 'url' => 'https://external.example/b', 'bypass_suffixes' => [], 'is_external' => 1 ],
+        ];
+        $build_scan_url = static fn( string $u, array $s ): string => $u;
+        $pages = ScannerAjax::__test_reshape_page_specs( $specs, $build_scan_url, 'tok' );
+
+        $this->assertArrayHasKey( 'is_external', $pages[0], 'reshape must carry is_external' );
+        $this->assertSame( 0, $pages[0]['is_external'] );
+        $this->assertSame( 1, $pages[1]['is_external'] );
+        $this->assertIsInt( $pages[0]['is_external'], 'must be int, not bool' );
+        $this->assertIsInt( $pages[1]['is_external'], 'must be int, not bool' );
+        // Existing keys preserved.
+        $this->assertSame( 'https://x/a', $pages[0]['url'] );
+        $this->assertSame( 'tok', $pages[0]['bypass_token'] );
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // ET Result Ratchet — B2 + B3
     // ─────────────────────────────────────────────────────────────────────

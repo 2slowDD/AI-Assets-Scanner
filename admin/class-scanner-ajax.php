@@ -1830,7 +1830,7 @@ class ScannerAjax {
      * @param array<string,string> $submitted_url_per_url AC-RC-8a — resolved-URL → original-submitted-URL map.
      *                                                     Mirrors $target_bypass_per_url: keyed by the (resolved)
      *                                                     scan URL, defaults to the URL itself when absent.
-     * @return array<int,array{url:string,bypass_suffixes:array,extra_time:bool,submitted_url:string}>
+     * @return array<int,array{url:string,bypass_suffixes:array,extra_time:bool,submitted_url:string,is_external:int}>
      */
     private static function build_pages_array( array $selected_urls, array $host_bypass,
                                                 array $target_bypass_per_url, string $home_url,
@@ -1860,6 +1860,11 @@ class ScannerAjax {
             $pages[] = [
                 'url'             => $url,
                 'bypass_suffixes' => $bypass_suffixes,
+                // FDEG Plan B Task 3 — worker-side island_expected denominator: 1 when
+                // this page is on someone else's host (we never ask for a dependency
+                // island there), 0 otherwise. Emitted as an int, never a bool, because
+                // the worker's telemetry coercion has no bool branch.
+                'is_external'     => $is_external ? 1 : 0,
                 // FU-AAS-EXTRA-TIME — flag this page for Extra Time if the operator
                 // marked its URL. Match the RESOLVED $url OR its original submitted URL,
                 // because the client may have keyed $et_set on the pre-resolution URL
@@ -1883,10 +1888,10 @@ class ScannerAjax {
      * NOT named here is silently dropped, so FU-AAS-EXTRA-TIME's extra_time flag
      * must be carried through explicitly.
      *
-     * @param array<int,array{url:string,bypass_suffixes:array,extra_time?:bool,submitted_url?:string}> $page_specs
+     * @param array<int,array{url:string,bypass_suffixes:array,extra_time?:bool,submitted_url?:string,is_external?:int}> $page_specs
      * @param callable $build_scan_url fn( string $url, array $bypass_suffixes ): string
      * @param string   $token          Bypass token attached to every page.
-     * @return array<int,array{url:string,bypass_token:string,bypass_suffixes:array,extra_time:bool,submitted_url:string}>
+     * @return array<int,array{url:string,bypass_token:string,bypass_suffixes:array,extra_time:bool,submitted_url:string,is_external:int}>
      */
     private static function reshape_page_specs( array $page_specs, callable $build_scan_url, string $token ): array {
         return array_map(
@@ -1899,6 +1904,11 @@ class ScannerAjax {
                 // any key not named here is silently dropped, so submitted_url must be
                 // carried through explicitly. Falls back to the (resolved) url.
                 'submitted_url'   => $spec['submitted_url'] ?? $spec['url'],
+                // FDEG Plan B Task 3 — same hardcoded-key-seam hazard: is_external must
+                // be carried through explicitly or the worker loses the island_expected
+                // denominator. Emitted as an int (0|1), defaulting to 0 (same-host) if
+                // absent from the spec.
+                'is_external'     => (int) ( $spec['is_external'] ?? 0 ),
             ],
             $page_specs
         );
