@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.80b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.80b/ai-assets-scanner.zip",
+    "sha256": "f5815bb2a4e6df12191d702b81764d39bd5137e5582a593c2307cad150159c43",
+    "signature": "",
+    "released_at": "2026-07-23T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.80b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.80b (beta): the scanner can now read WordPress's declared script dependencies. WordPress knows which scripts each script depends on; the scanner never did, and inferred it from the rendered page — so a script that looked unused could be unloaded even though a script you are keeping declares it as a dependency, breaking the page in exactly the case unloading is meant to be safe (real example: wc-add-to-cart-variation declares wp-util; wp-util measured zero coverage, was unloaded, and broke the variable-product purchase flow on a live store). The plugin now publishes a small JSON dependency island on the page, ONLY on the scanner's own authenticated capture request and never on a normal visitor's page view; it is removed from the page body before the scanner measures it, and capped at 128 KB. This release ships the producer side only — the worker-side guard runs in observation mode and changes no scan result yet. Also: the tech-stack popup no longer interrupts a clean probe (it is now a self-dismissing notification), while the security-stack warning is UNCHANGED and still blocks — if a WAF or security stack is detected, or the probe fails, cannot identify the stack, or the target is not WordPress, you still get the blocking Cancel/Continue prompt so you can bail before any credits are spent. Security: the temporary token authorising the scanner's own requests to your site is now generated with a cryptographically secure random source (128-bit) instead of WordPress's UUID helper."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}

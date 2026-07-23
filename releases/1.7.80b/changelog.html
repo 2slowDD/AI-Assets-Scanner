@@ -1,0 +1,21 @@
+<p>Version 1.7.80b (beta).</p>
+<p><strong>Added &mdash; the scanner can now see WordPress's declared script dependencies</strong></p>
+<ul>
+<li>WordPress knows which scripts each script depends on (<code>$deps</code>); the scanner never did, and inferred it from the rendered page instead. A script that looked unused could therefore be unloaded even though a script you <strong>are</strong> keeping declares it as a dependency &mdash; breaking the page in exactly the case unloading is supposed to be safe. Real example: <code>wc-add-to-cart-variation</code> declares <code>wp-util</code>; <code>wp-util</code> measured zero coverage, was unloaded, and broke the variable-product purchase flow on a live store.</li>
+<li>The plugin now publishes a small JSON "dependency island" on the page, <strong>only</strong> on the scanner's own authenticated capture request &mdash; never on a normal visitor's page view. The scan worker reads it and refuses to unload anything inside a kept script's declared dependency chain.</li>
+<li>The island is requested with an explicit marker so it rides exactly one request per page, is removed from the page body before the scanner measures it (so it can never distort broken-page detection), and is capped at 128 KB.</li>
+<li><strong>This release ships the producer side only.</strong> The worker-side guard is deployed in observation mode: it reports what it <strong>would</strong> protect and changes no scan result yet.</li>
+</ul>
+<p><strong>Changed &mdash; the tech-stack popup no longer interrupts a clean probe</strong></p>
+<ul>
+<li>After probing your site, the detected cache/optimizer stack was shown in a modal that blocked the scan until you clicked. When nothing needs a decision, it is now a self-dismissing notification and the scan continues immediately.</li>
+<li><strong>The security-stack warning is unchanged and still blocks.</strong> If a WAF or security stack is detected &mdash; or the probe fails, cannot identify the stack, or the target is not WordPress &mdash; you still get the blocking prompt with Cancel/Continue, so you can bail before any credits are spent.</li>
+</ul>
+<p><strong>Security &mdash; scan token hardened</strong></p>
+<ul>
+<li>The temporary token that authorises the scanner's own requests to your site is now generated with a cryptographically secure random source (128-bit, <code>random_bytes</code>) instead of WordPress's UUID helper, which is not intended for security use. Token lifetime and validation are unchanged.</li>
+</ul>
+<p><strong>Internal</strong></p>
+<ul>
+<li>Each page submitted for scanning now carries an <code>is_external</code> flag, so the worker can distinguish "the plugin did not supply a dependency island" from "this page is on another host, so we never asked".</li>
+</ul>
