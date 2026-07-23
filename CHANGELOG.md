@@ -8,10 +8,10 @@ All notable changes to AI Assets Scanner are documented here.
 
 ### Added — the scanner can now see WordPress's declared script dependencies
 
-- WordPress knows which scripts each script depends on (`$deps`); the scanner never did, and inferred it from the rendered page instead. A script that looked unused could therefore be unloaded even though a script you *are* keeping declares it as a dependency — breaking the page in exactly the case unloading is supposed to be safe. Real example: `wc-add-to-cart-variation` declares `wp-util`; `wp-util` measured zero coverage, was unloaded, and broke the variable-product purchase flow on a live store.
+- WordPress knows which scripts each script depends on (`$deps`); the scanner never did, and inferred it from the rendered page instead. A script that looked unused could therefore be unloaded even though a script you **are** keeping declares it as a dependency — breaking the page in exactly the case unloading is supposed to be safe. Real example: `wc-add-to-cart-variation` declares `wp-util`; `wp-util` measured zero coverage, was unloaded, and broke the variable-product purchase flow on a live store.
 - The plugin now publishes a small JSON "dependency island" on the page, **only** on the scanner's own authenticated capture request — never on a normal visitor's page view. The scan worker reads it and refuses to unload anything inside a kept script's declared dependency chain.
 - The island is requested with an explicit marker so it rides exactly one request per page, is removed from the page body before the scanner measures it (so it can never distort broken-page detection), and is capped at 128 KB.
-- **This release ships the producer side only.** The worker-side guard is deployed in observation mode: it reports what it *would* protect and changes no scan result yet.
+- **This release ships the producer side only.** The worker-side guard is deployed in observation mode: it reports what it **would** protect and changes no scan result yet.
 
 ### Changed — the tech-stack popup no longer interrupts a clean probe
 
