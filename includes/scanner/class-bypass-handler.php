@@ -90,6 +90,9 @@ class BypassHandler {
 			return;
 		}
 
+		// Token is confirmed valid — arm the declared-dependency island (marker-gated).
+		CU_DepGraph_Island::maybe_register( $raw_token );
+
 		$detector_entries = self::get_detector_entries();
 		$bypassed         = [];
 

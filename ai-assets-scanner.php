@@ -47,6 +47,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Scanner\\BypassManager'   => 'includes/scanner/class-bypass-manager.php',
         'CUScanner\\Scanner\\OptimizerState'  => 'includes/scanner/class-optimizer-state.php',
         'CUScanner\\Scanner\\BypassHandler'   => 'includes/scanner/class-bypass-handler.php',
+        'CUScanner\\Scanner\\CU_DepGraph_Island' => 'includes/scanner/class-cu-depgraph-island.php',
         'CUScanner\\Scanner\\Strategies\\AbstractOptimizerBypass' => 'includes/scanner/strategies/abstract-optimizer-bypass.php',
         'CUScanner\\Scanner\\Strategies\\FlyingPressBypass'        => 'includes/scanner/strategies/class-flying-press-bypass.php',
         'CUScanner\\Scanner\\Strategies\\SgOptimizerBypass'        => 'includes/scanner/strategies/class-sg-optimizer-bypass.php',
