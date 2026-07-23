@@ -8,7 +8,11 @@ class BypassManager {
     private const TOKEN_TTL         = 3600; // 1 hour
 
     public function create_token(): string {
-        $token            = wp_generate_uuid4();
+        // 128 bits from CSPRNG (random_bytes) — stronger than wp_generate_uuid4()
+        // which is mt_rand-derived. House precedent: class-settings.php get_scanner_secret().
+        // random_bytes() throws on insufficient entropy; let it propagate (fail-loud) —
+        // a scan token minted from a weak/failed source must not silently succeed.
+        $token            = bin2hex( random_bytes( 16 ) );
         $tokens           = $this->load_tokens();
         $tokens[ $token ] = time() + self::TOKEN_TTL;
         $this->store_tokens( $tokens );

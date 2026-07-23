@@ -26,15 +26,25 @@ class BypassManagerTest extends TestCase {
                 }
                 return true;
             } );
-        WP_Mock::userFunction( 'wp_generate_uuid4' )->andReturn( 'tok-fresh' );
         WP_Mock::userFunction( 'set_transient' )->never();
 
-        ( new BypassManager() )->create_token();
+        $token = ( new BypassManager() )->create_token();
 
         $this->assertNotNull( $captured );
         $this->assertSame( false, $captured['autoload'], 'Option must be stored with autoload=false' );
-        $this->assertArrayHasKey( 'tok-fresh', $captured['value'] );
-        $this->assertGreaterThan( time(), $captured['value']['tok-fresh'], 'Token must have a future expires_at' );
+        $this->assertArrayHasKey( $token, $captured['value'] );
+        $this->assertGreaterThan( time(), $captured['value'][ $token ], 'Token must have a future expires_at' );
+    }
+
+    public function test_create_token_is_csprng_hex(): void {
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_active_tokens', [] )
+            ->andReturn( [] );
+        WP_Mock::userFunction( 'update_option' )->andReturn( true );
+
+        $token = ( new BypassManager() )->create_token();
+
+        $this->assertMatchesRegularExpression( '/^[a-f0-9]{32}$/', $token );
     }
 
     // ------------------------------------------------------------------ //
@@ -111,7 +121,6 @@ class BypassManagerTest extends TestCase {
                 }
                 return true;
             } );
-        WP_Mock::userFunction( 'wp_generate_uuid4' )->andReturn( 'tok-abcdef' );
         WP_Mock::userFunction( 'set_transient' )->never();   // legacy path must not fire
         WP_Mock::userFunction( 'delete_transient' )->never();
         WP_Mock::userFunction( 'get_transient' )->never();
