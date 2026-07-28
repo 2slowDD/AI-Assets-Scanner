@@ -4,6 +4,11 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.81b — 2026-07-28
+
+### Fixed
+- Auto-bypass banner now shows canonical plugin names ("SWIS Performance", "WP Rocket", "LiteSpeed Cache") instead of title-casing the plugin slug ("Swis Performance"). `PluginDetector::detect()` carries a new additive `auto_bypass_labels` map; the admin JS uses it with the old slug derivation kept as fallback. Reported by the SWIS/EWWW developer.
+
 ## 1.7.80b - 2026-07-23
 
 ### Added — the scanner can now see WordPress's declared script dependencies
