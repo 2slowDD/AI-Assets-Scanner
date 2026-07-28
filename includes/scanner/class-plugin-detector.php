@@ -363,12 +363,15 @@ class PluginDetector {
     ];
 
     public function detect(): array {
-        $result = [ 'auto_bypass' => [], 'soft_block' => [], 'soft_warn' => [], 'security_warn' => [], 'cu_missing' => false ];
+        $result = [ 'auto_bypass' => [], 'auto_bypass_labels' => [], 'soft_block' => [], 'soft_warn' => [], 'security_warn' => [], 'cu_missing' => false ];
 
         foreach ( self::AUTO_BYPASS as $file => [ $label, $params ] ) {
             if ( is_plugin_active( $file ) ) {
                 $slug = explode( '/', $file )[0];
                 $result['auto_bypass'][ $slug ] = $params;
+                // T7 (EWWW dev feedback): carry the canonical label so the admin JS
+                // doesn't title-case the slug ("swis-performance" -> "Swis Performance").
+                $result['auto_bypass_labels'][ $slug ] = $label;
             }
         }
         foreach ( self::SOFT_BLOCK as $file => [ $label, $reason ] ) {
@@ -410,6 +413,7 @@ class PluginDetector {
             $version = $data['Version'] ?? '0';
             if ( version_compare( $version, self::CU_MIN_VERSION, '>=' ) ) {
                 $result['auto_bypass']['code-unloader'] = [ 'nowpcu' ];
+                $result['auto_bypass_labels']['code-unloader'] = 'Code Unloader';
             } else {
                 $result['soft_block']['Code Unloader'] = "Version {$version} detected. Upgrade to v" . self::CU_MIN_VERSION . "+ for automatic bypass, or disable Code Unloader before scanning.";
             }

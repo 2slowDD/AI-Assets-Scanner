@@ -703,8 +703,10 @@
 
             // Auto-bypass: compact single-line banner
             Object.keys(d.auto_bypass || {}).forEach(slug => {
-                // Derive a readable label from the slug (wp-rocket → WP Rocket, code-unloader → Code Unloader)
-                const label = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                // Canonical label from PHP (T7: "SWIS Performance", "WP Rocket", "LiteSpeed Cache");
+                // slug title-case only as a fallback for payloads from older plugin versions.
+                const label = (d.auto_bypass_labels || {})[slug]
+                    || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
                 html += `<div class="cu-bypass-notice">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="12" cy="12" r="10" stroke="#2271b1" stroke-width="2"/>
