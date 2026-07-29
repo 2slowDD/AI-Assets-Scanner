@@ -128,6 +128,26 @@ class RatchetMergerTest extends TestCase {
         return false;
     }
 
+    /**
+     * Collect last_merge_diag['handles'] entries for one handle, optionally
+     * narrowed to a single device leg. Mirrors the inline $byHandle loops used
+     * by the AC-1 diag tests, but keeps per-leg assertions readable.
+     *
+     * @param array  $diag   RatchetMerger::$last_merge_diag
+     * @param string $handle asset_handle to match
+     * @param string $dev    '' = any device, else 'desktop'|'mobile'
+     * @return array List of matching diag entries.
+     */
+    private function diag_legs( array $diag, string $handle, string $dev = '' ): array {
+        $out = [];
+        foreach ( $diag['handles'] ?? [] as $h ) {
+            if ( $h['handle'] === $handle && ( '' === $dev || $h['device'] === $dev ) ) {
+                $out[] = $h;
+            }
+        }
+        return $out;
+    }
+
     // ─────────────────────────────────────────────────────────────────────
     // FAILSAFE_DEMOTE_CLASS constant + resolve_failsafe_class helper
     // ─────────────────────────────────────────────────────────────────────
@@ -1054,6 +1074,209 @@ class RatchetMergerTest extends TestCase {
         $this->assertTrue(
             $this->has_rule( $final, 'h', 'all', 2 ),
             'merge output must recollapse matching desktop+mobile legs into all'
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // FU-DISPLAY-TRUTH — wire-value guards
+    //
+    // The worker is about to ship "display-truth": under enforce, the wire
+    // `coverage` for a V8-measured script row becomes the CORRECTED percent
+    // (e.g. 0.5945) where the legacy wire sent 0.0, and a measured-zero
+    // mixed-shape leg sends 0.0 where the legacy wire sent a nonzero value.
+    //
+    // RatchetMerger is the ONE consumer that reads `coverage` behaviourally:
+    //   $covered = $coverage > RESCUED_SENTINEL (0.001)   [index_rescan_state]
+    // and that boolean drives the Step-6 policy branch (covered_drop vs
+    // benign_restore / validated_drop / unknown_drop).
+    //
+    // These two tests pin merge() behaviour under the NEW wire values against
+    // the CURRENT merger code (the merger is not changing) so that a surprise
+    // shows up here rather than in production. Both fixtures use bucket
+    // 'needed' on both devices — CuJsonBuilder's needed,needed cell emits no
+    // rule, so R_et is empty and every R_orig leg reaches the per-asset policy.
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * FU-DISPLAY-TRUTH A — covered_drop pin (enforce-kept cohort).
+     *
+     * Post-display-truth an enforce-KEPT script row arrives with a real
+     * positive coverage (0.5945) and no demote_class. The rule must be dropped
+     * and the diag outcome must be 'covered_drop'.
+     *
+     * Today, with the legacy wire value 0.0, the identical shape yields
+     * 'unknown_drop' — also a drop. So this test pins BOTH the unchanged
+     * customer-visible result (rule not restored) AND the post-flip label.
+     */
+    public function test_display_truth_positive_coverage_yields_covered_drop(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h_js', 'all', 2, 'js', $pat ) ]; // → desktop + mobile legs
+        $rescan_pages = [
+            $this->page_with_asset(
+                $pat,
+                'h_js',
+                'script',
+                [
+                    'bucket_desktop' => 'needed',
+                    'bucket_mobile'  => 'needed',
+                    'cov_desktop'    => 0.5945, // display-truth corrected percent
+                    'cov_mobile'     => 0.5945,
+                    // intentionally NO demote_class — enforce-kept, not demoted
+                ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+
+        // Rule must NOT survive on either device width.
+        $this->assertFalse(
+            $this->has_rule( $final, 'h_js', 'all', 2 ),
+            'display-truth covered row must not restore the orig rule (all)'
+        );
+        $this->assertFalse(
+            $this->has_rule( $final, 'h_js', 'desktop', 2 ),
+            'display-truth covered row must not restore the orig rule (desktop leg)'
+        );
+        $this->assertFalse(
+            $this->has_rule( $final, 'h_js', 'mobile', 2 ),
+            'display-truth covered row must not restore the orig rule (mobile leg)'
+        );
+        $this->assertSame(
+            0,
+            $merger->recovered_by_pattern[ $pat ] ?? 0,
+            'a covered drop must not increment recovered_by_pattern'
+        );
+
+        // Diag label: covered_drop on BOTH legs — NOT unknown_drop.
+        $diag = $merger->last_merge_diag;
+        $this->assertSame(
+            2,
+            $diag['outcomes']['covered_drop'] ?? 0,
+            'both exploded legs must record covered_drop under the display-truth wire value'
+        );
+        $this->assertSame(
+            0,
+            $diag['outcomes']['unknown_drop'] ?? 0,
+            'positive coverage must short-circuit before the demote_class branch (no unknown_drop)'
+        );
+
+        $legs = $this->diag_legs( $diag, 'h_js' );
+        $this->assertCount( 2, $legs, 'one diag entry per exploded R_orig leg' );
+        foreach ( $legs as $leg ) {
+            $this->assertSame( 'covered_drop', $leg['outcome'] );
+            $this->assertNull( $leg['demote_class'],   'covered_drop: no demote_class on this asset' );
+            $this->assertNull( $leg['failsafe_class'], 'covered_drop: failsafe_class must be null' );
+        }
+    }
+
+    /**
+     * FU-DISPLAY-TRUTH B — benign_restore edge guard (spec §4 edge cell).
+     *
+     * `demote_class` is an ASSET-level field; `coverage` is PER-DEVICE. The
+     * post-display-truth mixed-shape row exercises that split directly:
+     *   desktop coverage 0.0    → not covered → demote_class 'benign' → RESTORE
+     *   mobile  coverage 0.5945 → covered     → covered wins           → DROP
+     *
+     * Sibling assertion: flip ONLY the desktop coverage to 0.5945 and the same
+     * asset (same 'benign' demote_class) yields covered_drop / not restored —
+     * pinning the edge exactly and only where the spec accepts it.
+     */
+    public function test_display_truth_measured_zero_leg_yields_benign_restore_edge(): void {
+        $pat = 'https://s.com/p';
+        // Per-device R_orig rules so each leg's outcome is asserted independently.
+        $r_orig = [
+            $this->rule( 'h_js', 'desktop', 2, 'js', $pat ),
+            $this->rule( 'h_js', 'mobile',  2, 'js', $pat ),
+        ];
+
+        $mixed_shape = [
+            $this->page_with_asset(
+                $pat,
+                'h_js',
+                'script',
+                [
+                    'bucket_desktop' => 'needed',
+                    'bucket_mobile'  => 'needed',
+                    'cov_desktop'    => 0.0,    // measured-zero leg (post-display-truth)
+                    'cov_mobile'     => 0.5945, // corrected percent leg
+                    'demote_class'   => 'benign', // ASSET-level
+                ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $mixed_shape );
+        $diag   = $merger->last_merge_diag;
+
+        // ── desktop leg: measured-zero + benign → restored.
+        $this->assertTrue(
+            $this->has_rule( $final, 'h_js', 'desktop', 2 ),
+            'measured-zero leg with demote_class=benign must restore the orig desktop rule'
+        );
+        $legs_desktop = $this->diag_legs( $diag, 'h_js', 'desktop' );
+        $this->assertCount( 1, $legs_desktop );
+        $this->assertSame( 'benign_restore', $legs_desktop[0]['outcome'] );
+        $this->assertSame( 'benign', $legs_desktop[0]['demote_class'] );
+        $this->assertNull( $legs_desktop[0]['failsafe_class'] );
+
+        // ── mobile leg: SAME asset, SAME asset-level demote_class, but covered
+        //    → the covered branch short-circuits before the demote_class branch.
+        $this->assertFalse(
+            $this->has_rule( $final, 'h_js', 'mobile', 2 ),
+            'covered leg must drop even though the asset carries demote_class=benign'
+        );
+        $legs_mobile = $this->diag_legs( $diag, 'h_js', 'mobile' );
+        $this->assertCount( 1, $legs_mobile );
+        $this->assertSame( 'covered_drop', $legs_mobile[0]['outcome'] );
+        $this->assertSame(
+            'benign',
+            $legs_mobile[0]['demote_class'],
+            'covered_drop must still record the asset-level demote_class losslessly'
+        );
+
+        $this->assertSame( 1, $diag['outcomes']['benign_restore'] ?? 0 );
+        $this->assertSame( 1, $diag['outcomes']['covered_drop']   ?? 0 );
+        $this->assertSame(
+            1,
+            $merger->recovered_by_pattern[ $pat ] ?? 0,
+            'exactly one distinct rule restored on this pattern'
+        );
+
+        // ── Sibling: change ONLY the desktop coverage to the covered value.
+        $both_covered = [
+            $this->page_with_asset(
+                $pat,
+                'h_js',
+                'script',
+                [
+                    'bucket_desktop' => 'needed',
+                    'bucket_mobile'  => 'needed',
+                    'cov_desktop'    => 0.5945, // the one changed field
+                    'cov_mobile'     => 0.5945,
+                    'demote_class'   => 'benign',
+                ]
+            ),
+        ];
+
+        $merger2 = new RatchetMerger();
+        $final2  = $merger2->merge( $r_orig, $both_covered );
+        $diag2   = $merger2->last_merge_diag;
+
+        $this->assertFalse(
+            $this->has_rule( $final2, 'h_js', 'desktop', 2 ),
+            'covered desktop leg must NOT be restored even with demote_class=benign'
+        );
+        $this->assertFalse(
+            $this->has_rule( $final2, 'h_js', 'mobile', 2 ),
+            'covered mobile leg must NOT be restored even with demote_class=benign'
+        );
+        $this->assertSame( 2, $diag2['outcomes']['covered_drop']   ?? 0 );
+        $this->assertSame( 0, $diag2['outcomes']['benign_restore'] ?? 0 );
+        $this->assertSame(
+            0,
+            $merger2->recovered_by_pattern[ $pat ] ?? 0,
+            'no restores when every leg is covered'
         );
     }
 }
