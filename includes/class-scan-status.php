@@ -179,6 +179,15 @@ class AIAS_Scan_Status {
 				'bypass_suffixes' => is_array( $page['bypass_suffixes'] ?? null )
 					? array_values( array_filter( $page['bypass_suffixes'], 'is_string' ) )
 					: [],
+				// FU-VFM-MASKING (spec 2026-07-31 §3.2): devices whose visual channel was off for
+				// this scan's verdict. ok-only (mirrors et_candidate); hard device whitelist —
+				// untrusted Railway input, type-safe per the bypass_suffixes convention.
+				'visual_channel_off' => ( 'ok' === $st['class'] && is_array( $page['visual_channel_off'] ?? null ) )
+					? array_values( array_unique( array_intersect(
+						array_filter( $page['visual_channel_off'], 'is_string' ),
+						[ 'desktop', 'mobile' ]
+					) ) )
+					: [],
 			];
 		}
 		return $rows;
