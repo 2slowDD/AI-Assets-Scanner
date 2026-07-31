@@ -2364,6 +2364,24 @@
 
     function cuEscHtml( v ) { var d = document.createElement('div'); d.textContent = ( v == null ? '' : String( v ) ); return d.innerHTML; }
 
+    // FU-VFM-MASKING: the two normative tooltip strings (spec §3.2.3, r2-M3). %s is the
+    // <devices> token — every occurrence, substituted at render time via
+    // split('%s').join(list). AC-M8's independent verification copy of these two strings
+    // lives in tests/js/channel-off-note.test.js (CU_CHOFF_ARIA / CU_CHOFF_BOX_BODY) — keep
+    // both copies in sync with spec §3.2.3 if either changes.
+    var CU_CHOFF_ARIA = 'Visual comparison off (%s): this page\'s normal variation between visits is larger than any visual difference the scanner could detect, so the visual check was switched off for this page on %s during this scan. Other checks (code coverage, console, network) still decide here. Deliberate, evidence-based — not an error.';
+    var CU_CHOFF_BOX_BODY = 'this page\'s own normal variation between visits is measured to be larger than any visual difference the scanner could detect, so the visual check was switched off for this page on %s during this scan. Unload decisions here are made by the scanner\'s other checks (code coverage, console, network). This is a deliberate, evidence-based state — not an error.';
+
+    // FU-VFM-MASKING: the channel-off "?" tooltip. Two sinks per the cu-help convention
+    // (scanner.js:2450): plain-text aria-label (attribute context — esc(), the attribute-safe
+    // helper, scanner.js:96-104) and the cu-help-box HTML (text context — static markup, device
+    // list interpolated via cuEscHtml). Takes the pre-joined device list (see call site).
+    function cuChoffHelp( list ) {
+        return '<span class="cu-help" tabindex="0" aria-label="' + esc( CU_CHOFF_ARIA.split( '%s' ).join( list ) ) + '">'
+             + '<span class="cu-help-box"><strong>Visual comparison off (' + cuEscHtml( list ) + '):</strong> '
+             + CU_CHOFF_BOX_BODY.split( '%s' ).join( cuEscHtml( list ) ) + '</span></span>';
+    }
+
     function renderResultUrlList( pages, scanId ) {
         var host = document.getElementById('cu-result-url-list');
         if ( ! host ) { return; }
@@ -2425,9 +2443,19 @@
             var bypassNote = ( p.bypass_suffixes && p.bypass_suffixes.length )
                 ? ' <span class="cu-bypass-note">optimizer detected — scanned with ?' + cuEscHtml( p.bypass_suffixes.join( '&' ) ) + '</span>'
                 : '';
+            // FU-VFM-MASKING — legacy-row guard: rows restored from pre-release storage
+            // (aias_last_result / localStorage cu_scanner_result, both surfaces per AC-M7b)
+            // lack this key entirely; an unguarded .length would throw and break the
+            // restored Step-4 render. List joined ONCE and shared with the tooltip so the
+            // note and tooltip can never drift (spec §3.2.2, r3-n3).
+            var choffList = ( p.visual_channel_off && p.visual_channel_off.length ) ? p.visual_channel_off.join( ' & ' ) : '';
+            var choffNote = choffList
+                ? ' <span class="cu-choff-note">👁 visual comparison off — ' + cuEscHtml( choffList ) + cuChoffHelp( choffList ) + '</span>'
+                : '';
             var urlCell = cuEscHtml( p.url )
                 + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' )
-                + bypassNote;
+                + bypassNote
+                + choffNote;
             return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + ( noopt ? ' cu-row-noopt' : '' ) + '">'
                 + '<td>' + cuEscHtml( p.n ) + '</td>'
                 + '<td class="cu-url-cell">' + urlCell + '</td>'

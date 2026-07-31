@@ -80,8 +80,9 @@ function makeEl(id, tagName) {
   const listeners = {};
   const classes = new Set();
   const attrs = {};
+  let _text = '';
   return {
-    id, _html: '', style: {}, value: 0, textContent: '', disabled: false,
+    id, _html: '', style: {}, value: 0, disabled: false,
     tagName: tagName || '', nodeType: 1, parentNode: null, open: false,
     children: [],
     classList: {
@@ -92,6 +93,15 @@ function makeEl(id, tagName) {
     // Raw string stays authoritative (existing tests read _html/innerHTML); the parsed
     // mirror is built lazily and only ever consumed by querySelector/_kids.
     set innerHTML(v) { this._html = v; this._dom = null; }, get innerHTML() { return this._html; },
+    // Mirrors the real DOM's textContent -> innerHTML round trip (&/</> only, no quote
+    // escaping — matches the codebase's own cuEscHtml() convention, scanner.js:2365, and
+    // the esc() comment at scanner.js:96-100 documenting exactly this asymmetry).
+    get textContent() { return _text; },
+    set textContent(v) {
+      _text = (v === null || v === undefined) ? '' : String(v);
+      this._html = _text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      this._dom = null;
+    },
     _domChildren() {
       if (this._dom === null || this._dom === undefined) {
         try { this._dom = this._html ? parseFragment(this._html, makeEl) : []; } catch (e) { this._dom = []; }

@@ -866,6 +866,8 @@
 .cu-resolved-note { font-size: 13px; color: #787c82; font-style: italic; }
 /* FU-ABSENT-SAFE B2 — Step-4 "optimizer detected" note (see cu-bypass-note in scanner.js). */
 .cu-bypass-note { font-size: 13px; color: #2271b1; font-style: italic; }
+/* FU-VFM-MASKING — Step-4 "visual comparison off" note (see cu-choff-note in scanner.js). */
+.cu-choff-note { font-size: 13px; color: #2271b1; font-style: italic; }
 /* "Please scan again" note on S:0 A:0 (noopt) rows — replaces the old per-row "Scan again" link. */
 .cu-noopt-note { font-style: italic; }
 .cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; }
