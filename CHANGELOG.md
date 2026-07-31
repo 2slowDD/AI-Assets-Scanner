@@ -4,6 +4,13 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.82b — 2026-07-31
+
+### Added — the results table now tells you when visual comparison is off for a page
+
+- Some pages naturally change their appearance between visits (animations, rotating content) by more than any visual difference the scanner could detect. On those pages the scanner's visual check is deliberately switched off, and unload decisions rely on its other checks (code coverage, console, network). Until now you couldn't see that state — a page with visual comparison off looked identical to any other page. The Step-4 results table now shows a "👁 visual comparison off — <device>" note in the URL cell, with a "?" tooltip explaining exactly what it means. The state comes from the scan worker per device, appears only when a scan's shipped verdict actually ran with the visual channel off, and older stored results simply show no note.
+- Touched: `includes/class-scan-status.php` (defensively-whitelisted `visual_channel_off` row field, ok-rows only), `admin/js/scanner.js` (URL-cell note + dual-sink tooltip), `admin/css/ai-assets-scanner-admin.css` (one note class), tests (`tests/ScanStatusChannelOffTest.php`, `tests/js/channel-off-note.test.js`).
+
 ## 1.7.81b — 2026-07-28
 
 ### Fixed
