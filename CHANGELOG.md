@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.83b — 2026-07-31
+
+### Fixed
+- The "visual comparison off" note now starts on its own line in the results table instead of trailing the end of the "optimizer detected — scanned with …" note, so both notes stay readable on wide screens. CSS-only (`.cu-choff-note` is now block-level); the note text, tooltip, and the conditions under which the note appears are unchanged.
+- Touched: `admin/css/ai-assets-scanner-admin.css`.
+
 ## 1.7.82b — 2026-07-31
 
 ### Added — the results table now tells you when visual comparison is off for a page
