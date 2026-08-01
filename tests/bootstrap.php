@@ -45,6 +45,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\DomainNormalizer'         => 'includes/class-domain-normalizer.php',
         'CUScanner\\FreeKeyBootstrap'         => 'includes/class-free-key-bootstrap.php',
         'CUScanner\\ScanHistory'              => 'includes/class-scan-history.php',
+        'CUScanner\\Migrations'               => 'includes/class-migrations.php',
         'CUScanner\\Api\\WpserviceClient'     => 'includes/api/class-wpservice-client.php',
         'CUScanner\\Api\\RailwayClient'       => 'includes/api/class-railway-client.php',
         'CUScanner\\Api\\HttpException'       => 'includes/api/class-http-exception.php',
