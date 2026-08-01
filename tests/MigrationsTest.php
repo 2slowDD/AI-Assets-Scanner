@@ -142,6 +142,10 @@ class MigrationsTest extends TestCase {
         $this->assertStringNotContainsString( 'railway_url', $upd[1] );
         $this->assertSame( 'get_var', $cnt[0] );
         $this->assertStringContainsString( "autoload IN ( 'yes', 'on', 'auto-on', 'auto' )", $cnt[1] );
+        // Post-verify must re-check BOTH targets — dropping either half would let a
+        // half-migrated install stamp the version as complete.
+        $this->assertStringContainsString( "LIKE 'cu\\_scanner\\_json\\_%'", $cnt[1] );
+        $this->assertStringContainsString( "'cu_scanner_history'", $cnt[1] );
     }
 
     /** Orphaned JSON rows (no history record) come from the SELECT — still flipped. */
@@ -175,6 +179,76 @@ class MigrationsTest extends TestCase {
         ] );
 
         \CUScanner\Migrations::maybe_run(); // version stamped ⇒ update_option ->once() satisfied
+        $this->assertCount( 3, $GLOBALS['wpdb']->log );
+    }
+
+    /**
+     * THE r1-CRITICAL REGRESSION LOCK: failing SELECT followed by queries that
+     * would SUCCEED (and wipe last_error, as real wpdb does) must NOT stamp the
+     * version. v1's end-of-function last_error check passed exactly this case.
+     */
+    public function test_m1_failing_select_then_succeeding_queries_does_not_stamp_version(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->never();
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [], 'error' => 'Table gone' ], // SELECT fails
+            [ 'result' => 1 ],   // would-be UPDATE — succeeds and wipes last_error
+            [ 'result' => '0' ], // would-be COUNT — succeeds
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        // Correct behaviour bails after the SELECT: exactly 1 query issued.
+        $this->assertCount( 1, $GLOBALS['wpdb']->log );
+    }
+
+    /** UPDATE returning false ⇒ no version stamp. */
+    public function test_m1_update_failure_does_not_stamp_version(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->never();
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_aaa' ] ],
+            [ 'result' => false, 'error' => 'Deadlock found' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertCount( 2, $GLOBALS['wpdb']->log );
+    }
+
+    /** Post-verify COUNT > 0 (e.g. lagging read replica) ⇒ no stamp; retry self-heals. */
+    public function test_m1_nonzero_postverify_does_not_stamp_version(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->never();
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_aaa' ] ],
+            [ 'result' => 2 ],
+            [ 'result' => '2' ], // still autoloading per the re-read
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertCount( 3, $GLOBALS['wpdb']->log );
+    }
+
+    /** Post-verify get_var ERROR returns null — must NOT be read as count 0. */
+    public function test_m1_failed_postverify_query_does_not_stamp_version(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->never();
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_aaa' ] ],
+            [ 'result' => 1 ],
+            [ 'result' => null, 'error' => 'Server has gone away' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
         $this->assertCount( 3, $GLOBALS['wpdb']->log );
     }
 }
