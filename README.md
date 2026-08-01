@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.7.83b-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.7.84b-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
@@ -41,6 +41,7 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **Accurate credits for unoptimized pages + resume a running scan (1.7.52b)** — an **S:0 A:0** ("scanned, produced no rules") page now shows **0 credits** in the per-URL table, matching what you're billed: the scanner worker no longer charges for no-output pages (Extra-Time pages stay billable). And opening the scanner page mid-scan in a **new tab** now **resumes the live progress view** (via the active-scan server state) instead of the empty pre-scan screen, so a mid-scan visit isn't confusing
 - **Fix: no more "undefined" rows in the live scan view (1.7.53b)** — while a scan is running, the **Step 3 — Scanning** table now shows every page's real URL immediately. Pages the worker hadn't started yet were briefly displaying the word "undefined" instead of their address (the worker only sends a URL for pages currently in flight). Scanning-screen cosmetic only — the final results and your billing were always correct
 - **Pre-scan security-stack warning + per-reason remediation copy (1.7.67b)** — a Cancel/Continue warning surfaces before scanning when a CDN/WAF security stack (Cloudflare, Sucuri, Akamai, Imperva) is fingerprinted on external targets or detected locally (Wordfence, Cloudflare) on same-site scans — informational only, never affecting scan outcome or bypass suffixes. Blocked-scan banners now show single-sourced, localized per-reason remediation guidance (challenge/WAF/rate-limit copy + settings bypass link)
+- **Faster page loads — scan data no longer loaded on every request (1.7.84b)** — scan history and per-scan reports are read only when needed instead of being loaded into memory on every page of your site. A one-time update converts data saved by earlier versions and verifies the conversion before marking itself complete
 
 ## How it works
 
