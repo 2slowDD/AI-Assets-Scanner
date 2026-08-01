@@ -22,6 +22,7 @@ class ScanHistoryAutoloadTest extends TestCase {
             ->andReturn( true );
 
         ( new \CUScanner\ScanHistory() )->create_record( 'job-1', 'example.test', 5, 'queued' );
+        $this->assertConditionsMet();
     }
 
     public function test_update_status_writes_history_with_autoload_false(): void {
@@ -34,6 +35,7 @@ class ScanHistoryAutoloadTest extends TestCase {
             ->andReturn( true );
 
         ( new \CUScanner\ScanHistory() )->update_status( 'job-1', 'done' );
+        $this->assertConditionsMet();
     }
 
     public function test_store_json_writes_blob_with_autoload_false(): void {
@@ -43,5 +45,6 @@ class ScanHistoryAutoloadTest extends TestCase {
             ->andReturn( true );
 
         ( new \CUScanner\ScanHistory() )->store_json( 'job-1', '{"a":1}' );
+        $this->assertConditionsMet();
     }
 }

@@ -22,7 +22,7 @@ class ScanHistoryTest extends TestCase {
         WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_history', [] )->andReturn( $existing );
         WP_Mock::userFunction( 'delete_option' )->once();
         WP_Mock::userFunction( 'update_option' )
-            ->with( 'cu_scanner_history', \Mockery::type( 'array' ) )
+            ->with( 'cu_scanner_history', \Mockery::type( 'array' ), false )
             ->andReturnUsing( function( $key, $value ) {
                 $this->assertCount( 10, $value );
                 return true;
@@ -33,7 +33,7 @@ class ScanHistoryTest extends TestCase {
 
     public function test_store_json_saves_to_option(): void {
         WP_Mock::userFunction( 'update_option' )
-            ->with( 'cu_scanner_json_job-1', '{"version":"1.3.6"}' )
+            ->with( 'cu_scanner_json_job-1', '{"version":"1.3.6"}', false )
             ->once();
         ( new ScanHistory() )->store_json( 'job-1', '{"version":"1.3.6"}' );
         $this->assertConditionsMet();
@@ -51,7 +51,7 @@ class ScanHistoryTest extends TestCase {
         $existing = [ [ 'job_id' => 'job-1', 'status' => 'in_progress' ] ];
         WP_Mock::userFunction( 'get_option' )->andReturn( $existing );
         WP_Mock::userFunction( 'update_option' )
-            ->with( 'cu_scanner_history', \Mockery::type( 'array' ) )
+            ->with( 'cu_scanner_history', \Mockery::type( 'array' ), false )
             ->andReturnUsing( function( $key, $records ) {
                 $this->assertSame( 'complete', $records[0]['status'] );
                 return true;
