@@ -275,4 +275,34 @@ class MigrationsTest extends TestCase {
         \CUScanner\Migrations::maybe_run();
         $this->assertCount( 3, $GLOBALS['wpdb']->log );
     }
+
+    /**
+     * Zero cu_scanner_json_* rows is a SUCCESS path, not a bail-out. The enumeration
+     * legitimately returns [] on an install whose JSON blobs were already evicted (or
+     * that has none yet), and `cu_scanner_history` — a primary target of this FU — must
+     * still be flipped. This locks the distinction between "SELECT returned nothing" and
+     * "SELECT failed": guarding on empty( $names ) instead of last_error would bail on
+     * every request forever on exactly those installs, never flipping history and never
+     * stamping the version.
+     */
+    public function test_m1_empty_enumeration_still_flips_history(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )
+            ->with( 'cu_scanner_db_version', 1 )
+            ->once()
+            ->andReturn( true );
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [] ], // no JSON blobs, and NO error — a legitimate empty result
+            [ 'result' => 1 ],
+            [ 'result' => '0' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+
+        $this->assertCount( 3, $GLOBALS['wpdb']->log );
+        $this->assertStringContainsString( "'cu_scanner_history'", $GLOBALS['wpdb']->log[1][1] );
+    }
 }
