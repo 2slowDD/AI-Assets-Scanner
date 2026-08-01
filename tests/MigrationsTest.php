@@ -103,4 +103,78 @@ class MigrationsTest extends TestCase {
         \CUScanner\Migrations::maybe_run();
         $this->assertSame( [], $GLOBALS['wpdb']->log );
     }
+
+    /** Happy path: enumerate, flip, verify 0 remaining, stamp version. */
+    public function test_m1_flips_enumerated_rows_and_stamps_version(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_db_version', 0 )
+            ->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )
+            ->with( 'cu_scanner_db_version', 1 )
+            ->once()
+            ->andReturn( true );
+        WP_Mock::userFunction( 'wp_cache_delete' )
+            ->with( 'alloptions', 'options' )
+            ->once()
+            ->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_aaa', 'cu_scanner_json_bbb' ] ], // SELECT
+            [ 'result' => 3 ],  // UPDATE: 3 rows changed (2 json + history)
+            [ 'result' => '0' ],  // COUNT post-verify: none still autoloading
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+
+        $wpdb = $GLOBALS['wpdb'];
+        $this->assertCount( 3, $wpdb->log );
+        [ $sel, $upd, $cnt ] = $wpdb->log;
+        $this->assertSame( 'get_col', $sel[0] );
+        $this->assertStringContainsString( "LIKE 'cu\\_scanner\\_json\\_%'", $sel[1] );
+        $this->assertSame( 'query', $upd[0] );
+        $this->assertStringContainsString( "SET autoload = 'no'", $upd[1] );
+        $this->assertStringContainsString( "'cu_scanner_json_aaa'", $upd[1] );
+        $this->assertStringContainsString( "'cu_scanner_json_bbb'", $upd[1] );
+        $this->assertStringContainsString( "'cu_scanner_history'", $upd[1] );
+        // Targets ONLY enumerated names — config options are never in the IN list.
+        $this->assertStringNotContainsString( 'api_key', $upd[1] );
+        $this->assertStringNotContainsString( 'railway_url', $upd[1] );
+        $this->assertSame( 'get_var', $cnt[0] );
+        $this->assertStringContainsString( "autoload IN ( 'yes', 'on', 'auto-on', 'auto' )", $cnt[1] );
+    }
+
+    /** Orphaned JSON rows (no history record) come from the SELECT — still flipped. */
+    public function test_m1_covers_orphaned_json_rows(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', 1 )->once()->andReturn( true );
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_orphan' ] ], // exists in options, absent from history
+            [ 'result' => 2 ],
+            [ 'result' => '0' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertStringContainsString( "'cu_scanner_json_orphan'", $GLOBALS['wpdb']->log[1][1] );
+    }
+
+    /** Idempotence: re-run with 0 rows to change (query() returns 0, not false) still succeeds. */
+    public function test_m1_idempotent_rerun_zero_rows_is_success(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', 1 )->once()->andReturn( true );
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_aaa' ] ],
+            [ 'result' => 0 ],   // UPDATE affected 0 rows — already 'no'; NOT an error
+            [ 'result' => '0' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run(); // version stamped ⇒ update_option ->once() satisfied
+        $this->assertCount( 3, $GLOBALS['wpdb']->log );
+    }
 }
