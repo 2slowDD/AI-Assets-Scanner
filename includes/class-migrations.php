@@ -5,8 +5,8 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * One-time data migrations, integer-ladder versioned via the autoloaded
- * `cu_scanner_db_version` option (~10 bytes; read every request, so
- * autoloading it is correct). Runs on `plugins_loaded` — AAS updates are
+ * VERSION_OPTION (~10 bytes; read every request, so autoloading it is
+ * correct). Runs on `plugins_loaded` — AAS updates are
  * delivered by PrivateUpdater (manifest + ZIP only; nothing executes
  * post-swap), so migrations must self-run at runtime.
  *
@@ -15,7 +15,13 @@ defined( 'ABSPATH' ) || exit;
  */
 class Migrations {
     private const DB_VERSION     = 1;
-    private const VERSION_OPTION = 'cu_scanner_db_version';
+    // NOT `cu_scanner_db_version` — that option is owned by the co-installed
+    // wpservice-saas plugin (its own schema marker, rewritten from its own
+    // plugins_loaded hook on every divergence). AAS briefly squatted on it in
+    // 1.7.84b/1.7.85b, causing a per-request write-war that re-ran the SaaS
+    // plugin's dbDelta migrations. AAS must never read, write, or delete that
+    // name again. Verified free in AAS + wpservice-saas + Code Unloader + live DB.
+    private const VERSION_OPTION = 'aias_db_version';
 
     public static function maybe_run(): void {
         if ( wp_installing() ) {

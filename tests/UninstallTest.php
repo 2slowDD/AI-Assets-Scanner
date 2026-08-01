@@ -32,9 +32,14 @@ class UninstallTest extends TestCase {
             ->byDefault();
 
         WP_Mock::userFunction( 'delete_option' )
-            ->with( 'cu_scanner_db_version' )
+            ->with( 'aias_db_version' )
             ->once()
             ->andReturn( true );
+
+        // AAS must never delete the SaaS plugin's own schema marker.
+        WP_Mock::userFunction( 'delete_option' )
+            ->with( 'cu_scanner_db_version' )
+            ->never();
 
         $GLOBALS['wpdb'] = new class {
             public string $options = 'wp_options';

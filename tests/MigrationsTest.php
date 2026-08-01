@@ -81,7 +81,7 @@ class MigrationsTest extends TestCase {
     public function test_version_gate_skips_when_current(): void {
         WP_Mock::userFunction( 'wp_installing' )->once()->andReturn( false );
         WP_Mock::userFunction( 'get_option' )
-            ->with( 'cu_scanner_db_version', 0 )
+            ->with( 'aias_db_version', 0 )
             ->once()
             ->andReturn( 1 );
         WP_Mock::userFunction( 'update_option' )->never();
@@ -108,10 +108,10 @@ class MigrationsTest extends TestCase {
     public function test_m1_flips_enumerated_rows_and_stamps_version(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
         WP_Mock::userFunction( 'get_option' )
-            ->with( 'cu_scanner_db_version', 0 )
+            ->with( 'aias_db_version', 0 )
             ->andReturn( 0 );
         WP_Mock::userFunction( 'update_option' )
-            ->with( 'cu_scanner_db_version', 1 )
+            ->with( 'aias_db_version', 1 )
             ->once()
             ->andReturn( true );
         WP_Mock::userFunction( 'wp_cache_delete' )
@@ -151,8 +151,8 @@ class MigrationsTest extends TestCase {
     /** Orphaned JSON rows (no history record) come from the SELECT — still flipped. */
     public function test_m1_covers_orphaned_json_rows(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
-        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', 1 )->once()->andReturn( true );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->with( 'aias_db_version', 1 )->once()->andReturn( true );
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
 
         $GLOBALS['wpdb'] = new FlushingWpdbFake( [
@@ -168,8 +168,8 @@ class MigrationsTest extends TestCase {
     /** Idempotence: re-run with 0 rows to change (query() returns 0, not false) still succeeds. */
     public function test_m1_idempotent_rerun_zero_rows_is_success(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
-        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', 1 )->once()->andReturn( true );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->with( 'aias_db_version', 1 )->once()->andReturn( true );
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
 
         $GLOBALS['wpdb'] = new FlushingWpdbFake( [
@@ -189,7 +189,7 @@ class MigrationsTest extends TestCase {
      */
     public function test_m1_failing_select_then_succeeding_queries_does_not_stamp_version(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 0 );
         WP_Mock::userFunction( 'update_option' )->never();
 
         $GLOBALS['wpdb'] = new FlushingWpdbFake( [
@@ -206,7 +206,7 @@ class MigrationsTest extends TestCase {
     /** UPDATE returning false ⇒ no version stamp. */
     public function test_m1_update_failure_does_not_stamp_version(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 0 );
         WP_Mock::userFunction( 'update_option' )->never();
 
         $GLOBALS['wpdb'] = new FlushingWpdbFake( [
@@ -221,7 +221,7 @@ class MigrationsTest extends TestCase {
     /** Post-verify COUNT > 0 (e.g. lagging read replica) ⇒ no stamp; retry self-heals. */
     public function test_m1_nonzero_postverify_does_not_stamp_version(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 0 );
         WP_Mock::userFunction( 'update_option' )->never();
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
 
@@ -238,7 +238,7 @@ class MigrationsTest extends TestCase {
     /** Post-verify get_var ERROR returns null — must NOT be read as count 0. */
     public function test_m1_failed_postverify_query_does_not_stamp_version(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 0 );
         WP_Mock::userFunction( 'update_option' )->never();
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
 
@@ -262,7 +262,7 @@ class MigrationsTest extends TestCase {
      */
     public function test_m1_null_postverify_without_error_does_not_stamp_version(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 0 );
         WP_Mock::userFunction( 'update_option' )->never();
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
 
@@ -287,9 +287,9 @@ class MigrationsTest extends TestCase {
      */
     public function test_m1_empty_enumeration_still_flips_history(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 0 );
         WP_Mock::userFunction( 'update_option' )
-            ->with( 'cu_scanner_db_version', 1 )
+            ->with( 'aias_db_version', 1 )
             ->once()
             ->andReturn( true );
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
@@ -308,17 +308,17 @@ class MigrationsTest extends TestCase {
 
     /**
      * FIELD-FAILURE REGRESSION LOCK (1.7.84b, live install 2026-08-01).
-     * A 1.2.x-era build wrote the plugin version string into cu_scanner_db_version.
+     * A 1.2.x-era build wrote the plugin version string into VERSION_OPTION.
      * `(int) '1.2.41'` === 1 === DB_VERSION, so the gate skipped the migration forever.
      * A foreign (non-integer) stored value MUST read as 0 so the ladder still runs.
      */
     public function test_legacy_version_string_relic_does_not_block_migration(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
         WP_Mock::userFunction( 'get_option' )
-            ->with( 'cu_scanner_db_version', 0 )
+            ->with( 'aias_db_version', 0 )
             ->andReturn( '1.2.41' );
         WP_Mock::userFunction( 'update_option' )
-            ->with( 'cu_scanner_db_version', 1 )
+            ->with( 'aias_db_version', 1 )
             ->once()
             ->andReturn( true );
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
@@ -336,8 +336,8 @@ class MigrationsTest extends TestCase {
     /** Empty-string stored value is foreign too — ladder must run. */
     public function test_empty_string_version_does_not_block_migration(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( '' );
-        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', 1 )->once()->andReturn( true );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( '' );
+        WP_Mock::userFunction( 'update_option' )->with( 'aias_db_version', 1 )->once()->andReturn( true );
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
 
         $GLOBALS['wpdb'] = new FlushingWpdbFake( [
@@ -353,8 +353,8 @@ class MigrationsTest extends TestCase {
     /** Non-numeric junk (e.g. a serialized array left by an old build) — ladder must run. */
     public function test_non_numeric_junk_version_does_not_block_migration(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 'a:1:{i:0;s:3:"old";}' );
-        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', 1 )->once()->andReturn( true );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( 'a:1:{i:0;s:3:"old";}' );
+        WP_Mock::userFunction( 'update_option' )->with( 'aias_db_version', 1 )->once()->andReturn( true );
         WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
 
         $GLOBALS['wpdb'] = new FlushingWpdbFake( [
@@ -370,12 +370,46 @@ class MigrationsTest extends TestCase {
     /** VALID-PATH REGRESSION: a genuine integer-string stamp must still skip. */
     public function test_valid_integer_string_version_still_skips(): void {
         WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
-        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( '1' );
+        WP_Mock::userFunction( 'get_option' )->with( 'aias_db_version', 0 )->andReturn( '1' );
         WP_Mock::userFunction( 'update_option' )->never();
 
         $GLOBALS['wpdb'] = new FlushingWpdbFake( [] );
 
         \CUScanner\Migrations::maybe_run();
         $this->assertSame( [], $GLOBALS['wpdb']->log );
+    }
+
+    /**
+     * PING-PONG REGRESSION LOCK (production incident 2026-08-01).
+     * `cu_scanner_db_version` is owned by the co-installed wpservice-saas plugin,
+     * which rewrites it to its own version string from its own plugins_loaded hook.
+     * AAS must converge on its OWN key and must never read or write the contested
+     * one — otherwise the two plugins fight on every request and the SaaS plugin
+     * re-runs dbDelta each time.
+     */
+    public function test_never_touches_the_saas_owned_option(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        // Our own key: absent -> ladder runs.
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'aias_db_version', 0 )
+            ->andReturn( 0 );
+        // The SaaS-owned key must NEVER be read or written by AAS.
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', \Mockery::any() )->never();
+        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', \Mockery::any() )->never();
+        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', \Mockery::any(), \Mockery::any() )->never();
+        WP_Mock::userFunction( 'update_option' )
+            ->with( 'aias_db_version', 1 )
+            ->once()
+            ->andReturn( true );
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_aaa' ] ],
+            [ 'result' => 2 ],
+            [ 'result' => '0' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertCount( 3, $GLOBALS['wpdb']->log );
     }
 }

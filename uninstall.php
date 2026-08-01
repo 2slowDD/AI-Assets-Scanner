@@ -31,7 +31,7 @@ $ai_assets_scanner_fixed_options = array(
 	'aias_last_seen_scan_id',  // menu-badge last-seen-scan marker.
 	'aias_dismissed_warnings',    // per-scan broken-banner dismissals.
 	'cu_scanner_ratchet_enabled', // ET result ratchet kill switch (default false).
-	'cu_scanner_db_version',      // Migrations ladder marker — must go, or reinstall skips m1 (1.7.84b).
+	'aias_db_version',            // Migrations ladder marker — must go, or reinstall skips m1 (1.7.84b).
 );
 foreach ( $ai_assets_scanner_fixed_options as $ai_assets_scanner_option_name ) {
 	delete_option( $ai_assets_scanner_option_name );

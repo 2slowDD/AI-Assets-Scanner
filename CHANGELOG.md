@@ -4,6 +4,11 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.86b — 2026-08-01
+
+### Fixed
+- The internal marker used by the one-time database update has been renamed to a plugin-specific name. The previous name was shared with another WPservice plugin, and the two could repeatedly overwrite each other's value; on sites running both plugins this could cause extra database work on every page load. The update now uses a dedicated name, so this no longer happens.
+
 ## 1.7.85b — 2026-08-01
 
 ### Fixed
