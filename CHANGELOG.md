@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.84b — 2026-08-01
+
+### Fixed
+- Scan-history and per-scan report data are no longer loaded into memory on every page of your site — only when the plugin actually needs them. A one-time update converts any scan data saved by earlier versions the same way, and verifies the conversion succeeded before marking itself complete.
+
+### Added
+- A small internal migration system (`CUScanner\Migrations`) that runs one-time database updates like the one above safely; its version marker is cleaned up automatically if you ever uninstall the plugin.
+
 ## 1.7.83b — 2026-07-31
 
 ### Fixed

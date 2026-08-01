@@ -31,6 +31,11 @@ class UninstallTest extends TestCase {
             ->andReturn( true )
             ->byDefault();
 
+        WP_Mock::userFunction( 'delete_option' )
+            ->with( 'cu_scanner_db_version' )
+            ->once()
+            ->andReturn( true );
+
         $GLOBALS['wpdb'] = new class {
             public string $options = 'wp_options';
 
