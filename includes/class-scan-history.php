@@ -26,7 +26,7 @@ class ScanHistory {
             $evicted = array_pop( $records );
             delete_option( self::JSON_OPTION_PREFIX . $evicted['job_id'] );
         }
-        update_option( self::HISTORY_OPTION, $records );
+        update_option( self::HISTORY_OPTION, $records, false ); // autoload=false (scan-history). Bug-fix (1.7.84b).
     }
 
     public function update_status( string $job_id, string $status, array $extra = [] ): void {
@@ -41,11 +41,11 @@ class ScanHistory {
             }
         }
         unset( $record );
-        update_option( self::HISTORY_OPTION, $records );
+        update_option( self::HISTORY_OPTION, $records, false ); // autoload=false (scan-history). Bug-fix (1.7.84b).
     }
 
     public function store_json( string $job_id, string $json ): void {
-        update_option( self::JSON_OPTION_PREFIX . $job_id, $json );
+        update_option( self::JSON_OPTION_PREFIX . $job_id, $json, false ); // autoload=false (per-scan blob). Bug-fix (1.7.84b).
     }
 
     public function get_json( string $job_id ): string {
