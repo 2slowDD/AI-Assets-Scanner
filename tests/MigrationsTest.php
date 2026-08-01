@@ -70,11 +70,19 @@ class MigrationsTest extends TestCase {
         parent::tearDown();
     }
 
-    /** Installs at current DB_VERSION must touch nothing — not even $wpdb. */
+    /**
+     * Installs at current DB_VERSION must touch nothing — not even $wpdb.
+     *
+     * `->once()` on the reads is load-bearing: WP_Mock::userFunction() without an
+     * explicit cardinality asserts NOTHING about being called, so a no-op
+     * `maybe_run() {}` would satisfy the ->never() + empty-log assertions alone.
+     * These ->once() calls are what prove the gate actually ran and read the option.
+     */
     public function test_version_gate_skips_when_current(): void {
-        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_installing' )->once()->andReturn( false );
         WP_Mock::userFunction( 'get_option' )
             ->with( 'cu_scanner_db_version', 0 )
+            ->once()
             ->andReturn( 1 );
         WP_Mock::userFunction( 'update_option' )->never();
 
@@ -86,7 +94,7 @@ class MigrationsTest extends TestCase {
 
     /** plugins_loaded fires during core install/upgrade — must no-op there. */
     public function test_wp_installing_gate(): void {
-        WP_Mock::userFunction( 'wp_installing' )->andReturn( true );
+        WP_Mock::userFunction( 'wp_installing' )->once()->andReturn( true );
         WP_Mock::userFunction( 'get_option' )->never();
         WP_Mock::userFunction( 'update_option' )->never();
 
