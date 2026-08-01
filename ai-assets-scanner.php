@@ -75,6 +75,7 @@ spl_autoload_register( function ( string $class ): void {
         'CUScanner\\Cdn\\CloudflareAdapter'      => 'includes/cdn/class-cloudflare-adapter.php',
         'CUScanner\\Cdn\\GenericAdapter'         => 'includes/cdn/class-generic-adapter.php',
         'CUScanner\\Cdn\\Detector'              => 'includes/cdn/class-detector.php',
+        'CUScanner\\Migrations'                  => 'includes/class-migrations.php',
     ];
     if ( isset( $map[ $class ] ) ) {
         require CU_SCANNER_DIR . $map[ $class ];
@@ -105,5 +106,6 @@ add_action( 'cu_scanner_free_key_retry', function (): void {
 add_action( \CUScanner\Scanner\Outbox::CRON_HOOK, [ \CUScanner\Scanner\Outbox::class, 'replay' ] );
 
 add_action( 'plugins_loaded', function (): void {
+    \CUScanner\Migrations::maybe_run(); // O(1) alloptions lookup once migrated
     ( new CUScanner\Plugin() )->init();
 } );
