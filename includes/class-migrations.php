@@ -21,7 +21,14 @@ class Migrations {
         if ( wp_installing() ) {
             return; // plugins_loaded also fires during core install/upgrade
         }
-        $at = (int) get_option( self::VERSION_OPTION, 0 );
+        // Defensive parse: only a value the ladder verifiably writes (a bare non-negative
+        // integer) counts as a completed migration. A 1.2.x-era build stored the plugin
+        // version string ('1.2.41') under this same option name; (int)-casting that relic
+        // read as 1 >= DB_VERSION and silently skipped every migration, forever
+        // (field-found on a live install 2026-08-01). Foreign value => 0 => the ladder runs,
+        // and the successful stamp below overwrites the relic with a clean '1'.
+        $raw = get_option( self::VERSION_OPTION, 0 );
+        $at  = ( is_int( $raw ) || ( is_string( $raw ) && ctype_digit( $raw ) ) ) ? (int) $raw : 0;
         if ( $at >= self::DB_VERSION ) {
             return; // O(1): autoloaded option — alloptions array lookup, no query
         }

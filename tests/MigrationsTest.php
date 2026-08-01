@@ -305,4 +305,77 @@ class MigrationsTest extends TestCase {
         $this->assertCount( 3, $GLOBALS['wpdb']->log );
         $this->assertStringContainsString( "'cu_scanner_history'", $GLOBALS['wpdb']->log[1][1] );
     }
+
+    /**
+     * FIELD-FAILURE REGRESSION LOCK (1.7.84b, live install 2026-08-01).
+     * A 1.2.x-era build wrote the plugin version string into cu_scanner_db_version.
+     * `(int) '1.2.41'` === 1 === DB_VERSION, so the gate skipped the migration forever.
+     * A foreign (non-integer) stored value MUST read as 0 so the ladder still runs.
+     */
+    public function test_legacy_version_string_relic_does_not_block_migration(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )
+            ->with( 'cu_scanner_db_version', 0 )
+            ->andReturn( '1.2.41' );
+        WP_Mock::userFunction( 'update_option' )
+            ->with( 'cu_scanner_db_version', 1 )
+            ->once()
+            ->andReturn( true );
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_aaa' ] ],
+            [ 'result' => 2 ],
+            [ 'result' => '0' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertCount( 3, $GLOBALS['wpdb']->log ); // m1 actually ran
+    }
+
+    /** Empty-string stored value is foreign too — ladder must run. */
+    public function test_empty_string_version_does_not_block_migration(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( '' );
+        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', 1 )->once()->andReturn( true );
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [] ],
+            [ 'result' => 1 ],
+            [ 'result' => '0' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertCount( 3, $GLOBALS['wpdb']->log );
+    }
+
+    /** Non-numeric junk (e.g. a serialized array left by an old build) — ladder must run. */
+    public function test_non_numeric_junk_version_does_not_block_migration(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 'a:1:{i:0;s:3:"old";}' );
+        WP_Mock::userFunction( 'update_option' )->with( 'cu_scanner_db_version', 1 )->once()->andReturn( true );
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [] ],
+            [ 'result' => 1 ],
+            [ 'result' => '0' ],
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertCount( 3, $GLOBALS['wpdb']->log );
+    }
+
+    /** VALID-PATH REGRESSION: a genuine integer-string stamp must still skip. */
+    public function test_valid_integer_string_version_still_skips(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( '1' );
+        WP_Mock::userFunction( 'update_option' )->never();
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertSame( [], $GLOBALS['wpdb']->log );
+    }
 }

@@ -4,6 +4,11 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.85b — 2026-08-01
+
+### Fixed
+- The one-time data update introduced in 1.7.84b did not run on sites that had been upgraded from a much older version of this plugin, because a leftover value written by that old version was mistaken for "this update already ran." Those sites now convert correctly the next time any page loads — no action needed.
+
 ## 1.7.84b — 2026-08-01
 
 ### Fixed
