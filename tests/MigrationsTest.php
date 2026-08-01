@@ -251,4 +251,28 @@ class MigrationsTest extends TestCase {
         \CUScanner\Migrations::maybe_run();
         $this->assertCount( 3, $GLOBALS['wpdb']->log );
     }
+
+    /**
+     * Post-verify get_var() returning null with NO error must still block the stamp.
+     * This isolates the `null === $remaining` guard: without it, `(int) null === 0`
+     * reads as "0 rows still autoloading" and the migration stamps itself complete
+     * having verified nothing. The sibling test pairs null WITH an error string, so
+     * the last_error check alone would mask a missing null guard — only this script
+     * fails when the guard is dropped.
+     */
+    public function test_m1_null_postverify_without_error_does_not_stamp_version(): void {
+        WP_Mock::userFunction( 'wp_installing' )->andReturn( false );
+        WP_Mock::userFunction( 'get_option' )->with( 'cu_scanner_db_version', 0 )->andReturn( 0 );
+        WP_Mock::userFunction( 'update_option' )->never();
+        WP_Mock::userFunction( 'wp_cache_delete' )->andReturn( true );
+
+        $GLOBALS['wpdb'] = new FlushingWpdbFake( [
+            [ 'result' => [ 'cu_scanner_json_aaa' ] ],
+            [ 'result' => 1 ],
+            [ 'result' => null ], // null WITHOUT last_error — only the null guard catches this
+        ] );
+
+        \CUScanner\Migrations::maybe_run();
+        $this->assertCount( 3, $GLOBALS['wpdb']->log );
+    }
 }
