@@ -39,16 +39,12 @@ class BannerRenderingTest extends TestCase {
 	// -------------------------------------------------------------------------
 
 	public function test_desktop_blocked_banner_with_cf_reason(): void {
-		WP_Mock::userFunction( 'get_option' )
-			->with( AIAS_Broken_Banner::OPTION_DISMISSALS, [] )
-			->andReturn( [] );
-
-		// WP output-escaping stubs.
-		WP_Mock::userFunction( 'esc_attr' )->andReturnArg( 0 );
-		WP_Mock::userFunction( 'esc_html__' )->andReturnArg( 0 );
-		WP_Mock::userFunction( 'esc_html_e' )->andReturnUsing( function ( $t ) { echo $t; } );
-		WP_Mock::userFunction( 'esc_html' )->andReturnArg( 0 );
-		WP_Mock::userFunction( 'wp_kses_post' )->andReturnArg( 0 );
+		// T0-C fix: this test inlined a PARTIAL mock set (no admin_url/esc_url/__), so it
+		// died with "Call to undefined function admin_url()" the moment action_clause()
+		// built the settings anchor — a pre-existing ERROR on origin/main (1.7.86b).
+		// stub_render_helpers() already existed with the complete set; this test just
+		// predated it. Test-harness gap only, no production behaviour involved.
+		$this->stub_render_helpers();
 
 		$html = AIAS_Broken_Banner::render( [
 			'scan_id'         => 'abc',
@@ -60,6 +56,89 @@ class BannerRenderingTest extends TestCase {
 		$this->assertStringContainsString( 'Desktop scanner blocked on 5 of', $html );
 		$this->assertStringContainsString( 'Cloudflare', $html );
 		$this->assertStringContainsString( 'temporarily disable bot protection', $html );
+	}
+
+	/** @param mixed $attribution */
+	private function rate_payload( $attribution ): array {
+		return [
+			'scan_id'                => 'rate-scan',
+			'pages_blocked'          => [ 'desktop' => 1, 'mobile' => 0 ],
+			'blocked_reasons'        => [ 'tier1_http_rate_limit' => 1 ],
+			'total_pages'            => 3,
+			'rate_limit_attribution' => $attribution,
+		];
+	}
+
+	// -------------------------------------------------------------------------
+	// T0-C — normalize_attribution(): allowlist, not sanitizer
+	// -------------------------------------------------------------------------
+
+	public function test_normalize_attribution_allowlists_known_values(): void {
+		foreach ( AIAS_Broken_Banner::ATTRIBUTION_ALLOWED as $member ) {
+			$this->assertSame( $member, AIAS_Broken_Banner::normalize_attribution( $member ) );
+		}
+	}
+
+	public function test_normalize_attribution_rejects_everything_else(): void {
+		foreach ( [ '', null, 'garbage', '<script>alert(1)</script>', 'HOST', 0, [], true ] as $bad ) {
+			$this->assertSame( 'unknown', AIAS_Broken_Banner::normalize_attribution( $bad ) );
+		}
+	}
+
+	// -------------------------------------------------------------------------
+	// T0-C — the rate branch names the party that actually throttled the scan
+	// -------------------------------------------------------------------------
+
+	public function test_rate_banner_names_cloudflare_and_keeps_link(): void {
+		$this->stub_render_helpers();
+
+		$html = AIAS_Broken_Banner::render( $this->rate_payload( 'cloudflare' ) );
+
+		$this->assertStringContainsString( 'Cloudflare rate-limited the scan', $html );
+		$this->assertStringContainsString( 'cu-cloudflare-waf-bypass', $html );
+		$this->assertStringNotContainsString( 'Your server rate-limited', $html );
+	}
+
+	public function test_rate_banner_names_host_and_drops_the_cdn_link(): void {
+		$this->stub_render_helpers();
+
+		$html = AIAS_Broken_Banner::render( $this->rate_payload( 'host' ) );
+
+		$this->assertStringContainsString( "Your host's server rate-limited the scan", $html );
+		$this->assertStringContainsString( 'will not help here', $html );
+		$this->assertStringNotContainsString( 'cu-cloudflare-waf-bypass', $html );
+	}
+
+	public function test_rate_banner_unknown_variant_is_the_default_for_everything_else(): void {
+		// Stub once, outside the loop — re-registering the same WP_Mock userFunction
+		// expectations on each iteration errors out.
+		$this->stub_render_helpers();
+
+		foreach ( [ 'akamai', 'imperva', 'waf', 'unknown', 'garbage', null ] as $attr ) {
+			$label = null === $attr ? 'null' : (string) $attr;
+			$html  = AIAS_Broken_Banner::render( $this->rate_payload( $attr ) );
+
+			$this->assertStringContainsString( 'The scan was rate-limited', $html, "attr={$label}" );
+			$this->assertStringContainsString( 'cu-cloudflare-waf-bypass', $html, "attr={$label}" );
+			$this->assertStringNotContainsString( 'Cloudflare rate-limited the scan', $html, "attr={$label}" );
+		}
+	}
+
+	public function test_non_rate_branch_is_identical_with_and_without_the_field(): void {
+		$this->stub_render_helpers();
+
+		$base = [
+			'scan_id'         => 'err-scan',
+			'pages_blocked'   => [ 'desktop' => 1, 'mobile' => 0 ],
+			'blocked_reasons' => [ 'tier1_http_5xx' => 1 ],
+			'total_pages'     => 3,
+		];
+
+		$without = AIAS_Broken_Banner::render( $base );
+		$with    = AIAS_Broken_Banner::render( $base + [ 'rate_limit_attribution' => 'cloudflare' ] );
+
+		$this->assertSame( $without, $with );
+		$this->assertStringContainsString( 'returned an error', $without );
 	}
 
 	// -------------------------------------------------------------------------
@@ -129,8 +208,12 @@ class BannerRenderingTest extends TestCase {
 		$this->assertStringContainsString( 'between scans', $html );
 		$this->assertStringNotContainsString( 'bot protection denied', $html );
 		// CDN-exemption solution + settings deep-link must appear on 429 banners.
-		$this->assertStringContainsString( 'rate-limit exemption', $html );
+		// T0-C: this payload carries no `rate_limit_attribution`, so it takes the UNKNOWN
+		// variant. The old assertion pinned "rate-limit exemption" — copy that promised a
+		// CDN exemption would fix a limit we cannot attribute. It now hedges instead.
+		$this->assertStringContainsString( 'allowlist the scanner', $html );
 		$this->assertStringContainsString( 'cu-cloudflare-waf-bypass', $html );
+		$this->assertStringNotContainsString( 'Your server rate-limited', $html );
 	}
 
 	public function test_server_error_alone_uses_retry_action_clause(): void {

@@ -1330,6 +1330,11 @@ class ScannerAjax {
             'scan_id'          => $scan_id_display,
             'pages_blocked'    => $pages_blocked,
             'blocked_reasons'  => $blocked_reasons,
+            // T0-C (2026-08-02): already computed at :1186 for scan history. Carried to the
+            // banner so the post-scan copy can name WHO rate-limited the scan (Cloudflare vs
+            // the site's own host) instead of always blaming the origin. Null when nothing
+            // was rate-limited; the consumer allowlists it before use.
+            'rate_limit_attribution' => $rate_limit_attribution,
             'total_pages'      => count( $pages_raw ),
             'pages'            => $pages_payload,
         ], $this->build_partial_response_fields( $completed, $total ) );

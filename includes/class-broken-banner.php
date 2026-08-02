@@ -15,6 +15,35 @@ class AIAS_Broken_Banner {
 	const OPTION_DISMISSALS = 'aias_dismissed_warnings';
 
 	/**
+	 * T0-C (2026-08-02) — the worker's `attribution` enum, mirrored from
+	 * cu-scanner-railway `classifyThrottleAttribution()`.
+	 *
+	 * UNTRUSTED INPUT: this value arrives in the Railway status response, i.e. a
+	 * third-party API response. It is validated against this allowlist and then used
+	 * ONLY to select one of the hardcoded translatable strings below — it is never
+	 * interpolated into markup, echoed, or passed to innerHTML. Validate-don't-sanitize
+	 * is correct here because the value space is closed.
+	 *
+	 * Mirrored in admin/js/scanner.js as ATTR_ALLOWED — keep the two in sync.
+	 */
+	const ATTRIBUTION_ALLOWED = [ 'cloudflare', 'akamai', 'imperva', 'waf', 'host', 'unknown' ];
+
+	/**
+	 * Collapse any incoming attribution value to a known member of the enum.
+	 *
+	 * Anything unrecognised — an absent field on a stale page, a future worker enum
+	 * member, or a hostile string — degrades to 'unknown', which is the widest and
+	 * most hedged copy branch. No input can produce an empty clause.
+	 *
+	 * @param mixed $raw Raw value from the scan payload.
+	 */
+	public static function normalize_attribution( $raw ): string {
+		return ( is_string( $raw ) && in_array( $raw, self::ATTRIBUTION_ALLOWED, true ) )
+			? $raw
+			: 'unknown';
+	}
+
+	/**
 	 * Returns HTML for the admin notice, or '' if nothing to show.
 	 *
 	 * @param array{
@@ -40,7 +69,10 @@ class AIAS_Broken_Banner {
 			return '';
 		}
 
-		$copy = self::reason_copy( $reasons, $blocked_d, $blocked_m, $total_pages );
+		// T0-C: who rate-limited the scan (worker-supplied, allowlisted). Selects copy only.
+		$attribution = self::normalize_attribution( $payload['rate_limit_attribution'] ?? null );
+
+		$copy = self::reason_copy( $reasons, $blocked_d, $blocked_m, $total_pages, $attribution );
 
 		ob_start();
 		?>
@@ -66,7 +98,8 @@ class AIAS_Broken_Banner {
 		array $reasons,
 		int $blocked_d,
 		int $blocked_m,
-		int $total_pages
+		int $total_pages,
+		string $attribution = 'unknown'
 	): string {
 		$bits = [];
 		if ( $blocked_d > 0 ) {
@@ -94,7 +127,7 @@ class AIAS_Broken_Banner {
 			? sprintf( ' (%s)', implode( ', ', array_unique( $reason_phrases ) ) )
 			: '';
 
-		$action_clause = self::action_clause( $reasons );
+		$action_clause = self::action_clause( $reasons, $attribution );
 
 		return implode( ' ', $bits ) . $reason_clause . ' ' . $action_clause;
 	}
@@ -127,7 +160,7 @@ class AIAS_Broken_Banner {
 	 *
 	 * @param array<string, int> $reasons
 	 */
-	private static function action_clause( array $reasons ): string {
+	private static function action_clause( array $reasons, string $attribution = 'unknown' ): string {
 		$categories = [];
 		foreach ( $reasons as $key => $count ) {
 			$categories[] = self::reason_category( (string) $key );
@@ -136,15 +169,37 @@ class AIAS_Broken_Banner {
 
 		if ( count( $categories ) === 1 ) {
 			if ( $categories[0] === 'rate' ) {
+				// T0-C: name the party that actually rate-limited the scan. $attribution is
+				// already allowlisted by normalize_attribution() — it only picks a branch here.
 				$settings_url = esc_url( admin_url( 'admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass' ) );
-				return esc_html__(
-					'Your server rate-limited the scanner. The rules from the unblocked device (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.',
-					'ai-assets-scanner'
-				) . ' ' . wp_kses_post( sprintf(
-					/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
-					__( 'Behind Cloudflare or another CDN? Set up the scanner rate-limit exemption so future scans aren\'t throttled — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ),
-					$settings_url
-				) );
+				$tail         = esc_html__( 'The rules from the unblocked device (if any) are complete and safe to apply.', 'ai-assets-scanner' );
+
+				if ( 'cloudflare' === $attribution ) {
+					// Deliberately does NOT say "not your server": aggregate_rate_limit_attribution()
+					// ranks cloudflare above host, so a mixed scan resolves here — denying the origin
+					// would be positively false for the origin-limited pages.
+					return esc_html__( 'Cloudflare rate-limited the scan. Whoever manages your Cloudflare — you, your host, or your agency — needs to allowlist the scanner.', 'ai-assets-scanner' )
+						. ' ' . wp_kses_post( sprintf(
+							/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
+							__( 'If you manage the Cloudflare account yourself, set up the one-time scanner exemption — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ),
+							$settings_url
+						) ) . ' ' . $tail;
+				}
+
+				if ( 'host' === $attribution ) {
+					// No settings link by design. The "will not help here" sentence is LOAD-BEARING:
+					// without it a user who already has a working CDN exemption concludes it is
+					// broken and re-does it. Do not trim it for length.
+					return esc_html__( "Your host's server rate-limited the scan. A CDN or WAF exemption will not help here. Wait a few minutes between scans, or ask your host to raise the rate limit during scans.", 'ai-assets-scanner' )
+						. ' ' . $tail;
+				}
+
+				return esc_html__( 'The scan was rate-limited. Wait a few minutes between scans.', 'ai-assets-scanner' )
+					. ' ' . wp_kses_post( sprintf(
+						/* translators: %s: URL to AI Assets Scanner settings WAF bypass section */
+						__( 'If a CDN or WAF sits in front of your site, ask whoever manages it to allowlist the scanner; otherwise check your own server\'s rate limits — <a href="%s">open AI Assets Scanner settings</a>.', 'ai-assets-scanner' ),
+						$settings_url
+					) ) . ' ' . $tail;
 			}
 			if ( $categories[0] === 'error' ) {
 				return esc_html__(
