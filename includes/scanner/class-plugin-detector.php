@@ -405,10 +405,23 @@ class PluginDetector {
             }
         }
 
-        // Code Unloader: flag as missing, auto-bypass if >= 1.3.9, soft-block if older
+        // Code Unloader: flag as missing, auto-bypass if >= 1.3.9, soft-block if older.
+        //
+        // The operator can opt out of the bypass entirely (cu_scanner_omit_cu_bypass).
+        // When they have, Code Unloader is left alone whatever its version: no `nowpcu`
+        // suffix, no auto-bypass notice (the label drives it, so gating here keeps the
+        // UI from announcing a bypass that is not applied), and no upgrade soft-block —
+        // that message exists only to explain why the bypass is unavailable, so it would
+        // be arguing for something the operator has explicitly declined.
+        //
+        // `cu_missing` is deliberately still set: it describes installation, not bypass,
+        // and other surfaces depend on it.
+        //
+        // NB \CUScanner\Settings is fully qualified on purpose — this file is in
+        // namespace CUScanner\Scanner and does not import it.
         if ( ! is_plugin_active( self::CU_PLUGIN ) ) {
             $result['cu_missing'] = true;
-        } else {
+        } elseif ( ! ( new \CUScanner\Settings() )->get_omit_cu_bypass() ) {
             $data    = get_plugin_data( \WP_PLUGIN_DIR . '/' . self::CU_PLUGIN );
             $version = $data['Version'] ?? '0';
             if ( version_compare( $version, self::CU_MIN_VERSION, '>=' ) ) {

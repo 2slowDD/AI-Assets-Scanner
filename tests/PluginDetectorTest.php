@@ -7,7 +7,17 @@ use WP_Mock;
 use WP_Mock\Tools\TestCase;
 
 class PluginDetectorTest extends TestCase {
-    public function setUp(): void { parent::setUp(); WP_Mock::setUp(); }
+    public function setUp(): void {
+        parent::setUp();
+        WP_Mock::setUp();
+        // detect()'s Code Unloader branch reads cu_scanner_omit_cu_bypass via Settings.
+        // Returning the default ('' = opt-out off) preserves the behaviour every
+        // assertion in this class was written against. Without it the three
+        // CU-active tests die on "undefined function CUScanner\get_option()" when
+        // this file runs in isolation; in a full-suite run an earlier test file
+        // happens to define the namespaced function first, which masked it.
+        WP_Mock::userFunction( 'get_option' )->andReturnUsing( fn( $k, $default = false ) => $default );
+    }
     public function tearDown(): void { WP_Mock::tearDown(); parent::tearDown(); }
 
     public function test_detects_wp_rocket_as_auto_bypass(): void {
