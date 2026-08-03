@@ -26,6 +26,15 @@ class SettingsAjax {
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Forbidden', 403 );
 
         $settings = new Settings();
+
+        // Checkbox: only its PRESENCE is read, never its value. FormData omits
+        // unchecked boxes, so absence means unchecked — hence the unconditional
+        // write. A conditional one could turn the option on but never off.
+        // Persisted here, before the API-key block, because that block can
+        // wp_send_json_error out (no key saved, or authenticate() throwing) and
+        // this option has nothing to do with API-key validity.
+        $settings->set_omit_cu_bypass( isset( $_POST['omit_cu_bypass'] ) );
+
         $keep    = ! empty( $_POST['keep_api_key'] );
         if ( $keep ) {
             $api_key = $settings->get_api_key();
