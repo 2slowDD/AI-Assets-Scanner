@@ -1,0 +1,11 @@
+<p>Version 1.7.87b (beta).</p>
+<p><strong>Added</strong></p>
+<ul>
+<li>A new setting, <strong>Remove Code Unloader's suffix (?nowpcu) from scans</strong>. By default the scanner adds <code>?nowpcu</code> to each URL it visits, which switches Code Unloader off for that request so the scan sees every asset a page can load. Tick the new box to leave the suffix off: scans then run with your existing Code Unloader rules applied, the way visitors actually receive the pages. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it. Assets your current rules already unload will not appear in the results, so use <strong>Sync with Code Unloader</strong> to add newly found rules on top of your existing ones rather than <strong>Push</strong>, which replaces them.</li>
+</ul>
+<p><strong>Fixed</strong></p>
+<ul>
+<li>When a scan is cut short by rate limiting, the warning now names who actually did it. It previously always said "Your server rate-limited the scanner", even when the block came from Cloudflare, so the advice pointed at the wrong place. Cloudflare-issued limits now say so and note that whoever manages the Cloudflare account &mdash; you, your host, or your agency &mdash; needs to allowlist the scanner. Limits coming from your own server say that instead, and no longer suggest a CDN exemption that would not help.</li>
+<li>The notices shown before a scan no longer assume you are the one who manages the CDN. On sites where a host or agency runs Cloudflare, the previous wording ("set up the exemption") was a dead end for the person reading it.</li>
+<li>The "Before you scan" tip no longer implies a Cloudflare WAF bypass rule is a substitute for relaxing your own server's rate limits. It covers Cloudflare-issued blocks only.</li>
+</ul>

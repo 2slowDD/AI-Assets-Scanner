@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.87b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.87b/ai-assets-scanner.zip",
+    "sha256": "a4d49bd67175d32e490cd5c63f4963e6e77da5c376f57439f8a8f0f94e7e48b7",
+    "signature": "",
+    "released_at": "2026-08-03T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.87b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.87b (beta): a new setting lets you scan your site as visitors actually see it. By default the scanner adds ?nowpcu to each URL it visits, which switches Code Unloader off for that request so the scan sees every asset a page can load. Tick \"Remove Code Unloader's suffix (?nowpcu) from scans\" in Settings to leave the suffix off: scans then run with your existing Code Unloader rules applied. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it — use Sync with Code Unloader to add those newly found rules on top of your existing ones, rather than Push, which replaces them. Note that assets your current rules already unload will not appear in the results. Also fixed: when a scan is cut short by rate limiting, the warning now names who actually did it. It previously always said \"Your server rate-limited the scanner\", even when the block came from Cloudflare, so the advice pointed at the wrong place. Cloudflare-issued limits now say so and note that whoever manages the Cloudflare account — you, your host, or your agency — needs to allowlist the scanner; limits coming from your own server say that instead, and no longer suggest a CDN exemption that would not help. The notices shown before a scan no longer assume you are the one who manages the CDN, and the \"Before you scan\" tip no longer implies a Cloudflare WAF bypass rule substitutes for relaxing your own server's rate limits."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
