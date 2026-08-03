@@ -274,6 +274,20 @@ class Settings {
         update_option( 'cu_scanner_cdn_exemption_ack', $name );
     }
 
+    /**
+     * When true, AAS does NOT append Code Unloader's `?nowpcu` bypass suffix, so
+     * scans run with the operator's existing CU rules applied — the pages as
+     * visitors receive them. Default false: every install keeps today's behaviour
+     * until the box is ticked. Read by PluginDetector::detect().
+     */
+    public function get_omit_cu_bypass(): bool {
+        return '' !== (string) get_option( 'cu_scanner_omit_cu_bypass', '' );
+    }
+
+    public function set_omit_cu_bypass( bool $on ): void {
+        update_option( 'cu_scanner_omit_cu_bypass', $on ? '1' : '' );
+    }
+
     public function get_scanner_secret(): string {
         $secret = (string) get_option( 'cu_scanner_secret', '' );
         if ( ! $secret ) {
