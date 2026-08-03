@@ -4,6 +4,13 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.87b — 2026-08-03
+
+### Fixed
+- When a scan is cut short by rate limiting, the warning now names who actually did it. It previously always said "Your server rate-limited the scanner", even when the block came from Cloudflare, so the advice pointed at the wrong place. Cloudflare-issued limits now say so and note that whoever manages the Cloudflare account — you, your host, or your agency — needs to allowlist the scanner. Limits coming from your own server say that instead, and no longer suggest a CDN exemption that would not help.
+- The notices shown before a scan no longer assume you are the one who manages the CDN. On sites where a host or agency runs Cloudflare, the previous wording ("set up the exemption") was a dead end for the person reading it.
+- The "Before you scan" tip no longer implies a Cloudflare WAF bypass rule is a substitute for relaxing your own server's rate limits. It covers Cloudflare-issued blocks only.
+
 ## 1.7.86b — 2026-08-01
 
 ### Fixed
