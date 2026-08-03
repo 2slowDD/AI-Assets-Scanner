@@ -6,6 +6,9 @@ All notable changes to AI Assets Scanner are documented here.
 
 ## 1.7.87b — 2026-08-03
 
+### Added
+- A new setting, **Remove Code Unloader's suffix (?nowpcu) from scans**. By default the scanner adds `?nowpcu` to each URL it visits, which switches Code Unloader off for that request so the scan sees every asset a page can load. Tick the new box to leave the suffix off: scans then run with your existing Code Unloader rules applied, the way visitors actually receive the pages. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it. Assets your current rules already unload will not appear in the results, so use **Sync with Code Unloader** to add newly found rules on top of your existing ones rather than **Push**, which replaces them.
+
 ### Fixed
 - When a scan is cut short by rate limiting, the warning now names who actually did it. It previously always said "Your server rate-limited the scanner", even when the block came from Cloudflare, so the advice pointed at the wrong place. Cloudflare-issued limits now say so and note that whoever manages the Cloudflare account — you, your host, or your agency — needs to allowlist the scanner. Limits coming from your own server say that instead, and no longer suggest a CDN exemption that would not help.
 - The notices shown before a scan no longer assume you are the one who manages the CDN. On sites where a host or agency runs Cloudflare, the previous wording ("set up the exemption") was a dead end for the person reading it.
