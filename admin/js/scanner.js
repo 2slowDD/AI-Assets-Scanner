@@ -685,7 +685,7 @@
             if (d.cdn_notice) {
                 // Capitalise the CDN slug for display (e.g. "cloudflare" → "Cloudflare")
                 const cdnName = esc(d.cdn_notice.name).replace(/^./, c => c.toUpperCase());
-                html += `<div class="notice notice-warning"><p><strong>CDN detected (${cdnName})</strong> — set up the scanner rate-limit exemption to avoid 429 errors during scans. <a href="${esc(d.cdn_notice.settings_url)}">Open the Cloudflare WAF Bypass settings</a>.</p></div>`;
+                html += `<div class="notice notice-warning"><p><strong>CDN detected (${cdnName})</strong> — if it rate-limits the scanner you'll get incomplete results. Whoever manages it can allowlist the scanner; if that's you, <a href="${esc(d.cdn_notice.settings_url)}">open the Cloudflare WAF Bypass settings</a>.</p></div>`;
             }
 
             // A1: last scan was rate-limited — attribution-branched pre-scan notice (supersedes cdn_notice for same CDN, server-side)
@@ -693,7 +693,7 @@
                 const t = d.last_scan_throttle;
                 if (t.kind === 'cdn') {
                     const tName = esc(t.name).replace(/^./, c => c.toUpperCase());
-                    html += `<div class="notice notice-warning"><p><strong>Your last scan was rate-limited by ${tName}</strong> — set up the exemption before re-scanning. <a href="${esc(t.settings_url)}">Open the Cloudflare WAF Bypass settings</a>.</p></div>`;
+                    html += `<div class="notice notice-warning"><p><strong>Your last scan was rate-limited by ${tName}</strong> — whoever manages it needs to allowlist the scanner; if that's you, <a href="${esc(t.settings_url)}">open the Cloudflare WAF Bypass settings</a>. If your origin also enforces a limit, an exemption alone won't be enough.</p></div>`;
                 } else if (t.kind === 'origin') {
                     html += `<div class="notice notice-warning"><p><strong>Your last scan was rate-limited by your origin server</strong> (e.g. Wordfence or host limits). A CDN exemption won't help — temporarily raise or disable rate limiting on your server before scanning.</p></div>`;
                 } else {
