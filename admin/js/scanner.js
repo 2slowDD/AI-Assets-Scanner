@@ -1877,6 +1877,11 @@
                     pages_blocked:   d.pages_blocked    || { desktop: 0, mobile: 0 },
                     blocked_reasons: d.blocked_reasons  || {},
                     total_pages:     d.total_pages      || 0,
+                    // T0-C: this object is a whitelist projection of `d` - a field absent
+                    // here never reaches renderBrokenBanner, however well-formed the PHP
+                    // payload is. Carries who rate-limited the scan; '' degrades to the
+                    // 'unknown' copy variant via the allowlist in renderBrokenBanner().
+                    rate_limit_attribution: d.rate_limit_attribution || '',
                 };
                 restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData, d.total_pages, d.pages, d.scan_id, d.has_active_cu_rules );
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
@@ -2554,29 +2559,59 @@
         const phrases = [...new Set( Object.keys(reasons).map( k => reasonPhrase(k) ) )];
         const reasonClause = phrases.length ? ' (' + phrases.map(esc).join(', ') + ')' : '';
 
-        // Per-reason action copy — must match class-broken-banner.php:108-156
+        // Per-reason action copy — must match class-broken-banner.php
         // (reason_category + action_clause, now sourced from cuReasonCopy.categories
         // instead of a duplicated local map/function). Mixed-category reasons fall
         // back to the generic 'bot' clause, matching the PHP-side fallback.
         const categories = [...new Set( Object.keys(reasons).map(reasonCategory) )];
+
+        // T0-C — name the party that actually rate-limited the scan. The worker's
+        // `attribution` is UNTRUSTED third-party input: allowlist it and use it ONLY
+        // to select one of three hardcoded strings. It is never interpolated into
+        // markup and never reaches innerHTML (wp-compliance Rules 1/27). Mirrors
+        // class-broken-banner.php normalize_attribution() + action_clause().
+        const ATTR_ALLOWED = ['cloudflare', 'akamai', 'imperva', 'waf', 'host', 'unknown'];
+        const rawAttr = bd.rate_limit_attribution;
+        const attr = ATTR_ALLOWED.indexOf(rawAttr) !== -1 ? rawAttr : 'unknown';
+
+        const TAIL = ' The rules from the unblocked device (if any) are complete and safe to apply.';
+
+        // `action` is escaped below, so it must stay markup-free; any anchor goes in
+        // cdnLink, which is concatenated raw. That forces the JS clause order to be
+        // fact -> tail -> link where action_clause() reads fact -> link -> tail: same
+        // wording and same three variants (AC-7), only the clause order differs.
+        // Every href below is a static, hardcoded, user-input-free admin-relative
+        // URL — safe to inline without esc().
         let action;
+        let cdnLink = '';
         if ( categories.length === 1 && categories[0] === 'rate' ) {
-            action = 'Your server rate-limited the scanner. The rules from the unblocked device (if any) are complete and safe to apply. Wait a few minutes between scans, or temporarily raise rate limits during scans.';
+            if ( attr === 'cloudflare' ) {
+                // Deliberately does NOT say "not your server": the PHP-side aggregator
+                // ranks cloudflare above host, so a mixed scan resolves here — denying
+                // the origin would be positively false for the origin-limited pages.
+                action  = 'Cloudflare rate-limited the scan. Whoever manages your Cloudflare — you, your host, or your agency — needs to allowlist the scanner.' + TAIL;
+                cdnLink = ' If you manage the Cloudflare account yourself, set up the one-time scanner exemption — <a href="admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass">open AI Assets Scanner settings</a>.';
+            } else if ( attr === 'host' ) {
+                // No settings link by design. The "will not help here" sentence is
+                // LOAD-BEARING: without it a user who already has a working CDN
+                // exemption concludes it is broken and re-does it. Do not trim it.
+                action = 'Your host\'s server rate-limited the scan. A CDN or WAF exemption will not help here. Wait a few minutes between scans, or ask your host to raise the rate limit during scans.' + TAIL;
+            } else {
+                action  = 'The scan was rate-limited. Wait a few minutes between scans.' + TAIL;
+                cdnLink = ' If a CDN or WAF sits in front of your site, ask whoever manages it to allowlist the scanner; otherwise check your own server\'s rate limits — <a href="admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass">open AI Assets Scanner settings</a>.';
+            }
         } else if ( categories.length === 1 && categories[0] === 'error' ) {
             action = 'Your server returned an error or didn\'t respond. The rules from the unblocked device (if any) are complete and safe to apply. Try again later, or check site health.';
         } else {
             action = 'Your bot protection denied the scanner. The rules from the unblocked device are complete and safe to apply. For full coverage, temporarily disable bot protection during scans.';
+            // Mixed rate+bot scan: keep the exemption pointer, but ownership-neutral —
+            // on client sites the CDN is frequently host- or agency-managed.
+            if ( categories.includes('rate') ) {
+                cdnLink = ' Behind Cloudflare or another CDN? Ask whoever manages it to allowlist the scanner — <a href="admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass">open AI Assets Scanner settings</a>.';
+            }
         }
 
         const copy = bits.map(esc).join(' ') + reasonClause + ' ' + esc(action);
-
-        // CDN exemption solution line \u2014 shown whenever 'rate' is one of the categories
-        // (covers both pure-rate and mixed rate+bot scans). The href is a static,
-        // hardcoded, user-input-free admin-relative URL \u2014 safe to inline without esc().
-        // Must match class-broken-banner.php action_clause() rate-branch copy.
-        const cdnLink = categories.includes('rate')
-            ? ' Behind Cloudflare or another CDN? Set up the scanner rate-limit exemption so future scans aren\'t throttled \u2014 <a href="admin.php?page=cu-scanner-settings#cu-cloudflare-waf-bypass">open AI Assets Scanner settings</a>.'
-            : '';
 
         area.innerHTML =
             '<div class="notice notice-warning inline aias-broken-banner" data-scan-id="' + esc(scanId) + '">' +
