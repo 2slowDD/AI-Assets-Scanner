@@ -33,6 +33,7 @@
         $is_masked = ( $len > 12 );
         $http_auth = $settings->get_http_auth();
         $scanner_secret = $settings->get_scanner_secret();
+        $omit_cu_bypass = $settings->get_omit_cu_bypass();
         // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         ?>
         <form id="cu-scanner-settings-form">
@@ -96,6 +97,16 @@
                                readonly class="regular-text" style="font-family:monospace" />
                         <button type="button" id="cu-copy-secret" class="button" style="margin-left:6px">Copy</button>
                         <p class="description">Used to create a Cloudflare WAF bypass rule. Do not share this value publicly.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th><label for="cu_omit_cu_bypass">Scan Options</label></th>
+                    <td>
+                        <label for="cu_omit_cu_bypass">
+                            <input type="checkbox" id="cu_omit_cu_bypass" name="omit_cu_bypass" value="1"
+                                   <?php checked( $omit_cu_bypass ); ?> />
+                            <?php esc_html_e( "Remove Code Unloader's suffix (?nowpcu) from scans", 'ai-assets-scanner' ); ?>
+                        </label><span class="cu-help" tabindex="0" aria-label="Scans normally add ?nowpcu to each URL, which switches Code Unloader off so the scanner sees every asset a page can load. Tick this to leave the suffix off. Scans then run with your existing Code Unloader rules applied, the pages as visitors actually receive them. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it. Assets your current rules already unload will not appear in the results, so use Sync with Code Unloader to add new rules on top of your existing ones. Push would replace them."><span class="cu-help-box">Scans normally add <strong>?nowpcu</strong> to each URL, which switches Code Unloader off so the scanner sees every asset a page can load.<br><br>Tick this to leave the suffix off. Scans then run with your existing Code Unloader rules applied &mdash; the pages as visitors actually receive them. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it.<br><br>Assets your current rules already unload won't appear in the results, so use <strong>Sync with Code Unloader</strong> to add new rules on top of your existing ones. <strong>Push</strong> would replace them.</span></span>
                     </td>
                 </tr>
             </table>
