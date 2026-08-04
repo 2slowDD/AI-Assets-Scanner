@@ -43,6 +43,128 @@ class RulePusher {
     }
 
     /**
+     * Count, per url_pattern, how many of this scan's rules Code Unloader ALREADY has.
+     *
+     * This is the same question sync() answers at write time via find_duplicate() —
+     * asked at result-build time instead, so the customer is not shown rules they
+     * already own as new findings.
+     *
+     * Bulk by design (spec Q3): one get_all_groups() + one get_all_rules() + an
+     * in-memory set, never a find_duplicate() query per rule.
+     *
+     * ⚠️ Returns NULL when Code Unloader cannot be consulted. NULL means "cannot know"
+     * and is NOT the same as an empty array ("nothing is already present") — the caller
+     * must render no claim at all on NULL.
+     *
+     * ⚠️ READ-ONLY. Group resolution is find-only: unlike find_or_create_group(), a
+     * missing group must NOT be created here. Result-build must never mutate CU.
+     *
+     * @param  array $cu_json CuJsonBuilder::build() output (post-ratchet-merge).
+     * @return array<string,array{safe:int,aggressive:int}>|null
+     */
+    public function already_present_by_pattern( array $cu_json ): ?array {
+        if ( ! $this->can_push() ) {
+            return null;
+        }
+        // Version floor: AAS has no CU version check anywhere, and this method needs the
+        // bulk API. A CU without it degrades to "cannot know" rather than fataling.
+        if ( ! method_exists( $this->repo, 'get_all_rules' ) || ! method_exists( $this->repo, 'get_all_groups' ) ) {
+            return null;
+        }
+
+        $repo = $this->repo;
+
+        // Find-only group resolution: exact name match, highest id wins (mirrors
+        // find_or_create_group's loop, minus the create).
+        $group_ids = [];
+        foreach ( $cu_json['groups'] as $group_def ) {
+            $match = null;
+            foreach ( $repo::get_all_groups() as $g ) {
+                if ( $g->name === $group_def['name'] && ( $match === null || (int) $g->id > (int) $match->id ) ) {
+                    $match = $g;
+                }
+            }
+            if ( $match !== null ) {
+                $group_ids[ $group_def['id'] ] = (int) $match->id;
+            }
+        }
+        $safe_group_id       = $group_ids[1] ?? null;
+        $aggressive_group_id = $group_ids[2] ?? null;
+
+        // Index CU's existing rules by the 6-tuple find_duplicate matches on.
+        $resolved = array_filter( [ $safe_group_id, $aggressive_group_id ], static fn( $v ) => null !== $v );
+        $existing = [];
+        foreach ( $repo::get_all_rules() as $r ) {
+            $gid = (int) ( $r->group_id ?? 0 );
+            if ( ! in_array( $gid, $resolved, true ) ) {
+                continue;
+            }
+            $existing[ self::tuple_key( [
+                'url_pattern'  => (string) $r->url_pattern,
+                'match_type'   => (string) $r->match_type,
+                'asset_handle' => (string) $r->asset_handle,
+                'asset_type'   => (string) $r->asset_type,
+                // Passed through UNnormalized on purpose: CU's device_type column is
+                // nullable, and tuple_key() is the single place that applies
+                // find_duplicate's `device_type ?? 'all'`. Normalizing here too would
+                // make that the only copy that can never fire, i.e. untestable.
+                'device_type'  => $r->device_type ?? null,
+                'group_id'     => $gid,
+            ] ) ] = true;
+        }
+
+        $by_pattern = [];
+        foreach ( $cu_json['rules'] as $rule ) {
+            // Same else-branch semantics as sync(): aggressive for ANY non-1 group_id.
+            $target_group_id = $rule['group_id'] === 1 ? $safe_group_id : $aggressive_group_id;
+            $pattern         = (string) $rule['url_pattern'];
+
+            if ( ! isset( $by_pattern[ $pattern ] ) ) {
+                $by_pattern[ $pattern ] = [ 'safe' => 0, 'aggressive' => 0 ];
+            }
+            if ( null === $target_group_id ) {
+                continue; // CU has no such group => nothing of this rule's kind is present.
+            }
+
+            // ⚠️ build_rule_payload() reads $rule['device_type'] with no ?? default. sync()
+            // tolerates that because a warning there is harmless noise on an operator
+            // action; result-build runs on EVERY scan, so normalize before delegating.
+            $rule['device_type'] = $rule['device_type'] ?? 'all';
+
+            // Reuse the SAME payload builder sync() uses, so normalize_asset_type and the
+            // match_type/handle/source defaults cannot drift between the two paths.
+            $payload = $this->build_rule_payload( $rule, $target_group_id );
+
+            if ( isset( $existing[ self::tuple_key( $payload ) ] ) ) {
+                $bucket = $rule['group_id'] === 1 ? 'safe' : 'aggressive';
+                $by_pattern[ $pattern ][ $bucket ]++;
+            }
+        }
+
+        return $by_pattern;
+    }
+
+    /**
+     * The 6-column identity find_duplicate matches on, with ITS normalizations applied.
+     *
+     * ⚠️ build_rule_payload() returns SEVEN keys; source_label is an attribute, not part
+     * of identity, and must not be keyed on. device_type and group_id are normalized
+     * here exactly as RuleRepository::find_duplicate does (`device_type ?? 'all'`,
+     * `IFNULL(group_id, 0)`) — sharing build_rule_payload() alone does NOT reproduce them.
+     */
+    private static function tuple_key( array $payload ): string {
+        return implode( '|', [
+            (string) $payload['url_pattern'],
+            (string) $payload['match_type'],
+            (string) $payload['asset_handle'],
+            (string) $payload['asset_type'],
+            (string) ( $payload['device_type'] ?? 'all' ),
+            (string) ( isset( $payload['group_id'] ) && '' !== $payload['group_id'] && null !== $payload['group_id']
+                ? (int) $payload['group_id'] : 0 ),
+        ] );
+    }
+
+    /**
      * Snapshot → version-bump → push → commit (or rollback on failure).
      *
      * @param  array $cu_json  Output of CuJsonBuilder::build()
