@@ -885,6 +885,97 @@ class ScannerAjax {
     }
 
     /**
+     * Attribute Code Unloader's already-present rules onto the scanned pages, and
+     * decide which pages are wholly-duplicate (and therefore refundable).
+     *
+     * Aggregation is per PATTERN GROUP, not per page. Two selected URLs can normalize
+     * to one url_pattern (UrlPattern strips the query string), and CU's rules are keyed
+     * by pattern — so a page's own already-count is not knowable when a pattern covers
+     * several pages. Clamping per page instead yields a predicate equivalent to
+     * "A_pattern >= B_page", which never checks whose rules are whose: a page with
+     * entirely NEW rules would be reported as "0 new" and refunded.
+     *
+     * Non-negativity: pattern groups partition the page index set, so
+     * Σ_P min(A_P, B_P) <= Σ_P B_P = totals. "X new" can therefore never render negative.
+     *
+     * @param array<string,array{safe:int,aggressive:int}>|null $by_pattern Already-in-CU counts, or NULL ("cannot know").
+     * @param array<int,array{safe?:int,aggressive?:int}>       $by_page    Per-page tallies (either construction).
+     * @param array<int,mixed>                                  $pages_raw  Railway page rows (untrusted).
+     * @return array{totals:array{safe:int,aggressive:int}|null,per_page:array<int,int|null>,refund_pages:int}
+     */
+    public static function attribute_already_present( ?array $by_pattern, array $by_page, array $pages_raw ): array {
+        if ( null === $by_pattern ) {
+            // "Cannot know" — render no claim in either direction, and claim no refund.
+            return [
+                'totals'       => null,
+                'per_page'     => array_map( static fn() => null, $pages_raw ),
+                'refund_pages' => 0,
+            ];
+        }
+
+        // Group page indices by pattern.
+        $groups = [];
+        foreach ( $pages_raw as $i => $page ) {
+            $url = is_array( $page ) ? (string) ( $page['url'] ?? '' ) : '';
+            $groups[ \CUScanner\Scanner\UrlPattern::from_url( $url ) ][] = $i;
+        }
+
+        $totals   = [ 'safe' => 0, 'aggressive' => 0 ];
+        $per_page = array_map( static fn() => null, $pages_raw );
+        $refund   = 0;
+
+        foreach ( $groups as $pattern => $indices ) {
+            $b = [ 'safe' => 0, 'aggressive' => 0 ];
+            foreach ( $indices as $i ) {
+                $b['safe']       += (int) ( $by_page[ $i ]['safe']       ?? 0 );
+                $b['aggressive'] += (int) ( $by_page[ $i ]['aggressive'] ?? 0 );
+            }
+
+            $a = [
+                'safe'       => (int) ( $by_pattern[ $pattern ]['safe']       ?? 0 ),
+                'aggressive' => (int) ( $by_pattern[ $pattern ]['aggressive'] ?? 0 ),
+            ];
+
+            $already = [
+                'safe'       => min( $a['safe'],       $b['safe'] ),
+                'aggressive' => min( $a['aggressive'], $b['aggressive'] ),
+            ];
+            $totals['safe']       += $already['safe'];
+            $totals['aggressive'] += $already['aggressive'];
+
+            // Per-page detail is only honest for a single-page group.
+            if ( 1 === count( $indices ) ) {
+                $per_page[ $indices[0] ] = $already['safe'] + $already['aggressive'];
+            }
+
+            // Refund: the WHOLE group must be duplicate-only. Fail-closed.
+            $group_qualifies = ( $b['safe'] + $b['aggressive'] ) >= 1
+                && $already['safe']       === $b['safe']
+                && $already['aggressive'] === $b['aggressive'];
+            if ( ! $group_qualifies ) {
+                continue;
+            }
+
+            foreach ( $indices as $i ) {
+                $page  = is_array( $pages_raw[ $i ] ) ? $pages_raw[ $i ] : [];
+                $class = \AIAS_Scan_Status::classify( $page )['class'] ?? '';
+                // Delivered-class filter — NOT a tally check. recompute_by_page writes a
+                // tally for every pages_raw entry, so on the ratchet path an errored page
+                // HAS one. This set is the same one page_credit() uses.
+                if ( ! in_array( $class, [ 'ok', 'blocked', 'partial' ], true ) ) {
+                    continue;
+                }
+                $found = (int) ( $by_page[ $i ]['safe'] ?? 0 ) + (int) ( $by_page[ $i ]['aggressive'] ?? 0 );
+                if ( $found >= 1 ) {
+                    $refund++;
+                }
+            }
+        }
+
+        return [ 'totals' => $totals, 'per_page' => $per_page, 'refund_pages' => $refund ];
+    }
+
+    /**
      * Divergence diagnostic: returns a payload when the by_page tally disagrees with the rule-list
      * group counts, else null. A divergence is only reachable when the ET ratchet merge restored
      * rules whose url_pattern is absent from the rescanned pages (recompute_by_page attributes them
@@ -1148,6 +1239,15 @@ class ScannerAjax {
                 'reason' => $this->ratchet_skip_reason( $enabled, $is_et, null, false ),
             ] );
         }
+
+        // Result-truth: ask "does CU already have this rule?" HERE, on the post-ratchet
+        // cu_json, instead of at Sync time. NULL means CU could not be consulted.
+        $already_by_pattern = ( new RulePusher() )->already_present_by_pattern( $cu_json );
+        $attribution        = self::attribute_already_present(
+            $already_by_pattern,
+            $cu_json['by_page'] ?? [],
+            $pages_raw
+        );
 
         $json_str = json_encode( $cu_json, JSON_PRETTY_PRINT );
 
