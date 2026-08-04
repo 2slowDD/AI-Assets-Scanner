@@ -273,13 +273,8 @@ class CuJsonBuilder {
      * matching the format produced by PatternMatcher::normalize_url().
      */
     private function url_to_pattern( string $url ): string {
-        $parsed = wp_parse_url( $url );
-        $scheme = strtolower( $parsed['scheme'] ?? 'https' );
-        $host   = strtolower( $parsed['host']   ?? '' );
-        $path   = $parsed['path'] ?? '/';
-        if ( '/' !== $path ) {
-            $path = rtrim( $path, '/' );
-        }
-        return $scheme . '://' . $host . $path;
+        // Delegates to the single shared normalizer. Kept as a thin private method so
+        // existing call sites and the class's own API are unchanged.
+        return \CUScanner\Scanner\UrlPattern::from_url( $url );
     }
 }

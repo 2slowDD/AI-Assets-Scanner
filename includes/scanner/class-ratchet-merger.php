@@ -186,7 +186,7 @@ class RatchetMerger {
      *
      * url_pattern: computed the same way CuJsonBuilder::url_to_pattern() does —
      * scheme://host/path lowercased, no query, trailing slash only on root.
-     * (Re-implemented here because url_to_pattern is private on CuJsonBuilder.)
+     * (Both delegate to the shared UrlPattern::from_url().)
      *
      * @param array $rescan_pages Pages array from the ET rescan.
      * @return array State index.
@@ -379,14 +379,9 @@ class RatchetMerger {
      * @return string Normalised pattern.
      */
     private function url_to_pattern( string $url ): string {
-        $parsed = wp_parse_url( $url );
-        $scheme = strtolower( $parsed['scheme'] ?? 'https' );
-        $host   = strtolower( $parsed['host']   ?? '' );
-        $path   = $parsed['path'] ?? '/';
-        if ( '/' !== $path ) {
-            $path = rtrim( $path, '/' );
-        }
-        return $scheme . '://' . $host . $path;
+        // Delegates to the single shared normalizer. Kept as a thin private method so
+        // existing call sites and the class's own API are unchanged.
+        return \CUScanner\Scanner\UrlPattern::from_url( $url );
     }
 
     /**

@@ -2187,7 +2187,7 @@ class ScannerAjax {
      *            array_sum(column aggressive) === count(rules group_id 2).
      *
      * Strategy: derive each page's url_pattern the same way CuJsonBuilder
-     * does (via RatchetMerger's __test_url_to_pattern, which is byte-identical),
+     * does (via the shared UrlPattern::from_url normalizer both delegate to),
      * then group merged rules by url_pattern and count per page.
      * `needed` is preserved from $orig_by_page — recomputing it would require
      * re-walking the full asset list which is not available here, and the spec
@@ -2200,7 +2200,6 @@ class ScannerAjax {
      */
     private function recompute_by_page( array $rules, array $pages_raw, array $orig_by_page ): array {
         // Build a count map: url_pattern → [safe => N, aggressive => M].
-        $merger   = new \CUScanner\Scanner\RatchetMerger();
         $rule_map = [];
         foreach ( $rules as $r ) {
             $pat = $r['url_pattern'];
@@ -2217,7 +2216,9 @@ class ScannerAjax {
         // Walk pages_raw by index; derive pattern per page; look up counts.
         $by_page = [];
         foreach ( $pages_raw as $i => $page ) {
-            $pat    = $merger->__test_url_to_pattern( $page['url'] ?? '' );
+            // Was a production call into RatchetMerger's __test_ seam; both that copy and
+            // CuJsonBuilder's now delegate here. Closes FU-AAS-PRODUCTION-USES-TEST-SEAM.
+            $pat    = \CUScanner\Scanner\UrlPattern::from_url( (string) ( $page['url'] ?? '' ) );
             $safe   = $rule_map[ $pat ]['safe']       ?? 0;
             $agg    = $rule_map[ $pat ]['aggressive'] ?? 0;
             // Preserve original needed count — not affected by merge.

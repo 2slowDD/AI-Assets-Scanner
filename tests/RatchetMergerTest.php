@@ -598,18 +598,21 @@ class RatchetMergerTest extends TestCase {
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // url_to_pattern parity: RatchetMerger must stay byte-identical with
-    // CuJsonBuilder — both are private copies; if one drifts, merge() silently
-    // mis-aligns keys and restore/drop decisions break for all assets.
+    // url_to_pattern parity — RETAINED after the shared-helper extraction.
+    //
+    // The two private copies now both delegate to UrlPattern::from_url(), so this can
+    // no longer detect drift BETWEEN them. It is kept as a characterization test of the
+    // end-to-end path: CuJsonBuilder's emitted rules[0].url_pattern must still equal
+    // what the shared normalizer produces, which is what merge() key alignment needs.
+    // Full corpus coverage of the normalizer itself lives in tests/UrlPatternTest.php.
     // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * For each URL in a representative corpus, the url_pattern that
-     * RatchetMerger derives MUST equal the url_pattern CuJsonBuilder
-     * emits in its built rules[0].
+     * For each URL in a representative corpus, the url_pattern CuJsonBuilder emits in
+     * its built rules[0] MUST equal what the shared normalizer produces.
      *
-     * Failure means the two copies have diverged and merge() will
-     * never find a match between rescan keys and R_orig keys.
+     * Failure means CuJsonBuilder's emission path has diverged from the normalizer and
+     * merge() will never find a match between rescan keys and R_orig keys.
      */
     public function test_url_pattern_parity_with_cujsonbuilder(): void {
         $corpus = [
@@ -629,7 +632,6 @@ class RatchetMergerTest extends TestCase {
         ];
 
         $builder = new \CUScanner\Scanner\CuJsonBuilder();
-        $merger  = new RatchetMerger();
 
         foreach ( $corpus as $label => $url ) {
             $built = $builder->build( [
@@ -641,15 +643,14 @@ class RatchetMergerTest extends TestCase {
                 "CuJsonBuilder produced no rules for URL [{$label}]: {$url}"
             );
 
-            $cujson_pattern  = $built['rules'][0]['url_pattern'];
-            $merger_pattern  = $merger->__test_url_to_pattern( $url );
+            $cujson_pattern = $built['rules'][0]['url_pattern'];
+            $shared_pattern = \CUScanner\Scanner\UrlPattern::from_url( $url );
 
             $this->assertSame(
                 $cujson_pattern,
-                $merger_pattern,
-                "url_to_pattern DRIFT detected for [{$label}]: {$url}\n" .
-                "  CuJsonBuilder : {$cujson_pattern}\n" .
-                "  RatchetMerger : {$merger_pattern}"
+                $shared_pattern,
+                "CuJsonBuilder's emitted url_pattern diverged from the shared normalizer " .
+                "for [{$label}]: {$url}\n  CuJsonBuilder : {$cujson_pattern}\n  UrlPattern    : {$shared_pattern}"
             );
         }
     }
