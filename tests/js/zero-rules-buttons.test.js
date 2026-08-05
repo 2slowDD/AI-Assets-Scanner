@@ -9,7 +9,8 @@ function runZeroRules() {
   assert.ok(T.restoreStep4, 'restoreStep4 must be exposed on __cuTest');
 
   // 0 safe + 0 aggressive, canPush=true (would normally ENABLE both), not external, no requeue.
-  T.restoreStep4('job1', 0, 0, true, false, {}, 5, [], 'scan1', false);
+  T.restoreStep4({ jobId: 'job1', safeCount: 0, aggCount: 0, canPush: true, externalOnly: false,
+                   bannerData: {}, urlsScanned: 5, pages: [], scanId: 'scan1', hasActiveCuRules: false });
 
   const push = h.els['cu-btn-push'];
   const sync = h.els['cu-btn-sync'];
@@ -25,7 +26,8 @@ function runZeroRules() {
 function runWithRules() {
   const h = createHarness();
   const T = h.sandbox.window.__cuTest;
-  T.restoreStep4('job2', 1, 0, true, false, {}, 5, [], 'scan2', false);
+  T.restoreStep4({ jobId: 'job2', safeCount: 1, aggCount: 0, canPush: true, externalOnly: false,
+                   bannerData: {}, urlsScanned: 5, pages: [], scanId: 'scan2', hasActiveCuRules: false });
   const push = h.els['cu-btn-push'];
   assert.strictEqual(push.disabled, false, 'Push enabled when >=1 rule exists');
   assert.ok(!push._classes.has('cu-btn-dormant'), 'Push not dormant when rules exist');

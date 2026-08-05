@@ -62,7 +62,8 @@ function urlCellHtml(tableHtml, rowIndex) {
 function render(pages) {
   const h = createHarness();
   const T = h.sandbox.window.__cuTest;
-  T.restoreStep4('job1', 1, 0, true, false, {}, pages.length, pages, 'scan1', false);
+  T.restoreStep4({ jobId: 'job1', safeCount: 1, aggCount: 0, canPush: true, externalOnly: false,
+                   bannerData: {}, urlsScanned: pages.length, pages: pages, scanId: 'scan1', hasActiveCuRules: false });
   return h.els['cu-result-url-list']._html;
 }
 

@@ -1883,7 +1883,14 @@
                     // 'unknown' copy variant via the allowlist in renderBrokenBanner().
                     rate_limit_attribution: d.rate_limit_attribution || '',
                 };
-                restoreStep4( scanJobId, d.safe_count, d.aggressive_count, d.can_push, externalOnly, bannerData, d.total_pages, d.pages, d.scan_id, d.has_active_cu_rules );
+                restoreStep4({
+                    jobId: scanJobId, safeCount: d.safe_count, aggCount: d.aggressive_count,
+                    canPush: d.can_push, externalOnly: externalOnly, bannerData: bannerData,
+                    urlsScanned: d.total_pages, pages: d.pages, scanId: d.scan_id,
+                    hasActiveCuRules: d.has_active_cu_rules,
+                    alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
+                    creditsRefunded: d.credits_refunded
+                });
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
                     job_id:        scanJobId,
                     safe_count:    d.safe_count,
@@ -2252,10 +2259,72 @@
         }
     }
 
-    function restoreStep4( jobId, safeCount, aggCount, canPush, externalOnly, bannerData, urlsScanned, pages, scanId, hasActiveCuRules ) {
+    /**
+     * Result-truth copy builders. Pure functions so they are testable without a DOM.
+     * Copy rule: "already in Code Unloader" — NEVER "already optimised" or "already
+     * applied". A CU rule can exist and still not take effect (spec Q6).
+     */
+    function buildSummaryLine( o ) {
+        var base = 'Scan complete. ' + o.urls + ' URLs scanned, ' + o.safeCount +
+                   ' safe rules, ' + o.aggCount + ' aggressive rules generated.';
+        var ap = o.alreadyPresent;
+        if ( !ap ) return base;                        // null => cannot know => no claim
+        var total   = ( Number(o.safeCount) || 0 ) + ( Number(o.aggCount) || 0 );
+        var already = ( Number(ap.safe) || 0 ) + ( Number(ap.aggressive) || 0 );
+        if ( total === 0 ) return base;
+        // already <= total is guaranteed by the server's group-level min(); Math.max is
+        // belt-and-braces so a future payload change can never render "-1 new".
+        var fresh = Math.max( 0, total - already );
+        return base + ' → ' + fresh + ' new, ' + already + ' already in Code Unloader';
+    }
+
+    function buildSyncCopy( o ) {
+        // The externalOnly branch hides both buttons and OWNS #cu-push-result. Returning
+        // anything here would clobber the "External URLs scanned" notice.
+        if ( o.externalOnly ) return '';
+        var ap = o.alreadyPresent;
+        if ( !ap ) return '';
+        var total   = ( Number(o.safeCount) || 0 ) + ( Number(o.aggCount) || 0 );
+        var already = ( Number(ap.safe) || 0 ) + ( Number(ap.aggressive) || 0 );
+        if ( total === 0 || total - already > 0 ) return '';
+        return 'Nothing new to sync — all ' + total + ' rules already in Code Unloader';
+    }
+
+    function buildRefundLine( o ) {
+        var n = Number( o.creditsRefunded ) || 0;
+        if ( n < 1 ) return '';
+        return n + ' page credit' + ( n === 1 ? '' : 's' ) +
+               ' returned — pages whose rules were already in Code Unloader are not billed.';
+    }
+
+    /**
+     * ⚠️ Takes an OPTIONS OBJECT, not positional params. It previously took 10 positional
+     * arguments; adding more would have turned a missed call site into a silent
+     * positional SHIFT (every later argument landing in the wrong slot) rather than an
+     * obvious undefined. Both call sites and the JS tests pass the object.
+     */
+    function restoreStep4( o ) {
+        var jobId            = o.jobId;
+        var safeCount        = o.safeCount;
+        var aggCount         = o.aggCount;
+        var canPush          = o.canPush;
+        var externalOnly     = o.externalOnly;
+        var bannerData       = o.bannerData;
+        var urlsScanned      = o.urlsScanned;
+        var pages            = o.pages;
+        var scanId           = o.scanId;
+        var hasActiveCuRules = o.hasActiveCuRules;
+        var alreadyPresent   = ( o.alreadyPresent === undefined ) ? null : o.alreadyPresent;
+        var creditsRefunded  = o.creditsRefunded;
+
         const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
         document.getElementById('cu-result-summary').textContent =
-            `Scan complete. ${urls} URLs scanned, ${safeCount} safe rules, ${aggCount} aggressive rules generated.`;
+            buildSummaryLine({ urls: urls, safeCount: safeCount, aggCount: aggCount, alreadyPresent: alreadyPresent });
+
+        // Refund line lives with the SUMMARY, not in #cu-push-result — the externalOnly
+        // branch below overwrites that element wholesale (AC-15).
+        var refundEl = document.getElementById('cu-result-refund');
+        if ( refundEl ) { refundEl.textContent = buildRefundLine({ creditsRefunded: creditsRefunded }); }
         const dlBtn = document.getElementById('cu-btn-download');
         dlBtn.href = ajax + '?action=cu_scanner_download_json&job_id=' + jobId + '&nonce=' + nonce;
         dlBtn.setAttribute('download', 'cu-scanner-' + jobId + '.json');
@@ -2306,6 +2375,17 @@
             syncBtn.style.display = '';
             pushBtn.disabled = false;
             pushBtn.classList.remove('cu-btn-dormant');
+        }
+
+        // Result-truth Sync notice. Appended, never assigned: the branches above own
+        // #cu-push-result, and buildSyncCopy returns '' for externalOnly so the
+        // "External URLs scanned" notice is never clobbered (AC-15).
+        var syncNotice = buildSyncCopy({
+            externalOnly: externalOnly, safeCount: safeCount,
+            aggCount: aggCount, alreadyPresent: alreadyPresent
+        });
+        if ( syncNotice ) {
+            pushResult.innerHTML += '<div class="notice notice-info inline"><p>' + syncNotice + '</p></div>';
         }
 
         setUndoLastPushSyncState(undoLastPushSyncState);
@@ -2916,7 +2996,14 @@
         try {
             const d = JSON.parse(stored);
             scanJobId = d.job_id;
-            restoreStep4( d.job_id, d.safe_count, d.agg_count, d.can_push, !!d.external_only, undefined, d.total_pages, d.pages, d.scan_id, d.has_active_cu_rules );
+            restoreStep4({
+                jobId: d.job_id, safeCount: d.safe_count, aggCount: d.agg_count,
+                canPush: d.can_push, externalOnly: !!d.external_only, bannerData: undefined,
+                urlsScanned: d.total_pages, pages: d.pages, scanId: d.scan_id,
+                hasActiveCuRules: d.has_active_cu_rules,
+                alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
+                creditsRefunded: d.credits_refunded
+            });
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');
         }
@@ -3111,6 +3198,8 @@
     window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,
                         renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4,
                         showProbeOutcomeDialog: showProbeOutcomeDialog,
+                        buildSummaryLine: buildSummaryLine, buildSyncCopy: buildSyncCopy,
+                        buildRefundLine: buildRefundLine,
                         // Seed the IIFE-scoped submitted-URL state so handleStatusUpdate's
                         // URL-fallback can be exercised without driving the full submit flow.
                         setScanUrlsForTest: function (sel, resolved) { selectedUrls = sel || []; resolvedByUrl = resolved || {}; } };

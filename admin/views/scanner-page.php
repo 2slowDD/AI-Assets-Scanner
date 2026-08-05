@@ -187,6 +187,11 @@
             <button type="button" class="button button-secondary cu-btn-rescan-noopt-all" style="display:none">Rescan 0-Results URLs</button>
         </div>
         <p id="cu-result-summary"></p>
+        <?php // Result-truth credit-back line. Sits with the summary, NOT in
+              // #cu-push-result, which the external-only branch overwrites wholesale
+              // (AC-15). Inserted between summary and url-list so the ordering
+              // ScannerPageMarkupTest pins stays true. Filled by restoreStep4. ?>
+        <p id="cu-result-refund"></p>
         <div id="cu-result-url-list"></div>
         <div class="cu-rescan-row" style="margin-top:16px; display:flex; gap:12px; align-items:center">
             <button type="button" class="button button-secondary cu-btn-run-another">Run Another Scan</button>
