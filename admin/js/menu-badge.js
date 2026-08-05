@@ -144,7 +144,8 @@
                         // Omitting these here loses them on exactly the restore path the
                         // whole aias_last_result machinery exists for.
                         already_present:  ( 'already_present' in res.data ) ? res.data.already_present : null,
-                        credits_refunded: res.data.credits_refunded
+                        credits_refunded: res.data.credits_refunded,
+                        cu_rules_active:  res.data.cu_rules_active
                     }));
                 } catch (_storageErr) {
                     // localStorage quota or disabled — non-fatal; the badge

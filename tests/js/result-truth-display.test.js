@@ -148,24 +148,30 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
   assert.ok(!/already in Code Unloader/.test(h4.els['cu-push-result'].innerHTML), 'no sync claim');
 }());
 
-// --- AC-3: the per-URL "Already in CU" cell -----------------------------------
-// A null `already` (multi-page pattern group, or CU unreachable) must render EMPTY,
-// never 0 — rendering 0 would be a false claim that nothing is already present.
-(function perUrlAlreadyCell() {
+// --- Operator ruling 2026-08-05 -----------------------------------------------
+// The per-URL "Already in CU" column is REMOVED (it rendered 0 on zero-finding pages while
+// the summary line deliberately made no claim, and in ?nowpcu-off mode it read backwards).
+// In its place, a page whose every rule was already in CU renders as a ZERO-YIELD row:
+// S:0 A:0, 0 credits, the same yellow noopt styling as any other zero. AC-3's display half
+// is narrowed by that ruling; the server-side attribution behind it is untouched.
+(function perUrlAllAlreadyRow() {
   const h5 = createHarness();
   const T5 = h5.sandbox.window.__cuTest;
   const pages = [
+    // Produced 2 aggressive rules, ALL already in CU => nets to zero.
     { n: 1, url: 'https://s.com/a', status_class: 'ok', status_label: 'OK', credits: 1,
-      safe: 0, aggressive: 2, needed: 0, already: 2 },
+      safe: 0, aggressive: 2, needed: 0, all_already: true },
+    // A genuinely new rule => untouched, still billed.
     { n: 2, url: 'https://s.com/b', status_class: 'ok', status_label: 'OK', credits: 1,
-      safe: 0, aggressive: 1, needed: 0, already: null },
+      safe: 0, aggressive: 1, needed: 0, all_already: false },
+    // Legacy row restored from pre-release storage: no all_already key at all.
     { n: 3, url: 'https://s.com/c', status_class: 'ok', status_label: 'OK', credits: 1,
-      safe: 0, aggressive: 1, needed: 0 },
+      safe: 1, aggressive: 0, needed: 0 },
   ];
   T5.restoreStep4({
-    jobId: 'job1', safeCount: 0, aggCount: 4, canPush: true, externalOnly: false,
+    jobId: 'job1', safeCount: 1, aggCount: 3, canPush: true, externalOnly: false,
     bannerData: {}, urlsScanned: 3, pages: pages, scanId: 'scan1', hasActiveCuRules: false,
-    alreadyPresent: { safe: 0, aggressive: 2 }, creditsRefunded: 0
+    alreadyPresent: { safe: 0, aggressive: 2 }, creditsRefunded: 1, cuRulesActive: false
   });
 
   const html = h5.els['cu-result-url-list'].innerHTML;
@@ -177,10 +183,64 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
     (c) => c.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')
   );
 
-  assert.strictEqual(cellsOf(rows[0])[5], '2', 'a known already-count renders its value');
-  assert.strictEqual(cellsOf(rows[1])[5], '', 'null renders EMPTY, never 0');
-  assert.strictEqual(cellsOf(rows[2])[5], '', 'an absent key renders EMPTY too');
-  assert.ok(/Already in CU/.test(html), 'the column has a header');
+  assert.ok(!/Already in CU/.test(html), 'the Already in CU column is gone, header and all');
+  assert.strictEqual(cellsOf(rows[0]).length, 7, 'one fewer cell per row after the column removal');
+
+  // Row 1 — netted on BOTH the counts and the credit cell, and styled as a zero row.
+  assert.ok(/S:0 A:0 /.test(cellsOf(rows[0])[4]), 'all-already page nets its counts to zero');
+  assert.strictEqual(cellsOf(rows[0])[3], '0',
+    'all-already page shows 0 credits — it was credited back, so the gross charge is not what was paid');
+  assert.ok(/cu-row-noopt/.test(rows[0]), 'and gets the same yellow row as any other zero');
+  assert.ok(/Already in Code Unloader/.test(rows[0]), 'and says why');
+  assert.ok(!/Please rescan/.test(rows[0]), 'never prompts a rescan of a page that is already handled');
+
+  // Row 2 — a real new rule must NOT be netted away.
+  assert.ok(/S:0 A:1 /.test(cellsOf(rows[1])[4]), 'a genuinely new rule still renders its count');
+  assert.strictEqual(cellsOf(rows[1])[3], '1', 'and still shows the credit it cost');
+  assert.ok(!/cu-row-noopt/.test(rows[1]), 'not a zero row');
+
+  // Row 3 — a missing key must degrade to today's behaviour, never to a false zero.
+  assert.ok(/S:1 A:0 /.test(cellsOf(rows[2])[4]), 'absent all_already key leaves the counts alone');
+}());
+
+// --- §2.3: zero-finding copy when the scan ran with CU's rules live -------------
+// With the ?nowpcu suffix omitted, CU's rules are active during the scan, so assets it
+// already unloads never become candidates. Zero is then the CORRECT outcome, and the
+// stock "please rescan" copy sends the customer down a credit-costing dead end.
+(function nooptCopyUnderCuRulesActive() {
+  const zeroPage = { n: 1, url: 'https://s.com/1', status_class: 'ok', status_label: 'OK',
+    credits: 1, safe: 0, aggressive: 0, needed: 12 };
+  const render = (cuRulesActive) => {
+    const h = createHarness();
+    h.sandbox.window.__cuTest.restoreStep4({
+      jobId: 'j', safeCount: 0, aggCount: 0, canPush: true, externalOnly: false, bannerData: {},
+      urlsScanned: 1, pages: [zeroPage], scanId: 's', hasActiveCuRules: false,
+      alreadyPresent: { safe: 0, aggressive: 0 }, creditsRefunded: 0, cuRulesActive: cuRulesActive
+    });
+    return h.els['cu-result-url-list'].innerHTML;
+  };
+
+  const on = render(true);
+  assert.ok(/No new unloads found since the last time/.test(on),
+    'suffix omitted => zero is the expected, healthy outcome; say so');
+  assert.ok(!/Please rescan|rescan occasionally finds more/.test(on),
+    'and never spend the customer credits reconfirming a non-problem');
+
+  const off = render(false);
+  assert.ok(/a rescan occasionally finds more/.test(off),
+    'a NORMAL scan keeps the existing copy — a zero there really may be a miss');
+  assert.ok(!/No new unloads found since the last time/.test(off),
+    'the new copy must not leak onto scans that ran with the suffix on');
+
+  // Falsification: an absent flag must behave like OFF, not like ON.
+  const h = createHarness();
+  h.sandbox.window.__cuTest.restoreStep4({
+    jobId: 'j', safeCount: 0, aggCount: 0, canPush: true, externalOnly: false, bannerData: {},
+    urlsScanned: 1, pages: [zeroPage], scanId: 's', hasActiveCuRules: false,
+    alreadyPresent: { safe: 0, aggressive: 0 }, creditsRefunded: 0
+  });
+  assert.ok(!/No new unloads found since the last time/.test(h.els['cu-result-url-list'].innerHTML),
+    'a legacy row with no cu_rules_active must not claim "no new unloads"');
 }());
 
 // --- AC-4: the two JS localStorage writers must carry the same field NAMES ----

@@ -1889,7 +1889,8 @@
                     urlsScanned: d.total_pages, pages: d.pages, scanId: d.scan_id,
                     hasActiveCuRules: d.has_active_cu_rules,
                     alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
-                    creditsRefunded: d.credits_refunded
+                    creditsRefunded: d.credits_refunded,
+                    cuRulesActive: d.cu_rules_active
                 });
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
                     job_id:        scanJobId,
@@ -1906,6 +1907,9 @@
                     // null is the meaningful "CU could not be consulted" signal.
                     already_present:  ( 'already_present' in d ) ? d.already_present : null,
                     credits_refunded: d.credits_refunded,
+                    // Persisted alongside the other result-truth fields: without this the
+                    // restored Step 4 would silently fall back to the "please rescan" copy.
+                    cu_rules_active:  d.cu_rules_active,
                     // banner data not persisted \u2014 shown once per live build_result call only.
                 }) );
                 // Task 5 \u2014 charged terminal-incomplete partial: after Step 4 renders,
@@ -2316,6 +2320,10 @@
         var hasActiveCuRules = o.hasActiveCuRules;
         var alreadyPresent   = ( o.alreadyPresent === undefined ) ? null : o.alreadyPresent;
         var creditsRefunded  = o.creditsRefunded;
+        // Defaults FALSE on every path that does not carry it (legacy rows restored from
+        // pre-release storage), so a missing flag degrades to today's copy — never to a
+        // "no new unloads" claim we cannot support.
+        var cuRulesActive    = !! o.cuRulesActive;
 
         const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
         document.getElementById('cu-result-summary').textContent =
@@ -2399,7 +2407,7 @@
         renderBrokenBanner( bannerData || {} );
 
         // Per-URL results table (hidden when pages is empty/undefined).
-        renderResultUrlList( pages, scanId );
+        renderResultUrlList( pages, scanId, cuRulesActive );
 
         // Top "Run Another Scan" is redundant on a short results list. Hide it for
         // <10 scanned URLs, but RESERVE its space (visibility:hidden, not display:none)
@@ -2438,7 +2446,11 @@
     }
 
     // --- Per-URL results table (Step 4) -------------------------------------
-    var cuUrlListState = { pages: [], scanId: '', page: 0, perPage: 25, etChecked: new Set() };
+    // cuRulesActive is SCAN-level, not per-row: the scan ran with Code Unloader's rules live
+    // (?nowpcu suffix omitted), so assets CU already unloads never became candidates and a zero
+    // S/A is the expected outcome rather than a miss. Lives on the state because pagination
+    // re-renders per page and the flag must survive every re-render, like etChecked.
+    var cuUrlListState = { pages: [], scanId: '', page: 0, perPage: 25, etChecked: new Set(), cuRulesActive: false };
     // AC-RC-8b — resolved→submitted map, IIFE-scoped so both the submit handler (which
     // populates it from the probe response) and renderResultUrlListPage() (which reads it
     // for the "← resolved from" note) can see it. Was previously let-scoped inside the submit
@@ -2473,13 +2485,14 @@
              + CU_CHOFF_BOX_BODY.split( '%s' ).join( cuEscHtml( list ) ) + '</span></span>';
     }
 
-    function renderResultUrlList( pages, scanId ) {
+    function renderResultUrlList( pages, scanId, cuRulesActive ) {
         var host = document.getElementById('cu-result-url-list');
         if ( ! host ) { return; }
         if ( ! pages || ! pages.length ) { host.innerHTML = ''; host.style.display = 'none'; return; }
         cuUrlListState.pages  = pages;
         cuUrlListState.scanId = scanId || '';
         cuUrlListState.page   = 0;
+        cuUrlListState.cuRulesActive = !! cuRulesActive;
         // Seed ET-checkbox state ONCE from et_candidate rows (first render only).
         // Pagination re-renders host.innerHTML each page change; the persistent Set
         // is what survives across pages, so it must be seeded here, not per-page.
@@ -2508,24 +2521,48 @@
             } );
         }
         var rows = slice.map( function ( p ) {
+            // Operator ruling 2026-08-05: a page whose every rule was ALREADY in Code Unloader
+            // delivered nothing new, so it reads as a zero-yield page — S:0 A:0, 0 credits, the
+            // same yellow noopt row as any other zero. `all_already` is the SERVER's refund
+            // predicate (attribute_already_present), so a row renders zero EXACTLY when it was
+            // credited back: the screen and the money cannot drift apart.
+            var allAlready = !! p.all_already;
+            var effSafe    = allAlready ? 0 : Number( p.safe );
+            var effAgg     = allAlready ? 0 : Number( p.aggressive );
             // FU-AAS-YELLOW-S0A0-ROWS — completed row that optimized nothing. Number() mirrors
             // the existing coercion at scanner.js:1586 (safe/aggressive are PHP int → JSON number).
-            var noopt = ( p.status_class === 'ok' && Number( p.safe ) === 0 && Number( p.aggressive ) === 0 );
+            var noopt = ( p.status_class === 'ok' && effSafe === 0 && effAgg === 0 );
+            var nooptNote = '';
+            if ( noopt ) {
+                if ( allAlready ) {
+                    // Not a miss and not budget-starvation: the page produced rules and every one
+                    // of them was a duplicate. Naming that beats any rescan prompt.
+                    nooptNote = ' <span class="cu-noopt-note">Already in Code Unloader —<br>nothing new to unload on this page.</span>';
+                } else if ( p.et_candidate && ! p.et_charged ) {
+                    nooptNote = ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>';
+                } else if ( p.et_candidate ) {
+                    nooptNote = ' <span class="cu-noopt-note">Please scan again</span>';
+                } else if ( st.cuRulesActive ) {
+                    // ?nowpcu suffix OFF: CU's rules were live during the scan, so assets it
+                    // already unloads never became candidates. Zero is the CORRECT and EXPECTED
+                    // outcome — it means Code Unloader is doing its job. Never prompt a rescan
+                    // here: it would spend credits to re-confirm a non-problem.
+                    nooptNote = ' <span class="cu-noopt-note">No new unloads found since the last time.</span>';
+                } else {
+                    // et_candidate is the worker's own "this zero may be budget-starved" flag.
+                    // Its ABSENCE only means "not budget-starved" — it does NOT establish
+                    // "genuinely nothing to unload" (1.7.78b fix: scan e1271ec1fd71 showed
+                    // S:0 A:0 N:63 on a page with proven prior A:8 — a demote-all zero, not
+                    // an empty page). So the copy claims only what THIS SCAN found and always
+                    // prompts a rescan. A residual ET candidate that already got Extra Time
+                    // (et_charged) keeps the plain rescan prompt.
+                    nooptNote = ' <span class="cu-noopt-note">This scan found nothing to unload —<br>a rescan occasionally finds more. Please rescan.</span>';
+                }
+            }
             var san = ( p.status_class === 'error' ) ? '—'
-                : ( 'S:' + p.safe + ' A:' + p.aggressive + ' N:' + p.needed
+                : ( 'S:' + effSafe + ' A:' + effAgg + ' N:' + p.needed
                     + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' )
-                    + ( noopt ? ( ( p.et_candidate && ! p.et_charged )
-                        ? ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>'
-                        // et_candidate is the worker's own "this zero may be budget-starved" flag.
-                        // Its ABSENCE only means "not budget-starved" — it does NOT establish
-                        // "genuinely nothing to unload" (1.7.78b fix: scan e1271ec1fd71 showed
-                        // S:0 A:0 N:63 on a page with proven prior A:8 — a demote-all zero, not
-                        // an empty page). So the copy claims only what THIS SCAN found and always
-                        // prompts a rescan. A residual ET candidate that already got Extra Time
-                        // (et_charged) keeps the plain rescan prompt.
-                        : ( p.et_candidate
-                            ? ' <span class="cu-noopt-note">Please scan again</span>'
-                            : ' <span class="cu-noopt-note">This scan found nothing to unload —<br>a rescan occasionally finds more. Please rescan.</span>' ) ) : '' ) );
+                    + nooptNote );
             var origUrl = submittedByResolved[ p.url ];
             // FU-ABSENT-SAFE B2 — visible note when this row's scan URL received an
             // optimizer-bypass suffix (p.bypass_suffixes threaded server-side by
@@ -2551,13 +2588,11 @@
                 + '<td>' + cuEscHtml( p.n ) + '</td>'
                 + '<td class="cu-url-cell">' + urlCell + '</td>'
                 + '<td>' + cuEscHtml( p.status_label ) + '</td>'
-                + '<td>' + cuEscHtml( p.credits ) + '</td>'
+                // 0 when every rule on this page was already in CU — the page was credited back,
+                // so the gross page_credit() charge is not what the customer actually paid.
+                // page_credit() itself is deliberately untouched (spec AC-7, golden-tested).
+                + '<td>' + cuEscHtml( allAlready ? 0 : p.credits ) + '</td>'
                 + '<td class="cu-san">' + san + '</td>'
-                // Result-truth per-URL already-in-CU count. EMPTY (not 0, not '—') when
-                // null/absent: null means the split is unknowable for this row (its pattern
-                // covers several pages) or CU could not be consulted, and rendering a number
-                // there would be a claim we cannot support. AC-3.
-                + '<td>' + ( ( p.already === null || p.already === undefined ) ? '' : cuEscHtml( p.already ) ) + '</td>'
                 + '<td>' + cuEscHtml( p.et_candidate ? 'yes' : '—' ) + '</td>'
                 + '<td>' + ( p.et_candidate
                     ? '<input type="checkbox" class="cu-et-result-cb" data-url="' + esc( p.url ) + '"' + ( st.etChecked.has( p.url ) ? ' checked' : '' ) + '>'
@@ -2571,7 +2606,7 @@
         host.innerHTML =
             '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
           + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error · ' + c.cancelled + ' cancelled (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th><span class="cu-th-inner">S / A / N<span class="cu-help" tabindex="0" aria-label="Safe: high-confidence unload rules with a low risk of affecting the page — tested and confirmed safe to unload. Aggressive: broader unload rules with slightly lower confidence — tested and confirmed safe to unload. Needed: assets required by the page — they will remain loaded when you push the rules."><span class="cu-help-box"><strong>Safe:</strong> High-confidence unload rules with a low risk of affecting the page. Tested and confirmed safe to unload.<br><strong>Aggressive:</strong> Broader unload rules with slightly lower confidence. Tested and confirmed safe to unload.<br><strong>Needed:</strong> Assets required by the page. They will remain loaded when you push the rules.</span></span></span></th><th><span class="cu-th-inner">Already in CU<span class="cu-help" tabindex="0" aria-label="How many rules for this URL Code Unloader already has. Blank when the split is not knowable for this row."><span class="cu-help-box">How many rules for this URL Code Unloader <strong>already has</strong>. Blank when several scanned URLs share one rule pattern, or when Code Unloader could not be consulted.</span></span></span></th><th><span class="cu-th-inner">ET candidate<span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></span></th><th><span class="cu-th-inner">Extra Time<span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th><span class="cu-th-inner">S / A / N<span class="cu-help" tabindex="0" aria-label="Safe: high-confidence unload rules with a low risk of affecting the page — tested and confirmed safe to unload. Aggressive: broader unload rules with slightly lower confidence — tested and confirmed safe to unload. Needed: assets required by the page — they will remain loaded when you push the rules."><span class="cu-help-box"><strong>Safe:</strong> High-confidence unload rules with a low risk of affecting the page. Tested and confirmed safe to unload.<br><strong>Aggressive:</strong> Broader unload rules with slightly lower confidence. Tested and confirmed safe to unload.<br><strong>Needed:</strong> Assets required by the page. They will remain loaded when you push the rules.</span></span></span></th><th><span class="cu-th-inner">ET candidate<span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></span></th><th><span class="cu-th-inner">Extra Time<span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
           + '<p class="cu-et-result-all-row"><label><input type="checkbox" id="cu-et-result-all"> Extra Time: all ET candidates</label></p>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }
@@ -2985,6 +3020,11 @@
     // 1-credit-per-URL scan, same as the per-row rescan it replaces). No-op when there are none. ---
     document.querySelectorAll('#step-4 .cu-btn-rescan-noopt-all').forEach(function (btn) {
         btn.addEventListener('click', function () {
+            // ⚠️ RAW safe/aggressive on purpose — NOT the netted values the table renders. An
+            // all_already page displays as a zero row (S:0 A:0, yellow) but produced real rules
+            // that Code Unloader already has; rescanning it spends credits to rediscover
+            // duplicates. all_already implies raw safe+aggressive >= 1, so this predicate
+            // already excludes those rows — do not "fix" it to match the rendered zeros.
             var urls = cuUrlListState.pages.filter(function (p) {
                 return p && p.status_class === 'ok' && Number(p.safe) === 0 && Number(p.aggressive) === 0;
             }).map(function (p) { return p.url; });
@@ -3007,7 +3047,8 @@
                 urlsScanned: d.total_pages, pages: d.pages, scanId: d.scan_id,
                 hasActiveCuRules: d.has_active_cu_rules,
                 alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
-                creditsRefunded: d.credits_refunded
+                creditsRefunded: d.credits_refunded,
+                cuRulesActive: d.cu_rules_active
             });
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');

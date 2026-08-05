@@ -58,7 +58,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 	 * Drives the real do_build_result(). $refund_response is what the SaaS returns from
 	 * POST /credits/refund-duplicates; null makes the call throw (non-2xx).
 	 */
-	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true ): array {
+	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = false ): array {
 		WP_Mock::userFunction( 'wp_parse_url' )
 			->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
 		WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
@@ -95,9 +95,13 @@ class ResultTruthRefundClaimTest extends TestCase {
 
 		// Options store: seed the history row do_build_result will update.
 		WP_Mock::userFunction( 'get_option' )->andReturnUsing(
-			function ( $k, $default = false ) {
+			function ( $k, $default = false ) use ( $omit_cu_bypass ) {
 				if ( 'cu_scanner_railway_url' === $k ) { return 'https://cu-scanner-railway-production.up.railway.app'; }
 				if ( 'cu_scanner_api_key' === $k )     { return 'api-key-123'; }
+				// P17: seed the REAL option Settings::get_omit_cu_bypass() reads. Nothing is
+				// passed into do_build_result() — the production config lookup executes, so a
+				// wrong option name or a dropped read makes the cu_rules_active tests go red.
+				if ( 'cu_scanner_omit_cu_bypass' === $k ) { return $omit_cu_bypass ? '1' : ''; }
 				if ( 'cu_scanner_history' === $k ) {
 					foreach ( array_reverse( $this->option_writes ) as $w ) {
 						if ( 'cu_scanner_history' === $w[0] ) { return $w[1]; }
@@ -232,14 +236,39 @@ class ResultTruthRefundClaimTest extends TestCase {
 	}
 
 	/** P17: the real do_build_result() with the real dedupe — nothing precomputed. */
-	public function test_live_payload_carries_already_present_and_per_page_already(): void {
+	public function test_live_payload_carries_already_present_and_per_page_all_already(): void {
 		$out = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ] );
 
 		$this->assertArrayHasKey( 'already_present', $out );
 		$this->assertSame( [ 'safe' => 0, 'aggressive' => 1 ], $out['already_present'] );
-		$this->assertArrayHasKey( 'already', $out['pages'][0] );
-		$this->assertSame( 1, $out['pages'][0]['already'] );
+		$this->assertArrayHasKey( 'all_already', $out['pages'][0] );
+		$this->assertTrue(
+			$out['pages'][0]['all_already'],
+			'every rule this page produced was already in CU, so the client must render it as a zero-yield row'
+		);
 		$this->assertSame( 1, $out['credits_refunded'] );
+	}
+
+	/**
+	 * The invariant the display leans on: a page is flagged all_already EXACTLY when it was
+	 * counted for the credit-back. If these two ever diverge the screen shows 0 credits on a
+	 * page the customer actually paid for (or the reverse) — the whole point of deriving the
+	 * flag from the refund loop rather than recomputing it client-side.
+	 */
+	public function test_all_already_pages_match_the_refunded_page_count(): void {
+		$out = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ] );
+
+		$flagged = count( array_filter( $out['pages'], static fn( $p ) => ! empty( $p['all_already'] ) ) );
+		$this->assertSame( 1, $flagged );
+		$this->assertSame( $flagged, $out['credits_refunded'] );
+	}
+
+	/** A page with a genuinely NEW rule must not be flagged — it delivered value and was billed. */
+	public function test_new_rule_page_is_not_flagged_all_already(): void {
+		$out = $this->run_build( false, null ); // CU active, but does NOT hold the rule
+
+		$this->assertFalse( $out['pages'][0]['all_already'] );
+		$this->assertSame( [ 'safe' => 0, 'aggressive' => 0 ], $out['already_present'] );
 	}
 
 	public function test_persisted_option_carries_the_same_field_names(): void {
@@ -247,13 +276,39 @@ class ResultTruthRefundClaimTest extends TestCase {
 		$persisted = $this->persisted_last_result();
 
 		$this->assertArrayHasKey( 'already_present', $persisted );
-		$this->assertArrayHasKey( 'already', $persisted['pages'][0] );
+		$this->assertArrayHasKey( 'all_already', $persisted['pages'][0] );
+		$this->assertArrayHasKey( 'cu_rules_active', $persisted );
 		$this->assertSame(
 			$out['already_present'],
 			$persisted['already_present'],
 			'identical shape on every writer — the agg_count/aggressive_count split is the bug class here'
 		);
 		$this->assertSame( $out['credits_refunded'], $persisted['credits_refunded'] );
+		$this->assertSame( $out['cu_rules_active'], $persisted['cu_rules_active'] );
+	}
+
+	/**
+	 * P17 — the ?nowpcu-off signal on the REAL config path. do_build_result() receives no
+	 * override; Settings::get_omit_cu_bypass() reads the option itself. Without this the
+	 * Step-4 copy silently falls back to "please rescan" on exactly the scans that must
+	 * never say it.
+	 *
+	 * ⚠️ One run_build() per test METHOD: WP_Mock keeps the first userFunction('get_option')
+	 * registration for the life of a test, so a second run in the same method would silently
+	 * replay the first seed and the "on" case would assert against the "off" wiring.
+	 */
+	public function test_cu_rules_active_is_false_when_the_suffix_is_applied(): void {
+		$off = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ], true, false );
+
+		$this->assertFalse( $off['cu_rules_active'], 'suffix ON (default) => CU rules were NOT live' );
+		$this->assertFalse( $this->persisted_last_result()['cu_rules_active'] );
+	}
+
+	public function test_cu_rules_active_is_true_when_the_suffix_is_omitted(): void {
+		$on = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ], true, true );
+
+		$this->assertTrue( $on['cu_rules_active'], 'suffix omitted => the scan ran with CU rules live' );
+		$this->assertTrue( $this->persisted_last_result()['cu_rules_active'] );
 	}
 
 	/**
@@ -264,7 +319,8 @@ class ResultTruthRefundClaimTest extends TestCase {
 		$out = $this->run_build( false, null, false ); // CU plugin inactive
 
 		$this->assertNull( $out['already_present'] );
-		$this->assertNull( $out['pages'][0]['already'] );
+		// "Cannot know" must never render as a zero-yield row: false, not null, and never true.
+		$this->assertFalse( $out['pages'][0]['all_already'] );
 		$this->assertNull( $this->persisted_last_result()['already_present'] );
 	}
 }

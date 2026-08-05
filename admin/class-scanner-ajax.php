@@ -957,7 +957,7 @@ class ScannerAjax {
      * @param array<string,array{safe:int,aggressive:int}>|null $by_pattern Already-in-CU counts, or NULL ("cannot know").
      * @param array<int,array{safe?:int,aggressive?:int}>       $by_page    Per-page tallies (either construction).
      * @param array<int,mixed>                                  $pages_raw  Railway page rows (untrusted).
-     * @return array{totals:array{safe:int,aggressive:int}|null,per_page:array<int,int|null>,refund_pages:int}
+     * @return array{totals:array{safe:int,aggressive:int}|null,per_page:array<int,int|null>,all_already:array<int,bool>,refund_pages:int}
      */
     public static function attribute_already_present( ?array $by_pattern, array $by_page, array $pages_raw ): array {
         if ( null === $by_pattern ) {
@@ -965,6 +965,7 @@ class ScannerAjax {
             return [
                 'totals'       => null,
                 'per_page'     => array_map( static fn() => null, $pages_raw ),
+                'all_already'  => array_map( static fn() => false, $pages_raw ),
                 'refund_pages' => 0,
             ];
         }
@@ -976,9 +977,10 @@ class ScannerAjax {
             $groups[ \CUScanner\Scanner\UrlPattern::from_url( $url ) ][] = $i;
         }
 
-        $totals   = [ 'safe' => 0, 'aggressive' => 0 ];
-        $per_page = array_map( static fn() => null, $pages_raw );
-        $refund   = 0;
+        $totals      = [ 'safe' => 0, 'aggressive' => 0 ];
+        $per_page    = array_map( static fn() => null, $pages_raw );
+        $all_already = array_map( static fn() => false, $pages_raw );
+        $refund      = 0;
 
         foreach ( $groups as $pattern => $indices ) {
             $b = [ 'safe' => 0, 'aggressive' => 0 ];
@@ -1024,11 +1026,22 @@ class ScannerAjax {
                 $found = (int) ( $by_page[ $i ]['safe'] ?? 0 ) + (int) ( $by_page[ $i ]['aggressive'] ?? 0 );
                 if ( $found >= 1 ) {
                     $refund++;
+                    // Display/money invariant (operator ruling 2026-08-05): a page renders as
+                    // zero-yield EXACTLY when it was credited back. Same predicate, same page
+                    // set, one loop — the screen and the refund cannot drift apart. Every rule
+                    // this page produced was already in Code Unloader, so it delivered nothing
+                    // new: S/A render 0 and the credit cell renders 0, matching the net charge.
+                    $all_already[ $i ] = true;
                 }
             }
         }
 
-        return [ 'totals' => $totals, 'per_page' => $per_page, 'refund_pages' => $refund ];
+        return [
+            'totals'       => $totals,
+            'per_page'     => $per_page,
+            'all_already'  => $all_already,
+            'refund_pages' => $refund,
+        ];
     }
 
     /**
@@ -1477,14 +1490,37 @@ class ScannerAjax {
             unset( $row );
         }
 
-        // Result-truth per-URL cell. NULL for a multi-page pattern group: the per-page
-        // split is not knowable there, and rendering 0 would be a false claim. AC-3.
+        // Result-truth per-URL flag. TRUE only when every rule this page produced was already
+        // in Code Unloader — i.e. exactly the pages that were credited back. The client renders
+        // those as zero-yield (S:0 / A:0 / 0 credits / noopt styling), because after dedupe they
+        // delivered nothing new.
+        //
+        // AC-3's display half is NARROWED by operator ruling 2026-08-05: the per-URL "Already in
+        // CU" COLUMN is removed (it rendered 0 on zero-finding pages while the summary line
+        // deliberately made no claim, and in ?nowpcu-off mode it read backwards). The server-side
+        // attribution it was built on is untouched — `totals` still drives the split summary line
+        // and `refund_pages` still drives the credit-back. Only the cell is gone, and the honest
+        // half of what it conveyed is now expressed by netting the row itself.
+        //
+        // `$attribution['per_page']` is deliberately no longer emitted: the column was its only
+        // consumer. It stays on the function's return as the per-page attribution detail (pinned
+        // by its own tests); see the follow-up on whether partial dedupe should net too.
         foreach ( $pages_payload as $idx => &$row ) {
-            $row['already'] = $attribution['per_page'][ $idx ] ?? null;
+            $row['all_already'] = ! empty( $attribution['all_already'][ $idx ] );
         }
         unset( $row );
 
         $can_push      = ( new RulePusher() )->can_push();
+
+        // §2.3 (operator ask 2026-08-05): when the "Remove Code Unloader's suffix (?nowpcu)"
+        // box is ticked, scans run with CU's rules LIVE — so assets CU already unloads never
+        // become candidates and a low or zero S/A is the EXPECTED, healthy outcome. The
+        // pre-existing zero-finding copy ("a rescan occasionally finds more. Please rescan.")
+        // reads as a miss worth retrying and sends the customer down a credit-costing dead end.
+        // Threaded onto BOTH payload writers below, alongside already_present/credits_refunded,
+        // so the restore paths keep it (the mistake FU-AAS-PERSISTED-PAYLOAD-DROPS-
+        // HAS_ACTIVE_CU_RULES records is a field living on only one of them).
+        $cu_rules_active = $this->settings()->get_omit_cu_bypass();
 
         // Persist the full Step-4 restore payload (incl. the per-URL table + 12-char
         // scan_id) so a BACKGROUND-completed scan can rebuild the complete result screen
@@ -1506,6 +1542,7 @@ class ScannerAjax {
             // contract read by scanner.js's localStorage branch.
             'already_present'  => $attribution['totals'],
             'credits_refunded' => $credits_refunded,
+            'cu_rules_active'  => $cu_rules_active,
             // FU-BILLING-BLOCKED-NOOPT (E3): persisted for future consumers — the rows
             // above already carry the cancel-aware credits baked in; RESTORE replays
             // them verbatim (aias_last_result → get_badge_state → JS restore).
@@ -1521,6 +1558,8 @@ class ScannerAjax {
             'already_present'  => $attribution['totals'],
             // Present only when the SaaS confirmed a credit-back. NULL => no claim landed.
             'credits_refunded' => $credits_refunded,
+            // TRUE when this scan ran with Code Unloader's rules live (?nowpcu suffix omitted).
+            'cu_rules_active'  => $cu_rules_active,
             'can_push'         => $can_push,
             'scan_id'          => $scan_id_display,
             'pages_blocked'    => $pages_blocked,
