@@ -58,6 +58,23 @@ class WpserviceClient {
     }
 
     /**
+     * Claim a credit-back for scan pages whose rules were already in Code Unloader.
+     *
+     * Token-authed like /credits/release: the Bearer MUST be the job_token, not the
+     * account api_key — the SaaS runs hash_equals against the job_tokens table.
+     *
+     * @return array{ok:bool,refunded:int,repeat?:bool}
+     * @throws HttpException on any non-2xx (404 when the SaaS predates this endpoint).
+     */
+    public function refund_duplicates( string $job_token, int $refund_pages ): array {
+        return $this->post( '/cu-scanner/v1/credits/refund-duplicates', [
+            'job_token'    => $job_token,
+            'refund_pages' => $refund_pages,
+            'domain'       => $this->domain(),
+        ], $job_token );
+    }
+
+    /**
      * POST batch of audit events to SaaS /cu-scanner/v1/events endpoint.
      *
      * @param string $scan_id  Scan ID (hash, 12-16 chars).

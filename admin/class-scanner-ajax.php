@@ -885,6 +885,62 @@ class ScannerAjax {
     }
 
     /**
+     * Claim the duplicate-page credit-back. Best-effort by design.
+     *
+     * Single attempt, no sleep, no inline retry: this runs inside the result-build AJAX
+     * handler, which menu-badge.js also fires in the background. A later rebuild IS the
+     * retry — do_build_result is re-invocable and the endpoint is idempotent per token.
+     *
+     * ── Why every failure is treated alike (deliberate; spec §5.4) ────────────────────
+     * The SaaS splits seven error codes into transient (`refund_failed` 500) and terminal
+     * (`invalid_refund_pages`/`invalid_token` 400; `not_refundable`/`not_finalized`/
+     * `credits_account_missing`/`free_key_missing` 409). Keying retry off that split was
+     * considered and rejected here for three reasons:
+     *
+     *   1. The machine-readable code never reaches us. WpserviceClient::parse() throws
+     *      HttpException carrying the STATUS and a human message; `$body['code']` is
+     *      discarded. Surfacing it means changing shared transport used by auth, credits,
+     *      free-key and events — real blast radius for one best-effort call.
+     *   2. Status alone cannot substitute, because 409 is ambiguous: `not_finalized` wants
+     *      a LATER retry while the other three are permanent. Splitting on 4xx/5xx would
+     *      therefore give up on exactly the case that most deserves another attempt.
+     *   3. The only behaviour the split would unlock is suppressing future attempts on a
+     *      terminal code, which needs new persisted per-job state — a new failure surface
+     *      on a path whose whole contract is "never breaks the build". Re-attempting is
+     *      already harmless: the endpoint is write-once and clamped, and we never call it
+     *      with refund_pages < 1, so a repeat terminal answer is a cheap no-op.
+     *
+     * What the split DOES buy today is diagnosability, and that is taken: the status code
+     * is logged structurally, so transient (5xx/0) vs terminal (4xx) is visible in the log
+     * without guessing. A terminal code recurring across rebuilds is the signal that would
+     * justify building suppression later.
+     *
+     * @return int|null Credits actually returned (SaaS-authoritative), or NULL when no
+     *                  claim was made or the call failed. Display never depends on this.
+     */
+    public static function claim_duplicate_refund( WpserviceClient $client, string $job_token, int $refund_pages ): ?int {
+        if ( $refund_pages < 1 || '' === $job_token ) {
+            return null;
+        }
+        try {
+            $res = $client->refund_duplicates( $job_token, $refund_pages );
+        } catch ( \Throwable $e ) {
+            // 404 = SaaS older than this plugin (deploy order, spec §6.4). Any other
+            // failure is equally non-fatal: the screen is still correct without it.
+            $status = ( $e instanceof \CUScanner\Api\HttpException ) ? $e->get_status_code() : -1;
+            $class  = ( $status >= 400 && $status < 500 ) ? 'terminal' : 'transient';
+            error_log( sprintf( // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Intentional production logging; best-effort billing call with no user-visible surface, and the status/class is the only diagnosable record that a claim was refused.
+                '[AI Assets Scanner] refund_duplicates failed (status=%d, %s): %s',
+                $status,
+                $class,
+                $e->getMessage()
+            ) );
+            return null;
+        }
+        return isset( $res['refunded'] ) ? (int) $res['refunded'] : null;
+    }
+
+    /**
      * Attribute Code Unloader's already-present rules onto the scanned pages, and
      * decide which pages are wholly-duplicate (and therefore refundable).
      *
@@ -1296,6 +1352,23 @@ class ScannerAjax {
         }
         $history->store_json( $job_id, $json_str );
         $history->update_status( $job_id, $hist_status, $hist_extra );
+
+        // Result-truth: claim the credit-back AFTER history is written. credits_used is
+        // computed locally and is NOT net of this — the two numbers are shown side by
+        // side ("N credits (M returned)") rather than silently netted.
+        $credits_refunded = null;
+        if ( $attribution['refund_pages'] > 0 ) {
+            $credits_refunded = self::claim_duplicate_refund(
+                new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $this->settings()->get_api_key() ),
+                (string) $job_token,
+                (int) $attribution['refund_pages']
+            );
+            if ( null !== $credits_refunded ) {
+                // ⚠️ update_status ASSIGNS status — re-pass $hist_status or the row's
+                // status is silently rewritten (class-scan-history.php:36). AC-16.
+                $history->update_status( $job_id, $hist_status, [ 'credits_refunded' => (int) $credits_refunded ] );
+            }
+        }
 
         // Signal scan completion so the Class C orchestrator can restore plugins (spec §3.5).
         $scan_id_complete = substr( hash( 'sha256', (string) $job_id ), 0, 16 );
