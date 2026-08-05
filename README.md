@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.7.88b-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.7.89b-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
@@ -42,7 +42,8 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **Fix: no more "undefined" rows in the live scan view (1.7.53b)** — while a scan is running, the **Step 3 — Scanning** table now shows every page's real URL immediately. Pages the worker hadn't started yet were briefly displaying the word "undefined" instead of their address (the worker only sends a URL for pages currently in flight). Scanning-screen cosmetic only — the final results and your billing were always correct
 - **Pre-scan security-stack warning + per-reason remediation copy (1.7.67b)** — a Cancel/Continue warning surfaces before scanning when a CDN/WAF security stack (Cloudflare, Sucuri, Akamai, Imperva) is fingerprinted on external targets or detected locally (Wordfence, Cloudflare) on same-site scans — informational only, never affecting scan outcome or bypass suffixes. Blocked-scan banners now show single-sourced, localized per-reason remediation guidance (challenge/WAF/rate-limit copy + settings bypass link)
 - **Faster page loads — scan data no longer loaded on every request (1.7.84b)** — scan history and per-scan reports are read only when needed instead of being loaded into memory on every page of your site. A one-time update converts data saved by earlier versions and verifies the conversion before marking itself complete
-- **Result truth — already-applied rules are not counted as new (1.7.88b)** — the post-scan screen splits its counts into *"N new, M already in Code Unloader"* instead of reporting every rule as a finding, and the per-URL table gains an **Already in CU** column (blank where a single URL's share cannot be attributed). Pages whose every finding was already in Code Unloader have their page credit returned automatically; Scan History shows the charge and the return side by side (`3 (2 returned)`) and the CSV export gains a **Credits Returned** column. Requires Code Unloader to be active — when it cannot be consulted, the screen makes no claim in either direction rather than reporting zero.
+- **Result truth — already-applied rules are not counted as new (1.7.88b, refined 1.7.89b)** — the post-scan screen splits its counts into *"N new, M already in Code Unloader"* instead of reporting every rule as a finding. A page whose every rule was already in Code Unloader is shown as what it is: **S:0 / A:0, 0 credits**, styled like any other page that yielded nothing, and labelled *"Already in Code Unloader"*. Its page credit is returned automatically, so the row and the charge agree. Scan History shows the charge and the return side by side (`3 (2 returned)`) and the CSV export gains a **Credits Returned** column. Requires Code Unloader to be active — when it cannot be consulted, the screen makes no claim in either direction rather than reporting zero.
+- **Scans that run with your Code Unloader rules active read correctly (1.7.89b)** — with *Remove Code Unloader's suffix (?nowpcu) from scans* ticked, pages are scanned as visitors receive them, so assets Code Unloader already unloads never appear as candidates. A zero result there is the **expected, healthy outcome**, and the screen now says *"No new unloads found since the last time"* rather than urging a rescan that would cost credits to reconfirm a non-problem.
 
 ## How it works
 

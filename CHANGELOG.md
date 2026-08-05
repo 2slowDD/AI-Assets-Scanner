@@ -4,6 +4,17 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.89b — 2026-08-05
+
+### Changed
+- A page whose every rule was **already in Code Unloader** is now shown as what it is: **S:0 / A:0, 0 credits**, with the same styling as any other page that yielded nothing, and labelled *"Already in Code Unloader — nothing new to unload on this page."* Previously such a page reported its rules as findings (e.g. `A:1`) and showed the gross `1` credit, even though the credit had been returned and Sync would then say *"appended 0 (1 already present)"*. The zero shown on the row is derived from the same server-side predicate that claims the credit-back, so the screen and the charge cannot disagree.
+- Scans run with **Remove Code Unloader's suffix (?nowpcu) from scans** ticked no longer urge a rescan when a page yields nothing. In that mode Code Unloader's rules are live during the scan, so assets it already unloads never become candidates and a zero is the correct, expected outcome. Those pages now read *"No new unloads found since the last time."* Normal scans keep the existing wording, where a zero genuinely may be a miss worth retrying.
+
+### Removed
+- The per-URL **Already in CU** column. It rendered `0` on zero-finding pages while the summary line deliberately made no claim on the same scan, and with the `?nowpcu` suffix off it read backwards — Code Unloader holding the rules is *why* such a scan finds nothing. The server-side attribution behind it is unchanged: it still drives the *"N new, M already in Code Unloader"* summary line and the per-page credit-back.
+
+---
+
 ## 1.7.88b — 2026-08-04
 
 ### Fixed
