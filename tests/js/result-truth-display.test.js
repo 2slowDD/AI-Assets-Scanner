@@ -148,6 +148,41 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
   assert.ok(!/already in Code Unloader/.test(h4.els['cu-push-result'].innerHTML), 'no sync claim');
 }());
 
+// --- AC-3: the per-URL "Already in CU" cell -----------------------------------
+// A null `already` (multi-page pattern group, or CU unreachable) must render EMPTY,
+// never 0 — rendering 0 would be a false claim that nothing is already present.
+(function perUrlAlreadyCell() {
+  const h5 = createHarness();
+  const T5 = h5.sandbox.window.__cuTest;
+  const pages = [
+    { n: 1, url: 'https://s.com/a', status_class: 'ok', status_label: 'OK', credits: 1,
+      safe: 0, aggressive: 2, needed: 0, already: 2 },
+    { n: 2, url: 'https://s.com/b', status_class: 'ok', status_label: 'OK', credits: 1,
+      safe: 0, aggressive: 1, needed: 0, already: null },
+    { n: 3, url: 'https://s.com/c', status_class: 'ok', status_label: 'OK', credits: 1,
+      safe: 0, aggressive: 1, needed: 0 },
+  ];
+  T5.restoreStep4({
+    jobId: 'job1', safeCount: 0, aggCount: 4, canPush: true, externalOnly: false,
+    bannerData: {}, urlsScanned: 3, pages: pages, scanId: 'scan1', hasActiveCuRules: false,
+    alreadyPresent: { safe: 0, aggressive: 2 }, creditsRefunded: 0
+  });
+
+  const html = h5.els['cu-result-url-list'].innerHTML;
+  const tbody = html.slice(html.indexOf('<tbody>') + 7, html.indexOf('</tbody>'));
+  const rows = tbody.split('<tr').slice(1);
+  assert.strictEqual(rows.length, 3, 'three data rows rendered');
+
+  const cellsOf = (row) => (row.match(/<td[^>]*>([\s\S]*?)<\/td>/g) || []).map(
+    (c) => c.replace(/<td[^>]*>/, '').replace(/<\/td>/, '')
+  );
+
+  assert.strictEqual(cellsOf(rows[0])[5], '2', 'a known already-count renders its value');
+  assert.strictEqual(cellsOf(rows[1])[5], '', 'null renders EMPTY, never 0');
+  assert.strictEqual(cellsOf(rows[2])[5], '', 'an absent key renders EMPTY too');
+  assert.ok(/Already in CU/.test(html), 'the column has a header');
+}());
+
 // --- AC-4: the two JS localStorage writers must carry the same field NAMES ----
 // Writers 3 and 4. The in-tree aggressive_count/agg_count split is exactly this bug
 // class, so assert both writers name the new fields identically. Reads the shipped
