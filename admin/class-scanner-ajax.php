@@ -1469,11 +1469,20 @@ class ScannerAjax {
         // When the ratchet did not run ($merger === null), all rows get 0.
         if ( null !== $merger ) {
             foreach ( $pages_payload as $idx => &$row ) {
-                $pat = $merger->__test_url_to_pattern( (string) ( $pages_raw[ $idx ]['url'] ?? '' ) );
+                // Repointed off RatchetMerger's __test_ seam onto the shared normalizer,
+                // alongside recompute_by_page's (FU-AAS-PRODUCTION-USES-TEST-SEAM).
+                $pat = \CUScanner\Scanner\UrlPattern::from_url( (string) ( $pages_raw[ $idx ]['url'] ?? '' ) );
                 $row['ratchet_recovered'] = (int) ( $merger->recovered_by_pattern[ $pat ] ?? 0 );
             }
             unset( $row );
         }
+
+        // Result-truth per-URL cell. NULL for a multi-page pattern group: the per-page
+        // split is not knowable there, and rendering 0 would be a false claim. AC-3.
+        foreach ( $pages_payload as $idx => &$row ) {
+            $row['already'] = $attribution['per_page'][ $idx ] ?? null;
+        }
+        unset( $row );
 
         $can_push      = ( new RulePusher() )->can_push();
 
@@ -1490,6 +1499,13 @@ class ScannerAjax {
             'total_pages'   => count( $pages_raw ),
             'scan_id'       => $scan_id_display,
             'pages'         => $pages_payload,
+            // Result-truth: SAME names as the live payload and both JS writers. NULL means
+            // "cannot know" (CU absent or too old), which the UI must render as no claim —
+            // different from 0 ("nothing is already present"). ⚠️ menu-badge.js writes this
+            // whole option verbatim into localStorage, so these names are also the restore
+            // contract read by scanner.js's localStorage branch.
+            'already_present'  => $attribution['totals'],
+            'credits_refunded' => $credits_refunded,
             // FU-BILLING-BLOCKED-NOOPT (E3): persisted for future consumers — the rows
             // above already carry the cancel-aware credits baked in; RESTORE replays
             // them verbatim (aias_last_result → get_badge_state → JS restore).
@@ -1499,6 +1515,12 @@ class ScannerAjax {
         return array_merge( [
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
+            // Result-truth: how many of the counts above CU already has. NULL means
+            // "cannot know" (CU absent or too old) — the UI must render NO claim on null,
+            // which is different from 0 ("nothing is already present").
+            'already_present'  => $attribution['totals'],
+            // Present only when the SaaS confirmed a credit-back. NULL => no claim landed.
+            'credits_refunded' => $credits_refunded,
             'can_push'         => $can_push,
             'scan_id'          => $scan_id_display,
             'pages_blocked'    => $pages_blocked,
@@ -2468,7 +2490,9 @@ class ScannerAjax {
     public function __test_inject_ratchet_recovered( array $pages_payload, array $pages_raw, ?\CUScanner\Scanner\RatchetMerger $merger ): array {
         if ( null !== $merger ) {
             foreach ( $pages_payload as $idx => &$row ) {
-                $pat = $merger->__test_url_to_pattern( (string) ( $pages_raw[ $idx ]['url'] ?? '' ) );
+                // Repointed off RatchetMerger's __test_ seam onto the shared normalizer,
+                // alongside recompute_by_page's (FU-AAS-PRODUCTION-USES-TEST-SEAM).
+                $pat = \CUScanner\Scanner\UrlPattern::from_url( (string) ( $pages_raw[ $idx ]['url'] ?? '' ) );
                 $row['ratchet_recovered'] = (int) ( $merger->recovered_by_pattern[ $pat ] ?? 0 );
             }
             unset( $row );

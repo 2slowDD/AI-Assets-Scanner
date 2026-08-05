@@ -58,7 +58,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 	 * Drives the real do_build_result(). $refund_response is what the SaaS returns from
 	 * POST /credits/refund-duplicates; null makes the call throw (non-2xx).
 	 */
-	private function run_build( bool $cu_holds_the_rule, ?array $refund_response ): array {
+	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true ): array {
 		WP_Mock::userFunction( 'wp_parse_url' )
 			->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
 		WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
@@ -125,7 +125,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 
 		// CU present. RulePusher's DEFAULT repo is CodeUnloader\Core\RuleRepository, which
 		// this file declares — so can_push() and already_present_by_pattern() run for real.
-		WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+		WP_Mock::userFunction( 'is_plugin_active' )->andReturn( $cu_active );
 		FakeCuRepo::$groups = [
 			(object) [ 'id' => 11, 'name' => 'AA Scanner — Safe' ],
 			(object) [ 'id' => 22, 'name' => 'AA Scanner — Aggressive' ],
@@ -211,6 +211,61 @@ class ResultTruthRefundClaimTest extends TestCase {
 	public function test_saas_reported_count_wins_over_the_requested_one(): void {
 		$this->run_build( true, [ 'ok' => true, 'refunded' => 0 ] );
 		$this->assertSame( 0, $this->final_history_record()['credits_refunded'] );
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────────
+	// AC-4 — the same field NAMES on every payload writer.
+	//
+	// The live return and the aias_last_result option are writers 1 and 2; scanner.js
+	// and menu-badge.js are 3 and 4 and are covered by tests/js/result-truth-display
+	// .test.js. The hazard is real and already in-tree: `aggressive_count` on the wire
+	// vs `agg_count` on the persistence side. These assert the new fields do NOT
+	// reproduce that split.
+	// ─────────────────────────────────────────────────────────────────────────────
+
+	/** The option value as last persisted by do_build_result(). */
+	private function persisted_last_result(): array {
+		foreach ( array_reverse( $this->option_writes ) as $w ) {
+			if ( 'aias_last_result' === $w[0] ) { return $w[1]; }
+		}
+		return [];
+	}
+
+	/** P17: the real do_build_result() with the real dedupe — nothing precomputed. */
+	public function test_live_payload_carries_already_present_and_per_page_already(): void {
+		$out = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ] );
+
+		$this->assertArrayHasKey( 'already_present', $out );
+		$this->assertSame( [ 'safe' => 0, 'aggressive' => 1 ], $out['already_present'] );
+		$this->assertArrayHasKey( 'already', $out['pages'][0] );
+		$this->assertSame( 1, $out['pages'][0]['already'] );
+		$this->assertSame( 1, $out['credits_refunded'] );
+	}
+
+	public function test_persisted_option_carries_the_same_field_names(): void {
+		$out       = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ] );
+		$persisted = $this->persisted_last_result();
+
+		$this->assertArrayHasKey( 'already_present', $persisted );
+		$this->assertArrayHasKey( 'already', $persisted['pages'][0] );
+		$this->assertSame(
+			$out['already_present'],
+			$persisted['already_present'],
+			'identical shape on every writer — the agg_count/aggressive_count split is the bug class here'
+		);
+		$this->assertSame( $out['credits_refunded'], $persisted['credits_refunded'] );
+	}
+
+	/**
+	 * AC-11 on the wire: CU unreachable => null, NOT 0. The UI must be able to tell
+	 * "cannot know" from "nothing is already present".
+	 */
+	public function test_cu_unreachable_emits_null_already_present(): void {
+		$out = $this->run_build( false, null, false ); // CU plugin inactive
+
+		$this->assertNull( $out['already_present'] );
+		$this->assertNull( $out['pages'][0]['already'] );
+		$this->assertNull( $this->persisted_last_result()['already_present'] );
 	}
 }
 

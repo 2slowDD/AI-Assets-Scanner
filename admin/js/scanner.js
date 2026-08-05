@@ -1893,6 +1893,12 @@
                     total_pages:   d.total_pages || 0,
                     pages:         d.pages   || [],
                     scan_id:       d.scan_id || '',
+                    // Result-truth: same field NAMES as the payload and the PHP option.
+                    // (agg_count above is a pre-existing rename; do not add a second one.)
+                    // 'already_present' in d distinguishes an absent key from a null value:
+                    // null is the meaningful "CU could not be consulted" signal.
+                    already_present:  ( 'already_present' in d ) ? d.already_present : null,
+                    credits_refunded: d.credits_refunded,
                     // banner data not persisted \u2014 shown once per live build_result call only.
                 }) );
                 // Task 5 \u2014 charged terminal-incomplete partial: after Step 4 renders,

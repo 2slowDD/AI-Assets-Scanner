@@ -139,7 +139,12 @@
                         external_only: false,
                         total_pages:   res.data.total_pages || 0,
                         scan_id:       res.data.scan_id || '',
-                        pages:         res.data.pages || []
+                        pages:         res.data.pages || [],
+                        // Result-truth: this writer runs for BACKGROUND-completed scans.
+                        // Omitting these here loses them on exactly the restore path the
+                        // whole aias_last_result machinery exists for.
+                        already_present:  ( 'already_present' in res.data ) ? res.data.already_present : null,
+                        credits_refunded: res.data.credits_refunded
                     }));
                 } catch (_storageErr) {
                     // localStorage quota or disabled — non-fatal; the badge
