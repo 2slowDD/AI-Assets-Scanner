@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.90b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.90b/ai-assets-scanner.zip",
+    "sha256": "d39d3f0ebabc18f17122a885a552d852a817278ff46a7f79ff788292bcb64c24",
+    "signature": "",
+    "released_at": "2026-08-05T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.90b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.90b (beta): the post-scan result now depends on which kind of scan you ran, because the two kinds ask different questions. A normal scan switches Code Unloader off for its duration and measures everything the page could unload — a fresh, full measurement. Code Unloader's current rules are no longer consulted on those scans: counts are reported exactly as measured, nothing is netted to zero, no page credit is returned, and the wording is the same as it was before the scan-mode setting existed. Previously such a scan could report a page as \"Already in Code Unloader — nothing new to unload\" and return its credit, even though the scan had deliberately measured the page as if Code Unloader were not there. If instead you tick \"Remove Code Unloader's suffix (?nowpcu) from scans\", the scan is explicitly incremental — it measures your site as visitors receive it, with your existing rules live — and the full behaviour introduced in 1.7.88b and 1.7.89b applies unchanged: results split into \"N new, M already in Code Unloader\", a page whose every rule was already there shows as S:0 / A:0 with 0 credits, its page credit is returned automatically, and a zero result reads \"No new unloads found since the last time\" instead of urging a rescan. Syncing is unaffected either way: Sync still skips rules Code Unloader already has, so pushing a duplicate still appends nothing."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
