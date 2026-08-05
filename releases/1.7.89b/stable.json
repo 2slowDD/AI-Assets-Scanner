@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.89b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.89b/ai-assets-scanner.zip",
+    "sha256": "d2fc0099906b5cc9b5db2b946d15661b37c29b6576a2076e2276169d224ba6e4",
+    "signature": "",
+    "released_at": "2026-08-05T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.89b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.89b (beta): the results table now tells the truth about pages that had nothing new to offer. A page whose every rule was already in Code Unloader is shown as what it is — S:0 / A:0, 0 credits, styled like any other page that yielded nothing, and labelled \"Already in Code Unloader\". Previously such a page reported its rules as findings and showed the full credit, even though that credit had already been returned and Sync would then tell you \"appended 0 (1 already present)\". The zero on the row now comes from the same check that returns the credit, so the row and the charge always agree. The per-URL \"Already in CU\" column has been removed: it showed 0 on pages that found nothing while the summary line deliberately made no claim about the same scan, and when scanning with your Code Unloader rules left switched on it read backwards, since Code Unloader holding the rules is precisely why such a scan finds nothing. The counts behind it are unchanged and still drive the \"N new, M already in Code Unloader\" summary and the automatic credit return. Finally, if you scan with \"Remove Code Unloader's suffix (?nowpcu) from scans\" ticked, pages are measured as visitors actually receive them, so assets Code Unloader already unloads never show up as candidates. A zero result there is the expected, healthy outcome, and the screen now says \"No new unloads found since the last time\" instead of urging a rescan that would cost you credits to reconfirm that nothing is wrong. Normal scans keep the previous wording, where a zero may genuinely be worth retrying."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}

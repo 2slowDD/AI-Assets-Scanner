@@ -1,0 +1,10 @@
+<p>Version 1.7.89b (beta).</p>
+<p><strong>Changed</strong></p>
+<ul>
+<li>A page whose every rule was <strong>already in Code Unloader</strong> is now shown as what it is: <strong>S:0 / A:0, 0 credits</strong>, with the same styling as any other page that yielded nothing, and labelled *"Already in Code Unloader &mdash; nothing new to unload on this page."* Previously such a page reported its rules as findings (e.g. <code>A:1</code>) and showed the gross <code>1</code> credit, even though the credit had been returned and Sync would then say *"appended 0 (1 already present)"*. The zero shown on the row is derived from the same server-side predicate that claims the credit-back, so the screen and the charge cannot disagree.</li>
+<li>Scans run with <strong>Remove Code Unloader's suffix (?nowpcu) from scans</strong> ticked no longer urge a rescan when a page yields nothing. In that mode Code Unloader's rules are live during the scan, so assets it already unloads never become candidates and a zero is the correct, expected outcome. Those pages now read *"No new unloads found since the last time."* Normal scans keep the existing wording, where a zero genuinely may be a miss worth retrying.</li>
+</ul>
+<p><strong>Removed</strong></p>
+<ul>
+<li>The per-URL <strong>Already in CU</strong> column. It rendered <code>0</code> on zero-finding pages while the summary line deliberately made no claim on the same scan, and with the <code>?nowpcu</code> suffix off it read backwards &mdash; Code Unloader holding the rules is *why* such a scan finds nothing. The server-side attribution behind it is unchanged: it still drives the *"N new, M already in Code Unloader"* summary line and the per-page credit-back.</li>
+</ul>
