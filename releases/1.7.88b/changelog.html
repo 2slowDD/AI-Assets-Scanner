@@ -1,0 +1,9 @@
+<p>Version 1.7.88b (beta).</p>
+<p><strong>Fixed</strong></p>
+<ul>
+<li>The post-scan screen no longer counts rules Code Unloader <strong>already has</strong> as new findings. Previously a scan could report "3 aggressive rules" and then, on Sync, tell you "appended 0 (3 already present)" &mdash; you paid for the scan, saw three findings, and got none. Results now say how many are genuinely new: "&rarr; 1 new, 2 already in Code Unloader". When every rule is already there, the Sync area says so outright instead of offering a button with nothing to add.</li>
+</ul>
+<p><strong>Added</strong></p>
+<ul>
+<li><strong>Credits returned for pages that found nothing new.</strong> If a scanned page's rules were all already in Code Unloader, its page credit is returned automatically. Pages that found nothing at all are unaffected &mdash; they were already free. Scan History shows the charge and the return side by side (<code>3 (2 returned)</code>) rather than quietly netting them, and the History CSV export gains a final <strong>Credits Returned</strong> column. The per-URL results table gains an <strong>Already in CU</strong> column; it stays blank where the split cannot be attributed to a single URL rather than guessing a number.</li>
+</ul>

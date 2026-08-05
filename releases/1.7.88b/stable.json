@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.88b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.88b/ai-assets-scanner.zip",
+    "sha256": "8fac77961a49d4f907ffcbcc267ed63bc5ec3e1b6cbb9198b7136768ba2fb1a9",
+    "signature": "",
+    "released_at": "2026-08-04T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.88b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "Version 1.7.88b (beta): the post-scan screen no longer counts rules Code Unloader already has as new findings. Previously a scan could report \"3 aggressive rules\" and then, on Sync, tell you \"appended 0 (3 already present)\" — you paid for the scan, saw three findings, and got none. Results now say how many are genuinely new (\"1 new, 2 already in Code Unloader\"), and when every rule is already there the Sync area says so outright instead of offering a button with nothing to add. New in this release: credits are returned for pages that found nothing new. If a scanned page's rules were all already in Code Unloader, its page credit is returned automatically; pages that found nothing at all are unaffected, since they were already free. Scan History shows the charge and the return side by side (\"3 (2 returned)\") rather than quietly netting them, and the History CSV export gains a final Credits Returned column. The per-URL results table gains an Already in CU column, which stays blank where the split cannot be attributed to a single URL rather than guessing a number. Requires Code Unloader to be active — when it cannot be consulted the screen makes no claim in either direction rather than reporting zero."
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
