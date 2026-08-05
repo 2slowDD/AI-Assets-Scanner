@@ -48,7 +48,18 @@
                         <td><?php echo esc_html( $record['created_at'] ); ?></td>
                         <td><?php echo esc_html( $record['domain'] ); ?></td>
                         <td><?php echo esc_html( $record['page_count'] ); ?></td>
-                        <td><?php echo esc_html( $record['credits_used'] ); ?></td>
+                        <td><?php
+                            // Result-truth: gross charge, annotated with what came back.
+                            // The two numbers are shown side by side rather than netted —
+                            // credits_used keeps its existing meaning everywhere.
+                            // ⚠️ ?? 0 is required: create_record() does not seed this key,
+                            // so up to MAX_RECORDS existing rows lack it entirely.
+                            $cu_refunded = (int) ( $record['credits_refunded'] ?? 0 );
+                            echo esc_html( $record['credits_used'] );
+                            if ( $cu_refunded > 0 ) {
+                                echo ' (' . esc_html( $cu_refunded ) . ' returned)';
+                            }
+                        ?></td>
                         <td><?php echo esc_html( $record['safe_count'] ); ?></td>
                         <td><?php echo esc_html( $record['aggressive_count'] ); ?></td>
                         <td><?php if ( $record['status'] === 'partial' ) {
@@ -57,7 +68,11 @@
                                 // completed-page count the live banner shows (data.completed). Labelling it
                                 // "credits charged" keeps the History tab honest about the unit.
                                 $cu_partial_credits = (int) $record['credits_used'];
+                                $cu_partial_refund  = (int) ( $record['credits_refunded'] ?? 0 );
                                 echo 'Partial &mdash; ' . esc_html( $cu_partial_credits ) . ' credit' . ( 1 === $cu_partial_credits ? '' : 's' ) . ' charged';
+                                if ( $cu_partial_refund > 0 ) {
+                                    echo ', ' . esc_html( $cu_partial_refund ) . ' returned';
+                                }
                             } else {
                                 echo esc_html( $record['status'] );
                             } ?></td>

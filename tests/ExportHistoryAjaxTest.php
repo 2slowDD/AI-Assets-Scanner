@@ -57,6 +57,69 @@ class ExportHistoryAjaxTest extends TestCase {
         $this->assertSame( '',        $m->invoke( $obj, '' ) );
     }
 
+    /**
+     * Shared write_csv driver. Extracted from test_write_csv_emits_bom_header_and_data_rows
+     * so the result-truth cases below reuse the real private method rather than
+     * duplicating the Reflection plumbing.
+     */
+    private function export_csv_for( array $records ): string {
+        $rc = new \ReflectionClass( ScannerAjax::class );
+        $m  = $rc->getMethod( 'write_csv' );
+        $m->setAccessible( true );
+
+        $fh = fopen( 'php://memory', 'w+' );
+        $m->invoke( new ScannerAjax(), $fh, $records );
+        rewind( $fh );
+        $out = stream_get_contents( $fh );
+        fclose( $fh );
+        return $out;
+    }
+
+    private function history_row( array $overrides = [] ): array {
+        return array_merge( [
+            'job_id' => 'job-a', 'domain' => 'example.com',
+            'page_count' => 10, 'credits_used' => 5,
+            'safe_count' => 3, 'aggressive_count' => 1,
+            'status' => 'complete', 'created_at' => '2026-04-24T10:00:00+00:00',
+        ], $overrides );
+    }
+
+    /**
+     * The existing header assertion at :88 is PERMISSIVE — it is a substring match, so
+     * it survives an appended column and would not catch a wrong VALUE. Assert the value.
+     */
+    public function test_csv_carries_the_credits_returned_value(): void {
+        $out = $this->export_csv_for( [ $this->history_row( [ 'credits_used' => 5, 'credits_refunded' => 2 ] ) ] );
+
+        $this->assertStringContainsString( 'Credits Returned', $out );
+        $lines = array_values( array_filter( explode( "\n", trim( $out ) ) ) );
+        $cells = str_getcsv( end( $lines ) );
+        $this->assertSame( '2', end( $cells ), 'Credits Returned is the LAST column' );
+    }
+
+    public function test_csv_row_without_the_field_renders_empty_not_zero(): void {
+        $out   = $this->export_csv_for( [ $this->history_row( [ 'credits_used' => 5 ] ) ] );
+        $lines = array_values( array_filter( explode( "\n", trim( $out ) ) ) );
+        $cells = str_getcsv( end( $lines ) );
+        $this->assertSame( '', end( $cells ) );
+    }
+
+    /** Appending must not shift any existing column position. */
+    public function test_existing_csv_columns_keep_their_positions(): void {
+        $out   = $this->export_csv_for( [ $this->history_row( [ 'credits_refunded' => 2 ] ) ] );
+        $lines = array_values( array_filter( explode( "\n", trim( $out ) ) ) );
+        $cells = str_getcsv( end( $lines ) );
+
+        $this->assertSame( '2026-04-24T10:00:00+00:00', $cells[0] );
+        $this->assertSame( 'example.com', $cells[1] );
+        $this->assertSame( '10', $cells[2] );
+        $this->assertSame( '5',  $cells[3] );
+        $this->assertSame( '3',  $cells[4] );
+        $this->assertSame( '1',  $cells[5] );
+        $this->assertSame( 'complete', $cells[6] );
+        $this->assertSame( 'job-a', $cells[7] );
+    }
+
     public function test_write_csv_emits_bom_header_and_data_rows(): void {
         $records = [
             [
