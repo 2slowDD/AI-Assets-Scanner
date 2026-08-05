@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.88b — 2026-08-04
+
+### Fixed
+- The post-scan screen no longer counts rules Code Unloader **already has** as new findings. Previously a scan could report "3 aggressive rules" and then, on Sync, tell you "appended 0 (3 already present)" — you paid for the scan, saw three findings, and got none. Results now say how many are genuinely new: *"→ 1 new, 2 already in Code Unloader"*. When every rule is already there, the Sync area says so outright instead of offering a button with nothing to add.
+
+### Added
+- **Credits returned for pages that found nothing new.** If a scanned page's rules were all already in Code Unloader, its page credit is returned automatically. Pages that found nothing at all are unaffected — they were already free. Scan History shows the charge and the return side by side (`3 (2 returned)`) rather than quietly netting them, and the History CSV export gains a final **Credits Returned** column. The per-URL results table gains an **Already in CU** column; it stays blank where the split cannot be attributed to a single URL rather than guessing a number.
+
 ## 1.7.87b — 2026-08-03
 
 ### Added
