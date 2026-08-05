@@ -57,8 +57,15 @@ class ResultTruthRefundClaimTest extends TestCase {
 	/**
 	 * Drives the real do_build_result(). $refund_response is what the SaaS returns from
 	 * POST /credits/refund-duplicates; null makes the call throw (non-2xx).
+	 *
+	 * ⚠️ $omit_cu_bypass DEFAULTS TRUE — "the ?nowpcu suffix was omitted", i.e. the scan ran with
+	 * Code Unloader's rules LIVE. Operator ruling 2026-08-05 scopes the entire result-truth
+	 * apparatus (dedupe → split counts → netting → credit-back) to that mode: with the suffix
+	 * APPLIED, CU is off for the scan, the scan is a fresh full measurement, and every rule it
+	 * produces is billed. So the default here is the only mode in which this class's subject
+	 * exists. The suffix-applied case has its own explicit tests below.
 	 */
-	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = false ): array {
+	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = true ): array {
 		WP_Mock::userFunction( 'wp_parse_url' )
 			->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
 		WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
@@ -300,8 +307,40 @@ class ResultTruthRefundClaimTest extends TestCase {
 	public function test_cu_rules_active_is_false_when_the_suffix_is_applied(): void {
 		$off = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ], true, false );
 
-		$this->assertFalse( $off['cu_rules_active'], 'suffix ON (default) => CU rules were NOT live' );
+		$this->assertFalse( $off['cu_rules_active'], 'suffix applied => CU rules were NOT live' );
 		$this->assertFalse( $this->persisted_last_result()['cu_rules_active'] );
+	}
+
+	/**
+	 * Operator ruling 2026-08-05 — THE GATE. With the `?nowpcu` suffix applied (the DEFAULT
+	 * install state), Code Unloader is switched off for the scan, so the scan is a fresh full
+	 * measurement and what CU already holds is irrelevant to it: no dedupe, no split claim, no
+	 * netting, no credit-back, every A>0 page billed.
+	 *
+	 * This fixture is the WORST case for the gate — CU genuinely DOES hold the rule and the SaaS
+	 * would happily honour a refund. If the gate regresses, all four assertions below flip, so
+	 * this cannot pass vacuously.
+	 */
+	public function test_suffix_applied_disables_the_whole_result_truth_apparatus(): void {
+		$out = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ], true, false );
+
+		$this->assertNull(
+			$out['already_present'],
+			'no claim in either direction — the summary line must read exactly as it did pre-1.7.88b'
+		);
+		$this->assertFalse( $out['pages'][0]['all_already'], 'no netting: the row keeps its real S/A counts and gross credit' );
+		$this->assertNull( $out['credits_refunded'], 'no credit-back is claimed for a fresh full scan' );
+		$this->assertSame( [], $this->refund_posts, 'and the SaaS refund endpoint is never called at all' );
+	}
+
+	/** The mirror: with the suffix omitted the same fixture DOES refund. Proves the gate is the discriminator. */
+	public function test_suffix_omitted_enables_the_apparatus_on_the_same_fixture(): void {
+		$out = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ], true, true );
+
+		$this->assertSame( [ 'safe' => 0, 'aggressive' => 1 ], $out['already_present'] );
+		$this->assertTrue( $out['pages'][0]['all_already'] );
+		$this->assertSame( 1, $out['credits_refunded'] );
+		$this->assertCount( 1, $this->refund_posts );
 	}
 
 	public function test_cu_rules_active_is_true_when_the_suffix_is_omitted(): void {

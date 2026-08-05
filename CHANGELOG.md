@@ -4,6 +4,19 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.90b — 2026-08-05
+
+### Fixed
+- **Result-truth is now scoped to scans that ran with Code Unloader's rules live.** On a default scan — where the `?nowpcu` suffix is applied and Code Unloader is switched **off** for the duration — 1.7.88b/1.7.89b were still consulting Code Unloader's current rules, so a page could be reported as *"Already in Code Unloader — nothing new to unload"* with its credit returned, even though the scan had deliberately measured the page as if Code Unloader did not exist.
+
+  A default scan is a **fresh, full measurement**, not an incremental one. What Code Unloader happens to hold is irrelevant to what that scan measured, so it is no longer consulted there: counts are reported exactly as measured, no page is netted to zero, no credit-back is claimed, and the wording is the same as before the scan-mode setting existed. Every page that yields rules is billed normally.
+
+  With *Remove Code Unloader's suffix (?nowpcu) from scans* **ticked**, the scan is explicitly incremental — it measures the site as visitors receive it, with existing rules live — and the full result-truth behaviour applies unchanged: split counts, zero-yield rendering for duplicate-only pages, the automatic credit-back, and the *"No new unloads found since the last time"* wording.
+
+  Syncing is unaffected in both modes: **Sync still skips rules Code Unloader already has**, so pushing a duplicate still appends nothing. That has always been a separate question from what the scan reports.
+
+---
+
 ## 1.7.89b — 2026-08-05
 
 ### Changed

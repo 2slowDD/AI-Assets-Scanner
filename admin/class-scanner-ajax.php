@@ -1309,9 +1309,37 @@ class ScannerAjax {
             ] );
         }
 
+        // ── Operator ruling 2026-08-05: result-truth is scoped to CU-rules-live scans ──────────
+        // The whole apparatus (dedupe → split summary → netting → credit-back) applies ONLY when
+        // the scan ran with Code Unloader's rules ACTIVE, i.e. the `?nowpcu` suffix was omitted.
+        //
+        // When the suffix IS applied — the DEFAULT — Code Unloader is switched off for the scan, so
+        // the scan is a FRESH measurement of the page's whole unloadable surface, not an incremental
+        // "what is new since CU started working". What CU happens to hold is then irrelevant to what
+        // THIS scan measured: every rule it produces is a real finding of this scan and is billed as
+        // one. Operator: "each new scan is treated as a new scan (current CU unloads should not be
+        // checked, and every A>0 scan should be billed), and appropriate messages outputted —
+        // exactly as it was before the setting change was implemented."
+        //
+        // Passing NULL reuses attribute_already_present()'s existing "cannot know" contract, which
+        // already produces precisely the wanted shape: totals NULL (the summary line makes no claim
+        // in either direction), all_already all false (no netting, gross credits), refund_pages 0
+        // (no claim is made). Pre-1.7.88b behaviour, reached without a second code path — and the
+        // one place that decides it is this line.
+        //
+        // ⚠️ Sync is NOT affected and must not be: RulePusher::sync()'s own find_duplicate still
+        // dedupes at push time, so syncing a rule CU already has still appends 0. That is correct
+        // and is a different question from what the SCAN reports.
+        //
+        // Side benefit: skips a full CU rules-table read on the default path
+        // (FU-AAS-DEDUPE-READS-ALL-CU-RULES, F-THRU-TIME).
+        $cu_rules_active = $this->settings()->get_omit_cu_bypass();
+
         // Result-truth: ask "does CU already have this rule?" HERE, on the post-ratchet
         // cu_json, instead of at Sync time. NULL means CU could not be consulted.
-        $already_by_pattern = ( new RulePusher() )->already_present_by_pattern( $cu_json );
+        $already_by_pattern = $cu_rules_active
+            ? ( new RulePusher() )->already_present_by_pattern( $cu_json )
+            : null;
         $attribution        = self::attribute_already_present(
             $already_by_pattern,
             $cu_json['by_page'] ?? [],
@@ -1512,15 +1540,11 @@ class ScannerAjax {
 
         $can_push      = ( new RulePusher() )->can_push();
 
-        // §2.3 (operator ask 2026-08-05): when the "Remove Code Unloader's suffix (?nowpcu)"
-        // box is ticked, scans run with CU's rules LIVE — so assets CU already unloads never
-        // become candidates and a low or zero S/A is the EXPECTED, healthy outcome. The
-        // pre-existing zero-finding copy ("a rescan occasionally finds more. Please rescan.")
-        // reads as a miss worth retrying and sends the customer down a credit-costing dead end.
+        // $cu_rules_active is read ABOVE, at the dedupe gate — it decides both whether the
+        // apparatus runs at all and, on the payload, which zero-finding copy the client shows.
         // Threaded onto BOTH payload writers below, alongside already_present/credits_refunded,
         // so the restore paths keep it (the mistake FU-AAS-PERSISTED-PAYLOAD-DROPS-
         // HAS_ACTIVE_CU_RULES records is a field living on only one of them).
-        $cu_rules_active = $this->settings()->get_omit_cu_bypass();
 
         // Persist the full Step-4 restore payload (incl. the per-URL table + 12-char
         // scan_id) so a BACKGROUND-completed scan can rebuild the complete result screen
