@@ -1,0 +1,5 @@
+<p>Version 1.7.91b (beta).</p>
+<p><strong>Fixed</strong></p>
+<ul>
+<li><strong>The "Measure Your Gains" sidebar could overlap the Step-4 results table on a wide row.</strong> The results table had no horizontal scroll container of its own, so a row with a long URL plus a long "Needs Extra Time" annotation could exceed the results column's width and spill onto the adjacent sidebar box, covering the Extra Time checkbox. <code>#cu-result-url-list</code> now scrolls horizontally (<code>overflow-x: auto</code>) instead of overflowing. This is a layout fix, not a stacking-order one &mdash; the table no longer physically extends past its column on a wide row. Code-reviewed with zero findings; not yet visually confirmed against a live WordPress admin screen, since none was available in the environment where the fix was built &mdash; please report back if the overlap still occurs on a wide row.</li>
+</ul>

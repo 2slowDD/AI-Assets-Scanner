@@ -4,6 +4,13 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.91b — 2026-08-06
+
+### Fixed
+- **The "Measure Your Gains" sidebar could overlap the Step-4 results table on a wide row.** The results table had no horizontal scroll container of its own, so a row with a long URL plus a long "Needs Extra Time" annotation could exceed the results column's width and spill onto the adjacent sidebar box, covering the Extra Time checkbox. `#cu-result-url-list` now scrolls horizontally (`overflow-x: auto`) instead of overflowing. This is a layout fix, not a stacking-order one — the table no longer physically extends past its column on a wide row. Code-reviewed with zero findings; not yet visually confirmed against a live WordPress admin screen, since none was available in the environment where the fix was built — please report back if the overlap still occurs on a wide row.
+
+---
+
 ## 1.7.90b — 2026-08-05
 
 ### Fixed
