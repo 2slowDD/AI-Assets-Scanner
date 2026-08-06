@@ -352,9 +352,15 @@ class ScannerAjax {
         // Bake every detected bypass key (old auto_bypass + new typed-detector A/A_star)
         // into the URL itself so:
         //   1. The user can see exactly which keys are being applied (UX/verifiability).
-        //   2. Railway's verifier — which currently does NOT receive bypass_suffixes —
-        //      navigates to the same fully-bypassed URL during Pass 3 + Pass 4.
-        //   3. We don't rely on Railway-side appendQueryParams() for suffix application.
+        //   2. Every consumer of this URL has the suffix baked in regardless of whether it
+        //      independently re-applies bypass_suffixes. Railway's baseline runPass DOES also
+        //      receive + re-append bypass_suffixes (page-analyzer.js buildScanUrl() ->
+        //      appendQueryParams()); that function dedupes against this URL's existing query
+        //      so the re-append is a safe no-op, not a duplicate (see FU-AAS-SWIS-DISABLE-
+        //      DOUBLE-BAKE). Railway's verifier (Pass 3/4) deliberately OMITS bypass_suffixes
+        //      instead — see the "INTENTIONALLY OMIT" comment in verifier.js — because
+        //      re-including it there previously broke production (optimizers running
+        //      un-optimized blew the per-page time budget).
         // bypass_suffixes are bare flags (or `key=value` for Autoptimize/LiteSpeed) and
         // come from PluginDetector::OPTIMIZERS — static strings, not user input — so
         // direct concatenation is safe.
