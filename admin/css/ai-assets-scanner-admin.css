@@ -847,7 +847,12 @@
 }
 
 /* --- Per-URL results table (Step 4) --- */
-#cu-result-url-list { margin-top: 16px; }
+/* FU-AAS-RESULTS-TABLE-OVERFLOWS-SIDEBAR — a wide row (long URL + long "Needs Extra
+   Time" annotation) could exceed .cu-scanner-main's max-width and spill onto the
+   adjacent sidebar with nothing to clip/scroll it. Scoped to the whole results block
+   (title/summary/pager share this scroll box) rather than restructuring the JS-built
+   table markup (scanner.js) just to isolate the table alone. */
+#cu-result-url-list { margin-top: 16px; overflow-x: auto; }
 .cu-url-title { margin: 8px 0 2px; font-size: 14px; }
 .cu-url-summary { margin: 0 0 8px; color: #50575e; font-size: 12px; }
 .cu-url-table { border-collapse: collapse; width: 100%; }
