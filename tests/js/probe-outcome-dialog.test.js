@@ -270,6 +270,32 @@ function runNonInformationalBlocks() {
   console.log('OK probe-outcome-non-informational-blocks');
 }
 
+// (d) AC-1d — informational outcome + a security stack => STILL BLOCKS.
+// The !hasStack conjunct is load-bearing and nothing else in this file exercises it:
+// every other stack-bearing case also carries a non-informational outcome, so the
+// outcome term fails on its own and the stack term is never tested. A post-fix
+// production shape (class_bc_only + ['cloudflare']) is the first real case in this quadrant.
+// Multi-host on purpose: hasStack is .some() and allInformational is .every() across
+// ALL hosts, so a single-host fixture would not exercise the batch semantics.
+function runInformationalWithStackBlocks() {
+  const h = createHarness();
+  const body = h.sandbox.document.body;
+  h.sandbox.window.__cuTest.showProbeOutcomeDialog({
+    summary: { uniform_outcome: false },
+    per_host_results: [
+      { host: 'clean.example', outcome: 'class_a_clean', detected: [], security_stacks: [] },
+      { host: 'stacked.example', outcome: 'class_bc_only',
+        detected: [{ name: 'WP Engine Page Cache', class: 'B' }],
+        security_stacks: ['cloudflare'] },
+    ],
+  });
+  assert.ok(body.querySelector('dialog.cu-probe-outcome-dialog'),
+    'informational outcomes + a security stack must still BLOCK (the !hasStack conjunct)');
+  assert.strictEqual(body.querySelector('.cu-probe-toast'), null,
+    'no toast when any host reports a security stack');
+  console.log('OK probe-outcome-informational-with-stack-blocks');
+}
+
 Promise.resolve()
   .then(runCleanCase)
   .then(runUniformCleanCase)
@@ -278,5 +304,6 @@ Promise.resolve()
   .then(runUntrustedStackId)
   .then(runUntrustedHostInToast)
   .then(runNonInformationalBlocks)
+  .then(runInformationalWithStackBlocks)
   .then(function () { console.log('ALL probe-outcome-dialog tests passed'); })
   .catch(function (e) { console.error(e); process.exit(1); });
