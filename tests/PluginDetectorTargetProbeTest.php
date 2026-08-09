@@ -351,6 +351,32 @@ class PluginDetectorTargetProbeTest extends TestCase {
         WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( $body );
     }
 
+    /**
+     * Like stub_probe_response(), but counts real wp_remote_get calls so a test can pin
+     * the REQUEST COUNT through the full probe_target_stack() orchestration. Mirrors the
+     * $call_count closure idiom already used by T-N7-5 (:739-750).
+     */
+    private function stub_counting_probe( array $headers, string $body, int &$calls ): void {
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
+            $parts = parse_url( $url );
+            if ( $component === null ) return $parts;
+            $map = [ PHP_URL_HOST => 'host', PHP_URL_SCHEME => 'scheme', PHP_URL_PORT => 'port' ];
+            return $parts[ $map[ $component ] ?? '' ] ?? null;
+        } );
+        WP_Mock::userFunction( 'get_transient' )->andReturn( false );
+        WP_Mock::userFunction( 'set_transient' )->andReturn( true );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturnUsing(
+            function ( $url, $args ) use ( &$calls, $headers, $body ) {
+                $calls++;
+                return [ 'response' => [ 'code' => 200 ], 'headers' => $headers, 'body' => $body ];
+            }
+        );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturnUsing( function ( $r ) { return $r['headers']; } );
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing( function ( $r ) { return $r['body']; } );
+    }
+
     private function stub_probe_wp_error( $wp_error ): void {
         WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
             $parts = parse_url( $url );
@@ -2042,5 +2068,66 @@ class PluginDetectorTargetProbeTest extends TestCase {
         );
         $r = PluginDetector::__test_single_probe_attempt( 'https://example.test/', 12 );
         $this->assertTrue( $r['is_wordpress'], 'header-name matching must be case-insensitive' );
+    }
+
+    /**
+     * AC-1b + AC-7 — the STAGING shape (api.w.org Link + class-B optimizer, NO security
+     * stack): informational outcome, security_stacks empty, and exactly ONE HTTP call.
+     * Named for staging deliberately: the stack-bearing shape returns a non-empty
+     * security_stacks (e.g. ['cloudflare']) and is AC-1d's job (Task 3). Asserting
+     * security_stacks here is the point — the toast gate is `!hasStack && allInformational`,
+     * and pinning only the outcome half is how two earlier review rounds went wrong.
+     */
+    public function test_staging_shape_resolves_informational_in_one_call() {
+        $calls = 0;
+        $this->stub_counting_probe(
+            [
+                'x-powered-by' => 'WP Engine',
+                'link'         => '<https://t.test/wp-json/>; rel="https://api.w.org/"',
+            ],
+            '<!doctype html><html><head><title>No WP markers</title></head><body><h1>x</h1></body></html>',
+            $calls
+        );
+        $r = PluginDetector::probe_target_stack( 'https://t.test/', 'https://t.test/page-2/', 12 );
+        $this->assertSame( 'class_bc_only', $r['outcome'] );
+        $this->assertSame( [], $r['security_stacks'], 'no CF headers in this fixture ⇒ hasStack false ⇒ toast path' );
+        $this->assertSame( 1, $calls, 'a definitive outcome must not re-arm the :1202/:1217 gates' );
+    }
+
+    /**
+     * AC-1c + AC-7 — the KNOWN LIMIT, pinned as intended behaviour: a WP target with the
+     * REST link but NO detectable optimizer resolves no_clue (still blocking) and costs
+     * FOUR probes (URL1 → URL2 → Pass2a → Pass2b), i.e. ≤48s at the 12s default. If this
+     * ceiling ever grows, this assertion is what catches it.
+     */
+    public function test_header_only_no_optimizer_is_no_clue_in_four_calls() {
+        $calls = 0;
+        $this->stub_counting_probe(
+            [ 'link' => '<https://t.test/wp-json/>; rel="https://api.w.org/"' ],
+            '<!doctype html><html><head><title>Bloated head, no markers</title></head><body><h1>x</h1></body></html>',
+            $calls
+        );
+        $r = PluginDetector::probe_target_stack( 'https://t.test/', 'https://t.test/page-2/', 12 );
+        $this->assertTrue( $r['is_wordpress'], 'the Link header still identifies it as WordPress' );
+        $this->assertSame( 'no_clue', $r['outcome'], 'no optimizer detected ⇒ no_clue ⇒ the modal still blocks' );
+        $this->assertSame( 4, $calls, 'the verdict flip re-arms :1202/:1217/:1229 — bounded at 4' );
+    }
+
+    /**
+     * AC-8 — the control. A genuinely non-WP target must still resolve non_wordpress in
+     * exactly ONE call. This is the guard against "fixed the false negative by making
+     * everything look like WordPress".
+     */
+    public function test_control_non_wp_still_one_call() {
+        $calls = 0;
+        $this->stub_counting_probe(
+            [ 'content-type' => 'text/html' ],
+            '<!doctype html><html><head><title>Not WP</title></head><body><h1>Custom site</h1></body></html>',
+            $calls
+        );
+        $r = PluginDetector::probe_target_stack( 'https://t.test/', 'https://t.test/page-2/', 12 );
+        $this->assertFalse( $r['is_wordpress'] );
+        $this->assertSame( 'non_wordpress', $r['outcome'] );
+        $this->assertSame( 1, $calls, 'non-WP targets must not pay the re-armed probe cost' );
     }
 }
