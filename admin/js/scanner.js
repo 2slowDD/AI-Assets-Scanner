@@ -2580,7 +2580,20 @@
             var choffNote = choffList
                 ? ' <span class="cu-choff-note">👁 visual comparison off — ' + cuEscHtml( choffList ) + cuChoffHelp( choffList ) + '</span>'
                 : '';
-            var urlCell = cuEscHtml( p.url )
+            // FU-AAS-URL-SUFFIX-DIM — every scanned URL carries the optimizer-bypass suffixes the
+            // scanner appended (?nowprocket&nowpcu&perfmattersoff). In a word-break:break-all cell
+            // they are as visually loud as the page path itself, so the query string is dimmed and
+            // the path reads first. Split on the FIRST '?' only: later '?' characters are legal
+            // inside a query value. Both halves pass through the SAME cuEscHtml() that escaped the
+            // whole string before this split, so the change is presentational only and opens no
+            // new unescaped surface. A URL with no query string renders byte-identically to before.
+            var rawUrl  = ( p.url == null ? '' : String( p.url ) );
+            var qIdx    = rawUrl.indexOf( '?' );
+            var urlHtml = qIdx === -1
+                ? cuEscHtml( rawUrl )
+                : cuEscHtml( rawUrl.slice( 0, qIdx ) )
+                  + '<span class="cu-url-suffix">' + cuEscHtml( rawUrl.slice( qIdx ) ) + '</span>';
+            var urlCell = urlHtml
                 + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' )
                 + bypassNote
                 + choffNote;

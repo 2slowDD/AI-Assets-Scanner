@@ -858,6 +858,17 @@
 .cu-url-table { border-collapse: collapse; width: 100%; }
 .cu-url-table th, .cu-url-table td { padding: 6px 10px; font-size: 13px; border-bottom: 1px solid #f0f0f1; text-align: left; }
 .cu-url-table td.cu-url-cell { font-family: sans-serif; word-break: break-all; }
+/* FU-AAS-URL-SUFFIX-DIM — the optimizer-bypass query string the scanner appends to every scanned
+   URL (see cu-url-suffix in scanner.js). Dimmed so the page path reads first. opacity, NOT a fixed
+   grey: each row state colours its own text (ok #14532d / error #7a1f1f / noopt #6b5300 / blocked
+   #7a3e00 / skipped #3a4350), and a hard grey would flatten that colour coding away.
+   .75 is chosen against measured contrast, not by eye: it yields a worst case of 3.81:1 across the
+   five row states — ABOVE the 3.58:1 that the already-shipped .cu-resolved-note / .cu-ratchet grey
+   (#787c82) scores in this same table. Strict WCAG AA (4.5:1) would need .85, which is too subtle
+   to create the hierarchy; the table's secondary text is uniformly sub-AA today (3.58-4.41) and
+   raising that floor is a separate change, not this one's job. Do NOT lower this below .75 without
+   re-measuring — that would put the suffix under the table's own existing contrast floor. */
+.cu-url-suffix { opacity: .75; }
 .cu-url-table td.cu-san { font-family: monospace; white-space: nowrap; }
 .cu-url-table .cu-rescan-noopt { margin-left: 8px; white-space: nowrap; font-weight: 600; }
 .cu-url-table tr.cu-row-ok      { background: #e6f4ea; color: #14532d; box-shadow: inset 3px 0 0 #2e7d32; }
@@ -876,7 +887,15 @@
    absolutely-positioned box is unaffected (it anchors to .cu-help, which stays inline-flex). */
 .cu-choff-note { display: block; font-size: 13px; color: #2271b1; font-style: italic; }
 /* "Please scan again" note on S:0 A:0 (noopt) rows — replaces the old per-row "Scan again" link. */
-.cu-noopt-note { font-style: italic; }
+/* FU-AAS-SAN-COLUMN-WIDTH — the note lives inside td.cu-san, which is white-space:nowrap (:861)
+   to keep the "S:0 A:0 N:93" triplet on one line. The note inherited that nowrap, so a long
+   message could not wrap and forced the whole S/A/N column to the width of its longest
+   <br>-delimited run (measured 363px, vs 106px for the numbers alone) — squeezing the URL
+   column and pushing the table into horizontal scroll. Block + white-space:normal re-enables
+   wrapping (the note grows in HEIGHT, below the numbers); the fixed width pins the column to a
+   constant ~185px at every viewport instead of letting auto-layout collapse it to a ragged
+   ~86px ribbon. The triplet keeps its nowrap because this override is scoped to the note span. */
+.cu-noopt-note { display: block; white-space: normal; width: 165px; font-style: italic; }
 .cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; }
 /* FU-RATCHET-RECOVERED — the "↩ +N" ratchet badge (scanner.js) reads as a secondary
    annotation, not another S:/A:/N: count: muted grey + one step below the 13px row base (:801). */
