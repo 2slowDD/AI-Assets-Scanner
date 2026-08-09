@@ -4,6 +4,17 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.92b — 2026-08-09
+
+### Fixed
+- **A long "nothing to unload" message no longer stretches the S / A / N column.** The note renders inside the S/A/N cell, which keeps `S:0 A:0 N:93` on one line — the note inherited that same no-wrap rule and so could not wrap, forcing the column to the width of its longest line (measured 363px, against 106px for the numbers alone). That squeezed the URL column into a 4-5 line wrap and pushed the table into horizontal scroll. The message now wraps in a fixed-width block *beneath* the numbers, so the column stays a constant ~185px at every window size and the message grows in height instead. Measured in a browser against the real stylesheet at five widths (560-1400px): the URL column regains 137-300px and the horizontal scrollbar disappears at 900px and above. Same table as the 1.7.91b `overflow-x` fix — and unlike that one, this was visually confirmed before release.
+- **The optimizer-bypass suffix on each scanned URL is now dimmed, so the page address reads first.** Every scanned URL carries the suffix the scanner appends (`?nowprocket&nowpcu&perfmattersoff`), previously at full strength and as visually loud as the address itself. The query string is now dimmed while the path keeps full contrast. The dimming is relative, so each row keeps its own status colour rather than being flattened to grey, and the suffix stays comfortably legible — measured at a higher contrast than two annotation styles already shipping in that table. A URL with no query string is unchanged.
+
+### Changed
+- Tested up to WordPress 7.0.3.
+
+---
+
 ## 1.7.91b — 2026-08-06
 
 ### Fixed
