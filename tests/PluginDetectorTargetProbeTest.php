@@ -1966,4 +1966,81 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertSame( 'non_wordpress', $r['outcome'] );
         $this->assertSame( 900, $captured_ttl );
     }
+
+    /**
+     * AC-1 — WP core's REST discovery Link header is a WP signal even when no body
+     * marker appears in the scanned window. Fixture = the NO-SECURITY-STACK shape:
+     * api.w.org Link + a class-B optimizer header, and no CDN/WAF headers.
+     * Deliberately NOT the stack-bearing shape — a host fronted by a WAF returns a
+     * non-empty security_stacks and is covered by the JS gate case in Task 3, because
+     * the toast gate is `!hasStack && allInformational` and this test pins the outcome
+     * half only (spec §6 AC-1).
+     */
+    public function test_wp_detect_via_api_w_org_link_header() {
+        $this->stub_probe_response(
+            200,
+            [
+                'x-powered-by' => 'WP Engine',
+                'link'         => '<https://example.test/wp-json/>; rel="https://api.w.org/"',
+            ],
+            '<!doctype html><html><head><title>No WP markers here</title></head><body><h1>x</h1></body></html>'
+        );
+        $r = PluginDetector::__test_single_probe_attempt( 'https://example.test/', 12 );
+        $this->assertTrue( $r['is_wordpress'], 'api.w.org Link header must be a WP signal' );
+        $this->assertSame( 'class_bc_only', $r['outcome'], 'class-B optimizer + WP ⇒ class_bc_only (exact string, not a negative assertion)' );
+    }
+
+    /**
+     * AC-2 — false-positive guard. A Link header WITHOUT api.w.org must not flip the
+     * verdict. This is the assertion that goes red if someone widens the check to
+     * "any Link header".
+     */
+    public function test_link_header_without_api_w_org_stays_non_wordpress() {
+        $this->stub_probe_response(
+            200,
+            [ 'link' => '</style.css>; rel=preload; as=style' ],
+            '<!doctype html><html><head><title>Not WP</title></head><body><h1>Custom</h1></body></html>'
+        );
+        $r = PluginDetector::__test_single_probe_attempt( 'https://example.test/', 12 );
+        $this->assertFalse( $r['is_wordpress'], 'a non-api.w.org Link header is not a WP signal' );
+        $this->assertSame( 'non_wordpress', $r['outcome'] );
+    }
+
+    /**
+     * AC-3 — guards the is_array(...) ? implode(', ', ...) flatten branch. WP core emits
+     * THREE Link headers and single_probe_attempt normalises the bag via getAll()
+     * (:967-972), so the array shape is live, not hypothetical.
+     */
+    public function test_api_w_org_link_header_as_array_value() {
+        $this->stub_probe_response(
+            200,
+            [
+                'x-powered-by' => 'WP Engine',
+                'link'         => [
+                    '<https://example.test/wp-json/>; rel="https://api.w.org/"',
+                    '<https://example.test/>; rel=shortlink',
+                ],
+            ],
+            '<!doctype html><html><head><title>No WP markers</title></head><body><h1>x</h1></body></html>'
+        );
+        $r = PluginDetector::__test_single_probe_attempt( 'https://example.test/', 12 );
+        $this->assertTrue( $r['is_wordpress'], 'array-valued Link header must still match' );
+    }
+
+    /**
+     * AC-4 — header names are case-insensitive on the wire; the loop lowercases the
+     * NAME. Goes red if strtolower() on the name is dropped.
+     */
+    public function test_api_w_org_link_header_case_insensitive_name() {
+        $this->stub_probe_response(
+            200,
+            [
+                'X-Powered-By' => 'WP Engine',
+                'Link'         => '<https://example.test/wp-json/>; rel="https://api.w.org/"',
+            ],
+            '<!doctype html><html><head><title>No WP markers</title></head><body><h1>x</h1></body></html>'
+        );
+        $r = PluginDetector::__test_single_probe_attempt( 'https://example.test/', 12 );
+        $this->assertTrue( $r['is_wordpress'], 'header-name matching must be case-insensitive' );
+    }
 }

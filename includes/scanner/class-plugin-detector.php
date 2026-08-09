@@ -879,7 +879,19 @@ class PluginDetector {
         if ( strpos( $body_lower, 'wp-includes/' ) !== false ) return true;
         if ( strpos( $body_lower, 'wp-json/' )     !== false ) return true;
         foreach ( $headers as $name => $val ) {
-            if ( strtolower( (string) $name ) === 'x-pingback' ) return true;
+            $lname = strtolower( (string) $name );
+            if ( $lname === 'x-pingback' ) return true;
+            // WP core's REST API discovery link (rest_output_link_header(), wp-includes/rest-api.php)
+            // emits: Link: <https://host/wp-json/>; rel="https://api.w.org/"
+            // The api.w.org rel URI is WordPress-specific and survives the two conditions that push
+            // body markers past BODY_SCAN_MAX_BYTES: a script-bloated <head> and CDN asset rewriting.
+            // $val may be a string or an array: single_probe_attempt() normalises the header bag via
+            // $headers->getAll() at :980-981, and a repeated header (WP core emits three Link headers)
+            // arrives as an array. Flattened with the same idiom header_match() uses at :598.
+            if ( $lname === 'link' ) {
+                $flat = is_array( $val ) ? implode( ', ', $val ) : (string) $val;
+                if ( stripos( $flat, 'api.w.org' ) !== false ) return true;
+            }
         }
         return false;
     }
