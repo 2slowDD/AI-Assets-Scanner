@@ -2035,7 +2035,7 @@ class PluginDetectorTargetProbeTest extends TestCase {
     /**
      * AC-3 — guards the is_array(...) ? implode(', ', ...) flatten branch. WP core emits
      * THREE Link headers and single_probe_attempt normalises the bag via getAll()
-     * (:967-972), so the array shape is live, not hypothetical.
+     * (:980-981), so the array shape is live, not hypothetical.
      */
     public function test_api_w_org_link_header_as_array_value() {
         $this->stub_probe_response(
