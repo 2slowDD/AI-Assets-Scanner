@@ -2294,6 +2294,27 @@
         return 'Nothing new to sync — all ' + total + ' rules already in Code Unloader';
     }
 
+    /**
+     * Next-step hint appended to the summary line — "you have N rules, here is how to apply
+     * them". The states below mirror restoreStep4's button branches EXACTLY and in the same
+     * order: the copy may only name a control that is actually visible and enabled in that
+     * state, or it sends the operator hunting for a button that isn't on the page. In
+     * particular an external-only scan hides Push AND Sync (both are unusable when every
+     * scanned URL is off-host), so it must never be invited to "push or sync".
+     * Controls are named by their BUTTON LABEL, never by position ("above"/"below"): the copy
+     * then survives any layout change to scanner-page.php, and the label is what the operator
+     * actually scans the page for. Returns '' whenever there is nothing the operator can
+     * usefully do — silence beats a hint that points nowhere.
+     */
+    function buildNextStepCopy( o ) {
+        if ( o.noRules )      return '';   // both buttons dormant, Download inert — nothing to apply
+        if ( o.nothingNew )   return '';   // every rule is already in CU; buildSyncCopy says so — don't contradict it
+        if ( o.externalOnly ) return ' You can download the CU import file and import it into Code Unloader.';
+        if ( o.syncOnly )     return ' You can add them to your existing rules with the Sync button.';
+        if ( o.canPush )      return ' You can apply them now with the Push or Sync buttons.';
+        return '';                         // no branch fired — promise nothing
+    }
+
     function buildRefundLine( o ) {
         var n = Number( o.creditsRefunded ) || 0;
         if ( n < 1 ) return '';
@@ -2385,13 +2406,30 @@
             pushBtn.classList.remove('cu-btn-dormant');
         }
 
-        // Result-truth Sync notice. Appended, never assigned: the branches above own
-        // #cu-push-result, and buildSyncCopy returns '' for externalOnly so the
-        // "External URLs scanned" notice is never clobbered (AC-15).
+        // Result-truth Sync notice — COMPUTED here rather than at its append site below,
+        // because the next-step hint needs it. A non-empty syncNotice is exactly the
+        // "nothing new to sync, every rule is already in Code Unloader" state, and inviting
+        // the operator to Push/Sync would contradict that notice on the same screen. Reusing
+        // the predicate (instead of re-deriving it) means the two can never drift apart.
         var syncNotice = buildSyncCopy({
             externalOnly: externalOnly, safeCount: safeCount,
             aggCount: aggCount, alreadyPresent: alreadyPresent
         });
+
+        // Next-step hint, appended to the summary once the button state above is settled
+        // (noRules/syncOnly are computed there, so this cannot run earlier). textContent, so
+        // the sentence is inert text — no markup path exists here.
+        var nextStep = buildNextStepCopy( {
+            noRules: noRules, externalOnly: externalOnly, syncOnly: syncOnly,
+            canPush: canPush, nothingNew: !! syncNotice
+        } );
+        if ( nextStep ) {
+            document.getElementById('cu-result-summary').textContent += nextStep;
+        }
+
+        // Appended, never assigned: the branches above own #cu-push-result, and buildSyncCopy
+        // returns '' for externalOnly so the "External URLs scanned" notice is never
+        // clobbered (AC-15).
         if ( syncNotice ) {
             pushResult.innerHTML += '<div class="notice notice-info inline"><p>' + syncNotice + '</p></div>';
         }
@@ -3266,7 +3304,7 @@
                         renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4,
                         showProbeOutcomeDialog: showProbeOutcomeDialog,
                         buildSummaryLine: buildSummaryLine, buildSyncCopy: buildSyncCopy,
-                        buildRefundLine: buildRefundLine,
+                        buildRefundLine: buildRefundLine, buildNextStepCopy: buildNextStepCopy,
                         // Seed the IIFE-scoped submitted-URL state so handleStatusUpdate's
                         // URL-fallback can be exercised without driving the full submit flow.
                         setScanUrlsForTest: function (sel, resolved) { selectedUrls = sel || []; resolvedByUrl = resolved || {}; } };

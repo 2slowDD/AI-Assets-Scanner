@@ -139,11 +139,18 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
     alreadyPresent: null, creditsRefunded: undefined
   });
 
+  // FU-AAS-SUMMARY-NEXT-STEP — the summary now also carries a next-step hint. A hint is not
+  // an already-present CLAIM, which is what AC-11 governs, so both are asserted below: the
+  // exact line (pinning the hint's wording too) and, separately and explicitly, that no
+  // "N new / M already in Code Unloader" claim was made.
   assert.strictEqual(
     h4.els['cu-result-summary'].textContent,
-    'Scan complete. 2 URLs scanned, 0 safe rules, 3 aggressive rules generated.',
+    'Scan complete. 2 URLs scanned, 0 safe rules, 3 aggressive rules generated.'
+      + ' You can apply them now with the Push or Sync buttons.',
     'null => no claim in the summary'
   );
+  assert.ok(!/already in Code Unloader|\bnew\b/.test(h4.els['cu-result-summary'].textContent),
+    'null must never produce an "N new / M already in Code Unloader" claim');
   assert.strictEqual(h4.els['cu-result-refund'].textContent, '', 'no refund line');
   assert.ok(!/already in Code Unloader/.test(h4.els['cu-push-result'].innerHTML), 'no sync claim');
 }());
