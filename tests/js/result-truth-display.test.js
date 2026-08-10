@@ -195,12 +195,14 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
   assert.ok(!/Please rescan/.test(rows[0]), 'never prompts a rescan of a page that is already handled');
 
   // Row 2 — a real new rule must NOT be netted away.
-  assert.ok(/S:0 A:1 /.test(cellsOf(rows[1])[4]), 'a genuinely new rule still renders its count');
+  // FU-AAS-SAN-BOLD-NONZERO — a non-zero count is now wrapped in <strong> (see
+  // san-bold-nonzero.test.js). The count itself is unchanged; only its markup moved.
+  assert.ok(/S:0 <strong>A:1<\/strong> /.test(cellsOf(rows[1])[4]), 'a genuinely new rule still renders its count');
   assert.strictEqual(cellsOf(rows[1])[3], '1', 'and still shows the credit it cost');
   assert.ok(!/cu-row-noopt/.test(rows[1]), 'not a zero row');
 
   // Row 3 — a missing key must degrade to today's behaviour, never to a false zero.
-  assert.ok(/S:1 A:0 /.test(cellsOf(rows[2])[4]), 'absent all_already key leaves the counts alone');
+  assert.ok(/<strong>S:1<\/strong> A:0 /.test(cellsOf(rows[2])[4]), 'absent all_already key leaves the counts alone');
 }());
 
 // --- §2.3: zero-finding copy when the scan ran with CU's rules live -------------

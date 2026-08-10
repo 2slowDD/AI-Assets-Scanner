@@ -2559,8 +2559,16 @@
                     nooptNote = ' <span class="cu-noopt-note">This scan found nothing to unload —<br>a rescan occasionally finds more. Please rescan.</span>';
                 }
             }
+            // Operator request 2026-08-10 — bold S: / A: only when that count is > 0, so rows
+            // that actually produced rules are findable at a glance in a long result table.
+            // N: is never bolded: it is the untouched-assets residue, not an outcome. effSafe /
+            // effAgg are Number()-coerced above, so these are numeric interpolations and need no
+            // escaping. A NaN count (field absent) compares false and renders unbolded — the
+            // same output this line produced before.
+            var sanS = effSafe > 0 ? '<strong>S:' + effSafe + '</strong>' : 'S:' + effSafe;
+            var sanA = effAgg  > 0 ? '<strong>A:' + effAgg  + '</strong>' : 'A:' + effAgg;
             var san = ( p.status_class === 'error' ) ? '—'
-                : ( 'S:' + effSafe + ' A:' + effAgg + ' N:' + p.needed
+                : ( sanS + ' ' + sanA + ' N:' + p.needed
                     + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' )
                     + nooptNote );
             var origUrl = submittedByResolved[ p.url ];
