@@ -9,7 +9,10 @@ class PrivateUpdater {
     private const PRODUCT_URL    = 'https://wpservice.pro/our-products/ai-assets-scanner/';
     private const MANIFEST_URL   = 'https://updates.wpservice.pro/ai-assets-scanner/stable.json';
     private const UPDATE_BASE    = 'https://updates.wpservice.pro/ai-assets-scanner/releases/';
-    private const UPDATED_AT     = 'May 26, 2026';
+    // NOTE: there is deliberately no UPDATED_AT constant. The release date comes from the
+    // manifest's released_at and nowhere else — a compiled-in date has no way to move when a
+    // release ships (build-release.py never rewrote it) and silently goes stale.
+    private const MANIFEST_CACHE_KEY = 'cu_scanner_updater_manifest_v1';
     private const REQUIRES_WP    = '6.2';
     private const TESTED_WP      = '7.0';
     private const REQUIRES_PHP   = '8.0';
@@ -78,6 +81,9 @@ class PrivateUpdater {
             'requires'      => (string) ( $manifest['requires_wp'] ?? self::REQUIRES_WP ),
             'tested'        => (string) ( $manifest['tested_wp'] ?? self::TESTED_WP ),
             'requires_php'  => (string) ( $manifest['requires_php'] ?? self::REQUIRES_PHP ),
+            // WP's plugin-details modal renders last_updated; it was never set here, so the
+            // modal showed no "Last Updated" at all. Derived from the manifest's released_at.
+            'last_updated'  => $this->last_updated_for_api(),
             'icons'         => $this->icons(),
             'download_link' => isset( $manifest['download_url'] ) && $this->is_allowed_package_url( (string) $manifest['download_url'] )
                 ? (string) $manifest['download_url']
@@ -94,10 +100,21 @@ class PrivateUpdater {
             return $links;
         }
 
+        // Manifest-first, compiled-in constants only as fallback — the same precedence
+        // filter_plugin_information() already used. Until 1.7.93b these three lines rendered
+        // raw constants, so the row advertised a release date and a "Tested upto" that no
+        // release could ever move.
+        $manifest = $this->cached_manifest() ?? [];
+        $updated  = $this->updated_at_display();
+
         $links[] = '<a href="' . esc_url( self::PRODUCT_URL ) . '" target="_blank" rel="noopener">View details</a>';
-        $links[] = 'Updated: <strong>' . esc_html( self::UPDATED_AT ) . '</strong>';
-        $links[] = 'Requires at least: <strong>v' . esc_html( self::REQUIRES_WP ) . '</strong>';
-        $links[] = 'Tested upto: <strong>v' . esc_html( self::TESTED_WP ) . '</strong>';
+        // Omitted entirely when the manifest carries no valid date. A missing field is honest;
+        // a hardcoded one goes stale silently, which is exactly the bug this replaced.
+        if ( '' !== $updated ) {
+            $links[] = 'Updated: <strong>' . esc_html( $updated ) . '</strong>';
+        }
+        $links[] = 'Requires at least: <strong>v' . esc_html( $this->sane_version( $manifest['requires_wp'] ?? null, self::REQUIRES_WP ) ) . '</strong>';
+        $links[] = 'Tested upto: <strong>v' . esc_html( $this->sane_version( $manifest['tested_wp'] ?? null, self::TESTED_WP ) ) . '</strong>';
         $links[] = 'Status: <span style="color:#2271b1">Available</span>';
         return $links;
     }
@@ -191,7 +208,31 @@ class PrivateUpdater {
         }
 
         $this->manifest_cache = $decoded;
+        // Persist for the DISPLAY path only (see cached_manifest()). The update check itself
+        // never reads this — it always fetches — so update freshness is unchanged. Refreshed on
+        // every successful check (WP runs those twice daily), so it self-heals the moment a new
+        // release lands.
+        set_transient( self::MANIFEST_CACHE_KEY, $decoded, WEEK_IN_SECONDS );
         return $this->manifest_cache;
+    }
+
+    /**
+     * Manifest for RENDER paths — never performs HTTP.
+     *
+     * filter_plugin_row_meta() runs on every Plugins-screen paint. Calling get_manifest() there
+     * would put a blocking 10s-timeout remote GET in a page render, so display code reads only
+     * what a previous update check already fetched. No cached copy → callers omit the field
+     * rather than fetch or invent one.
+     */
+    private function cached_manifest(): ?array {
+        if ( null !== self::$manifest_for_testing ) {
+            return self::$manifest_for_testing;
+        }
+        if ( null !== $this->manifest_cache ) {
+            return $this->manifest_cache;
+        }
+        $cached = get_transient( self::MANIFEST_CACHE_KEY );
+        return is_array( $cached ) ? $cached : null;
     }
 
     private function build_update_object( array $manifest ): object {
@@ -250,6 +291,61 @@ class PrivateUpdater {
     private function is_valid_sha256( string $hash ): bool {
         return 1 === preg_match( '/\A[a-f0-9]{64}\z/i', $hash );
     }
+
+    /**
+     * Validated release timestamp from the manifest, or null when absent/malformed.
+     *
+     * The manifest is fetched from a remote host (self::MANIFEST_URL), so released_at is
+     * third-party input and is validated by SHAPE before use, not merely escaped at render
+     * (wp-compliance rule 1: validate over sanitize when the allowed form is known).
+     * The regex pins exactly the ISO-8601 UTC form build-release.py emits; a bare strtotime()
+     * would cheerfully accept 'now' or 'tomorrow' from a tampered manifest and render a date
+     * that moves on every page load.
+     */
+    private function manifest_released_ts(): ?int {
+        // cached_manifest(), never get_manifest(): this feeds render paths. In the
+        // plugin-information modal the in-memory cache is already warm from the fetch at the
+        // top of that method, so the modal still gets a live value.
+        $manifest = $this->cached_manifest();
+        $raw      = is_array( $manifest ) ? ( $manifest['released_at'] ?? null ) : null;
+        if ( ! is_string( $raw ) || 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $raw ) ) {
+            return null;
+        }
+        $ts = strtotime( $raw );
+        return is_int( $ts ) ? $ts : null;
+    }
+
+    /**
+     * Human-readable release date for the plugins-list row; '' when unknown (caller omits the row).
+     *
+     * gmdate, not wp_date: released_at is a UTC date-only concept, so a site on a negative
+     * timezone offset would render midnight-UTC as the PREVIOUS day.
+     */
+    private function updated_at_display(): string {
+        $ts = $this->manifest_released_ts();
+        return null === $ts ? '' : gmdate( 'F j, Y', $ts );
+    }
+
+    /** WordPress renders last_updated as 'Y-m-d H:i:s'; '' when unknown so core omits the field. */
+    private function last_updated_for_api(): string {
+        $ts = $this->manifest_released_ts();
+        return null === $ts ? '' : gmdate( 'Y-m-d H:i:s', $ts );
+    }
+
+    /**
+     * Validate a manifest version string, falling back to the compiled-in constant.
+     * Remote input again (rule 1): a version is a known shape, so validate it rather than
+     * trusting escaping alone to make arbitrary text presentable.
+     */
+    private function sane_version( mixed $value, string $fallback ): string {
+        return ( is_string( $value ) && 1 === preg_match( '/^\d+(\.\d+){0,3}$/', $value ) )
+            ? $value
+            : $fallback;
+    }
+
+    /** @internal test seams */
+    public function __test_updated_at_display(): string { return $this->updated_at_display(); }
+    public function __test_last_updated_for_api(): string { return $this->last_updated_for_api(); }
 
     private function safe_html( string $value ): string {
         if ( function_exists( 'wp_kses_post' ) ) {
