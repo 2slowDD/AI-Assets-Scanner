@@ -448,6 +448,12 @@ class PluginDetectorRedirectTest extends TestCase {
         $this->assertSame( 'https://host.com/plans/pricing/', $r['resolved_url'] );
         $this->assertSame( 1, $calls, 'the per-URL write adds ZERO HTTP — measured pre-change on this exact fixture: 1' );
 
+        // Spec §7.1 mutation gate, Finding 2: $by_key collapses duplicates by key, so it is
+        // structurally blind to a double-write — writing the per-URL entry twice here ran green
+        // against all 845 tests. The hit path already counts the RAW array (:318); the miss
+        // path must too, or "wrote it twice" and "wrote it once" are the same assertion.
+        $this->assertCount( 2, $writes, 'exactly two writes — a duplicate is a wasted round trip to the object cache' );
+
         $by_key = [];
         foreach ( $writes as [ $k, $v, $t ] ) {
             $by_key[ $k ] = [ 'value' => $v, 'ttl' => $t ];
