@@ -296,11 +296,17 @@ class PluginDetectorTargetProbeTest extends TestCase {
      * AC-N2-4 — 24h transient cache hit returns cache_hit=true and skips wp_remote_get.
      */
     public function test_probe_cache_hit_returns_cached_result() {
+        // submitted_url / resolved_url / resolution_source are what attach_resolution() writes
+        // into EVERY entry the miss path persists, so a realistic cached entry carries them.
+        // Without them this is a cross-path hit and spec §4.2 step 2 correctly spends a probe.
         $cached = [
-            'outcome'         => 'class_a_clean',
-            'detected'        => [ [ 'name' => 'WP Rocket', 'class' => 'A', 'bypass_query' => 'nowprocket', 'source' => 'body' ] ],
-            'bypass_suffixes' => [ 'nowprocket' ],
-            'is_wordpress'    => true,
+            'outcome'           => 'class_a_clean',
+            'detected'          => [ [ 'name' => 'WP Rocket', 'class' => 'A', 'bypass_query' => 'nowprocket', 'source' => 'body' ] ],
+            'bypass_suffixes'   => [ 'nowprocket' ],
+            'is_wordpress'      => true,
+            'submitted_url'     => 'https://cached.example.com/',
+            'resolved_url'      => 'https://cached.example.com/',
+            'resolution_source' => 'none',
         ];
         WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( function ( $url, $component = null ) {
             $parts = parse_url( $url );
@@ -903,15 +909,18 @@ class PluginDetectorTargetProbeTest extends TestCase {
      * Second call: transient hit → 0 fetches, same result returned.
      */
     public function test_t_n7_8_cache_hit_short_circuits_pass_2_resolved() {
-        $cached_value = false;
+        // Keyed fake store. probe_target_stack() persists TWO transients on a miss — the
+        // host detection entry and the per-URL resolution entry (spec §4.2) — so a
+        // single-slot, key-blind fake would let the second write clobber the first.
+        $store = [];
         WP_Mock::userFunction( 'get_transient' )->andReturnUsing(
-            function () use ( &$cached_value ) {
-                return $cached_value;
+            function ( $key ) use ( &$store ) {
+                return $store[ $key ] ?? false;
             }
         );
         WP_Mock::userFunction( 'set_transient' )->andReturnUsing(
-            function ( $key, $value, $ttl ) use ( &$cached_value ) {
-                $cached_value = $value;
+            function ( $key, $value, $ttl ) use ( &$store ) {
+                $store[ $key ] = $value;
                 return true;
             }
         );
@@ -1958,8 +1967,13 @@ class PluginDetectorTargetProbeTest extends TestCase {
         WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn(
             '<html><head><meta name="generator" content="WordPress 6.4"></head><body>wp-content/</body></html>'
         );
-        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v, $ttl ) use ( &$captured_ttl ) {
-            $captured_ttl = $ttl; return true;
+        // Capture the HOST entry's TTL specifically: the miss path also writes a per-URL
+        // resolution entry on its own 2h tier (spec §4.2), so a last-write-wins capture
+        // would silently start asserting the wrong store's TTL.
+        $host_key = PluginDetector::__test_build_cache_key( 'https', 'wprocket.example.com', '443' );
+        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v, $ttl ) use ( &$captured_ttl, $host_key ) {
+            if ( $k === $host_key ) { $captured_ttl = $ttl; }
+            return true;
         } );
 
         $r = PluginDetector::probe_target_stack( 'https://wprocket.example.com/', null, 12 );
@@ -1984,8 +1998,11 @@ class PluginDetectorTargetProbeTest extends TestCase {
         WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
         WP_Mock::userFunction( 'wp_remote_retrieve_headers' )->andReturn( [] );
         WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( '<html><head><title>x</title></head><body>not wp</body></html>' );
-        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v, $ttl ) use ( &$captured_ttl ) {
-            $captured_ttl = $ttl; return true;
+        // Host-key-scoped capture — see the note in test_epr6_positive_outcome_cached_24h.
+        $host_key = PluginDetector::__test_build_cache_key( 'https', 'plain.example.com', '443' );
+        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v, $ttl ) use ( &$captured_ttl, $host_key ) {
+            if ( $k === $host_key ) { $captured_ttl = $ttl; }
+            return true;
         } );
 
         $r = PluginDetector::probe_target_stack( 'https://plain.example.com/', null, 12 );

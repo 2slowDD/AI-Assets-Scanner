@@ -1231,6 +1231,37 @@ class PluginDetector {
     }
 
     /**
+     * Write the per-URL resolution entry for $url from an already-resolved probe $result
+     * (spec §4.2). Both writers — the cache-miss path and the cross-path hit's step 2 —
+     * go through here, so the entry shape, the key builder and the TTL tiering have
+     * exactly one implementation.
+     *
+     * Stores EXACTLY the two keys §4.1 defines; deliberately NOT a copy of the host
+     * detection verdict, because duplicating detection into a second key is how the two
+     * stores would drift. A probe that errored (any non-null reason: 4xx, 5xx, timeout,
+     * unreachable) learned nothing about resolution, so it is recorded as 'probe_failed'
+     * and takes the short 15-min tier rather than masquerading as a definitive 'none'
+     * — attach_resolution() reports 'none' for "no redirect seen", which a failed request
+     * technically satisfies but did not establish (§4.1 TTL table, 4th state).
+     *
+     * @return array The stored entry, so the caller merges the same values it persisted.
+     */
+    private static function persist_url_resolution( string $url, array $result ): array {
+        $source = ( ( $result['reason'] ?? null ) !== null )
+            ? 'probe_failed'
+            : (string) ( $result['resolution_source'] ?? 'probe_failed' );
+
+        $entry = [
+            'resolved_url'      => (string) ( $result['resolved_url'] ?? $url ),
+            'resolution_source' => $source,
+        ];
+
+        set_transient( self::build_url_resolution_key( $url ), $entry, self::url_resolution_ttl( $source ) );
+
+        return $entry;
+    }
+
+    /**
      * Public wrapper — 2-attempt probe with 24h per-host transient cache.
      * Cache key includes scheme + port to avoid collision (spec §5.3 + d-review M5).
      */
@@ -1243,9 +1274,49 @@ class PluginDetector {
 
         $cached = get_transient( $cache_key );
         if ( $cached !== false && is_array( $cached ) ) {
-            // Host-keyed cache: resolution is URL-specific, so honor cached resolved_url ONLY for the exact
-            // same submitted URL. Different path (or pre-feature entry) → reset to the current URL.
-            if ( ( $cached['submitted_url'] ?? null ) !== $url || ! isset( $cached['resolved_url'] ) ) {
+            // Host-keyed cache: DETECTION is host-scoped and is honoured as-is. RESOLUTION is
+            // URL-scoped, so the cached resolved_url is honoured ONLY for the exact same
+            // submitted URL. For any other path it describes a different resource — serving it
+            // (or the identity fallback that replaced it) alongside this host's bypass_suffixes
+            // is what dispatched an unresolved URL carrying an optimizer-bypass query, which a
+            // query-blind 301 rule at the origin answers with a hard 404. Spec §4.2.
+            if ( ( $cached['submitted_url'] ?? null ) !== $url ) {
+                $per_url = get_transient( self::build_url_resolution_key( $url ) );
+
+                if ( is_array( $per_url ) && isset( $per_url['resolved_url'], $per_url['resolution_source'] ) ) {
+                    // Step 1 — this path already has its own resolution. Zero HTTP.
+                    $cached['resolved_url']      = (string) $per_url['resolved_url'];
+                    $cached['resolution_source'] = (string) $per_url['resolution_source'];
+                } elseif ( ! empty( $cached['bypass_suffixes'] ) ) {
+                    // Step 2 — a bypass suffix WILL be appended to this URL, so dispatching it
+                    // unresolved is the exact defect this split exists to prevent: spend ONE
+                    // request to learn where it actually lands. Detection is never re-derived —
+                    // the cached outcome / detected / security_stacks / is_wordpress /
+                    // bypass_suffixes / page_cache_detected stand untouched even if this probe
+                    // disagrees; only the two resolution keys are merged (spec §4.2 step 2).
+                    $probe = self::attach_resolution( $url, self::single_probe_attempt( $url, $timeout_seconds ) );
+                    $entry = self::persist_url_resolution( $url, $probe );
+
+                    $cached['resolved_url']      = $entry['resolved_url'];
+                    $cached['resolution_source'] = $entry['resolution_source'];
+                } else {
+                    // Step 3 — no suffix will be appended, so the dispatched URL is bare, the
+                    // origin's own 301 applies normally and the worker follows it: a request here
+                    // buys nothing. Identity, as today, but labelled honestly. NOTHING is
+                    // persisted: a cached 'not_probed' would short-circuit step 2 via step 1 for
+                    // a full TTL, so a host whose suffix list later filled in would reproduce the
+                    // original defect and cache it for 2 h (spec §4.2 step 3 / r1-C4b).
+                    $cached['resolved_url']      = $url;
+                    $cached['resolution_source'] = 'not_probed';
+                }
+
+                // Steps 1-3 only. The cached redirect_final describes $url1's probe, and
+                // debug_log_resolution() logs the field — leaving it would put one URL's redirect
+                // target on another URL's telemetry line. The SAME-path return below keeps its
+                // redirect_final: there it describes exactly the right URL.
+                $cached['redirect_final'] = null;
+            } elseif ( ! isset( $cached['resolved_url'] ) ) {
+                // Same path, pre-feature entry with no resolution recorded — unchanged behaviour.
                 $cached['resolved_url']      = $url;
                 $cached['resolution_source'] = 'none';
             }
@@ -1340,6 +1411,13 @@ class PluginDetector {
         // Tiered TTL (FU-ABSENT-SAFE B1): see positive_cache_ttl() docblock.
         $ttl = self::positive_cache_ttl( $result );
         set_transient( $cache_key, $result, $ttl );
+
+        // …and the per-URL resolution entry for the URL we just probed (spec §4.2, r1-C4a).
+        // Zero extra HTTP — the probe already happened. This is the writer that fires on a
+        // host's FIRST probe, which is when most entries are born, and it is what lets a
+        // rescan of the same URL resolve from cache instead of re-probing.
+        self::persist_url_resolution( $url, $result );
+
         return $result;
     }
 
