@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.93b — 2026-08-12
+
+### Fixed
+- Fixed a false "site denial (4xx)" error on scans of URLs that redirect — the scanner now resolves each URL before appending an optimizer-bypass suffix, instead of sending the suffix to a stale pre-redirect address.
+- Added a 2-hour cache for each URL's own redirect resolution, alongside the existing per-site optimizer-detection cache.
+- Added a diagnostic hook (`cu_scanner_suffix_suggested_unresolved`) for developers, fired when a bypass suffix is suggested for a URL that hasn't been resolved individually yet.
+
+---
+
 ## 1.7.92b — 2026-08-09
 
 ### Fixed
