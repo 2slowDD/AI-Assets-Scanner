@@ -10,6 +10,9 @@ All notable changes to AI Assets Scanner are documented here.
 - Fixed a false "site denial (4xx)" error on scans of URLs that redirect — the scanner now resolves each URL before appending an optimizer-bypass suffix, instead of sending the suffix to a stale pre-redirect address.
 - Added a 2-hour cache for each URL's own redirect resolution, alongside the existing per-site optimizer-detection cache.
 - Added a diagnostic hook (`cu_scanner_suffix_suggested_unresolved`) for developers, fired when a bypass suffix is suggested for a URL that hasn't been resolved individually yet.
+- The updater now reads a release's date from the update manifest instead of a hardcoded value, so the date shown for an available update is the real one.
+- Scan result rows now bold the S: and A: counts when they are above zero, so a row with findings reads apart from an empty one at a glance.
+- After a scan, the results summary now tells you what to do next with the rules it produced.
 
 ---
 
