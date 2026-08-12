@@ -770,10 +770,10 @@ class PluginDetectorRedirectTest extends TestCase {
      * AC-13 — resolution_source has FOUR observable states, not three, and a fifth
      * label reaches this line from the per-URL store. All of them have to arrive
      * intact: attach_resolution() mints 'redirect_final' / 'none' / 'cross_domain_reject',
-     * the §4.2 ladder's step 3 adds 'not_probed', and persist_url_resolution()'s
-     * 'probe_failed' surfaces whenever step 1 serves a warm entry written by an errored
-     * probe. See debug_log_resolution()'s docblock for how to read 'none' vs
-     * 'probe_failed' — the two labels one failed probe can carry.
+     * the §4.2 ladder's step 3 adds 'not_probed', and persist_url_resolution() mints
+     * 'probe_failed'. The rows below pin each state against the path that produces it;
+     * for how to READ the field — including the two labels one failed probe can carry —
+     * see debug_log_resolution()'s docblock, which is the single place that is explained.
      *
      * @dataProvider hit_path_resolution_states
      * @runInSeparateProcess

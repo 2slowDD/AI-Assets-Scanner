@@ -27,9 +27,16 @@ use WP_Mock\Tools\TestCase;
  * Capture note: WP_Mock DEFINES do_action() itself, so WP_Mock::userFunction('do_action')
  * registers an expectation that never runs — the real WP_Mock implementation is what
  * executes, routing to WP_Mock::onAction(). Payload assertions therefore go through
- * expectAction()/onAction()->with(), which match the emitted arguments EXACTLY (by value
- * and by key order), and are what SubmitJobPayloadTest already uses for this hook's
- * sibling, cu_scanner_target_bypass_missing.
+ * expectAction()/onAction()->with(), which SubmitJobPayloadTest already uses for this
+ * hook's sibling, cu_scanner_target_bypass_missing.
+ *
+ * What that mechanism does and does not check: it matches on a string projection of the
+ * payload (WP_Mock\Hook::safe_offset), concatenating key.value in ITERATION ORDER — so key
+ * names, key order and the set of keys are all genuinely pinned. Values are not compared
+ * by type, though: scalars collapse through `(string) $value`, so 0, '0' and false-ish
+ * near-misses are indistinguishable here. The `(string) $host` cast in the handler is
+ * therefore exactly the kind of defect these tests CANNOT see — it stands on the reading
+ * of $by_host's keys, not on a covering assertion.
  */
 class ScannerAjaxSuffixHookTest extends TestCase {
 

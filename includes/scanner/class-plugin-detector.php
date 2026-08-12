@@ -1169,8 +1169,10 @@ class PluginDetector {
      * whenever the miss path emits it — a failed request produces no redirect candidate,
      * which attach_resolution() cannot distinguish from "the origin reported no redirect".
      * So treat a 'none' as "no redirect seen, possibly because the request failed", and read
-     * 'probe_failed' (which reaches this line via a warm per-URL entry) as the sharper of
-     * the two. Deliberate, and out of scope for the §4 cache split (spec §8).
+     * 'probe_failed' (which reaches this line from the per-URL store — a warm entry on step 1,
+     * or the entry step 2 has just written) as the sharper of the two. Note the corollary:
+     * 'probe_failed' does NOT imply zero HTTP, because step 2 mints it from a request it just
+     * spent. Deliberate, and out of scope for the §4 cache split (spec §8).
      */
     private static function debug_log_resolution( array $r ): void {
         if ( ! cu_scanner_debug_enabled() ) {
