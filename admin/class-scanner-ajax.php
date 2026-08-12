@@ -1992,6 +1992,25 @@ class ScannerAjax {
                 $resolved_per_url[ $u ] = ( $u === $probe_submitted && $probe_resolved !== '' )
                     ? $probe_resolved
                     : $u;
+
+                // Spec §6 / AC-10 — count the pairing at the moment it is created. One probe
+                // settled $probe_submitted; every other URL on this host inherits the host's
+                // suffix list without a resolution of its own, and appending a query suffix to
+                // an unresolved URL is exactly what a query-blind 301 at the origin answers
+                // with a hard 404. Reported from the map the response actually returns, so a
+                // listener sees the suffixes really suggested for THIS URL. Suggested, not
+                // applied: whether it is dispatched is a later, submit-side decision this
+                // request knows nothing about. One event per sibling is deliberate — the burst
+                // is the signal; throttling it here would hide the scans that hurt most.
+                $suffixes = $suggested_bypass_per_url[ $u ] ?? [];
+                if ( ! empty( $suffixes ) && $u !== $probe_submitted ) {
+                    // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- 'cu_scanner_*' is the long-standing internal prefix shared with the wpservice-saas backend and the Railway worker; renaming would break inter-component contracts.
+                    do_action( 'cu_scanner_suffix_suggested_unresolved', [
+                        'url'      => $u,
+                        'host'     => (string) $host,
+                        'suffixes' => $suffixes,
+                    ] );
+                }
             }
         }
 

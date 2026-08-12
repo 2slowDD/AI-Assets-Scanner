@@ -659,4 +659,197 @@ class PluginDetectorRedirectTest extends TestCase {
         $this->assertCount( 1, $writes );
         $this->assertSame( 2 * HOUR_IN_SECONDS, $writes[0][2] );
     }
+
+    // =========================================================================
+    // AC-13 — the hit path is OBSERVABLE. debug_log_resolution() is
+    // resolution_source's only reader in the codebase and it ran on the cache-MISS
+    // path alone, so 'not_probed' — a state that exists ONLY on a hit-path return —
+    // could never appear in a log. A state nobody can see is a state nobody can
+    // debug, which is the whole point of the spec §6 telemetry.
+    //
+    // ⚠️ P17 — these drive the REAL probe_target_stack() and assert on the bytes the
+    // REAL error_log() wrote, captured by pointing the error_log ini at a temp file.
+    // Neither a source-text pin nor an assertion against a mocked logger would redden
+    // if the call were deleted, retyped, or parked behind the wrong branch.
+    // =========================================================================
+
+    /**
+     * Run $fn with the debug gate open and error_log() redirected to a temp file, and
+     * return everything error_log() actually wrote. The ini setting is restored and the
+     * temp file removed even if $fn throws.
+     *
+     * CU_SCANNER_DEBUG can never be un-defined once set, and ScannerAjaxTest's AC-DG-1
+     * asserts the gate is OFF in the test env, so every caller of this helper must run
+     * in a separate process (@runInSeparateProcess + @preserveGlobalState disabled).
+     */
+    private function capture_resolution_log( callable $fn ): string {
+        defined( 'CU_SCANNER_DEBUG' ) || define( 'CU_SCANNER_DEBUG', true );
+        WP_Mock::userFunction( 'wp_json_encode' )->andReturnUsing( fn( $data ) => json_encode( $data ) );
+
+        $tmp      = tempnam( sys_get_temp_dir(), 'cu-resolution-log' );
+        $previous = (string) ini_get( 'error_log' );
+        ini_set( 'error_log', $tmp );
+        try {
+            $fn();
+            return (string) file_get_contents( $tmp );
+        } finally {
+            ini_set( 'error_log', $previous );
+            unlink( $tmp );
+        }
+    }
+
+    /**
+     * AC-13 — a step-3 cross-path hit emits the resolution line, tagged 'not_probed'.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_hit_path_emits_resolution_debug_line(): void {
+        $host   = $this->host_entry( [ 'bypass_suffixes' => [], 'detected' => [] ] );
+        $calls  = 0;
+        $writes = [];
+        $this->stub_probe_response_counting(
+            [ 'content-type' => 'text/html' ],
+            self::PROBE_BODY,
+            'https://host.com/plans/pricing/',
+            $calls,
+            $writes,
+            fn( $key ) => $key === $this->host_key() ? $host : false
+        );
+
+        $logged = $this->capture_resolution_log(
+            fn() => PluginDetector::probe_target_stack( 'https://host.com/pricing/' )
+        );
+
+        $this->assertStringContainsString( 'cu_scanner.resolution', $logged,
+            'the hit path must emit the resolution line — its only reader used to run on the miss path alone' );
+        $this->assertStringContainsString( '"resolution_source":"not_probed"', $logged,
+            "step 3's state has to survive into the log verbatim, or the telemetry names a state nobody can find" );
+        $this->assertStringContainsString( '"submitted_url":"https:\/\/host.com\/pricing\/"', $logged,
+            'the line describes the URL actually asked for' );
+        $this->assertStringContainsString( '"cache_hit":true', $logged,
+            'a hit-path line that claims cache_hit:false would send the reader hunting for an HTTP request that never happened' );
+        $this->assertStringContainsString( '"redirect_final":null', $logged,
+            "step 3 nulls the cached redirect_final; logging \$url1's hop on \$url2's line is the misattribution §4.2 removed" );
+        $this->assertSame( 1, substr_count( $logged, 'cu_scanner.resolution' ),
+            'exactly ONE line per call — the hit path returns before the miss-path logger, so a second line means double emission' );
+        $this->assertSame( 0, $calls, 'step 3 stays free — observing it must not cost a request' );
+    }
+
+    /**
+     * AC-13 — the miss path still logs, and still exactly once. The hit-path call is
+     * an ADDITION on a return the miss-path logger can never be reached from; if the
+     * two ever ran for one call, every cache miss would emit a duplicate line and the
+     * log would double-count resolutions.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_miss_path_logs_exactly_once(): void {
+        $calls  = 0;
+        $writes = [];
+        $this->stub_probe_response_counting(
+            [ 'content-type' => 'text/html' ],
+            self::PROBE_BODY,
+            'https://host.com/plans/pricing/',
+            $calls,
+            $writes
+        );
+
+        $logged = $this->capture_resolution_log(
+            fn() => PluginDetector::probe_target_stack( 'https://host.com/pricing/' )
+        );
+
+        $this->assertSame( 1, substr_count( $logged, 'cu_scanner.resolution' ),
+            'one call, one line — the miss path logs, the hit path is not also reached' );
+        $this->assertStringContainsString( '"resolution_source":"redirect_final"', $logged );
+        $this->assertStringContainsString( '"cache_hit":false', $logged );
+    }
+
+    /**
+     * AC-13 — resolution_source has FOUR observable states, not three, and a fifth
+     * label reaches this line from the per-URL store. All of them have to arrive
+     * intact: attach_resolution() mints 'redirect_final' / 'none' / 'cross_domain_reject',
+     * the §4.2 ladder's step 3 adds 'not_probed', and persist_url_resolution()'s
+     * 'probe_failed' surfaces whenever step 1 serves a warm entry written by an errored
+     * probe. See debug_log_resolution()'s docblock for how to read 'none' vs
+     * 'probe_failed' — the two labels one failed probe can carry.
+     *
+     * @dataProvider hit_path_resolution_states
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_hit_path_logs_every_resolution_state(
+        array $host_overrides,
+        ?array $per_url_entry,
+        ?string $final_url,
+        int $status,
+        string $expected_source,
+        int $expected_calls
+    ): void {
+        $host   = $this->host_entry( $host_overrides );
+        $calls  = 0;
+        $writes = [];
+        $this->stub_probe_response_counting(
+            [ 'content-type' => 'text/html' ],
+            200 === $status ? self::PROBE_BODY : '',
+            $final_url,
+            $calls,
+            $writes,
+            function ( $key ) use ( $host, $per_url_entry ) {
+                if ( $key === $this->host_key() ) {
+                    return $host;
+                }
+                return ( null !== $per_url_entry && $key === $this->url_key( 'https://host.com/pricing/' ) )
+                    ? $per_url_entry
+                    : false;
+            },
+            $status
+        );
+
+        $logged = $this->capture_resolution_log(
+            fn() => PluginDetector::probe_target_stack( 'https://host.com/pricing/' )
+        );
+
+        $this->assertSame( 1, substr_count( $logged, 'cu_scanner.resolution' ),
+            'every hit-path branch emits exactly one line — no branch is silent, none logs twice' );
+        $this->assertStringContainsString( '"resolution_source":"' . $expected_source . '"', $logged,
+            "state '$expected_source' must reach the log under its own name" );
+        $this->assertStringContainsString( '"cache_hit":true', $logged );
+        $this->assertSame( $expected_calls, $calls,
+            'logging is free — it must not change how many requests the ladder spends' );
+    }
+
+    public function hit_path_resolution_states(): array {
+        $to_plans = 'https://host.com/plans/pricing/';
+        return [
+            // Step 3 — suffix-less host, nothing probed, nothing persisted.
+            'not_probed — step 3, suffix-less host' =>
+                [ [ 'bypass_suffixes' => [], 'detected' => [] ], null, $to_plans, 200, 'not_probed', 0 ],
+
+            // Step 1 — served from a warm per-URL entry, zero HTTP. 'probe_failed' can
+            // ONLY reach a consumer this way: persist_url_resolution() is its only writer.
+            'redirect_final — step 1, warm entry' =>
+                [ [], [ 'resolved_url' => $to_plans, 'resolution_source' => 'redirect_final' ], $to_plans, 200, 'redirect_final', 0 ],
+            'probe_failed — step 1, warm entry from an errored probe' =>
+                [ [], [ 'resolved_url' => 'https://host.com/pricing/', 'resolution_source' => 'probe_failed' ], $to_plans, 200, 'probe_failed', 0 ],
+
+            // Step 2 — one fresh probe, every outcome it can produce.
+            'redirect_final — step 2, same-site 301'   => [ [], null, $to_plans, 200, 'redirect_final', 1 ],
+            'none — step 2, origin reported no hop'    => [ [], null, null, 200, 'none', 1 ],
+            'cross_domain_reject — step 2, off-site'   => [ [], null, 'https://partner.example/x', 200, 'cross_domain_reject', 1 ],
+            'probe_failed — step 2, the probe errored' => [ [], null, null, 404, 'probe_failed', 1 ],
+
+            // Same-path hit — never enters the ladder, but must still be observable.
+            'none — same-path hit, cached resolution' => [
+                [
+                    'submitted_url'     => 'https://host.com/pricing/',
+                    'resolved_url'      => 'https://host.com/pricing/',
+                    'resolution_source' => 'none',
+                    'redirect_final'    => 'https://host.com/pricing/',
+                ],
+                null, $to_plans, 200, 'none', 0,
+            ],
+        ];
+    }
 }

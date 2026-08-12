@@ -1156,7 +1156,22 @@ class PluginDetector {
     /** @internal test seam */
     public static function __test_attach_resolution( string $url, array $r ): array { return self::attach_resolution( $url, $r ); }
 
-    /** Emit a debug-mode resolution log line (CU_SCANNER_DEBUG-gated). */
+    /**
+     * Emit a debug-mode resolution log line (CU_SCANNER_DEBUG-gated). Fires on BOTH
+     * return paths of probe_target_stack() — the cache miss below and every cache-hit
+     * return — so all five values resolution_source can take are visible in the log.
+     *
+     * Reading the field: attach_resolution() mints 'redirect_final', 'cross_domain_reject'
+     * and 'none'; the §4.2 hit-path ladder adds 'not_probed' (identity, deliberately never
+     * probed); persist_url_resolution() mints 'probe_failed'. Note that ONE failed probe is
+     * labelled by both of the latter two writers: 'probe_failed' on the per-URL entry (so it
+     * takes the short TTL tier), but 'none' on the host entry and therefore on this line
+     * whenever the miss path emits it — a failed request produces no redirect candidate,
+     * which attach_resolution() cannot distinguish from "the origin reported no redirect".
+     * So treat a 'none' as "no redirect seen, possibly because the request failed", and read
+     * 'probe_failed' (which reaches this line via a warm per-URL entry) as the sharper of
+     * the two. Deliberate, and out of scope for the §4 cache split (spec §8).
+     */
     private static function debug_log_resolution( array $r ): void {
         if ( ! cu_scanner_debug_enabled() ) {
             return;
@@ -1322,6 +1337,13 @@ class PluginDetector {
             }
             $cached['submitted_url'] = $url;
             $cached['cache_hit']     = true;
+            // Spec §6 / AC-13 — every branch above funnels through this single return, so
+            // one call here covers steps 1-3 AND the same-path return. Without it the whole
+            // hit path is silent and 'not_probed', which is produced nowhere else, is a
+            // state the log can never show. Emitted after submitted_url/cache_hit are set so
+            // the line describes what is actually returned; the miss path keeps its own call
+            // below and is unreachable from here, so nothing is logged twice.
+            self::debug_log_resolution( $cached );
             return $cached;
         }
 
