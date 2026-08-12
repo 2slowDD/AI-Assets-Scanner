@@ -1187,6 +1187,50 @@ class PluginDetector {
     }
 
     /**
+     * Per-URL resolution transient key (spec §4.1). Distinct from build_cache_key():
+     * that one is host-keyed (detection); this one is URL-keyed (resolution), so a
+     * different path on the same host never inherits another path's resolved_url.
+     * Salted with SIGNATURE_SCHEMA_VERSION so bumping that const auto-invalidates
+     * every cached entry. THE single normalisation site — do not re-implement inline
+     * elsewhere; a one-character divergence would silently break the cache.
+     * Normalised form: "{$scheme}://{$host}:{$port}{$path}?{$query}" — scheme and
+     * host lowercased, port always explicit (defaulted from the scheme when absent),
+     * path and query byte-verbatim, "?" omitted entirely when there is no query,
+     * fragment stripped. '/pricing' and '/pricing/' are deliberately different keys.
+     */
+    private static function build_url_resolution_key( string $url ): string {
+        $parts  = wp_parse_url( $url );
+        $scheme = strtolower( $parts['scheme'] ?? 'https' );
+        $host   = strtolower( $parts['host']   ?? '' );
+        $port   = (string) ( $parts['port']    ?? ( $scheme === 'http' ? '80' : '443' ) );
+        $path   = $parts['path']  ?? '';
+        $query  = $parts['query'] ?? '';
+
+        $normalised = "{$scheme}://{$host}:{$port}{$path}" . ( $query === '' ? '' : "?{$query}" );
+
+        return 'cu_scanner_url_res_v' . self::SIGNATURE_SCHEMA_VERSION . '_' . md5( $normalised );
+    }
+    /** @internal test seam */
+    public static function __test_build_url_resolution_key( string $url ): string {
+        return self::build_url_resolution_key( $url );
+    }
+
+    /**
+     * TTL tier for the per-URL resolution transient (spec §4.1). A confident
+     * resolution (settled redirect, no redirect, or a rejected cross-domain hop)
+     * is stable for longer; anything else (e.g. a failed probe) is revisited sooner.
+     */
+    private static function url_resolution_ttl( string $resolution_source ): int {
+        return in_array( $resolution_source, [ 'redirect_final', 'none', 'cross_domain_reject' ], true )
+            ? 2 * HOUR_IN_SECONDS
+            : 15 * MINUTE_IN_SECONDS;
+    }
+    /** @internal test seam */
+    public static function __test_url_resolution_ttl( string $src ): int {
+        return self::url_resolution_ttl( $src );
+    }
+
+    /**
      * Public wrapper — 2-attempt probe with 24h per-host transient cache.
      * Cache key includes scheme + port to avoid collision (spec §5.3 + d-review M5).
      */
