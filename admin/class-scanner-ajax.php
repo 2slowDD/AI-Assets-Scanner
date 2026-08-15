@@ -1515,8 +1515,17 @@ class ScannerAjax {
         // Read off $pages_raw (the worker rows) rather than $pages_payload: build_pages()
         // reshapes into the display contract and does not carry kept_protection through.
         // Computed here, where $pages_raw is final (stamp_bypass_suffixes above was the
-        // last writer); attached to the response below only when count > 0.
+        // last writer).
         $kept_summary = self::aggregate_kept_protection( $pages_raw );
+
+        // ONE fragment, merged into BOTH payload writers below — the persisted
+        // aias_last_result option and the live return. Deliberately not two copies of a
+        // `count > 0` test: duplicating the condition is exactly how a field ends up on
+        // one writer only, which is the mistake the comment on the option writer records
+        // (FU-AAS-PERSISTED-PAYLOAD-DROPS-HAS_ACTIVE_CU_RULES). Empty array when nothing
+        // was kept, so the field is present on both or absent from both — never on one —
+        // and the client can gate the note on mere presence of the key.
+        $kept_field = $kept_summary['count'] > 0 ? [ 'kept_protection_summary' => $kept_summary ] : [];
 
         // B4 — stamp each page row with ratchet_recovered (int ≥ 0).
         // When the ratchet ran, $merger->recovered_by_pattern is keyed by url_pattern;
@@ -1564,7 +1573,7 @@ class ScannerAjax {
         // scan_id) so a BACKGROUND-completed scan can rebuild the complete result screen
         // on operator return — get_badge_state() returns this verbatim. Field names match
         // the JS restore contract (scanner.js init). autoload=false (per-scan blob). Bug-fix (1.5.4).
-        update_option( 'aias_last_result', [
+        update_option( 'aias_last_result', array_merge( [
             'job_id'        => $job_id,
             'safe_count'    => $safe_count,
             'agg_count'     => $agg_count,
@@ -1585,9 +1594,9 @@ class ScannerAjax {
             // above already carry the cancel-aware credits baked in; RESTORE replays
             // them verbatim (aias_last_result → get_badge_state → JS restore).
             'terminal_source' => $terminal_source,
-        ], false );
+        ], $kept_field ), false );
 
-        $response = array_merge( [
+        return array_merge( [
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
             // Result-truth: how many of the counts above CU already has. NULL means
@@ -1609,15 +1618,7 @@ class ScannerAjax {
             'rate_limit_attribution' => $rate_limit_attribution,
             'total_pages'      => count( $pages_raw ),
             'pages'            => $pages_payload,
-        ], $this->build_partial_response_fields( $completed, $total ) );
-
-        // Omitted entirely when nothing was kept, so the client can gate the note on mere
-        // presence of the field — no zero-count note, and no "0 scripts kept" copy path.
-        if ( $kept_summary['count'] > 0 ) {
-            $response['kept_protection_summary'] = $kept_summary;
-        }
-
-        return $response;
+        ], $this->build_partial_response_fields( $completed, $total ), $kept_field );
     }
 
     /**

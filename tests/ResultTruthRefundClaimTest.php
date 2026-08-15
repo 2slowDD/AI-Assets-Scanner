@@ -41,8 +41,8 @@ class ResultTruthRefundClaimTest extends TestCase {
 	 * One page whose single asset yields one aggressive rule, so by_page has a tally and
 	 * the page is refundable once CU already holds that rule.
 	 */
-	private function page( string $url = 'https://s.com/p' ): array {
-		return [
+	private function page( string $url = 'https://s.com/p', ?array $kept_protection = null ): array {
+		$page = [
 			'url'    => $url,
 			'status' => 'done',
 			'assets' => [ [
@@ -52,6 +52,12 @@ class ResultTruthRefundClaimTest extends TestCase {
 				'mobile'  => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => 'aggressive' ],
 			] ],
 		];
+		// Train 1 field. Omitted entirely when null, which is also the real pre-Train-1
+		// worker shape — so the absent-key fixture below is the genuine legacy payload.
+		if ( null !== $kept_protection ) {
+			$page['kept_protection'] = $kept_protection;
+		}
+		return $page;
 	}
 
 	/**
@@ -65,7 +71,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 	 * produces is billed. So the default here is the only mode in which this class's subject
 	 * exists. The suffix-applied case has its own explicit tests below.
 	 */
-	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = true ): array {
+	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = true, ?array $kept_protection = null ): array {
 		WP_Mock::userFunction( 'wp_parse_url' )
 			->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
 		WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
@@ -78,7 +84,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 			fn( $r ) => is_array( $r ) && isset( $r['__refund'] ) ? (int) $r['__code'] : 200
 		);
 		WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing(
-			function ( $r ) use ( $refund_response ) {
+			function ( $r ) use ( $refund_response, $kept_protection ) {
 				if ( is_array( $r ) && isset( $r['__refund'] ) ) {
 					return json_encode( $refund_response ?? [ 'message' => 'Not Found' ] );
 				}
@@ -86,7 +92,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 					'status'    => 'complete',
 					'total'     => 1,
 					'completed' => 1,
-					'pages'     => [ $this->page() ],
+					'pages'     => [ $this->page( 'https://s.com/p', $kept_protection ) ],
 					'flags'     => [],
 				] );
 			}
@@ -292,6 +298,56 @@ class ResultTruthRefundClaimTest extends TestCase {
 		);
 		$this->assertSame( $out['credits_refunded'], $persisted['credits_refunded'] );
 		$this->assertSame( $out['cu_rules_active'], $persisted['cu_rules_active'] );
+	}
+
+	/**
+	 * A1 (challenge-script keeplist), fix round 1 — kept_protection_summary is writers-1-and-2,
+	 * same as every field above it.
+	 *
+	 * This is the bug class this whole section exists for, caught live: A1 first shipped the
+	 * field on the live return ONLY, so a BACKGROUND-completed scan — rebuilt from
+	 * aias_last_result via get_badge_state() — would have rendered the Step-4 screen with no
+	 * keeplist note at all. Driven through the REAL do_build_result(), so it fails for the
+	 * real mistake rather than for a hand-built double.
+	 */
+	public function test_kept_protection_summary_lands_on_both_payload_writers(): void {
+		$out = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ], true, true, [
+			[ 'id' => 'turnstile', 'display_name' => 'Cloudflare Turnstile', 'handles' => [ 'cf-challenge|script' ] ],
+		] );
+		$persisted = $this->persisted_last_result();
+
+		$expected = [ 'count' => 1, 'vendors' => [ 'Cloudflare Turnstile' ] ];
+		$this->assertArrayHasKey( 'kept_protection_summary', $out, 'writer 1 — the live return' );
+		$this->assertArrayHasKey( 'kept_protection_summary', $persisted, 'writer 2 — the aias_last_result option' );
+		$this->assertSame( $expected, $out['kept_protection_summary'] );
+		$this->assertSame( $expected, $persisted['kept_protection_summary'] );
+		$this->assertSame(
+			$out['kept_protection_summary'],
+			$persisted['kept_protection_summary'],
+			'restore must rebuild byte-identically to what the live screen showed'
+		);
+	}
+
+	/**
+	 * The omit-when-empty half of the same contract: nothing kept => the key is absent from
+	 * BOTH writers, never present-as-zero on one. array_key_exists, not isset/assertArrayNotHasKey
+	 * alone, because the client gates the note on presence of the key.
+	 *
+	 * The fixture omits kept_protection entirely, which is also the genuine pre-Train-1 worker
+	 * payload — so this doubles as the backward-compatibility pin.
+	 */
+	public function test_kept_protection_summary_absent_from_both_writers_when_nothing_kept(): void {
+		$out       = $this->run_build( true, [ 'ok' => true, 'refunded' => 1 ] );
+		$persisted = $this->persisted_last_result();
+
+		$this->assertFalse(
+			array_key_exists( 'kept_protection_summary', $out ),
+			'writer 1 must omit the key entirely when nothing was kept — no "0 scripts kept" path'
+		);
+		$this->assertFalse(
+			array_key_exists( 'kept_protection_summary', $persisted ),
+			'writer 2 must omit it too — present on one writer and absent on the other is the bug class'
+		);
 	}
 
 	/**
