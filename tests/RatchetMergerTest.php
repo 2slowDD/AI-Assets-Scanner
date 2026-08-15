@@ -1621,4 +1621,97 @@ class RatchetMergerTest extends TestCase {
             "an empty kept handle must not sweep the empty-handle rule via the '|' key"
         );
     }
+
+    /**
+     * SCOPE — the sweep is CROSS-PAGE, deliberately (see the index-build comment).
+     *
+     * The kept-index key omits url_pattern, so a handle kept on page A sweeps the stale
+     * unload rule for that handle on page B, which reported no keep of its own. Adding
+     * url_pattern to the key would look like a tightening and would silently resurrect
+     * the rule this task exists to suppress — this test is what stops that.
+     *
+     * The second rule is the control: cross-page does NOT mean blanket. A different
+     * handle on the same page B still restores, so the sweep stays keyed to the handle.
+     */
+    public function test_keeplist_sweep_crosses_pages_but_stays_keyed_to_the_handle(): void {
+        $pat_a = 'https://s.com/a'; // reports the keep
+        $pat_b = 'https://s.com/b'; // carries the stale rule, reports NO keep
+        $r_orig = [
+            $this->rule( 'gform_turnstile_vendor_script', 'desktop', 2, 'js', $pat_b ),
+            $this->rule( 'unrelated_script', 'desktop', 2, 'js', $pat_b ), // control
+        ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_no_assets( $pat_a ),
+                [ 'gform_turnstile_vendor_script|script' ]
+            ),
+            $this->page_no_assets( $pat_b ), // no kept_protection at all
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertFalse(
+            $this->has_rule( $final, 'gform_turnstile_vendor_script', 'desktop', 2 ),
+            'a keep on page A must sweep the stale rule for that handle on page B'
+        );
+        $this->assertTrue(
+            $this->has_rule( $final, 'unrelated_script', 'desktop', 2 ),
+            'cross-page is not blanket — a different handle on page B still restores'
+        );
+        $this->assertSame( 1, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+        $this->assertSame( 1, $diag['outcomes']['absent_restore'] ?? 0, 'the control took absent_restore' );
+        $this->assertSame(
+            1,
+            $merger->recovered_by_pattern[ $pat_b ] ?? 0,
+            'only the control counts as recovered on page B; the swept rule does not'
+        );
+    }
+
+    /**
+     * SCOPE, the surprising direction — a cross-page sweep can suppress a restore that a
+     * page's OWN policy branch would otherwise have made.
+     *
+     * Page B hits its whole-page benign failsafe (it could not be measured reliably) and
+     * would restore the stale rule on that basis alone. The keep reported on page A
+     * overrides it. That is the intended order: a benign failsafe is an admission of
+     * uncertainty, and resurrecting an unload rule for a known protection script on a
+     * page we could not measure is the worst available combination.
+     *
+     * The failsafe_class assertion is what proves the failsafe restore point — not
+     * absent_restore — is the branch being suppressed.
+     */
+    public function test_cross_page_sweep_suppresses_a_page_local_failsafe_benign_restore(): void {
+        $pat_a = 'https://s.com/a';
+        $pat_b = 'https://s.com/b';
+        $r_orig = [ $this->rule( 'gform_turnstile_vendor_script', 'desktop', 2, 'js', $pat_b ) ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_no_assets( $pat_a ),
+                [ 'gform_turnstile_vendor_script|script' ]
+            ),
+            // Page B: benign failsafe, and no keep of its own.
+            $this->page_failsafe( $pat_b, 'control_probe_failed', [] ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertFalse(
+            $this->has_rule( $final, 'gform_turnstile_vendor_script', 'desktop', 2 ),
+            "page B's own benign failsafe must not restore a handle kept on page A"
+        );
+        $this->assertSame( 1, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+        $this->assertSame( 0, $diag['outcomes']['failsafe_benign'] ?? 0, 'the failsafe restore was suppressed' );
+        $this->assertSame( 0, $merger->recovered_by_pattern[ $pat_b ] ?? 0 );
+
+        $legs = $this->diag_legs( $diag, 'gform_turnstile_vendor_script', 'desktop' );
+        $this->assertSame(
+            'benign',
+            $legs[0]['failsafe_class'],
+            'the suppressed branch was the FAILSAFE restore point, not absent_restore'
+        );
+    }
 }

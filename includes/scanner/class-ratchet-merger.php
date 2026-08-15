@@ -285,6 +285,19 @@ class RatchetMerger {
         // types go through map_type() rather than a hand-rolled 'script'⇒'js' copy, so a
         // case added to map_type() can never silently miss this index.
         //
+        // Scope is deliberately CROSS-PAGE — the key omits url_pattern, which every other
+        // key in this class (identity_key, recollapse_key) carries. A handle kept on ONE
+        // page therefore sweeps the stale unload rule for that handle on EVERY page in the
+        // merge, including pages that reported no keep of their own. That is intended: the
+        // worker's "this is a protection script" verdict is a property of the HANDLE, not
+        // of the page, and the sweep can only ever reach rules THIS rescan did not
+        // re-derive — the in_r_et continue at Step 6 runs first — so every rule it touches
+        // is an unconfirmed floor restore, where F-DEG outranks F-MISS. The surprising
+        // direction that permits: a keep on page A can suppress a restore page B would
+        // have made from its OWN failsafe_benign / absent_restore / benign_restore branch.
+        // Adding url_pattern here would read as a tightening and would silently resurrect
+        // exactly what §5.6 exists to prevent. Pinned by the two cross-page tests.
+        //
         // D5: kept_protection arrives from the Railway worker — untrusted third-party
         // input under WP Compliance Rule 1 — so every level is is_array/is_string guarded
         // and no shape of junk can fatal or manufacture a false sweep.
