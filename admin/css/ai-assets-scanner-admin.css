@@ -932,3 +932,14 @@
 .cu-cdn-card h4 + p { margin-top: 0; }
 .cu-cdn-expression-wrap { margin: 8px 0; }
 .cu-cdn-skip-list { margin-top: 6px; }
+
+/* 1.7.94b — Step-4 challenge-script keeplist note (sits directly below #cu-result-summary).
+   Soft blue INFO box, deliberately not a WP .notice-success: nothing succeeded or failed
+   here, it is an explanation. Text colour is left at the body default on purpose — the
+   tint and border carry the grouping, so the sentence reads at full contrast. */
+.cu-kept-protection {
+    background: #f0f6fc;
+    border: 1px solid #c3d4e5;
+    border-radius: 4px;
+    padding: 11px 15px;
+}

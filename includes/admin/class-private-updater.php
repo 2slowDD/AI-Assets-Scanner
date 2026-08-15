@@ -14,7 +14,7 @@ class PrivateUpdater {
     // release ships (build-release.py never rewrote it) and silently goes stale.
     private const MANIFEST_CACHE_KEY = 'cu_scanner_updater_manifest_v1';
     private const REQUIRES_WP    = '6.2';
-    private const TESTED_WP      = '7.0';
+    private const TESTED_WP      = '7.0.4';
     private const REQUIRES_PHP   = '8.0';
 
     private static ?array $manifest_for_testing = null;

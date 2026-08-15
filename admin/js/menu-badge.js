@@ -145,7 +145,10 @@
                         // whole aias_last_result machinery exists for.
                         already_present:  ( 'already_present' in res.data ) ? res.data.already_present : null,
                         credits_refunded: res.data.credits_refunded,
-                        cu_rules_active:  res.data.cu_rules_active
+                        cu_rules_active:  res.data.cu_rules_active,
+                        // Same reason, same UNRENAMED name as scanner.js's writer and the
+                        // aias_last_result option. Absent (not zero) when nothing was kept.
+                        kept_protection_summary: res.data.kept_protection_summary
                     }));
                 } catch (_storageErr) {
                     // localStorage quota or disabled — non-fatal; the badge

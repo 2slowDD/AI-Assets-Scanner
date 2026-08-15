@@ -182,6 +182,14 @@ function createHarness(opts = {}) {
    'cu-url-prev', 'cu-paused-banner', 'cu-paused-countdown', 'cu-paused-stopkeep',
    'step-1'].forEach(ensure);
 
+  // #cu-result-summary sits inside a container in admin/views/scanner-page.php, so code that
+  // inserts a SIBLING next to it (restoreStep4's kept-protection note) needs a real parentNode.
+  // Give it one here. Deliberately NOT attached to `body` — body.children stays reserved for
+  // the appended dialogs/toasts other tests assert on. Built before runInContext below so the
+  // load-time localStorage-restore path can reach it.
+  const summaryHost = makeEl('', 'div');
+  summaryHost.appendChild(els['cu-result-summary']);
+
   const timers = [];
   // document.body is real (an element) so code paths that append dialogs/toasts to it
   // can be asserted on; document-level querySelector stays a no-op, unchanged.
@@ -226,7 +234,7 @@ function createHarness(opts = {}) {
   const code = fs.readFileSync(path.join(__dirname, '../../admin/js/scanner.js'), 'utf8');
   vm.createContext(sandbox);
   vm.runInContext(code, sandbox);
-  return { sandbox, els, timers, body };
+  return { sandbox, els, timers, body, summaryHost };
 }
 
 function makeStorage(seed) {

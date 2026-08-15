@@ -1890,7 +1890,8 @@
                     hasActiveCuRules: d.has_active_cu_rules,
                     alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
                     creditsRefunded: d.credits_refunded,
-                    cuRulesActive: d.cu_rules_active
+                    cuRulesActive: d.cu_rules_active,
+                    keptProtectionSummary: d.kept_protection_summary
                 });
                 localStorage.setItem( 'cu_scanner_result', JSON.stringify({
                     job_id:        scanJobId,
@@ -1910,6 +1911,11 @@
                     // Persisted alongside the other result-truth fields: without this the
                     // restored Step 4 would silently fall back to the "please rescan" copy.
                     cu_rules_active:  d.cu_rules_active,
+                    // Same UNRENAMED name as the PHP payload, the aias_last_result option and
+                    // menu-badge.js's writer. Absent (not zero) when nothing was kept. Without
+                    // this the kept-protection note shows after a live scan and vanishes on the
+                    // next page load.
+                    kept_protection_summary: d.kept_protection_summary,
                     // banner data not persisted \u2014 shown once per live build_result call only.
                 }) );
                 // Task 5 \u2014 charged terminal-incomplete partial: after Step 4 renders,
@@ -2345,10 +2351,45 @@
         // pre-release storage), so a missing flag degrades to today's copy — never to a
         // "no new unloads" claim we cannot support.
         var cuRulesActive    = !! o.cuRulesActive;
+        // Absent (or count 0) on every path that kept nothing — the PHP omits the field
+        // entirely rather than sending a zero, so presence AND count are both gated below.
+        var keptProtection   = o.keptProtectionSummary;
 
         const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
         document.getElementById('cu-result-summary').textContent =
             buildSummaryLine({ urls: urls, safeCount: safeCount, aggCount: aggCount, alreadyPresent: alreadyPresent });
+
+        // Challenge-script keeplist (Train 2, A2) — the note sits directly BELOW the summary
+        // line and above the refund line. textContent only: vendor display names come from the
+        // Railway worker (a remote service), so this must never become an HTML sink.
+        if (keptProtection && keptProtection.count > 0) {
+            var vendors = (keptProtection.vendors || []).join(', ');
+            var kpEl = document.getElementById('cu-kept-protection-note');
+            if (!kpEl) {
+                var summaryEl = document.getElementById('cu-result-summary');
+                // Guarded like every other insertBefore in this file (:1206, :1646, :2025,
+                // :3244) — an unguarded deref would throw inside the localStorage-restore
+                // try/catch, whose handler DELETES the stored result.
+                if (summaryEl && summaryEl.parentNode) {
+                    kpEl = document.createElement('p');
+                    kpEl.id = 'cu-kept-protection-note';
+                    kpEl.className = 'cu-kept-protection';
+                    summaryEl.parentNode.insertBefore(kpEl, summaryEl.nextSibling);
+                }
+            }
+            if (kpEl) {
+                kpEl.textContent = '🛡 ' + keptProtection.count + ' protection script' + (keptProtection.count === 1 ? '' : 's')
+                    + ' kept' + (vendors ? ' (' + vendors + ')' : '')
+                    + ' — anti-bot/anti-spam scripts detected on pages with forms are never unloaded.';
+            }
+        } else {
+            // restoreStep4 runs more than once per page life (live build_result after a
+            // localStorage restore). A second result that kept nothing must not leave the
+            // first one's claim on screen. REMOVED, not emptied — the class carries a border
+            // and background, so an emptied node would render as an empty blue box.
+            var staleKpEl = document.getElementById('cu-kept-protection-note');
+            if (staleKpEl) { staleKpEl.remove(); }
+        }
 
         // Refund line lives with the SUMMARY, not in #cu-push-result — the externalOnly
         // branch below overwrites that element wholesale (AC-15).
@@ -3107,7 +3148,8 @@
                 hasActiveCuRules: d.has_active_cu_rules,
                 alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
                 creditsRefunded: d.credits_refunded,
-                cuRulesActive: d.cu_rules_active
+                cuRulesActive: d.cu_rules_active,
+                keptProtectionSummary: d.kept_protection_summary
             });
         } catch (_e) {
             localStorage.removeItem('cu_scanner_result');

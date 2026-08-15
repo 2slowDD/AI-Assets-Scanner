@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.94b — 2026-08-15
+
+### Added
+- Scan results now explain when a protection script was deliberately kept. Anti-bot and anti-spam scripts found on pages with forms are never unloaded, because unloading them can break the form or let spam through. Previously they simply did not appear in the results and there was no way to tell a deliberately-kept script from one the scan had missed. A note below the results summary now says how many were kept and which service they belong to.
+- The note survives a page reload, and appears the same way whether the scan finished while you were watching it or in the background on another admin page.
+
+### Changed
+- Tested up to WordPress 7.0.4.
+
 ## 1.7.93b — 2026-08-12
 
 ### Fixed
