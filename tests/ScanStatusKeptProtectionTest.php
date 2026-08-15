@@ -17,9 +17,15 @@ final class ScanStatusKeptProtectionTest extends TestCase {
         return array_merge( [ 'url' => 'https://example.test/', 'status' => 'done', 'assets' => [], 'broken_devices' => [] ], $o );
     }
 
+    /**
+     * Sets kept_protection to EXACTLY $kept — null included. The key-absent case is
+     * deliberately NOT expressible through this helper: setting the key to null and omitting
+     * it both yield [], so a helper-mediated "absent" test could not tell the two apart and
+     * would pass for the wrong reason if the helper itself regressed. The tests that cover
+     * key-absent call build_pages() directly, on purpose.
+     */
     private function rows( $kept ): array {
-        $extra = ( func_num_args() > 0 && null !== $kept ) ? [ 'kept_protection' => $kept ] : [];
-        return AIAS_Scan_Status::build_pages( [ $this->page( $extra ) ], [] );
+        return AIAS_Scan_Status::build_pages( [ $this->page( [ 'kept_protection' => $kept ] ) ], [] );
     }
 
     /** The key must exist on EVERY row — its absence is the whole defect this pins. */

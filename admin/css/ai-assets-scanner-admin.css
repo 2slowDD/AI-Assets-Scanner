@@ -878,7 +878,9 @@
 .cu-url-table tr.cu-row-error   { background: #fbe9e9; color: #7a1f1f; box-shadow: inset 3px 0 0 #c0392b; }
 .cu-url-table tr.cu-row-skipped { background: #eef1f4; color: #3a4350; box-shadow: inset 3px 0 0 #8a96a3; }
 .cu-url-pager { margin-top: 10px; display: flex; gap: 12px; align-items: center; }
-/* FU-ABSENT-SAFE B3 — normalized 11px → 13px to match the .cu-url-table row base (13px, :801). */
+/* FU-ABSENT-SAFE B3 — normalized 11px → 13px to match the .cu-url-table row base
+   (13px, set on `.cu-url-table th, .cu-url-table td`). Cited by selector, not line number:
+   the line number this comment used to carry had rotted to an unrelated rule. */
 .cu-resolved-note { font-size: 13px; color: #787c82; font-style: italic; }
 /* FU-ABSENT-SAFE B2 — Step-4 "optimizer detected" note (see cu-bypass-note in scanner.js). */
 .cu-bypass-note { font-size: 13px; color: #2271b1; font-style: italic; }
@@ -898,7 +900,8 @@
 .cu-noopt-note { display: block; white-space: normal; width: 165px; font-style: italic; }
 .cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; }
 /* FU-RATCHET-RECOVERED — the "↩ +N" ratchet badge (scanner.js) reads as a secondary
-   annotation, not another S:/A:/N: count: muted grey + one step below the 13px row base (:801). */
+   annotation, not another S:/A:/N: count: muted grey + one step below the 13px row base
+   (set on `.cu-url-table th, .cu-url-table td`). */
 .cu-ratchet { font-size: 12px; color: #787c82; }
 /* 1.7.60b — keep the URL column readable when the ET note is present (it wraps via its own <br>) */
 .cu-url-table th:nth-child(2), .cu-url-table td:nth-child(2) { min-width: 220px; }

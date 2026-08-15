@@ -196,6 +196,8 @@ class AIAS_Scan_Status {
 				// Entries pass through whole (shape preserved for any later per-row detail);
 				// the client reads this ONLY for its non-empty length and interpolates no
 				// string out of it, so nothing here reaches markup unescaped.
+				// `?? null`, NOT `?? []` — load-bearing: `[]` IS an array, so an absent key would take
+				// the TRUE branch and dereference $page['kept_protection'] unguarded. Same at both above.
 				'kept_protection' => is_array( $page['kept_protection'] ?? null )
 					? array_values( array_filter( $page['kept_protection'], 'is_array' ) )
 					: [],
