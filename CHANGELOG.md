@@ -16,6 +16,8 @@ All notable changes to AI Assets Scanner are documented here.
 - The scan summary line now bolds its rule counts when they are above zero, matching the S: and A: counts in the results table below it — a scan that found something reads apart from one that did not, at a glance. The sentence itself is unchanged: a zero count stays plain, and the number of URLs scanned is never bolded.
 - Tested up to WordPress 7.0.4.
 
+---
+
 ## 1.7.93b — 2026-08-12
 
 ### Fixed

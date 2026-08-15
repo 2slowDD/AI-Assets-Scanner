@@ -193,16 +193,55 @@ class AIAS_Scan_Status {
 				// $pages_raw directly, so WITHOUT this key the per-row chip would render never,
 				// silently, behind a green suite. Defensive-validated per the bypass_suffixes
 				// convention — $page is otherwise built from untrusted Railway response data.
-				// Entries pass through whole (shape preserved for any later per-row detail);
-				// the client reads this ONLY for its non-empty length and interpolates no
+				// The client reads this ONLY for its non-empty length and interpolates no
 				// string out of it, so nothing here reaches markup unescaped.
+				//
+				// A4 F-1 — filtered to entries that CONTRIBUTE A HANDLE, not merely to entries
+				// that ARE arrays. The note gate is the handle count, so an entry carrying only
+				// a display_name used to render a chip with no note anywhere to explain it.
+				// Deciding it HERE, once at the producer, is what keeps the chip's own gate a
+				// plain `length > 0` rather than a second copy of the note's predicate in JS —
+				// two predicates that must agree is the defect class this fix closes.
 				// `?? null`, NOT `?? []` — load-bearing: `[]` IS an array, so an absent key would take
 				// the TRUE branch and dereference $page['kept_protection'] unguarded. Same at both above.
 				'kept_protection' => is_array( $page['kept_protection'] ?? null )
-					? array_values( array_filter( $page['kept_protection'], 'is_array' ) )
+					? array_values( array_filter( $page['kept_protection'], [ self::class, 'entry_contributes_handle' ] ) )
 					: [],
 			];
 		}
 		return $rows;
+	}
+
+	/**
+	 * A4 F-1 — does this kept_protection entry contribute at least one handle to the
+	 * scan-level count?
+	 *
+	 * MUST stay in step with ScannerAjax::aggregate_kept_protection(), whose `count` is the
+	 * number of distinct NON-EMPTY STRING handles: a display_name alone adds a VENDOR but
+	 * never a COUNT. So an entry with a name and no usable handle must NOT produce a per-row
+	 * chip — the note is the only place the explanatory legend appears, and a chip without it
+	 * is a shield badge whose meaning is nowhere on the page.
+	 *
+	 * The two predicates live in different classes (dependency direction forbids this class
+	 * calling into ScannerAjax), so they are NOT coupled by construction — they are coupled
+	 * EXECUTABLY, by the invariant test in tests/ScanStatusKeptProtectionTest.php that runs
+	 * BOTH real functions over the audit's payload shapes and asserts chip ⟺ note. If either
+	 * predicate drifts, that test reds.
+	 *
+	 * D5: entries come from the untrusted Railway response, so every level is type-guarded.
+	 *
+	 * @param mixed $entry One element of the worker's kept_protection[].
+	 */
+	private static function entry_contributes_handle( $entry ): bool {
+		if ( ! is_array( $entry ) || ! is_array( $entry['handles'] ?? null ) ) {
+			return false;
+		}
+		foreach ( $entry['handles'] as $h ) {
+			// Mirrors aggregate_kept_protection()'s per-handle test exactly.
+			if ( is_string( $h ) && '' !== $h ) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

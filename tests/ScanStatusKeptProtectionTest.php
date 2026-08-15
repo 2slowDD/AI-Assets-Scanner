@@ -151,4 +151,79 @@ final class ScanStatusKeptProtectionTest extends TestCase {
         $this->assertSame( [], $rows[1]['kept_protection'] );
         $this->assertSame( [], $rows[2]['kept_protection'] );
     }
+
+    // -----------------------------------------------------------------------------------
+    // A4 F-1 — THE INVARIANT: a row shows a chip only if it contributed at least one handle
+    // to the scan-level count. Chip ⊆ note, always.
+    //
+    // These run BOTH real production predicates — ScannerAjax::aggregate_kept_protection()
+    // (the note gate, rendered on count > 0) and AIAS_Scan_Status::build_pages() (which feeds
+    // the chip gate) — over the seven payload shapes the A4 audit enumerated, four of which
+    // used to produce a shield badge with no note anywhere to explain it.
+    //
+    // This is the ONLY thing coupling the two predicates: they live in different classes and
+    // cannot call each other (dependency direction — ScannerAjax depends on AIAS_Scan_Status,
+    // never the reverse), so the coupling is executable rather than structural. If EITHER
+    // predicate drifts, these red.
+    // -----------------------------------------------------------------------------------
+
+    /**
+     * @dataProvider auditPayloadShapeProvider
+     * @param mixed $kept_protection The worker's per-page kept_protection value.
+     * @param bool  $expect_note     Whether the scan-level note renders (count > 0).
+     */
+    public function test_chip_and_note_agree_on_every_audited_payload_shape( $kept_protection, bool $expect_note ): void {
+        $page = $this->page( [ 'kept_protection' => $kept_protection ] );
+
+        $summary = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( [ $page ] );
+        $note    = $summary['count'] > 0;
+
+        $rows = AIAS_Scan_Status::build_pages( [ $page ], [] );
+        $chip = [] !== $rows[0]['kept_protection'];
+
+        $this->assertSame( $expect_note, $note,
+            'the NOTE gate moved — it counts distinct non-empty handles and must not change' );
+        $this->assertSame( $note, $chip,
+            'INVARIANT: a chip may render only where the note renders too (chip is a subset of note)' );
+    }
+
+    public function auditPayloadShapeProvider(): array {
+        $handle = [ 'display_name' => 'Turnstile', 'handles' => [ 'cf-challenge|script' ] ];
+        return [
+            // The four shapes the audit found DIVERGENT (chip rendered, note did not).
+            'display_name only, no handles'       => [ [ [ 'display_name' => 'Cloudflare Turnstile' ] ], false ],
+            'handles = [] (empty list)'           => [ [ [ 'display_name' => 'Turnstile', 'handles' => [] ] ], false ],
+            'handles = [""] (empty string)'       => [ [ [ 'display_name' => 'Turnstile', 'handles' => [ '' ] ] ], false ],
+            'entry = [] (empty array)'            => [ [ [] ], false ],
+            // The three that already agreed — they must stay agreeing.
+            'handles present + display_name'      => [ [ $handle ], true ],
+            'kept_protection = [] (nothing kept)' => [ [], false ],
+            'handles only, no display_name'       => [ [ [ 'handles' => [ 'cf-challenge|script' ] ] ], true ],
+        ];
+    }
+
+    /**
+     * The invariant is per-ROW; the note is per-SCAN. A scan where one page contributed a
+     * handle and another carried only a name must render the note AND exactly one chip — on
+     * the contributing row. A single-page fixture cannot see this direction: it is what
+     * separates "chip ⊆ note" from "any chip anywhere once the note renders".
+     */
+    public function test_chip_lands_only_on_the_contributing_row_when_the_note_renders(): void {
+        $pages = [
+            $this->page( [ 'url' => 'https://example.test/1',
+                'kept_protection' => [ [ 'display_name' => 'Turnstile', 'handles' => [ 'cf-challenge|script' ] ] ] ] ),
+            $this->page( [ 'url' => 'https://example.test/2',
+                'kept_protection' => [ [ 'display_name' => 'Cloudflare Turnstile' ] ] ] ),
+        ];
+        $summary = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+        $rows    = AIAS_Scan_Status::build_pages( $pages, [] );
+
+        $this->assertSame( 1, $summary['count'], 'the note counts the one usable handle' );
+        $this->assertNotSame( [], $rows[0]['kept_protection'], 'the contributing row keeps its chip' );
+        $this->assertSame( [], $rows[1]['kept_protection'], 'the name-only row must NOT show a chip' );
+        // What the row gives up is still surfaced at scan level: the vendor is named in the
+        // note even though no chip attributes it to a page. That is the trade this fix makes.
+        $this->assertContains( 'Cloudflare Turnstile', $summary['vendors'],
+            'the name-only vendor is still listed by the note, just not attributed to a row' );
+    }
 }
