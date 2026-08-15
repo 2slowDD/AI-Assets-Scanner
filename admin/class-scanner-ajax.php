@@ -1510,6 +1510,14 @@ class ScannerAjax {
         // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.
         $pages_payload = \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [], $is_partial, $terminal_source );
 
+        // Challenge-script keeplist (Train 2, A1) — fold the worker's per-page
+        // kept_protection[] into one { count, vendors } summary for the Step-4 note.
+        // Read off $pages_raw (the worker rows) rather than $pages_payload: build_pages()
+        // reshapes into the display contract and does not carry kept_protection through.
+        // Computed here, where $pages_raw is final (stamp_bypass_suffixes above was the
+        // last writer); attached to the response below only when count > 0.
+        $kept_summary = self::aggregate_kept_protection( $pages_raw );
+
         // B4 — stamp each page row with ratchet_recovered (int ≥ 0).
         // When the ratchet ran, $merger->recovered_by_pattern is keyed by url_pattern;
         // derive the same pattern for each page and look up the count.
@@ -1579,7 +1587,7 @@ class ScannerAjax {
             'terminal_source' => $terminal_source,
         ], false );
 
-        return array_merge( [
+        $response = array_merge( [
             'safe_count'       => $safe_count,
             'aggressive_count' => $agg_count,
             // Result-truth: how many of the counts above CU already has. NULL means
@@ -1602,6 +1610,14 @@ class ScannerAjax {
             'total_pages'      => count( $pages_raw ),
             'pages'            => $pages_payload,
         ], $this->build_partial_response_fields( $completed, $total ) );
+
+        // Omitted entirely when nothing was kept, so the client can gate the note on mere
+        // presence of the field — no zero-count note, and no "0 scripts kept" copy path.
+        if ( $kept_summary['count'] > 0 ) {
+            $response['kept_protection_summary'] = $kept_summary;
+        }
+
+        return $response;
     }
 
     /**
@@ -2270,6 +2286,65 @@ class ScannerAjax {
             }
         }
         return $pages_raw;
+    }
+
+    /**
+     * Challenge-script keeplist (Train 2, A1) — aggregate the worker's per-page
+     * kept_protection[] into the one summary the Step-4 note renders.
+     *
+     * COUNT SEMANTICS — DISTINCT HANDLES (operator-confirmed 2026-08-14 from a live
+     * mockup built on scan 305305e6b2c0). `count` is the number of distinct wire-handle
+     * strings across ALL pages, deduped on the FULL '<handle>|<type>' composite: the
+     * composite IS the identity here. One script kept on N pages is ONE script, not N.
+     * Do NOT explode( '|', … ) in this function — the split into handle vs rule-type is
+     * a separate concern that belongs to the rule-type normalization, not to counting.
+     *
+     * `vendors` is the distinct, non-empty display_name list, in first-seen order. A
+     * valid display_name still lists even when its entry contributed no handles, so the
+     * note can name a vendor it could not attribute a handle to.
+     *
+     * D5 guarding: kept_protection arrives from the Railway worker — a remote service,
+     * i.e. untrusted input under WP Compliance Rule 1 — so every level is is_array /
+     * is_string guarded and no shape of junk can fatal or inflate the count. Pure
+     * function, no WP calls, so it is unit-testable in isolation.
+     *
+     * Nothing is escaped here: this produces data, not output. The strings are escaped
+     * downstream at render time JS-side (cuEscHtml), so escaping here would
+     * double-escape — WP Compliance Rules 2 and 3.
+     *
+     * @param array<int,mixed> $pages_raw Railway per-page result rows.
+     * @return array{count:int,vendors:array<int,string>}
+     */
+    public static function aggregate_kept_protection( array $pages_raw ): array {
+        $handles = [];  // Composite-string set, used purely as a dedupe index.
+        $vendors = [];
+        foreach ( $pages_raw as $page ) {
+            $kp = is_array( $page ) ? ( $page['kept_protection'] ?? null ) : null;
+            if ( ! is_array( $kp ) ) {
+                continue;
+            }
+            foreach ( $kp as $entry ) {
+                if ( ! is_array( $entry ) ) {
+                    continue;
+                }
+                $hs = $entry['handles'] ?? null;
+                if ( is_array( $hs ) ) {
+                    foreach ( $hs as $h ) {
+                        // Dedupe on the FULL '<handle>|<type>' composite — it IS the identity.
+                        if ( ! is_string( $h ) || '' === $h ) {
+                            continue;
+                        }
+                        $handles[ (string) $h ] = true;
+                    }
+                }
+                // A valid display_name still lists even when this entry contributed no handles.
+                $name = $entry['display_name'] ?? null;
+                if ( is_string( $name ) && '' !== $name && ! in_array( $name, $vendors, true ) ) {
+                    $vendors[] = $name;
+                }
+            }
+        }
+        return [ 'count' => count( $handles ), 'vendors' => $vendors ];
     }
 
     /**

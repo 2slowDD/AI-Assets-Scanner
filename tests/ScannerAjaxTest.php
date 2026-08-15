@@ -1124,4 +1124,85 @@ class ScannerAjaxTest extends TestCase {
             'when both completed and total default to count(pages_raw) the result must be complete'
         );
     }
+
+    /**
+     * A1-1 — kept_protection aggregation, DISTINCT-HANDLE count semantics.
+     *
+     * Train 1 (worker) now sends kept_protection[] on each page object. The count is the
+     * number of distinct wire-handle strings, deduped on the FULL '<handle>|<type>'
+     * composite — the composite IS the identity. One script kept on N pages is ONE script,
+     * not N (operator-confirmed 2026-08-14; supersedes the plan's original per-entry tally).
+     */
+    public function test_aggregate_kept_protection_counts_and_dedupes(): void {
+        $pages = [
+            [ 'url' => 'https://example.com/a/', 'kept_protection' => [
+                [ 'id' => 'turnstile', 'display_name' => 'Cloudflare Turnstile', 'handles' => [ 'h|script' ] ] ] ],
+            [ 'url' => 'https://example.com/b/', 'kept_protection' => [
+                [ 'id' => 'turnstile', 'display_name' => 'Cloudflare Turnstile', 'handles' => [ 'h|script' ] ] ] ],
+        ];
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+        // DISTINCT-HANDLE semantics: the SAME composite handle 'h|script' on two pages is
+        // ONE script kept, not two — one script kept on two pages is one script.
+        $this->assertSame( 1, $out['count'] );
+        $this->assertSame( [ 'Cloudflare Turnstile' ], $out['vendors'] );
+    }
+
+    /**
+     * A1-2 — one vendor entry carrying MULTIPLE handles, one of them repeating on a
+     * second page. Pins that the unit of the count is the handle, not the page entry
+     * and not the raw handle occurrence.
+     */
+    public function test_aggregate_kept_protection_counts_distinct_handles_per_entry(): void {
+        // Real Gravity Forms shape observed on scan 305305e6b2c0: ONE vendor entry carrying
+        // TWO handles, with one of them repeating on a second page.
+        $pages = [
+            [ 'url' => 'https://example.com/contact/', 'kept_protection' => [
+                [ 'id' => 'gravityforms', 'display_name' => 'Gravity Forms',
+                  'handles' => [ 'gform_json|script', 'gform_gravityforms|script' ] ] ] ],
+            [ 'url' => 'https://example.com/quote/', 'kept_protection' => [
+                [ 'id' => 'gravityforms', 'display_name' => 'Gravity Forms',
+                  'handles' => [ 'gform_json|script' ] ] ] ],
+        ];
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+        $this->assertSame( 2, $out['count'] ); // 2 distinct composites, NOT 3 handle occurrences / 2 page entries
+        $this->assertSame( [ 'Gravity Forms' ], $out['vendors'] );
+    }
+
+    /**
+     * A1-3 — D5 guarding. kept_protection arrives from the Railway worker, a remote
+     * service (WP Compliance Rule 1: third-party API responses are untrusted), so every
+     * level is is_array-guarded and junk must never fatal nor inflate the count.
+     */
+    public function test_aggregate_kept_protection_malformed_is_d5_safe(): void {
+        $pages = [
+            [ 'url' => 'https://example.com/', 'kept_protection' => 'junk' ],
+            [ 'url' => 'https://example.com/x/', 'kept_protection' => [ [ 'display_name' => 123 ] ] ],
+            [ 'url' => 'https://example.com/y/' ], // absent
+        ];
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+        $this->assertSame( 0, $out['count'] );   // NO handles anywhere ⇒ malformed entries never raise the count
+        $this->assertSame( [], $out['vendors'] ); // and contribute no vendor string
+    }
+
+    /**
+     * A1-4 — the FULL composite is the dedupe key: the SAME handle name under two
+     * different rule types is TWO scripts, not one.
+     *
+     * Added beyond the brief's three fixtures because none of them discriminate against
+     * an explode( '|', … ) implementation — on those fixtures a split-on-pipe version
+     * returns the same numbers, so the brief's emphatic "do NOT split on '|'" was
+     * unpinned (P17: a guard no test can turn red is decorative). This is the one shape
+     * that separates the two. Splitting is task A3's concern, never the counter's.
+     */
+    public function test_aggregate_kept_protection_composite_not_handle_name_is_the_key(): void {
+        $pages = [
+            [ 'url' => 'https://example.com/a/', 'kept_protection' => [
+                [ 'id' => 'vendor', 'display_name' => 'Vendor',
+                  'handles' => [ 'h|script', 'h|style' ] ] ] ],
+        ];
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+        // explode( '|', … )[0] would collapse both to 'h' and report 1.
+        $this->assertSame( 2, $out['count'] );
+        $this->assertSame( [ 'Vendor' ], $out['vendors'] );
+    }
 }
