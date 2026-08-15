@@ -1571,6 +1571,17 @@ class RatchetMergerTest extends TestCase {
      * The empty-string handle is the sharp one: unskipped it indexes the key '|',
      * which sweeps any rule whose handle AND type are both empty — constructible,
      * because CuJsonBuilder passes asset_handle through unfiltered.
+     *
+     * The two malformed-STRING handles are the only entries that survive the
+     * is_string/'' filter and actually reach the parse, so they are what pins it:
+     *   'bare_no_pipe'  — no '|' at all. explode() returns ONE element, so without
+     *                     array_pad(…, 2, '') the destructure leaves $t === null and
+     *                     map_type( string $type ) throws a TypeError — a fatal inside
+     *                     merge(), i.e. inside do_build_result(), losing the rescan.
+     *   'h_js|js|extra' — three segments. Without explode()'s limit of 2 this parses
+     *                     as h_js + js, matching the real 'h_js|js' rule below and
+     *                     silently sweeping a rule that should have been restored.
+     * Both must leave every rule restored and the sweep count at zero.
      */
     public function test_keeplist_sweep_is_d5_safe_against_junk_worker_input(): void {
         $pat    = 'https://s.com/p';
@@ -1589,7 +1600,9 @@ class RatchetMergerTest extends TestCase {
                     'not-an-array',                                 // entry not an array
                     [ 'display_name' => 'X' ],                      // no handles key at all
                     [ 'display_name' => 'Y', 'handles' => 'str' ],  // handles not an array
-                    [ 'display_name' => 'Z', 'handles' => [ 123, null, [ 'a' ], '' ] ],
+                    // The last two are malformed STRINGS — the only shapes here that
+                    // survive the is_string/'' filter and reach the explode/array_pad parse.
+                    [ 'display_name' => 'Z', 'handles' => [ 123, null, [ 'a' ], '', 'bare_no_pipe', 'h_js|js|extra' ] ],
                 ],
             ],
         ];
