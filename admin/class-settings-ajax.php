@@ -35,12 +35,11 @@ class SettingsAjax {
         // this option has nothing to do with API-key validity.
         $settings->set_omit_cu_bypass( isset( $_POST['omit_cu_bypass'] ) );
 
-        $keep    = ! empty( $_POST['keep_api_key'] );
+        $keep = ! empty( $_POST['keep_api_key'] );
         if ( $keep ) {
             $api_key = $settings->get_api_key();
         } else {
             $api_key = sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) );
-            $settings->set_api_key( $api_key );
         }
 
         if ( '' === $api_key ) {
@@ -55,12 +54,51 @@ class SettingsAjax {
             $settings->clear_http_auth();
         }
 
-        // Validate API key and cache Railway URL
+        // Authenticate FIRST, commit the key only after. A submitted key never
+        // reaches cu_scanner_api_key until /auth has accepted it, so none of the
+        // three ways a bad value arrives can destroy the stored one: the mask
+        // this page renders back into the field, an empty submission, or a typo.
+        // This handler deliberately knows NOTHING about the mask format (that
+        // lives in admin/views/settings-page.php) — all three simply fail to
+        // authenticate, which is the whole point of ordering it this way.
+        //
+        // The asymmetry with the writes above is deliberate, not an oversight:
+        // omit_cu_bypass and the HTTP-auth credentials are not validated by
+        // authenticate(), so gating them on it would let an unrelated call
+        // decide whether they save. The API key is the one write whose validity
+        // that call actually decides, so it is the one write that waits.
+        //
+        // HttpException::get_status_code() is deliberately NOT consulted here.
+        // It can distinguish a transport failure (0) from an HTTP rejection, so
+        // a "commit anyway, we merely could not reach wpservice.pro" carve-out
+        // is available — and is refused. It would re-open the overwrite path
+        // under exactly the condition where the user gets no feedback. The
+        // accepted residual is that a good key cannot be saved while
+        // wpservice.pro is unreachable: recoverable by retry, unlike key loss.
         try {
             $client = new WpserviceClient( CU_SCANNER_WPSERVICE_URL, $api_key );
             $auth   = $client->authenticate();
-            $settings->set_railway_url( $auth['railway_url'] );
-            wp_send_json_success( [ 'credits' => $auth['balance'], 'railway_url' => $auth['railway_url'] ] );
+            if ( ! $keep ) {
+                $settings->set_api_key( $api_key );
+            }
+            // Guarded like fetch_balance() below. An auth response without
+            // railway_url would pass null into set_railway_url( string ), and
+            // the resulting TypeError is NOT a RuntimeException — it escapes
+            // this catch as an uncaught fatal, and admin/js/settings.js has no
+            // .catch() for the 500, so the form silently does nothing. The key
+            // HAS authenticated by this point, so an absent railway_url is a
+            // success that simply leaves the cached URL untouched.
+            $railway_url = ! empty( $auth['railway_url'] ) ? (string) $auth['railway_url'] : '';
+            if ( '' !== $railway_url ) {
+                $settings->set_railway_url( $railway_url );
+            }
+            // balance is guarded for the same reason and in the same style as
+            // fetch_balance() below: an auth response without it would emit an
+            // "undefined array key" warning and put null on the wire, which
+            // admin/js/settings.js renders as "Credit balance: null". Not fatal
+            // like the railway_url case, but the same defect class, so the two
+            // dereferences of $auth are guarded together rather than one each.
+            wp_send_json_success( [ 'credits' => $auth['balance'] ?? 0, 'railway_url' => $railway_url ] );
         } catch ( \RuntimeException $e ) {
             wp_send_json_error( $e->getMessage() );
         }
