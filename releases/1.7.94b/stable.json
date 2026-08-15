@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.94b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0.4",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.94b/ai-assets-scanner.zip",
+    "sha256": "f6b8f0c76156e2bd831ab3d547f435e2be5089a2381c82743215130d0cf1e976",
+    "signature": "",
+    "released_at": "2026-08-15T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.94b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.7.94b (beta).</p><p><strong>Added</strong></p><ul><li>Scan results now explain when a protection script was deliberately kept. Anti-bot and anti-spam scripts found on pages with forms are never unloaded, because unloading them can break the form or let spam through. Previously they simply did not appear in the results and there was no way to tell a deliberately-kept script from one the scan had missed. A note below the results summary now says how many were kept and which service they belong to.</li><li>The note survives a page reload, and appears the same way whether the scan finished while you were watching it or in the background on another admin page.</li><li>The results table now shows <em>which</em> pages those kept scripts were on: a small &#128737; kept badge sits beside the URL of every row where one was kept. The summary note says how many and whose; the badge says where.</li><li>A kept script stays kept after an extra-time re-scan. A re-scan reconciles its findings against the previous scan's rules, and an older rule that would have unloaded one of these scripts is now discarded instead of being reinstated &mdash; so the protection holds on the re-scan path too, not only on the first scan.</li></ul><p><strong>Changed</strong></p><ul><li>The scan summary line now bolds its rule counts when they are above zero, matching the S: and A: counts in the results table below it &mdash; a scan that found something reads apart from one that did not, at a glance. The sentence itself is unchanged: a zero count stays plain, and the number of URLs scanned is never bolded.</li><li>Tested up to WordPress 7.0.4.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}

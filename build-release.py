@@ -25,6 +25,10 @@ def _md_inline(text):
     text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
     text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
+    # Italics AFTER bold: bold is already <strong>-wrapped by now, so any remaining
+    # single-asterisk pair is an emphasis span. Without this, `*which*` shipped to the
+    # WP update-details pane with the asterisks visible (caught at the 1.7.94b release).
+    text = re.sub(r"\*([^*]+)\*", r"<em>\1</em>", text)
     text = text.replace(" -- ", " &mdash; ").replace("—", "&mdash;")
     text = text.replace(" -> ", " &rarr; ").replace("→", "&rarr;")
     return text
