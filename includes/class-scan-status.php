@@ -188,6 +188,17 @@ class AIAS_Scan_Status {
 						[ 'desktop', 'mobile' ]
 					) ) )
 					: [],
+				// A2c — per-row "kept protection" chip. Same worker wire field (W6) that
+				// aggregate_kept_protection() folds into the scan-level note; that one reads
+				// $pages_raw directly, so WITHOUT this key the per-row chip would render never,
+				// silently, behind a green suite. Defensive-validated per the bypass_suffixes
+				// convention — $page is otherwise built from untrusted Railway response data.
+				// Entries pass through whole (shape preserved for any later per-row detail);
+				// the client reads this ONLY for its non-empty length and interpolates no
+				// string out of it, so nothing here reaches markup unescaped.
+				'kept_protection' => is_array( $page['kept_protection'] ?? null )
+					? array_values( array_filter( $page['kept_protection'], 'is_array' ) )
+					: [],
 			];
 		}
 		return $rows;

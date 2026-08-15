@@ -2725,6 +2725,20 @@
             var choffNote = choffList
                 ? ' <span class="cu-choff-note">👁 visual comparison off — ' + cuEscHtml( choffList ) + cuChoffHelp( choffList ) + '</span>'
                 : '';
+            // A2c — per-row "kept protection" chip: which pages the A2 summary's "N protection
+            // scripts kept" actually landed on. p.kept_protection is threaded server-side by
+            // AIAS_Scan_Status::build_pages() (D5-validated there); Array.isArray also covers
+            // rows restored from pre-A2c storage, which lack the key entirely.
+            //
+            // Ruling R19 — this region is already an escaped-string -> host.innerHTML pipeline,
+            // so the chip is CONCATENATED into it rather than appended as a DOM node (an append
+            // would need a post-render pass coupled to pagination, and would make this a mixed
+            // sink). The safety therefore comes from the PAYLOAD: the content is STATIC TEXT,
+            // the array is read ONLY for its non-empty length, and nothing inside it —
+            // display_name, handles, anything — is ever interpolated into this markup.
+            var keptChip = ( Array.isArray( p.kept_protection ) && p.kept_protection.length > 0 )
+                ? ' <span class="cu-kept-chip">🛡 kept</span>'
+                : '';
             // FU-AAS-URL-SUFFIX-DIM — every scanned URL carries the optimizer-bypass suffixes the
             // scanner appended (?nowprocket&nowpcu&perfmattersoff). In a word-break:break-all cell
             // they are as visually loud as the page path itself, so the query string is dimmed and
@@ -2738,9 +2752,14 @@
                 ? cuEscHtml( rawUrl )
                 : cuEscHtml( rawUrl.slice( 0, qIdx ) )
                   + '<span class="cu-url-suffix">' + cuEscHtml( rawUrl.slice( qIdx ) ) + '</span>';
+            // keptChip sits BEFORE choffNote deliberately: .cu-choff-note is display:block, so a
+            // chip concatenated after it would be orphaned onto its own line instead of trailing
+            // the URL text. Last of the INLINE annotations keeps it beside the URL on every row,
+            // with or without a choff note, and leaves the URL + "← resolved from" pair intact.
             var urlCell = urlHtml
                 + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' )
                 + bypassNote
+                + keptChip
                 + choffNote;
             return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + ( noopt ? ' cu-row-noopt' : '' ) + '">'
                 + '<td>' + cuEscHtml( p.n ) + '</td>'

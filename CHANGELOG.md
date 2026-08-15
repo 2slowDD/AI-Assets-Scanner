@@ -9,6 +9,7 @@ All notable changes to AI Assets Scanner are documented here.
 ### Added
 - Scan results now explain when a protection script was deliberately kept. Anti-bot and anti-spam scripts found on pages with forms are never unloaded, because unloading them can break the form or let spam through. Previously they simply did not appear in the results and there was no way to tell a deliberately-kept script from one the scan had missed. A note below the results summary now says how many were kept and which service they belong to.
 - The note survives a page reload, and appears the same way whether the scan finished while you were watching it or in the background on another admin page.
+- The results table now shows *which* pages those kept scripts were on: a small 🛡 kept badge sits beside the URL of every row where one was kept. The summary note says how many and whose; the badge says where.
 
 ### Changed
 - The scan summary line now bolds its rule counts when they are above zero, matching the S: and A: counts in the results table below it — a scan that found something reads apart from one that did not, at a glance. The sentence itself is unchanged: a zero count stays plain, and the number of URLs scanned is never bolded.

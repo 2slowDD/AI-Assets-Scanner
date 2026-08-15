@@ -943,3 +943,16 @@
     border-radius: 4px;
     padding: 11px 15px;
 }
+/* 1.7.94b (A2c) — the per-row companion to the note above: which URL rows kept a protection
+   script. A pill, not another italic annotation, so it reads as a row STATE rather than as
+   more sentence: the teal separates it from the blue .cu-bypass-note / .cu-choff-note text
+   in the same cell. nowrap keeps the glyph and its label together in a word-break cell. */
+.cu-kept-chip {
+    font-size: 11px;
+    color: #0f766e;
+    background: #eefaf7;
+    border: 1px solid #b8e2da;
+    border-radius: 99px;
+    padding: 1px 7px;
+    white-space: nowrap;
+}
