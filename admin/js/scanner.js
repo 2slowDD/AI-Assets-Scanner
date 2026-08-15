@@ -2274,18 +2274,68 @@
      * Copy rule: "already in Code Unloader" — NEVER "already optimised" or "already
      * applied". A CU rule can exist and still not take effect (spec Q6).
      */
-    function buildSummaryLine( o ) {
-        var base = 'Scan complete. ' + o.urls + ' URLs scanned, ' + o.safeCount +
-                   ' safe rules, ' + o.aggCount + ' aggressive rules generated.';
+    /**
+     * The summary sentence as an ordered list of { text, bold } segments. ONE source feeds
+     * both consumers — buildSummaryLine (the plain string) and renderSummaryParts (the
+     * nodes) — so the copy and its markup cannot drift apart. Segments concatenate with no
+     * separator, and `text` is built with `'' + value` so the join is byte-identical to the
+     * string concatenation this replaced.
+     */
+    function buildSummaryParts( o ) {
+        var parts = [];
+        function push( value, bold ) { parts.push( { text: '' + value, bold: !! bold } ); }
+        // Bold a count only when it is a real, non-zero number: zero is not news, and a
+        // NaN/undefined count must never be shouted. o.urls is NEVER bold — it renders the
+        // literal '?' whenever the scanned-URL count is unknown, and '?' is not a quantity.
+        function isNonZero( n ) { return Number( n ) > 0; }
+
+        push( 'Scan complete. ' );
+        push( o.urls );
+        push( ' URLs scanned, ' );
+        push( o.safeCount, isNonZero( o.safeCount ) );
+        push( ' safe rules, ' );
+        push( o.aggCount, isNonZero( o.aggCount ) );
+        push( ' aggressive rules generated.' );
+
         var ap = o.alreadyPresent;
-        if ( !ap ) return base;                        // null => cannot know => no claim
+        if ( !ap ) return parts;                       // null => cannot know => no claim
         var total   = ( Number(o.safeCount) || 0 ) + ( Number(o.aggCount) || 0 );
         var already = ( Number(ap.safe) || 0 ) + ( Number(ap.aggressive) || 0 );
-        if ( total === 0 ) return base;
+        if ( total === 0 ) return parts;
         // already <= total is guaranteed by the server's group-level min(); Math.max is
         // belt-and-braces so a future payload change can never render "-1 new".
         var fresh = Math.max( 0, total - already );
-        return base + ' → ' + fresh + ' new, ' + already + ' already in Code Unloader';
+        // The new/already tail stays unbolded — it is a comparison, not a headline count.
+        push( ' → ' + fresh + ' new, ' + already + ' already in Code Unloader' );
+        return parts;
+    }
+
+    function buildSummaryLine( o ) {
+        return buildSummaryParts( o ).map( function ( p ) { return p.text; } ).join( '' );
+    }
+
+    /**
+     * Renders buildSummaryParts output into `el`. The one DOM writer among these builders —
+     * it lives here because it is buildSummaryParts' other consumer, and keeping the two
+     * adjacent is what makes a drift between copy and markup visible in one screenful.
+     * A bold segment becomes a <strong> wrapping a TEXT node; every other segment is a bare
+     * text node. Never innerHTML — the counts are
+     * server-sourced, and trading a text sink for an HTML sink would be an injection
+     * downgrade for no gain. Clears first, because restoreStep4 runs more than once per page
+     * life (a live build_result after a localStorage restore): the second render must
+     * REPLACE the first, not append to it.
+     */
+    function renderSummaryParts( el, parts ) {
+        el.textContent = '';
+        parts.forEach( function ( p ) {
+            var node = document.createTextNode( p.text );
+            if ( p.bold ) {
+                var strong = document.createElement( 'strong' );
+                strong.appendChild( node );
+                node = strong;
+            }
+            el.appendChild( node );
+        } );
     }
 
     function buildSyncCopy( o ) {
@@ -2356,8 +2406,10 @@
         var keptProtection   = o.keptProtectionSummary;
 
         const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
-        document.getElementById('cu-result-summary').textContent =
-            buildSummaryLine({ urls: urls, safeCount: safeCount, aggCount: aggCount, alreadyPresent: alreadyPresent });
+        renderSummaryParts(
+            document.getElementById('cu-result-summary'),
+            buildSummaryParts({ urls: urls, safeCount: safeCount, aggCount: aggCount, alreadyPresent: alreadyPresent })
+        );
 
         // Challenge-script keeplist (Train 2, A2) — the note sits directly BELOW the summary
         // line and above the refund line. textContent only: vendor display names come from the
@@ -2371,8 +2423,8 @@
                 // (:1206, :1646, :2031, :3289). Defensive only — this is NOT what keeps a
                 // missing element from reaching the localStorage-restore catch (which would
                 // delete the stored result): the summary write above already dereferences
-                // getElementById('cu-result-summary') unguarded at :2359, so an absent
-                // element throws before control ever gets here.
+                // getElementById('cu-result-summary') unguarded (renderSummaryParts assigns
+                // el.textContent), so an absent element throws before control gets here.
                 if (summaryEl && summaryEl.parentNode) {
                     kpEl = document.createElement('p');
                     kpEl.id = 'cu-kept-protection-note';
@@ -2461,14 +2513,17 @@
         });
 
         // Next-step hint, appended to the summary once the button state above is settled
-        // (noRules/syncOnly are computed there, so this cannot run earlier). textContent, so
-        // the sentence is inert text — no markup path exists here.
+        // (noRules/syncOnly are computed there, so this cannot run earlier). Appended as a
+        // TEXT NODE, never `textContent +=`: that form reads the element's text back —
+        // DISCARDING the <strong> wrappers renderSummaryParts just built — and reassigns it
+        // as flat text, silently un-bolding the counts on every path that has a hint. Still
+        // a text sink, so the sentence stays inert; only the write form changed.
         var nextStep = buildNextStepCopy( {
             noRules: noRules, externalOnly: externalOnly, syncOnly: syncOnly,
             canPush: canPush, nothingNew: !! syncNotice
         } );
         if ( nextStep ) {
-            document.getElementById('cu-result-summary').textContent += nextStep;
+            document.getElementById('cu-result-summary').appendChild( document.createTextNode( nextStep ) );
         }
 
         // Appended, never assigned: the branches above own #cu-push-result, and buildSyncCopy
@@ -3348,7 +3403,8 @@
     window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,
                         renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4,
                         showProbeOutcomeDialog: showProbeOutcomeDialog,
-                        buildSummaryLine: buildSummaryLine, buildSyncCopy: buildSyncCopy,
+                        buildSummaryLine: buildSummaryLine, buildSummaryParts: buildSummaryParts,
+                        buildSyncCopy: buildSyncCopy,
                         buildRefundLine: buildRefundLine, buildNextStepCopy: buildNextStepCopy,
                         // Seed the IIFE-scoped submitted-URL state so handleStatusUpdate's
                         // URL-fallback can be exercised without driving the full submit flow.

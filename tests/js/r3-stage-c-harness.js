@@ -94,12 +94,32 @@ function makeEl(id, tagName) {
     // mirror is built lazily and only ever consumed by querySelector/_kids.
     set innerHTML(v) { this._html = v; this._dom = null; }, get innerHTML() { return this._html; },
     // Mirrors the real DOM's textContent -> innerHTML round trip (&/</> only, no quote
-    // escaping — matches the codebase's own cuEscHtml() convention, scanner.js:2365, and
-    // the esc() comment at scanner.js:96-100 documenting exactly this asymmetry).
-    get textContent() { return _text; },
+    // escaping — matches the codebase's own cuEscHtml() convention, and the esc() comment
+    // at scanner.js:96-100 documenting exactly this asymmetry).
+    //
+    // The GETTER is DOM-faithful for appended nodes: once a node has been appendChild'd,
+    // textContent is the concatenation of its descendants' text, not the last assigned
+    // string. restoreStep4 now builds the summary line out of <strong> + text nodes
+    // (renderSummaryParts), so a getter that returned only _text would report '' for the
+    // shipped render and every summary assertion in this suite would be asserting nothing.
+    // Nodes parsed out of an innerHTML string are deliberately NOT walked here: that mirror
+    // keeps entities encoded, so folding it in would hand back '&lt;img' where the real DOM
+    // hands back '<img' (kept-protection-note.test.js pins exactly that raw round trip).
+    get textContent() {
+      if (!this.children.length) return _text;
+      const textOf = (n) => {
+        if (!n) return '';
+        if (n.nodeType === 3) return (n.textContent === undefined || n.textContent === null) ? '' : String(n.textContent);
+        return (n.children && n.children.length) ? n.children.map(textOf).join('') : String(n.textContent || '');
+      };
+      return this.children.map(textOf).join('');
+    },
     set textContent(v) {
       _text = (v === null || v === undefined) ? '' : String(v);
       this._html = _text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      // The real setter REPLACES every child. renderSummaryParts relies on it: restoreStep4
+      // runs twice per page life and the second render must not stack on the first.
+      this.children.length = 0;
       this._dom = null;
     },
     _domChildren() {
@@ -247,7 +267,57 @@ function makeStorage(seed) {
   };
 }
 
-module.exports = { createHarness, makeEl, makeStorage };
+// admin/js/menu-badge.js is the BACKGROUND-completion writer for cu_scanner_result: a scan
+// that finishes while the operator is on another wp-admin page never runs scanner.js's
+// writer at all. Nothing in this suite used to PARSE that file — it was only ever read as
+// source TEXT by pin regexes — so a syntax error in it shipped green through every JS test,
+// and commenting a pinned line out still satisfied its pin (P17: "a call sitting in a
+// comment"). This runs the real file instead: vm.runInContext PARSES it, so a syntax error
+// throws here, and `tick()` drives the shipped heartbeat handler through the Railway status
+// poll and cu_scanner_build_result to the localStorage write, so tests can assert the
+// payload the production path actually emits.
+//
+// opts: { sessionStorage, localStorage, fetch, post(data) -> response, aiasMenuBadgeData }
+function createMenuBadgeHarness(opts = {}) {
+  const handlers = {};
+  const posts = [];
+  const timers = [];
+  // jQuery's Deferred reduced to what menu-badge.js calls — .then() and .always(). Settles
+  // synchronously, so a driven tick needs no extra flushing beyond fetch's real promise.
+  const deferred = (value) => ({
+    then(fn) { return deferred(fn ? fn(value) : undefined); },
+    always(fn) { if (fn) fn(value); return deferred(value); },
+  });
+  const $ = () => ({ on(ev, fn) { (handlers[ev] = handlers[ev] || []).push(fn); return this; } });
+  $.post = (url, data) => {
+    posts.push(data);
+    return deferred((opts.post || (() => ({ success: true, data: {} })))(data));
+  };
+
+  const sandbox = {
+    console,
+    jQuery: $,
+    document: { querySelector: () => null, addEventListener() {} },
+    sessionStorage: makeStorage(opts.sessionStorage),
+    localStorage: makeStorage(opts.localStorage),
+    fetch: opts.fetch || (() => Promise.resolve({ json: () => Promise.resolve({}) })),
+    // Recorded, never auto-fired: menu-badge.js starts a 30s badge poller at load, and a
+    // test that did not ask for it should not have it running underneath.
+    setTimeout: (fn, ms) => { timers.push({ fn, ms, type: 'timeout' }); return timers.length; },
+    setInterval: (fn, ms) => { timers.push({ fn, ms, type: 'interval' }); return timers.length; },
+    aiasMenuBadgeData: ('aiasMenuBadgeData' in opts) ? opts.aiasMenuBadgeData : { ajaxurl: '/admin-ajax.php', nonce: 'n' },
+  };
+  sandbox.window = sandbox; sandbox.globalThis = sandbox;
+  const code = fs.readFileSync(path.join(__dirname, '../../admin/js/menu-badge.js'), 'utf8');
+  vm.createContext(sandbox);
+  vm.runInContext(code, sandbox);
+  return {
+    sandbox, posts, timers,
+    tick: (response) => (handlers['heartbeat-tick'] || []).forEach((fn) => fn({}, response)),
+  };
+}
+
+module.exports = { createHarness, createMenuBadgeHarness, makeEl, makeStorage };
 
 // Inline self-test for formatCountdown (run: node tests/js/r3-stage-c-harness.js)
 if (require.main === module) {

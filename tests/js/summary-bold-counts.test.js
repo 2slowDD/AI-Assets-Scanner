@@ -1,0 +1,247 @@
+// Train 2, A2b — the Step-4 summary line bolds its NON-ZERO rule counts.
+//
+// Operator-confirmed from a live mockup 2026-08-14: "N safe rules" and "N aggressive rules"
+// render bold when N > 0. Nothing else on the line is bolded, and the sentence itself does
+// not change — only its markup does.
+//
+// Runs the REAL admin/js/scanner.js through the shared harness and reads the REAL
+// #cu-result-summary element, so this exercises the production render path (restoreStep4 ->
+// buildSummaryParts -> renderSummaryParts), not an injected one.
+//
+// The load-bearing case is testHintDoesNotFlattenTheBold. `el.textContent += hint` reads the
+// element's text back — DISCARDING every <strong> — and reassigns it as flat text. That form
+// shipped here before A2b, so on every state that has a next-step hint (which is the common
+// state: a scan that produced rules and can push them) the bold would silently vanish in
+// production with no error and no other test going red.
+//
+// Falsification answers — the mistake each test exists to catch, and why it goes RED:
+//   1. testNonZeroCountsAreBold        — bold never wired / wired to the wrong segment:
+//                                        querySelectorAll('strong') returns [] or the wrong text.
+//   2. testZeroIsNotBold               — bolding on `!= null` / `>= 0` instead of `> 0`:
+//                                        a strong appears around "0".
+//   3. testNaNIsNotBold                — bolding on truthiness or on presence: NaN, a string,
+//                                        undefined and null all become <strong>.
+//   4. testUrlsIsNeverBold             — bolding every numeric-looking token: the URL count
+//                                        (and '?', which is not a number at all) get wrapped.
+//   5. testTextIsByteIdenticalToTheLine— the parts builder drifting from buildSummaryLine (a
+//                                        lost space, a doubled segment, a dropped tail):
+//                                        strictEqual against buildSummaryLine for the SAME
+//                                        input, so the two literally cannot diverge.
+//   6. testHintDoesNotFlattenTheBold   — `textContent +=` restored at the append site: the
+//                                        strongs are flattened away, so the list goes empty.
+//   7. testAlreadyPresentTailNotBold   — bolding the fresh/already numbers (explicitly out of
+//                                        scope): they show up in the strong list.
+//   8. testReRenderReplaces            — renderSummaryParts appending instead of replacing:
+//                                        the second render stacks and the text doubles.
+//   9. testLiveScanPathRendersBold     — bold wired into a helper the real wire never reaches:
+//                                        every seam-driven case stays green, this one reds.
+const assert = require('assert');
+const { createHarness } = require('./r3-stage-c-harness');
+
+const T = createHarness().sandbox.window.__cuTest;
+assert.ok(T.buildSummaryParts, 'buildSummaryParts must be exposed on __cuTest');
+const { buildSummaryLine, buildSummaryParts } = T;
+
+const HINT_PUSH = ' You can apply them now with the Push or Sync buttons.';
+
+// Drives the SHIPPED restoreStep4 and reports what actually landed in the DOM.
+function render(opts) {
+  const h = createHarness();
+  h.sandbox.window.__cuTest.restoreStep4(Object.assign({
+    jobId: 'job1', safeCount: 0, aggCount: 0, canPush: true, externalOnly: false,
+    bannerData: {}, urlsScanned: 5, pages: [], scanId: 'scan1', hasActiveCuRules: false
+  }, opts));
+  const el = h.els['cu-result-summary'];
+  return {
+    h: h,
+    el: el,
+    // Element CONTENTS, not a serialized string: what the operator sees emphasised.
+    strongs: el.querySelectorAll('strong').map(function (s) { return s.textContent; }),
+    text: el.textContent
+  };
+}
+
+// --- 1. Both counts bold when both are above zero ------------------------------------
+function testNonZeroCountsAreBold() {
+  const r = render({ safeCount: 3, aggCount: 7 });
+  assert.deepStrictEqual(r.strongs, ['3', '7'],
+    'both non-zero counts render bold, in sentence order; got: ' + JSON.stringify(r.strongs));
+  // The bold wraps a TEXT node — the count is server-sourced, so this must never be an
+  // HTML sink. A <strong> holding anything but a text node is the tell.
+  const strongEls = r.el.querySelectorAll('strong');
+  strongEls.forEach(function (s) {
+    assert.strictEqual(s.children.length, 1, 'a bold segment holds exactly one node');
+    assert.strictEqual(s.children[0].nodeType, 3, 'and that node is TEXT, never markup');
+  });
+  console.log('OK non-zero safe + aggressive counts are bold, as text nodes');
+}
+
+// --- 2. Zero is never bold -----------------------------------------------------------
+function testZeroIsNotBold() {
+  assert.deepStrictEqual(render({ safeCount: 0, aggCount: 7 }).strongs, ['7'],
+    'a zero safe count stays plain while the aggressive count is bold');
+  assert.deepStrictEqual(render({ safeCount: 3, aggCount: 0 }).strongs, ['3'],
+    'and the other way round');
+  assert.deepStrictEqual(render({ safeCount: 0, aggCount: 0 }).strongs, [],
+    'a scan that produced nothing bolds nothing at all');
+  console.log('OK zero counts are never bold');
+}
+
+// --- 3. NaN / non-numeric is never bold ----------------------------------------------
+function testNaNIsNotBold() {
+  const cases = [NaN, 'abc', undefined, null, -2];
+  cases.forEach(function (bad) {
+    const r = render({ safeCount: bad, aggCount: 7 });
+    assert.deepStrictEqual(r.strongs, ['7'],
+      'safeCount ' + JSON.stringify(String(bad)) + ' must not be bold; got: ' + JSON.stringify(r.strongs));
+  });
+  // ...and the unbolded value still renders, verbatim, as the sentence always rendered it.
+  assert.ok(/NaN safe rules/.test(render({ safeCount: NaN, aggCount: 7 }).text),
+    'the NaN still appears in the copy — A2b changes markup, never the words');
+  console.log('OK NaN / non-numeric / negative counts are never bold');
+}
+
+// --- 4. The URL count is never bold, and neither is its '?' fallback ------------------
+function testUrlsIsNeverBold() {
+  const known = render({ urlsScanned: 9, safeCount: 4, aggCount: 0 });
+  assert.deepStrictEqual(known.strongs, ['4'],
+    'a known URL count is never bold, however large; got: ' + JSON.stringify(known.strongs));
+
+  // urlsScanned absent => restoreStep4 renders the literal '?'. Bolding a number-shaped
+  // token would be wrong here twice over: it is not a rule count, and it is not a number.
+  const unknown = render({ urlsScanned: undefined, safeCount: 4, aggCount: 0 });
+  assert.ok(/\? URLs scanned/.test(unknown.text), "an unknown URL count still renders '?'");
+  assert.deepStrictEqual(unknown.strongs, ['4'], "'?' is never bold");
+  console.log("OK the URL count — including the '?' fallback — is never bold");
+}
+
+// --- 5. The words are untouched: byte-identical to the plain string builder -----------
+function testTextIsByteIdenticalToTheLine() {
+  // No hint state (0 rules => restoreStep4 appends nothing), so textContent IS the sentence.
+  const bare = render({ urlsScanned: 5, safeCount: 0, aggCount: 0 });
+  assert.strictEqual(
+    bare.text,
+    buildSummaryLine({ urls: 5, safeCount: 0, aggCount: 0, alreadyPresent: undefined }),
+    'the rendered text is byte-identical to buildSummaryLine for the same input'
+  );
+
+  // Every shape the builder branches on, compared part-join vs string, so a future edit to
+  // one and not the other cannot survive.
+  const shapes = [
+    { urls: 5, safeCount: 3, aggCount: 7, alreadyPresent: null },
+    { urls: '?', safeCount: 0, aggCount: 0, alreadyPresent: { safe: 0, aggressive: 0 } },
+    { urls: 2, safeCount: 1, aggCount: 3, alreadyPresent: { safe: 0, aggressive: 2 } },
+    { urls: 2, safeCount: 0, aggCount: 3, alreadyPresent: { safe: 0, aggressive: 3 } },
+    { urls: 1, safeCount: 0, aggCount: 2, alreadyPresent: { safe: 0, aggressive: 5 } },
+    { urls: 0, safeCount: NaN, aggCount: undefined, alreadyPresent: null }
+  ];
+  shapes.forEach(function (o) {
+    const joined = buildSummaryParts(o).map(function (p) { return p.text; }).join('');
+    assert.strictEqual(joined, buildSummaryLine(o),
+      'parts join must equal the line for ' + JSON.stringify(o));
+  });
+  console.log('OK the sentence is byte-for-byte what it always was');
+}
+
+// --- 6. THE REGRESSION THAT MADE A2b NECESSARY ---------------------------------------
+// The next-step hint is appended AFTER the summary is rendered. With `textContent +=` the
+// append silently flattens the markup; with a text node it does not.
+function testHintDoesNotFlattenTheBold() {
+  const r = render({ urlsScanned: 5, safeCount: 3, aggCount: 7, canPush: true });
+  assert.ok(r.text.indexOf(HINT_PUSH) > 0, 'this state really does append a hint (guard the guard)');
+  assert.deepStrictEqual(r.strongs, ['3', '7'],
+    'the <strong> elements SURVIVE the hint append; got: ' + JSON.stringify(r.strongs));
+  assert.strictEqual(
+    r.text,
+    buildSummaryLine({ urls: 5, safeCount: 3, aggCount: 7, alreadyPresent: undefined }) + HINT_PUSH,
+    'and the full text is still sentence + hint, unchanged'
+  );
+  console.log('OK the next-step hint appends without flattening the bold');
+}
+
+// --- 7. The "N new, M already" tail is explicitly out of scope ------------------------
+function testAlreadyPresentTailNotBold() {
+  const r = render({ urlsScanned: 2, safeCount: 1, aggCount: 3, alreadyPresent: { safe: 0, aggressive: 2 } });
+  assert.ok(/→ 2 new, 2 already in Code Unloader/.test(r.text), 'the tail renders');
+  assert.deepStrictEqual(r.strongs, ['1', '3'],
+    'only the two rule counts are bold — the fresh/already numbers are not; got: ' + JSON.stringify(r.strongs));
+  console.log('OK the new/already tail is never bolded');
+}
+
+// --- 8. A second render replaces the first, never stacks on it ------------------------
+// restoreStep4 runs more than once per page life (a live build_result after a localStorage
+// restore), so renderSummaryParts must clear before it writes.
+function testReRenderReplaces() {
+  const h = createHarness();
+  const opts = {
+    jobId: 'job1', safeCount: 3, aggCount: 7, canPush: true, externalOnly: false,
+    bannerData: {}, urlsScanned: 5, pages: [], scanId: 'scan1', hasActiveCuRules: false
+  };
+  h.sandbox.window.__cuTest.restoreStep4(opts);
+  const first = h.els['cu-result-summary'].textContent;
+  h.sandbox.window.__cuTest.restoreStep4(opts);
+  const second = h.els['cu-result-summary'].textContent;
+
+  assert.strictEqual(second, first, 'a re-render REPLACES the summary; it must not stack');
+  assert.deepStrictEqual(
+    h.els['cu-result-summary'].querySelectorAll('strong').map(function (s) { return s.textContent; }),
+    ['3', '7'],
+    'and leaves exactly one <strong> per non-zero count, not two'
+  );
+  console.log('OK a second render replaces rather than appends');
+}
+
+// --- 9. The LIVE scan path, not just the restoreStep4 seam ---------------------------
+// Every case above enters through __cuTest.restoreStep4. That is the shipped render
+// function, but it is reached in the tests through a test-only seam, so one case drives the
+// real wire instead: handleStatusUpdate('complete') -> buildResult() -> the AJAX response ->
+// restoreStep4. Falsification: if the bold were wired into some other, unreached helper —
+// or if the live path stopped routing through renderSummaryParts — this goes red while
+// every seam-driven case above stays green.
+function flush() {
+  return new Promise(function (r) { setImmediate(r); })
+    .then(function () { return new Promise(function (r) { setImmediate(r); }); });
+}
+
+function testLiveScanPathRendersBold() {
+  const h = createHarness({
+    fetch: function (url, o) {
+      const action = o && o.body ? o.body.get('action') : null;
+      return Promise.resolve({
+        ok: true,
+        json: function () {
+          return Promise.resolve(action === 'cu_scanner_build_result'
+            ? { success: true, data: {
+                scan_id: 'scan1', total_pages: 4, safe_count: 2, aggressive_count: 6,
+                can_push: true, pages: [], has_active_cu_rules: false,
+                already_present: null, credits_refunded: 0, cu_rules_active: false } }
+            : { success: true, data: {} });
+        }
+      });
+    }
+  });
+  h.sandbox.window.__cuTest.handleStatusUpdate({ status: 'complete', total: 4, completed: 4, pages: [] });
+
+  return flush().then(function () {
+    const el = h.els['cu-result-summary'];
+    assert.ok(/Scan complete\./.test(el.textContent), 'the live path really rendered a summary');
+    assert.deepStrictEqual(
+      el.querySelectorAll('strong').map(function (s) { return s.textContent; }),
+      ['2', '6'],
+      'a real completed scan renders its non-zero counts bold; got: ' + JSON.stringify(el.textContent)
+    );
+    console.log('OK a live completed scan renders the bold counts');
+  });
+}
+
+testNonZeroCountsAreBold();
+testZeroIsNotBold();
+testNaNIsNotBold();
+testUrlsIsNeverBold();
+testTextIsByteIdenticalToTheLine();
+testHintDoesNotFlattenTheBold();
+testAlreadyPresentTailNotBold();
+testReRenderReplaces();
+testLiveScanPathRendersBold()
+  .then(function () { console.log('summary-bold-counts: all assertions passed'); })
+  .catch(function (e) { console.error(e); process.exit(1); });

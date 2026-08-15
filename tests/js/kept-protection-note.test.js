@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { createHarness } = require('./r3-stage-c-harness');
+const { createHarness, createMenuBadgeHarness } = require('./r3-stage-c-harness');
 
 // Train 2, A2 — the Step-4 "protection scripts kept" note.
 //
@@ -215,6 +215,65 @@ async function run() {
       assert.ok(!/keptProtectionSummary\s*:/.test(block),
         name + ': the PERSISTED key stays snake_case — the option and both writers share one name');
     }
+  }
+
+  // --- 9. The background writer, EXECUTED — not read as text (A2b, ruling R24) -----
+  // §8 above is a source-TEXT pin, and P17 names its blind spot exactly: "a call sitting in
+  // a comment". `// kept_protection_summary: res.data.kept_protection_summary` satisfies
+  // every regex in §8 while the field is functionally gone — verified by mutation before
+  // this section existed, along with a second hole: NOTHING in the suite parsed
+  // menu-badge.js, so a syntax error in it shipped green through all 13 JS tests.
+  //
+  // Both close the same way. createMenuBadgeHarness runs the SHIPPED file (so a syntax
+  // error throws at load) and drives the real background path — heartbeat tick -> Railway
+  // status poll -> cu_scanner_build_result -> the localStorage write — so the assertion is
+  // on the payload that actually lands. A commented-out line cannot satisfy that.
+  {
+    const KEPT = { count: 2, vendors: ['Cloudflare Turnstile', 'reCAPTCHA'] };
+    const mb = createMenuBadgeHarness({
+      sessionStorage: {
+        cu_scanner_active_job: JSON.stringify({
+          job_id: 'job-bg', job_token: 'tok', railway_url: 'https://worker.example',
+        }),
+      },
+      fetch: () => Promise.resolve({ json: () => Promise.resolve({ status: 'complete' }) }),
+      post: (data) => (data.action !== 'cu_scanner_build_result' ? { success: true, data: {} } : {
+        success: true,
+        data: {
+          safe_count: 1, aggressive_count: 0, can_push: true, total_pages: 2, scan_id: 'scan-bg',
+          pages: [], already_present: { safe: 0, aggressive: 1 }, credits_refunded: 3,
+          cu_rules_active: false, kept_protection_summary: KEPT,
+        },
+      }),
+    });
+
+    mb.tick({ aias_badge: 'green' });
+    await flush();
+
+    assert.ok(mb.posts.some((p) => p.action === 'cu_scanner_build_result'),
+      'the tick really reached the build_result call (guard the guard — a harness that never'
+      + ' fired would make every assertion below vacuous)');
+
+    const raw = mb.sandbox.localStorage.getItem('cu_scanner_result');
+    assert.ok(raw, 'the background writer persisted a cu_scanner_result entry');
+    const blob = JSON.parse(raw);
+    assert.deepStrictEqual(blob.kept_protection_summary, KEPT,
+      'menu-badge.js carries kept_protection_summary through to localStorage — deleted,'
+      + ' renamed, read off the wrong source, or COMMENTED OUT all land here');
+    // The A1-era result-truth fields ride the same writer and shared the same blind spot;
+    // assert them on the real payload rather than leaving them on a text pin alone.
+    assert.deepStrictEqual(blob.already_present, { safe: 0, aggressive: 1 },
+      'already_present survives the background write');
+    assert.strictEqual(blob.credits_refunded, 3, 'credits_refunded survives the background write');
+
+    // And what it wrote must restore into a rendered note — that AAS-return path is the
+    // entire reason the background writer carries the field at all.
+    const reloaded = createHarness({ localStorage: { cu_scanner_result: raw } });
+    const restored = notesIn(reloaded);
+    assert.strictEqual(restored.length, 1, 'the background-written blob restores the note on AAS-return');
+    assert.strictEqual(restored[0].textContent,
+      '🛡 2 protection scripts kept (Cloudflare Turnstile, reCAPTCHA)' + COPY_TAIL,
+      'with the same copy the live path renders');
   }
 
   console.log('kept-protection-note: all assertions passed');
