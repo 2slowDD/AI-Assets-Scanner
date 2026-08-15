@@ -97,22 +97,28 @@ function makeEl(id, tagName) {
     // escaping — matches the codebase's own cuEscHtml() convention, and the esc() comment
     // at scanner.js:96-100 documenting exactly this asymmetry).
     //
-    // The GETTER is DOM-faithful for appended nodes: once a node has been appendChild'd,
-    // textContent is the concatenation of its descendants' text, not the last assigned
-    // string. restoreStep4 now builds the summary line out of <strong> + text nodes
-    // (renderSummaryParts), so a getter that returned only _text would report '' for the
-    // shipped render and every summary assertion in this suite would be asserting nothing.
-    // Nodes parsed out of an innerHTML string are deliberately NOT walked here: that mirror
-    // keeps entities encoded, so folding it in would hand back '&lt;img' where the real DOM
-    // hands back '<img' (kept-protection-note.test.js pins exactly that raw round trip).
+    // The GETTER walks appended nodes: restoreStep4 builds the summary line out of <strong>
+    // + text nodes (renderSummaryParts), and a getter that returned only _text would report
+    // '' for the shipped render — the whole suite would go loudly red on values that are
+    // really there. It CONCATENATES rather than replaces, because the real setter creates a
+    // text-node CHILD: after `el.textContent = 'a'; el.appendChild(text('b'))` the real DOM
+    // reads 'ab', not 'b'. Recursion happens through each child's own getter, so a nested
+    // element carrying both assigned text and appended children behaves the same way.
+    //
+    // Nodes parsed out of an innerHTML string are deliberately NOT walked: that mirror keeps
+    // entities encoded, so folding it in would hand back '&lt;img' where the real DOM hands
+    // back '<img' (kept-protection-note.test.js:177 pins exactly that raw round trip). The
+    // cost of that boundary is a KNOWN residual — an element written by `innerHTML =` and
+    // then appendChild'd (scanner.js:462-464 is the only such node in the plugin) still
+    // under-reports its innerHTML half. Read those through _kids()/innerHTML, not this
+    // getter. Pinned in tests/js/harness-textcontent.test.js, residual included.
     get textContent() {
       if (!this.children.length) return _text;
-      const textOf = (n) => {
+      return _text + this.children.map((n) => {
         if (!n) return '';
-        if (n.nodeType === 3) return (n.textContent === undefined || n.textContent === null) ? '' : String(n.textContent);
-        return (n.children && n.children.length) ? n.children.map(textOf).join('') : String(n.textContent || '');
-      };
-      return this.children.map(textOf).join('');
+        const t = n.textContent;
+        return (t === undefined || t === null) ? '' : String(t);
+      }).join('');
     },
     set textContent(v) {
       _text = (v === null || v === undefined) ? '' : String(v);
@@ -180,6 +186,11 @@ function makeEl(id, tagName) {
     },
     removeAttribute() {},
     setAttribute(k, v) { attrs[k] = v; }, getAttribute(k) { return (k in attrs) ? attrs[k] : null; },
+    // Own assigned text, WITHOUT the appended children the getter above folds in. Exposed
+    // for the same reason _html/_classes/_attrs/_dom are: a walker that needs to compose the
+    // pieces itself (probe-outcome-dialog.test.js's textOf) cannot subtract them back out of
+    // the aggregating getter. Read-only introspection; nothing in the plugin reads it.
+    get _ownText() { return _text; },
     _listeners: listeners, _classes: classes, _attrs: attrs, _dom: null,
   };
 }

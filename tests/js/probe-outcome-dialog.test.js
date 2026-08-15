@@ -16,13 +16,22 @@ const { createHarness } = require('./r3-stage-c-harness');
 // auto-proceed on probe_failed / no_clue / non_wordpress, i.e. exactly the states the
 // gate exists for. runNonInformationalBlocks() below is the regression guard for that.
 
-// Element text = own textContent plus every descendant's (innerHTML-derived nodes
-// included), so an appended text node is visible to the assertions below.
+// Element text = its OWN assigned text — or, when the node was built with innerHTML instead,
+// the text of that parsed mirror; never both, because the textContent setter writes _html as
+// a mere escaped copy of what it just stored — followed by every appended descendant, in DOM
+// order. So a node that mixes the two sinks (scanner.js:462-464 does: innerHTML for the
+// label, appendChild for the wire-supplied ids) reports both halves, exactly once each.
+//
+// Do NOT seed this from node.textContent: since A2b that getter already aggregates own text
+// with every appendChild'd descendant (r3-stage-c-harness.js), so seeding from it and then
+// recursing into the children counts the appended half twice — which this helper did until
+// the A2b fix round.
 function textOf(node) {
   if (!node) return '';
   if (node.nodeType === 3) return node.textContent || '';
-  let s = node.textContent || '';
-  (node._kids ? node._kids() : []).forEach(function (c) { s += textOf(c); });
+  let s = node._ownText || '';
+  if (!s) { (node._domChildren ? node._domChildren() : []).forEach(function (c) { s += textOf(c); }); }
+  (node.children || []).forEach(function (c) { s += textOf(c); });
   return s;
 }
 
@@ -66,6 +75,12 @@ function runCleanCase() {
   const txt = textOf(toast);
   assert.ok(txt.indexOf('example.com') !== -1, 'toast carries the per-host summary');
   assert.ok(txt.indexOf('shop.example.com') !== -1, 'toast lists every probed host');
+  // ...exactly ONCE. Every other assertion in this file is a substring test, so all of them
+  // stayed green while the walker double-counted (it seeded from node.textContent, which
+  // since A2b already aggregates the appended descendants, then recursed into them again).
+  // A count is what catches that, and each host genuinely appears once in this toast.
+  assert.strictEqual(txt.split('shop.example.com').length - 1, 1,
+    'textOf must report each host exactly once — a seeded walker double-counts appended nodes');
   assert.ok(toast.querySelector('ul.cu-probe-host-list'), 'non-uniform summary uses buildPerHostList');
 
   // Auto-dismiss: fade first, detach at ~10s. Only timers this call scheduled.
