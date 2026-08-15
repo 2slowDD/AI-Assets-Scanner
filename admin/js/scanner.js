@@ -2367,9 +2367,12 @@
             var kpEl = document.getElementById('cu-kept-protection-note');
             if (!kpEl) {
                 var summaryEl = document.getElementById('cu-result-summary');
-                // Guarded like every other insertBefore in this file (:1206, :1646, :2025,
-                // :3244) — an unguarded deref would throw inside the localStorage-restore
-                // try/catch, whose handler DELETES the stored result.
+                // Guarded like every other parentNode-relative insertBefore in this file
+                // (:1206, :1646, :2031, :3289). Defensive only — this is NOT what keeps a
+                // missing element from reaching the localStorage-restore catch (which would
+                // delete the stored result): the summary write above already dereferences
+                // getElementById('cu-result-summary') unguarded at :2359, so an absent
+                // element throws before control ever gets here.
                 if (summaryEl && summaryEl.parentNode) {
                     kpEl = document.createElement('p');
                     kpEl.id = 'cu-kept-protection-note';

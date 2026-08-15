@@ -199,8 +199,19 @@ async function run() {
       const close = [src.indexOf('}) );', idx), src.indexOf('}));', idx)].filter((n) => n > 0);
       assert.ok(close.length, name + ': could not find the end of the persisted object literal');
       const block = src.slice(idx, Math.min.apply(null, close));
-      assert.ok(/kept_protection_summary\s*:/.test(block),
-        name + ' must carry kept_protection_summary on the localStorage write');
+
+      // Pin the VALUE EXPRESSION, not just the key name. A key-name-only regex catches
+      // deletion but is blind to a wrong source (`res.data.kept_protection`), which
+      // JSON.stringify then drops as undefined — a green suite persisting a note-less
+      // blob on the one writer with no behavioural coverage at all. P17: source-text pins
+      // "miss retyping, a wrong argument, and a call sitting in a comment".
+      const SOURCE_EXPR = {
+        'scanner.js':    /kept_protection_summary\s*:\s*d\.kept_protection_summary\b/,
+        'menu-badge.js': /kept_protection_summary\s*:\s*res\.data\.kept_protection_summary\b/,
+      };
+      assert.ok(SOURCE_EXPR[name].test(block),
+        name + ' must persist kept_protection_summary FROM THE RIGHT SOURCE — absent, renamed,'
+             + ' or read off the wrong expression all land here');
       assert.ok(!/keptProtectionSummary\s*:/.test(block),
         name + ': the PERSISTED key stays snake_case — the option and both writers share one name');
     }
