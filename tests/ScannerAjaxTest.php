@@ -1198,11 +1198,62 @@ class ScannerAjaxTest extends TestCase {
         $pages = [
             [ 'url' => 'https://example.com/a/', 'kept_protection' => [
                 [ 'id' => 'vendor', 'display_name' => 'Vendor',
-                  'handles' => [ 'h|script', 'h|style' ] ] ] ],
+                  // The '' is the empty-handle guard's fixture: dropping `'' === $h` makes it
+                  // a third key and a phantom kept script the note could never name.
+                  'handles' => [ 'h|script', '', 'h|style' ] ] ] ],
         ];
         $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
         // explode( '|', … )[0] would collapse both to 'h' and report 1.
         $this->assertSame( 2, $out['count'] );
+        $this->assertSame( [ 'Vendor' ], $out['vendors'] );
+    }
+
+    /**
+     * A1-5 — a valid display_name lists even when its entry contributed NO usable handles.
+     *
+     * The brief states this semantic and the helper's comment claims it, but none of the
+     * four fixtures above exercised it: A1-3's only name-bearing entry has an INVALID name
+     * (123), and A1-1/2/4 all carry valid handles. So moving the display_name block inside
+     * `if ( is_array( $hs ) )` left every test green — the semantic was asserted in prose
+     * and pinned by nothing.
+     *
+     * 'handles' => 'junk' (a string, not an array) is also the hard fixture for the
+     * is_array( $hs ) guard: without it, foreach over a string is a TypeError, not a skip.
+     */
+    public function test_aggregate_kept_protection_lists_vendor_with_no_usable_handles(): void {
+        $pages = [
+            [ 'url' => 'https://example.com/a/', 'kept_protection' => [
+                [ 'id' => 'lone', 'display_name' => 'LoneVendor', 'handles' => 'junk' ] ] ],
+        ];
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+        $this->assertSame( 0, $out['count'] );              // nothing countable
+        $this->assertSame( [ 'LoneVendor' ], $out['vendors'] ); // ...but still nameable
+    }
+
+    /**
+     * A1-6 — the remaining D5 guards, swept the same way. kept_protection is Railway worker
+     * output (WP Compliance Rule 1: untrusted), so each of these is a shape a malformed
+     * payload can actually take, and each guard here was previously unfalsifiable:
+     *
+     *   - a non-array page               → is_array( $page )
+     *   - a non-array entry              → is_array( $entry )
+     *   - non-string handles (int/array/null/bool) → is_string( $h )
+     *   - an empty-string display_name   → '' !== $name
+     *
+     * Only 'real|script' is countable and only 'Vendor' is nameable, so any guard that
+     * regresses either raises the count, adds an empty vendor, or fatals.
+     */
+    public function test_aggregate_kept_protection_survives_every_hostile_shape(): void {
+        $pages = [
+            'not-an-array-page',
+            [ 'url' => 'https://example.com/a/', 'kept_protection' => [
+                'not-an-array-entry',
+                [ 'display_name' => '',       'handles' => [ 'real|script' ] ],
+                [ 'display_name' => 'Vendor', 'handles' => [ 123, [ 'nested' ], null, true ] ],
+            ] ],
+        ];
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+        $this->assertSame( 1, $out['count'] );
         $this->assertSame( [ 'Vendor' ], $out['vendors'] );
     }
 }
