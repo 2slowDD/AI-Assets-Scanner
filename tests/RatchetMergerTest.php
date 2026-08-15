@@ -1280,4 +1280,332 @@ class RatchetMergerTest extends TestCase {
             'no restores when every leg is covered'
         );
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Challenge-script keeplist sweep (Train 2, A3 — spec §5.6)
+    //
+    // When a rescan reports a protection script as deliberately KEPT, the
+    // ratchet must not RESURRECT an old R_orig unload rule for that handle.
+    // The sweep is targeted (per handle+type) and only ever pre-empts a
+    // would-be restore — never a branch that was dropping the rule anyway.
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Attach a worker kept_protection[] block to a page built by the fixture
+     * helpers above. Wire shape (Train 1, W6): a list of entries each carrying
+     * display_name plus handles[] of composite '<handle>|<type>' strings — the
+     * same field aggregate_kept_protection() reads for the Step-4 note.
+     *
+     * @param array $page    Page from page_with_asset()/page_failsafe()/inline.
+     * @param mixed $handles Composite strings — or junk, for the D5 test.
+     * @param string $vendor display_name for the entry.
+     */
+    private function with_kept( array $page, $handles, string $vendor = 'Cloudflare Turnstile' ): array {
+        $page['kept_protection'] = [
+            [ 'display_name' => $vendor, 'handles' => $handles ],
+        ];
+        return $page;
+    }
+
+    /** A rescan page that addressed no assets — drives the absent_restore path. */
+    private function page_no_assets( string $url ): array {
+        return [ 'url' => $url, 'status' => 'done', 'assets' => [] ];
+    }
+
+    /**
+     * T8(a) — SWEPT. An R_orig turnstile rule not in R_et, whose handle this rescan
+     * reported as a kept protection, must NOT be restored, and must be recorded as
+     * kept_protection_swept instead of absent_restore.
+     *
+     * Also pins the wire⇒rule type normalization: worker type 'script' ⇒ CU 'js'.
+     * Drop map_type() (or the explode split) and the index key stops matching the
+     * rule key, so the rule silently resurrects and this test goes red.
+     */
+    public function test_t8a_kept_protection_handle_is_swept_not_restored(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'gform_turnstile_vendor_script', 'desktop', 2, 'js', $pat ) ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_no_assets( $pat ),
+                [ 'gform_turnstile_vendor_script|script' ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertFalse(
+            $this->has_rule( $final, 'gform_turnstile_vendor_script', 'desktop', 2 ),
+            'a rule whose handle the rescan kept must not be resurrected'
+        );
+        $legs = $this->diag_legs( $diag, 'gform_turnstile_vendor_script', 'desktop' );
+        $this->assertCount( 1, $legs, 'exactly one desktop leg walked' );
+        $this->assertSame( 'kept_protection_swept', $legs[0]['outcome'] );
+        $this->assertSame( 1, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+        $this->assertSame( 0, $diag['outcomes']['absent_restore'] ?? 0 );
+        $this->assertSame(
+            0,
+            $merger->recovered_by_pattern[ $pat ] ?? 0,
+            'a swept rule must not count as recovered'
+        );
+    }
+
+    /**
+     * T8(b) — DIFFERENT HANDLE. kept_protection is present but names another script,
+     * so this rule still restores. Documented residual: the sweep is keyed per
+     * handle+type, never a blanket "this page had a keeplist".
+     */
+    public function test_t8b_kept_protection_for_a_different_handle_still_restores(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'gform_turnstile_vendor_script', 'desktop', 2, 'js', $pat ) ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_no_assets( $pat ),
+                [ 'some_other_vendor_script|script' ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertTrue(
+            $this->has_rule( $final, 'gform_turnstile_vendor_script', 'desktop', 2 ),
+            'a kept handle that is not THIS rule must leave the restore untouched'
+        );
+        $this->assertSame( 1, $diag['outcomes']['absent_restore'] ?? 0 );
+        $this->assertSame( 0, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+    }
+
+    /**
+     * T8(c) — NO FIELD. A pre-keeplist worker sends no kept_protection at all, so the
+     * sweep is inert and the ratchet behaves exactly as before (backward-safe residual).
+     */
+    public function test_t8c_absent_kept_protection_field_still_restores(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'gform_turnstile_vendor_script', 'desktop', 2, 'js', $pat ) ];
+        $rescan_pages = [ $this->page_no_assets( $pat ) ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertTrue(
+            $this->has_rule( $final, 'gform_turnstile_vendor_script', 'desktop', 2 ),
+            'no kept_protection field must leave ratchet behaviour unchanged'
+        );
+        $this->assertSame( 1, $diag['outcomes']['absent_restore'] ?? 0 );
+        $this->assertSame( 0, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+    }
+
+    /**
+     * RESTORE POINT 2 of 3 — benign per-asset demotion. The sweep must fire here too,
+     * not only on the absent_restore path. Remove the guard at this one site and the
+     * rule resurrects while T8(a) stays green.
+     *
+     * Also pins that the swept diag entry keeps its per-asset demote_class context
+     * rather than nulling it — record_diag()'s contract for a per-asset branch.
+     */
+    public function test_keeplist_sweep_applies_at_the_benign_restore_point(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h_js', 'desktop', 2, 'js', $pat ) ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_with_asset( $pat, 'h_js', 'script', [
+                    'bucket_desktop' => 'needed',
+                    'bucket_mobile'  => 'needed',
+                    'cov_desktop'    => 0.001,
+                    'cov_mobile'     => 0.001,
+                    'demote_class'   => 'benign',
+                ] ),
+                [ 'h_js|script' ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertFalse(
+            $this->has_rule( $final, 'h_js', 'desktop', 2 ),
+            'benign_restore must be pre-empted by the keeplist sweep'
+        );
+        $this->assertSame( 1, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+        $this->assertSame( 0, $diag['outcomes']['benign_restore'] ?? 0 );
+        $this->assertSame( 0, $merger->recovered_by_pattern[ $pat ] ?? 0 );
+
+        $legs = $this->diag_legs( $diag, 'h_js', 'desktop' );
+        $this->assertSame( 'benign', $legs[0]['demote_class'], 'swept entry keeps per-asset context' );
+    }
+
+    /**
+     * RESTORE POINT 3 of 3 — benign whole-page failsafe. Remove the guard at this one
+     * site and the rule resurrects while T8(a) and the benign_restore test stay green.
+     */
+    public function test_keeplist_sweep_applies_at_the_failsafe_benign_restore_point(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h_js', 'desktop', 2, 'js', $pat ) ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_failsafe( $pat, 'control_probe_failed', [] ),
+                [ 'h_js|script' ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertFalse(
+            $this->has_rule( $final, 'h_js', 'desktop', 2 ),
+            'failsafe_benign must be pre-empted by the keeplist sweep'
+        );
+        $this->assertSame( 1, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+        $this->assertSame( 0, $diag['outcomes']['failsafe_benign'] ?? 0 );
+        $this->assertSame( 0, $merger->recovered_by_pattern[ $pat ] ?? 0 );
+
+        $legs = $this->diag_legs( $diag, 'h_js', 'desktop' );
+        $this->assertSame( 'benign', $legs[0]['failsafe_class'], 'swept entry keeps page-level context' );
+    }
+
+    /**
+     * PLACEMENT — covered_drop is a NON-restore and must keep its own label.
+     *
+     * The rescan measured real coverage, so the rule was already being dropped on the
+     * F-DEG ceiling; the keeplist did not save it. A single early guard placed after
+     * the in_r_et check would re-label this kept_protection_swept, inflating the diag
+     * with rules the sweep never saved and erasing the ceiling evidence behind them.
+     */
+    public function test_keeplist_sweep_does_not_relabel_covered_drop(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h_js', 'desktop', 2, 'js', $pat ) ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_with_asset( $pat, 'h_js', 'script', [
+                    'bucket_desktop' => 'needed',
+                    'bucket_mobile'  => 'needed',
+                    'cov_desktop'    => 0.5945,
+                    'cov_mobile'     => 0.5945,
+                    'demote_class'   => 'benign',
+                ] ),
+                [ 'h_js|script' ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertFalse( $this->has_rule( $final, 'h_js', 'desktop', 2 ) );
+        $this->assertSame( 1, $diag['outcomes']['covered_drop'] ?? 0, 'covered_drop keeps its own label' );
+        $this->assertSame( 0, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+    }
+
+    /**
+     * PLACEMENT — failsafe_validated is a NON-restore and must keep its own label.
+     * The page-level failsafe already dropped the rule; the keeplist did not save it.
+     */
+    public function test_keeplist_sweep_does_not_relabel_failsafe_validated(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h_js', 'desktop', 2, 'js', $pat ) ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_failsafe( $pat, 'no_offender_isolated', [] ),
+                [ 'h_js|script' ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertFalse( $this->has_rule( $final, 'h_js', 'desktop', 2 ) );
+        $this->assertSame( 1, $diag['outcomes']['failsafe_validated'] ?? 0, 'failsafe_validated keeps its own label' );
+        $this->assertSame( 0, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+    }
+
+    /**
+     * PLACEMENT — in_r_et is never swept. THIS rescan re-derived the rule, so keeping
+     * it is not a resurrection; it is already in $final from Step 5 and stays there.
+     * A guard placed before the in_r_et check would both mislabel it and imply a
+     * removal that never happened.
+     */
+    public function test_keeplist_sweep_does_not_touch_a_rule_already_in_r_et(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [ $this->rule( 'h_js', 'desktop', 2, 'js', $pat ) ];
+        $rescan_pages = [
+            $this->with_kept(
+                [
+                    'url'    => $pat,
+                    'status' => 'done',
+                    'assets' => [ [
+                        'handle'  => 'h_js',
+                        'type'    => 'script',
+                        'desktop' => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => 'aggressive' ],
+                        'mobile'  => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => 'aggressive' ],
+                    ] ],
+                ],
+                [ 'h_js|script' ]
+            ),
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertContains(
+            'h_js',
+            array_column( $final, 'asset_handle' ),
+            'a rule THIS rescan re-derived stays in the output — the sweep only blocks resurrection'
+        );
+        $this->assertSame( 1, $diag['outcomes']['in_r_et'] ?? 0, 'in_r_et keeps its own label' );
+        $this->assertSame( 0, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+    }
+
+    /**
+     * D5 — kept_protection is untrusted Railway-worker input (WP Compliance Rule 1).
+     * No shape of junk may fatal, warn, or manufacture a false sweep, and the
+     * legitimate rules must still restore.
+     *
+     * The empty-string handle is the sharp one: unskipped it indexes the key '|',
+     * which sweeps any rule whose handle AND type are both empty — constructible,
+     * because CuJsonBuilder passes asset_handle through unfiltered.
+     */
+    public function test_keeplist_sweep_is_d5_safe_against_junk_worker_input(): void {
+        $pat    = 'https://s.com/p';
+        $r_orig = [
+            $this->rule( 'h_js', 'desktop', 2, 'js', $pat ),
+            $this->rule( '', 'desktop', 2, '', $pat ), // empty handle AND type
+        ];
+        $rescan_pages = [
+            // kept_protection itself not an array.
+            [ 'url' => $pat, 'status' => 'done', 'assets' => [], 'kept_protection' => 'nope' ],
+            [
+                'url'             => $pat,
+                'status'          => 'done',
+                'assets'          => [],
+                'kept_protection' => [
+                    'not-an-array',                                 // entry not an array
+                    [ 'display_name' => 'X' ],                      // no handles key at all
+                    [ 'display_name' => 'Y', 'handles' => 'str' ],  // handles not an array
+                    [ 'display_name' => 'Z', 'handles' => [ 123, null, [ 'a' ], '' ] ],
+                ],
+            ],
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertSame( 0, $diag['outcomes']['kept_protection_swept'] ?? 0, 'junk must never sweep' );
+        $this->assertTrue(
+            $this->has_rule( $final, 'h_js', 'desktop', 2 ),
+            'junk kept_protection must not disturb a normal restore'
+        );
+        $this->assertTrue(
+            $this->has_rule( $final, '', 'desktop', 2 ),
+            "an empty kept handle must not sweep the empty-handle rule via the '|' key"
+        );
+    }
 }

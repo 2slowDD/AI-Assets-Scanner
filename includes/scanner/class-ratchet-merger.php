@@ -274,6 +274,51 @@ class RatchetMerger {
         // Step 3: index rescan state for policy lookups.
         $state = $this->index_rescan_state( $rescan_pages );
 
+        // Step 3b — challenge-script keeplist (spec §5.6): index the handles this rescan
+        // reported as deliberately KEPT protections, so Step 6 never resurrects an
+        // R_orig unload rule for one of them.
+        //
+        // Wire shape: $rescan_pages[]['kept_protection'][]['handles'][] = '<handle>|<type>'.
+        // aggregate_kept_protection() (class-scanner-ajax.php) reads the same field for the
+        // Step-4 note but treats the composite as OPAQUE (it counts identities); here the
+        // composite must be split, because the index is keyed to CU rules. Worker wire
+        // types go through map_type() rather than a hand-rolled 'script'⇒'js' copy, so a
+        // case added to map_type() can never silently miss this index.
+        //
+        // D5: kept_protection arrives from the Railway worker — untrusted third-party
+        // input under WP Compliance Rule 1 — so every level is is_array/is_string guarded
+        // and no shape of junk can fatal or manufacture a false sweep.
+        //
+        // `?? null` here is house-pattern consistency, NOT load-bearing: this shape
+        // assigns first and then tests the ASSIGNED value, so `?? []` is equivalent
+        // (confirmed by mutation — the suite stays green). Contrast class-scan-status.php,
+        // where the ternary's true branch re-dereferences the RAW key and `?? []` really
+        // does break it. Same spelling in both files so they read alike; only that one
+        // depends on it.
+        $kept_index = [];
+        foreach ( $rescan_pages as $rp ) {
+            $kp = is_array( $rp ) ? ( $rp['kept_protection'] ?? null ) : null;
+            if ( ! is_array( $kp ) ) {
+                continue;
+            }
+            foreach ( $kp as $entry ) {
+                $hs = is_array( $entry ) ? ( $entry['handles'] ?? null ) : null;
+                if ( ! is_array( $hs ) ) {
+                    continue;
+                }
+                foreach ( $hs as $hk ) {
+                    // Empty is skipped, not indexed: '' would index the key '|', which
+                    // falsely sweeps any rule whose handle AND type are both empty —
+                    // constructible, since CuJsonBuilder emits asset_handle unfiltered.
+                    if ( ! is_string( $hk ) || '' === $hk ) {
+                        continue;
+                    }
+                    [ $h, $t ] = array_pad( explode( '|', $hk, 2 ), 2, '' );
+                    $kept_index[ $h . '|' . $this->map_type( $t ) ] = true;
+                }
+            }
+        }
+
         // Step 4: build the set of R_et identity_keys (for O(1) lookup).
         $r_et_keys = [];
         foreach ( $r_et as $r ) {
@@ -299,10 +344,26 @@ class RatchetMerger {
 
             $page_pattern = $r['url_pattern'];
 
+            // Keeplist sweep (spec §5.6): this rescan reported the handle as a
+            // deliberately KEPT protection, so the ratchet must not resurrect an old
+            // unload rule for it. Applied at each RESTORE point below rather than as one
+            // early guard here: pre-empting the whole walk would also re-label the
+            // NON-restore outcomes (failsafe_validated / covered_drop / validated_drop /
+            // unknown_drop) as kept_protection_swept, inflating the diag with rules the
+            // sweep never saved — they were already being dropped — and erasing the
+            // F-DEG ceiling evidence that actually decided them. in_r_et is likewise
+            // never swept: that rule is in $final from Step 5 because THIS rescan
+            // re-derived it, which is not a resurrection.
+            $swept = isset( $kept_index[ $r['asset_handle'] . '|' . $r['asset_type'] ] );
+
             // Check whole-page failsafe first.
             if ( isset( $state['failsafe'][ $page_pattern ] ) ) {
                 $fs = $state['failsafe'][ $page_pattern ];
                 if ( 'benign' === $fs ) {
+                    if ( $swept ) {
+                        $this->record_diag( $r, 'kept_protection_swept', null, $fs );
+                        continue;
+                    }
                     $final[] = $r;
                     $recovered_keys[ $page_pattern ][ $this->recollapse_key( $r ) ] = true;
                     $this->record_diag( $r, 'failsafe_benign', null, 'benign' );
@@ -316,6 +377,10 @@ class RatchetMerger {
             $asset_state = $state['asset'][ $ikey ] ?? null;
 
             if ( null === $asset_state ) {
+                if ( $swept ) {
+                    $this->record_diag( $r, 'kept_protection_swept', null, null );
+                    continue;
+                }
                 $final[] = $r;
                 $recovered_keys[ $page_pattern ][ $this->recollapse_key( $r ) ] = true;
                 $this->record_diag( $r, 'absent_restore', null, null );
@@ -329,6 +394,10 @@ class RatchetMerger {
 
             $dc = $asset_state['demote_class'];
             if ( 'benign' === $dc ) {
+                if ( $swept ) {
+                    $this->record_diag( $r, 'kept_protection_swept', $dc, null );
+                    continue;
+                }
                 $final[] = $r;
                 $recovered_keys[ $page_pattern ][ $this->recollapse_key( $r ) ] = true;
                 $this->record_diag( $r, 'benign_restore', $dc, null );
@@ -421,7 +490,8 @@ class RatchetMerger {
      * Append one Step-6 decision to the diagnostic trail. Diagnostic only.
      *
      * @param array       $r              Exploded per-device R_orig rule.
-     * @param string      $outcome        One of the eight Step-6 outcomes.
+     * @param string      $outcome        One of the nine Step-6 outcomes (kept_protection_swept
+     *                                    was added by the challenge-script keeplist, spec §5.6).
      * @param string|null $demote_class   Per-asset demote_class (null on non-per-asset branches).
      * @param string|null $failsafe_class Page-level failsafe class (only on failsafe outcomes).
      */
