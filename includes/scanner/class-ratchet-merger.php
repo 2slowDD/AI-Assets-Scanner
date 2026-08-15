@@ -285,18 +285,36 @@ class RatchetMerger {
         // types go through map_type() rather than a hand-rolled 'script'⇒'js' copy, so a
         // case added to map_type() can never silently miss this index.
         //
-        // Scope is deliberately CROSS-PAGE — the key omits url_pattern, which every other
-        // key in this class (identity_key, recollapse_key) carries. A handle kept on ONE
-        // page therefore sweeps the stale unload rule for that handle on EVERY page in the
-        // merge, including pages that reported no keep of their own. That is intended: the
-        // worker's "this is a protection script" verdict is a property of the HANDLE, not
-        // of the page, and the sweep can only ever reach rules THIS rescan did not
-        // re-derive — the in_r_et continue at Step 6 runs first — so every rule it touches
-        // is an unconfirmed floor restore, where F-DEG outranks F-MISS. The surprising
-        // direction that permits: a keep on page A can suppress a restore page B would
-        // have made from its OWN failsafe_benign / absent_restore / benign_restore branch.
-        // Adding url_pattern here would read as a tightening and would silently resurrect
-        // exactly what §5.6 exists to prevent. Pinned by the two cross-page tests.
+        // Scope is deliberately CROSS-HOST, which is a SUPERSET of cross-page (FU-J ruling,
+        // 2026-08-15). The key is asset_handle|asset_type and omits url_pattern — the only
+        // host-bearing component any key in this class has (identity_key and recollapse_key
+        // both carry it). A handle kept on ONE page therefore sweeps the stale unload rule
+        // for that handle on EVERY page in the merge: every path, and every HOST, including
+        // pages that reported no keep of their own.
+        //
+        // Intended in both dimensions, for one reason: the worker's "this is a protection
+        // script" verdict is a property of the HANDLE, and a handle is stable across hosts
+        // running the same plugin — gform_turnstile_vendor_script means the same thing
+        // everywhere. The sweep also fires only at the three RESTORE branches and can only
+        // reach rules THIS rescan did not re-derive (the in_r_et continue at Step 6 runs
+        // first), so every rule it touches is an unconfirmed floor restore and its only
+        // possible effect is leaving MORE assets loaded.
+        //
+        // Scoping the key per page — or per host — would read as a tightening and is the
+        // wrong direction on the F-* ladder in BOTH cases: it buys back at most one missed
+        // optimization (F-MISS) by letting the ratchet resurrect an unload rule for a script
+        // the worker classified as a protection, i.e. an anti-bot/anti-spam break (F-DEG).
+        // F-DEG outranks F-MISS, so the trade is refused for hosts exactly as A4/F-4 refused
+        // it for pages. Accepted residual, F-MISS only and never F-DEG: two unrelated plugins
+        // on two hosts in one scan could register the same handle string, costing one missed
+        // optimization on the second host.
+        //
+        // The surprising direction this permits: a keep on page A can suppress a restore page
+        // B would have made from its OWN failsafe_benign / absent_restore / benign_restore
+        // branch — and page B may be on a different host. Pinned by
+        // test_keeplist_sweep_crosses_pages_but_stays_keyed_to_the_handle,
+        // test_cross_page_sweep_suppresses_a_page_local_failsafe_benign_restore and
+        // test_keeplist_sweep_crosses_hosts_and_stays_keyed_to_the_handle.
         //
         // D5: kept_protection arrives from the Railway worker — untrusted third-party
         // input under WP Compliance Rule 1 — so every level is is_array/is_string guarded

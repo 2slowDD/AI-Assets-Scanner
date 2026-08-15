@@ -1714,4 +1714,82 @@ class RatchetMergerTest extends TestCase {
             'the suppressed branch was the FAILSAFE restore point, not absent_restore'
         );
     }
+
+    /**
+     * SCOPE — the sweep is CROSS-HOST, and that is a DECISION (FU-J ruling, 2026-08-15),
+     * not an accident of the key shape.
+     *
+     * The two cross-page tests above cannot see this dimension: both of their patterns sit
+     * on one host, so a tightening that scoped the index per HOST would leave them green
+     * while silently resurrecting an unload rule for a script the worker classified as a
+     * protection, on the second host of the same scan. This test is what makes that
+     * tightening fail. The fixture patterns therefore differ ONLY in host — asserted below,
+     * so a later edit cannot quietly turn this back into a cross-page test.
+     *
+     * Why cross-host is the right scope: the worker's verdict is a property of the HANDLE,
+     * which is stable across hosts running the same plugin. Scoping per host would trade an
+     * F-DEG risk (protection script unloaded) for an F-MISS gain (one recovered
+     * optimization), and F-DEG outranks F-MISS. Accepted residual: two unrelated plugins on
+     * two hosts registering the same handle string cost one missed optimization on the
+     * second host — F-MISS only, never F-DEG.
+     */
+    public function test_keeplist_sweep_crosses_hosts_and_stays_keyed_to_the_handle(): void {
+        $pat_a = 'https://a.example/contact'; // host A reports the keep
+        $pat_b = 'https://b.example/contact'; // host B carries the stale rule, reports NO keep
+
+        // Fixture guard: same path, different host — the ONE axis under test.
+        $this->assertSame(
+            parse_url( $pat_a, PHP_URL_PATH ),
+            parse_url( $pat_b, PHP_URL_PATH ),
+            'the two patterns must share a path, or this is not isolating the host axis'
+        );
+        $this->assertNotSame(
+            parse_url( $pat_a, PHP_URL_HOST ),
+            parse_url( $pat_b, PHP_URL_HOST ),
+            'the two patterns must differ in HOST, or this duplicates the cross-page test'
+        );
+
+        $r_orig = [
+            $this->rule( 'gform_turnstile_vendor_script', 'desktop', 2, 'js', $pat_b ),
+            $this->rule( 'unrelated_script', 'desktop', 2, 'js', $pat_b ), // control
+        ];
+        $rescan_pages = [
+            $this->with_kept(
+                $this->page_no_assets( $pat_a ),
+                [ 'gform_turnstile_vendor_script|script' ]
+            ),
+            $this->page_no_assets( $pat_b ), // no kept_protection at all
+        ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, $rescan_pages );
+        $diag   = $merger->last_merge_diag;
+
+        $this->assertFalse(
+            $this->has_rule( $final, 'gform_turnstile_vendor_script', 'desktop', 2 ),
+            'a keep on host A must sweep the stale rule for that handle on host B'
+        );
+
+        // The swept leg must be host B's — not an artefact of some other pattern.
+        $legs = $this->diag_legs( $diag, 'gform_turnstile_vendor_script', 'desktop' );
+        $this->assertCount( 1, $legs, 'exactly one desktop leg walked for the kept handle' );
+        $this->assertSame( 'kept_protection_swept', $legs[0]['outcome'] );
+        $this->assertSame(
+            $pat_b,
+            $legs[0]['url_pattern'],
+            'the swept rule is the one on the OTHER host'
+        );
+
+        $this->assertTrue(
+            $this->has_rule( $final, 'unrelated_script', 'desktop', 2 ),
+            'cross-host is not blanket — a different handle on host B still restores'
+        );
+        $this->assertSame( 1, $diag['outcomes']['kept_protection_swept'] ?? 0 );
+        $this->assertSame( 1, $diag['outcomes']['absent_restore'] ?? 0, 'the control took absent_restore' );
+        $this->assertSame(
+            1,
+            $merger->recovered_by_pattern[ $pat_b ] ?? 0,
+            'only the control counts as recovered on host B; the swept rule does not'
+        );
+    }
 }

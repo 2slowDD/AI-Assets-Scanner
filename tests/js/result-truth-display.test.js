@@ -257,6 +257,16 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
 // class, so assert both writers name the new fields identically. Reads the shipped
 // sources and checks the object literals actually contain the keys next to the
 // localStorage write — the falsification check below deletes them and must go red.
+//
+// FU-F: the slice is bounded by the statement's own closing delimiter, not by a magic
+// character count. A fixed window is wrong in BOTH directions — too short and it stops
+// covering the tail of a growing literal (a still-present key reads as deleted); too
+// long and it spills into the next statement, where an unrelated `credits_refunded:`
+// would keep this pin green after the real one was removed. Measured at the time of
+// this change, the old 1200-char window overran BOTH writers, not just scanner.js —
+// scanner.js's statement runs 1752 chars and menu-badge.js's 1334, and the last
+// asserted key sat only 252 / 270 chars inside the edge. Same bound as
+// kept-protection-note.test.js §8.
 (function bothJsWritersCarryTheFields() {
   const read = (p) => fs.readFileSync(path.join(__dirname, '..', '..', 'admin', 'js', p), 'utf8');
   const writers = { 'scanner.js': read('scanner.js'), 'menu-badge.js': read('menu-badge.js') };
@@ -266,7 +276,9 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
       ? src.indexOf("localStorage.setItem('cu_scanner_result'")
       : src.indexOf("localStorage.setItem( 'cu_scanner_result'");
     assert.ok(idx > 0, name + ': could not locate the cu_scanner_result write');
-    const block = src.slice(idx, idx + 1200);
+    const close = [src.indexOf('}) );', idx), src.indexOf('}));', idx)].filter((n) => n > 0);
+    assert.ok(close.length, name + ': could not find the end of the persisted object literal');
+    const block = src.slice(idx, Math.min.apply(null, close));
     assert.ok(/already_present\s*:/.test(block),
       name + ' must carry already_present on the localStorage write (menu-badge.js is the background-completion path)');
     assert.ok(/credits_refunded\s*:/.test(block),
