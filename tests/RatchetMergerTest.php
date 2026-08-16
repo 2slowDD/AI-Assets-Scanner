@@ -1792,4 +1792,79 @@ class RatchetMergerTest extends TestCase {
             'only the control counts as recovered on host B; the swept rule does not'
         );
     }
+
+    // ---------------------------------------------------------------------------------------
+    // R20 / AC-2 — the merger must NOT learn about kept_known_assets.
+    //
+    // R20 puts a second keep field on the wire, and the obvious-looking next step is "a keep is
+    // a keep, sweep for those too". Spec §11a decided against it explicitly, with the refutation
+    // recorded so it cannot be reopened on consistency grounds: the sweep buys F-MISS to avoid
+    // F-DEG, and for a challenge script the suppressed restore would break form submission,
+    // while for `underscore` or a tracker there is no F-DEG on the other side of that trade.
+    //
+    // These two tests are what make that a decision rather than an accident of which field
+    // someone happened to read.
+    // ---------------------------------------------------------------------------------------
+
+    private function known_keep( string $handle_composite ): array {
+        return [
+            'id'           => 'fathom-analytics',
+            'display_name' => 'Fathom Analytics',
+            'category'     => 'analytics',
+            'handles'      => [ $handle_composite ],
+        ];
+    }
+
+    /** §11a — a non-protection keep must NOT suppress the stale-unload sweep. */
+    public function test_a_non_protection_keep_does_not_suppress_the_stale_unload_sweep(): void {
+        $pat    = 'https://a.example/contact';
+        $r_orig = [ $this->rule( 'fathom_script', 'desktop', 2, 'js', $pat ) ];
+
+        $page                      = $this->page_no_assets( $pat );
+        $page['kept_known_assets'] = [ $this->known_keep( 'fathom_script|script' ) ];
+
+        $merger = new RatchetMerger();
+        $final  = $merger->merge( $r_orig, [ $page ] );
+
+        $this->assertTrue(
+            $this->has_rule( $final, 'fathom_script', 'desktop', 2 ),
+            'a non-protection keep must not sweep a stale unload rule — spec §11a, decided'
+        );
+        foreach ( $this->diag_legs( $merger->last_merge_diag, 'fathom_script', 'desktop' ) as $leg ) {
+            $this->assertNotSame( 'kept_protection_swept', $leg['outcome'],
+                'the keeplist sweep is keyed to kept_protection alone' );
+        }
+    }
+
+    /**
+     * AC-2 — kept_protection behaviour byte-identical. The strongest form of the claim: run the
+     * SAME merge twice, once with kept_known_assets present and once without, and require both
+     * the merged rule set AND the diagnostic trail to be identical. A protection keep is present
+     * in both runs so the sweep genuinely fires — otherwise this would pass on two empty results.
+     */
+    public function test_kept_known_assets_leaves_the_kept_protection_merge_byte_identical(): void {
+        $pat    = 'https://a.example/contact';
+        $r_orig = [
+            $this->rule( 'gform_turnstile_vendor_script', 'desktop', 2, 'js', $pat ),
+            $this->rule( 'fathom_script', 'desktop', 2, 'js', $pat ),
+        ];
+
+        $without = $this->with_kept( $this->page_no_assets( $pat ), [ 'gform_turnstile_vendor_script|script' ] );
+        $with    = $without;
+        $with['kept_known_assets'] = [ $this->known_keep( 'fathom_script|script' ) ];
+
+        $m_without = new RatchetMerger();
+        $f_without = $m_without->merge( $r_orig, [ $without ] );
+        $m_with    = new RatchetMerger();
+        $f_with    = $m_with->merge( $r_orig, [ $with ] );
+
+        $this->assertFalse(
+            $this->has_rule( $f_without, 'gform_turnstile_vendor_script', 'desktop', 2 ),
+            'fixture guard: the protection sweep must actually fire, or this compares two no-ops'
+        );
+        $this->assertSame( $f_without, $f_with,
+            'AC-2: adding kept_known_assets must not change the merged rule set' );
+        $this->assertSame( $m_without->last_merge_diag, $m_with->last_merge_diag,
+            'AC-2: nor the diagnostic trail' );
+    }
 }
