@@ -79,7 +79,18 @@ class SecretFixtureAllowlistTest extends TestCase {
 	 * Naming it `..._unknown_cusk_literal_...` made the guard match its own
 	 * name in the result cache.
 	 */
-	public function test_no_unrecognised_key_literal_exists_in_the_tree(): void {
+	/**
+	 * Every unrecognised match for $pattern across the tree, as "<literal>  (<relative path>)".
+	 *
+	 * Shared by both guards so a fix to the walk cannot land on one prefix and miss the other.
+	 *
+	 * @param string        $pattern    Regex; match 0 is the raw hit.
+	 * @param array         $allowed    literal => one-line reason.
+	 * @param array         $extensions Lower-case extensions to restrict to; empty = every file.
+	 * @param callable|null $normalize  Maps a raw hit to the literal looked up in $allowed.
+	 * @return array<int,string>
+	 */
+	private function unallowed_literals( string $pattern, array $allowed, array $extensions = array(), ?callable $normalize = null ): array {
 		$root  = \dirname( __DIR__ );
 		$found = array();
 
@@ -96,29 +107,38 @@ class SecretFixtureAllowlistTest extends TestCase {
 			if ( ! $file->isFile() ) {
 				continue;
 			}
-			// This test file itself holds the allowlist; skip to avoid self-matching.
+			// This test file itself holds the allowlists; skip to avoid self-matching.
 			if ( \realpath( $file->getPathname() ) === \realpath( __FILE__ ) ) {
 				continue;
 			}
 			if ( \in_array( $file->getFilename(), self::SKIP_FILES, true ) ) {
 				continue;
 			}
+			if ( array() !== $extensions
+				&& ! \in_array( \strtolower( $file->getExtension() ), $extensions, true ) ) {
+				continue;
+			}
 			$contents = @\file_get_contents( $file->getPathname() );
 			if ( false === $contents ) {
 				continue;
 			}
-			if ( ! \preg_match_all( '/cusk_[A-Za-z0-9_?]*/', $contents, $m ) ) {
+			if ( ! \preg_match_all( $pattern, $contents, $m ) ) {
 				continue;
 			}
-			foreach ( $m[0] as $literal ) {
-				if ( ! \array_key_exists( $literal, self::ALLOWED ) ) {
-					$rel            = \str_replace( $root . \DIRECTORY_SEPARATOR, '', $file->getPathname() );
-					$found[]        = $literal . '  (' . $rel . ')';
+			foreach ( $m[0] as $raw ) {
+				$literal = null === $normalize ? $raw : $normalize( $raw );
+				if ( ! \array_key_exists( $literal, $allowed ) ) {
+					$rel     = \str_replace( $root . \DIRECTORY_SEPARATOR, '', $file->getPathname() );
+					$found[] = $literal . '  (' . $rel . ')';
 				}
 			}
 		}
 
-		$found = \array_values( \array_unique( $found ) );
+		return \array_values( \array_unique( $found ) );
+	}
+
+	public function test_no_unrecognised_key_literal_exists_in_the_tree(): void {
+		$found = $this->unallowed_literals( '/cusk_[A-Za-z0-9_?]*/', self::ALLOWED );
 
 		$this->assertSame(
 			array(),
@@ -127,6 +147,71 @@ class SecretFixtureAllowlistTest extends TestCase {
 			. "If it is a new fixture, add the exact literal to SecretFixtureAllowlistTest::ALLOWED with a\n"
 			. "one-line reason. Found:\n  " . \implode( "\n  ", $found )
 		);
+	}
+
+	/**
+	 * B2 — the same inverted guard for the SECOND prefix family GitGuardian flags.
+	 *
+	 * ⚠️ THIS ONE CANNOT COPY THE cusk_ SHAPE, and the reason matters. `cusk_` is a distinctive
+	 * literal, so a bare substring sweep for it is safe. A bare sweep for `sk-` is NOT: it matches
+	 * the middle of ordinary words — this repo alone contains "Task-2", "Task-5", "Task-7" and
+	 * "Task-9" in comments, and "risk-", "disk-", "desk-" would all hit too. A guard that fires on
+	 * the word "Task-" gets muted within a week, and a muted guard is worse than no guard.
+	 *
+	 * So this keys on a QUOTED STRING LITERAL beginning with the prefix — the shape an actual
+	 * credential takes in source — and scans code files only. Two consequences, both deliberate:
+	 *
+	 *   1. `sk-gradient-background` never reaches the allowlist, because it lives in .gitguardian.yaml
+	 *      and two scraped-page .txt fixtures, not in code. It is a CSS class and allowlisting it
+	 *      beside real key fixtures would misfile it as a credential.
+	 *   2. `sk-overwrite` and `sk-by-task` are likewise not here: verified with git grep, they exist
+	 *      only as prose in tasks/todo.md and two planning docs, not as fixtures.
+	 *
+	 * ⚠️ UNLIKE cusk_, no production code validates an `sk-` prefix — verified across admin/,
+	 * includes/, the root plugin files and admin/js. These are third-party-shaped API-key fixtures
+	 * (the wpservice.pro Bearer token), so nothing constrains them to keep the prefix. That is
+	 * recorded because it is the one argument for renaming them that does NOT apply to cusk_.
+	 *
+	 * The allowlist below was derived by SWEEP, not transcribed from a report: a hand-written list
+	 * is exactly how entry N+1 gets missed.
+	 */
+	private const ALLOWED_BEARER = array(
+		'sk-test'     => 'tests/WpserviceClientTest.php — the client fixture, also asserted as the literal `Bearer sk-test` header value',
+		'sk-test-123' => 'tests/SettingsTest.php — get_api_key() round-trip fixture',
+		'sk-new-key'  => 'tests/SettingsTest.php — set_api_key() write fixture',
+	);
+
+	/**
+	 * NOTE: like its sibling, this method name avoids the shape it scans for — though the quoted
+	 * pattern makes self-matching structurally impossible here, since a PHP method name cannot
+	 * contain a quote or a hyphen.
+	 */
+	public function test_no_unrecognised_bearer_literal_exists_in_code(): void {
+		$found = $this->unallowed_literals(
+			'/[\'"]sk-[A-Za-z0-9_-]+[\'"]/',
+			self::ALLOWED_BEARER,
+			array( 'php', 'js' ),
+			static function ( $raw ) {
+				return \trim( $raw, '\'"' );
+			}
+		);
+
+		$this->assertSame(
+			array(),
+			$found,
+			"Unknown sk- key literal(s) found in code. If this is a REAL key, remove it and rotate it\n"
+			. "immediately. If it is a new fixture, add the exact literal to\n"
+			. "SecretFixtureAllowlistTest::ALLOWED_BEARER with a one-line reason. An entry you cannot\n"
+			. 'justify in one line is the signal not to add it.'
+		);
+	}
+
+	/** Both allowlists are only meaningful if their entries are still real. */
+	public function test_bearer_allowlist_has_no_stale_entries(): void {
+		$this->assertNotEmpty( self::ALLOWED_BEARER, 'the allowlist must not be emptied to make the guard pass' );
+		foreach ( self::ALLOWED_BEARER as $literal => $reason ) {
+			$this->assertNotSame( '', \trim( (string) $reason ), "Allowlist entry '{$literal}' has no reason" );
+		}
 	}
 
 	/** The allowlist is only meaningful if its entries are still real. */
