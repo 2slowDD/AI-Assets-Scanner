@@ -8,6 +8,27 @@
 > Supersedes the 1.7.94b release plan (that release **shipped and is verified in production**, scan `6255833f56eb`).
 > Its one **unfinished** section is carried forward below under *Carried from the prior plan*. Nothing else was open.
 
+> ## ✅ STATUS 2026-08-16 — this queue is CLOSED; everything below shipped
+>
+> **Phases 0.2 / 1 / 1.5 all released.** They went out in **1.7.95b**, which is live and verified
+> against the update host (manifest, served ZIP and checksum all agreeing). The "UNPUSHED" and
+> "committed locally" notes further down are **historical** — `origin/main` is now `4394f24` and
+> the branch is 0/0. They are left in place rather than deleted so the sequencing stays readable.
+>
+> **What came after this queue, and is not described in it:** the **R20 render** — report EVERY
+> known-asset whitelist keep, not just protection — shipped as **1.7.96b** (`ceae547` chip gate,
+> `35844f3` aggregation, `474acfd` render, `210e9a8` ratchet pin, `a90d4c9` version bump). Plan:
+> `<AI-ROOT>\CU\docs\product-docs\04-development\2026-08-16-r20-aas-render-implementation-plan.md`.
+> Spec: `…\2026-08-15-r20-all-known-asset-keeps-spec.md` (Rev 2.1).
+>
+> Also shipped alongside it, none of it customer-facing: `package.json` so the 17 JS suites run as
+> one `npm test`; a per-version `admin/js` fingerprint pin closing the same-version JS drift class;
+> the secret-fixture guard extended to the `sk-` prefix family; and `public-push-sweep.py`, which
+> makes P9's public-push checks a command instead of a memory exercise.
+>
+> ⚠️ **1.7.96b is BUILT and PUSHED but NOT YET UPLOADED** to `updates.wpservice.pro` at the time of
+> writing. Until that upload lands, none of the R20 work is visible to a customer.
+
 ---
 
 ## Phase 0 — free, no code (IN PROGRESS)
@@ -22,7 +43,7 @@
 
 ---
 
-## Phase 1 — AAS "unasserted guards" bundle · test-only · **no release** · ✅ DONE `2a99b56` (UNPUSHED — operator chose to hold for Phase 4's release)
+## Phase 1 — AAS "unasserted guards" bundle · test-only · **no release** · ✅ DONE `2a99b56` — ✅ **PUSHED + RELEASED in 1.7.95b** *(the "UNPUSHED, held for Phase 4's release" note was true when written; that release happened)*
 
 One branch off `7a95d48`, one review pass. **Zero production behaviour touched, no version bump, no SFTP, no manifest.**
 (FU-J's deliverable includes a **comment amendment** in `includes/scanner/class-ratchet-merger.php` — PHP comment only, no behaviour, no enqueue, therefore no cache-bust and no bump. It rides Phase 4's release for free.)
@@ -57,7 +78,7 @@ One branch off `7a95d48`, one review pass. **Zero production behaviour touched, 
 
 ---
 
-## Phase 1.5 — FU-L + FU-M · API-key data loss · **AAS, code change** · ✅ DONE + VERIFIED 2026-08-15 (committed locally, unpushed)
+## Phase 1.5 — FU-L + FU-M · API-key data loss · **AAS, code change** · ✅ DONE + VERIFIED 2026-08-15 — ✅ **PUSHED + RELEASED in 1.7.95b** *("committed locally, unpushed" was true when written)*
 
 `admin/class-settings-ajax.php` `save_settings()` commits the submitted API key **before** it is validated, and
 never rolls back. Re-derived by content 2026-08-15: `set_api_key()` at **:43**, `authenticate()` at **:61** — both
