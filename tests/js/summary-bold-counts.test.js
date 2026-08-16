@@ -4,6 +4,15 @@
 // render bold when N > 0. Nothing else on the line is bolded, and the sentence itself does
 // not change — only its markup does.
 //
+// FU-K + FU-I (2026-08-16, coupled, ship together) — a live scan reading
+// "0 safe rules, 9 aggressive rules generated" showed A2b was only bolding the DIGIT
+// (`<strong>1</strong> safe rules`), not the phrase the operator meant to emphasise. FU-K
+// moves the bold boundary to cover the count AND its noun ( `<strong>1 safe rule</strong>` ),
+// and FU-I adds the missing singular branch in the same phrase ("1 safe rule", not
+// "1 safe rules"). They are coupled on purpose: bolding the ungrammatical plural would have
+// made the grammar bug louder, not fixed it. `o.urls` is still never bold, and zero still
+// stays plain.
+//
 // Runs the REAL admin/js/scanner.js through the shared harness and reads the REAL
 // #cu-result-summary element, so this exercises the production render path (restoreStep4 ->
 // buildSummaryParts -> renderSummaryParts), not an injected one.
@@ -35,6 +44,14 @@
 //                                        the second render stacks and the text doubles.
 //   9. testLiveScanPathRendersBold     — bold wired into a helper the real wire never reaches:
 //                                        every seam-driven case stays green, this one reds.
+//  10. testSingularNounForCountOfOne  — FU-I's singular branch missing, or keyed on
+//                                       truthiness/`>= 1` instead of an exact numeric 1: "1
+//                                       safe rule" renders as "1 safe rules", or a non-1 value
+//                                       wrongly takes the singular noun.
+//  11. testBoldPhraseNotBareDigit     — FU-K's segment-boundary regression: the bold flag
+//                                       stays on the bare count instead of moving with the
+//                                       words, so <strong> wraps "3" instead of "3 safe
+//                                       rules".
 const assert = require('assert');
 const { createHarness } = require('./r3-stage-c-harness');
 
@@ -62,10 +79,11 @@ function render(opts) {
 }
 
 // --- 1. Both counts bold when both are above zero ------------------------------------
+// FU-K: the bold segment is the WHOLE phrase (count + noun), not the bare digit.
 function testNonZeroCountsAreBold() {
   const r = render({ safeCount: 3, aggCount: 7 });
-  assert.deepStrictEqual(r.strongs, ['3', '7'],
-    'both non-zero counts render bold, in sentence order; got: ' + JSON.stringify(r.strongs));
+  assert.deepStrictEqual(r.strongs, ['3 safe rules', '7 aggressive rules'],
+    'both non-zero counts render bold as the whole phrase, in sentence order; got: ' + JSON.stringify(r.strongs));
   // The bold wraps a TEXT node — the count is server-sourced, so this must never be an
   // HTML sink. A <strong> holding anything but a text node is the tell.
   const strongEls = r.el.querySelectorAll('strong');
@@ -78,9 +96,9 @@ function testNonZeroCountsAreBold() {
 
 // --- 2. Zero is never bold -----------------------------------------------------------
 function testZeroIsNotBold() {
-  assert.deepStrictEqual(render({ safeCount: 0, aggCount: 7 }).strongs, ['7'],
+  assert.deepStrictEqual(render({ safeCount: 0, aggCount: 7 }).strongs, ['7 aggressive rules'],
     'a zero safe count stays plain while the aggressive count is bold');
-  assert.deepStrictEqual(render({ safeCount: 3, aggCount: 0 }).strongs, ['3'],
+  assert.deepStrictEqual(render({ safeCount: 3, aggCount: 0 }).strongs, ['3 safe rules'],
     'and the other way round');
   assert.deepStrictEqual(render({ safeCount: 0, aggCount: 0 }).strongs, [],
     'a scan that produced nothing bolds nothing at all');
@@ -92,7 +110,7 @@ function testNaNIsNotBold() {
   const cases = [NaN, 'abc', undefined, null, -2];
   cases.forEach(function (bad) {
     const r = render({ safeCount: bad, aggCount: 7 });
-    assert.deepStrictEqual(r.strongs, ['7'],
+    assert.deepStrictEqual(r.strongs, ['7 aggressive rules'],
       'safeCount ' + JSON.stringify(String(bad)) + ' must not be bold; got: ' + JSON.stringify(r.strongs));
   });
   // ...and the unbolded value still renders, verbatim, as the sentence always rendered it.
@@ -104,14 +122,14 @@ function testNaNIsNotBold() {
 // --- 4. The URL count is never bold, and neither is its '?' fallback ------------------
 function testUrlsIsNeverBold() {
   const known = render({ urlsScanned: 9, safeCount: 4, aggCount: 0 });
-  assert.deepStrictEqual(known.strongs, ['4'],
+  assert.deepStrictEqual(known.strongs, ['4 safe rules'],
     'a known URL count is never bold, however large; got: ' + JSON.stringify(known.strongs));
 
   // urlsScanned absent => restoreStep4 renders the literal '?'. Bolding a number-shaped
   // token would be wrong here twice over: it is not a rule count, and it is not a number.
   const unknown = render({ urlsScanned: undefined, safeCount: 4, aggCount: 0 });
   assert.ok(/\? URLs scanned/.test(unknown.text), "an unknown URL count still renders '?'");
-  assert.deepStrictEqual(unknown.strongs, ['4'], "'?' is never bold");
+  assert.deepStrictEqual(unknown.strongs, ['4 safe rules'], "'?' is never bold");
   console.log("OK the URL count — including the '?' fallback — is never bold");
 }
 
@@ -149,7 +167,7 @@ function testTextIsByteIdenticalToTheLine() {
 function testHintDoesNotFlattenTheBold() {
   const r = render({ urlsScanned: 5, safeCount: 3, aggCount: 7, canPush: true });
   assert.ok(r.text.indexOf(HINT_PUSH) > 0, 'this state really does append a hint (guard the guard)');
-  assert.deepStrictEqual(r.strongs, ['3', '7'],
+  assert.deepStrictEqual(r.strongs, ['3 safe rules', '7 aggressive rules'],
     'the <strong> elements SURVIVE the hint append; got: ' + JSON.stringify(r.strongs));
   assert.strictEqual(
     r.text,
@@ -163,9 +181,55 @@ function testHintDoesNotFlattenTheBold() {
 function testAlreadyPresentTailNotBold() {
   const r = render({ urlsScanned: 2, safeCount: 1, aggCount: 3, alreadyPresent: { safe: 0, aggressive: 2 } });
   assert.ok(/→ 2 new, 2 already in Code Unloader/.test(r.text), 'the tail renders');
-  assert.deepStrictEqual(r.strongs, ['1', '3'],
-    'only the two rule counts are bold — the fresh/already numbers are not; got: ' + JSON.stringify(r.strongs));
+  // safeCount: 1 exercises FU-I's singular noun in the same assertion as FU-K's phrase bold.
+  assert.deepStrictEqual(r.strongs, ['1 safe rule', '3 aggressive rules'],
+    'only the two rule-count phrases are bold — the fresh/already numbers are not; got: ' + JSON.stringify(r.strongs));
   console.log('OK the new/already tail is never bolded');
+}
+
+// --- 10. FU-I: singular noun fires ONLY on a real numeric 1 ---------------------------
+// "1 safe rule" / "1 aggressive rule", never "...rules". Every other count (0, 9, and the
+// non-numeric cases already covered by testNaNIsNotBold) keeps the plural noun.
+function testSingularNounForCountOfOne() {
+  const both = render({ safeCount: 1, aggCount: 1 });
+  assert.deepStrictEqual(both.strongs, ['1 safe rule', '1 aggressive rule'],
+    'both counts of exactly 1 take the singular noun, bold as one phrase; got: ' + JSON.stringify(both.strongs));
+  assert.ok(both.text.indexOf('1 safe rule, 1 aggressive rule generated.') > 0,
+    'the sentence reads grammatically; got: ' + JSON.stringify(both.text));
+
+  const mixedLow = render({ safeCount: 1, aggCount: 9 });
+  assert.deepStrictEqual(mixedLow.strongs, ['1 safe rule', '9 aggressive rules'],
+    'singular safe, plural aggressive, independently; got: ' + JSON.stringify(mixedLow.strongs));
+
+  const mixedHigh = render({ safeCount: 9, aggCount: 1 });
+  assert.deepStrictEqual(mixedHigh.strongs, ['9 safe rules', '1 aggressive rule'],
+    'plural safe, singular aggressive, independently; got: ' + JSON.stringify(mixedHigh.strongs));
+
+  // A zero count stays plain AND plural — singular is about the noun, not the bold flag.
+  const zeroAndOne = render({ safeCount: 0, aggCount: 1 });
+  assert.deepStrictEqual(zeroAndOne.strongs, ['1 aggressive rule'],
+    'a zero count never goes singular or bold; got: ' + JSON.stringify(zeroAndOne.strongs));
+  assert.ok(zeroAndOne.text.indexOf('0 safe rules, 1 aggressive rule generated.') > 0,
+    'zero stays plural, one goes singular, in the same sentence; got: ' + JSON.stringify(zeroAndOne.text));
+  console.log('OK the singular noun fires only on a real numeric 1, independently per count');
+}
+
+// --- 11. FU-K: the bold segment is the phrase, not the bare digit ---------------------
+// Falsifies a regression where the bold flag stays on the count and the noun words are
+// pushed as a separate, unbold segment (i.e. A2b's original boundary, before FU-K moved it).
+function testBoldPhraseNotBareDigit() {
+  const r = render({ safeCount: 3, aggCount: 7 });
+  const strongEls = r.el.querySelectorAll('strong');
+  assert.strictEqual(strongEls.length, 2, 'exactly one <strong> per non-zero count');
+  strongEls.forEach(function (s) {
+    assert.ok(/^\d+ (safe|aggressive) rules?$/.test(s.textContent),
+      'the bold segment is the whole "N noun rule(s)" phrase, not a bare digit; got: ' + JSON.stringify(s.textContent));
+  });
+  // The digit alone must NOT appear as its own <strong> — that would mean the boundary
+  // reverted to wrapping just the count.
+  assert.ok(r.strongs.indexOf('3') === -1 && r.strongs.indexOf('7') === -1,
+    'no <strong> wraps a bare digit; got: ' + JSON.stringify(r.strongs));
+  console.log('OK the bold segment carries the whole count+noun phrase, not a bare digit');
 }
 
 // --- 8. A second render replaces the first, never stacks on it ------------------------
@@ -185,8 +249,8 @@ function testReRenderReplaces() {
   assert.strictEqual(second, first, 'a re-render REPLACES the summary; it must not stack');
   assert.deepStrictEqual(
     h.els['cu-result-summary'].querySelectorAll('strong').map(function (s) { return s.textContent; }),
-    ['3', '7'],
-    'and leaves exactly one <strong> per non-zero count, not two'
+    ['3 safe rules', '7 aggressive rules'],
+    'and leaves exactly one <strong> per non-zero count phrase, not two'
   );
   console.log('OK a second render replaces rather than appends');
 }
@@ -227,8 +291,8 @@ function testLiveScanPathRendersBold() {
     assert.ok(/Scan complete\./.test(el.textContent), 'the live path really rendered a summary');
     assert.deepStrictEqual(
       el.querySelectorAll('strong').map(function (s) { return s.textContent; }),
-      ['2', '6'],
-      'a real completed scan renders its non-zero counts bold; got: ' + JSON.stringify(el.textContent)
+      ['2 safe rules', '6 aggressive rules'],
+      'a real completed scan renders its non-zero count phrases bold; got: ' + JSON.stringify(el.textContent)
     );
     console.log('OK a live completed scan renders the bold counts');
   });
@@ -241,6 +305,8 @@ testUrlsIsNeverBold();
 testTextIsByteIdenticalToTheLine();
 testHintDoesNotFlattenTheBold();
 testAlreadyPresentTailNotBold();
+testSingularNounForCountOfOne();
+testBoldPhraseNotBareDigit();
 testReRenderReplaces();
 testLiveScanPathRendersBold()
   .then(function () { console.log('summary-bold-counts: all assertions passed'); })

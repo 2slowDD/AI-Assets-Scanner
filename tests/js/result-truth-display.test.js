@@ -22,9 +22,12 @@ assert.strictEqual(
   'Scan complete. 2 URLs scanned, 0 safe rules, 3 aggressive rules generated. → 0 new, 3 already in Code Unloader',
   'all-already'
 );
+// FU-I (2026-08-16): safeCount: 1 takes the singular noun — "1 safe rule", not "1 safe
+// rules". Coupled with FU-K, which bolds this phrase as one segment (see
+// summary-bold-counts.test.js); this file pins the plain-string form only.
 assert.strictEqual(
   buildSummaryLine({ urls: 2, safeCount: 1, aggCount: 3, alreadyPresent: { safe: 0, aggressive: 2 } }),
-  'Scan complete. 2 URLs scanned, 1 safe rules, 3 aggressive rules generated. → 2 new, 2 already in Code Unloader',
+  'Scan complete. 2 URLs scanned, 1 safe rule, 3 aggressive rules generated. → 2 new, 2 already in Code Unloader',
   'mixed'
 );
 // AC-11: null => today's line only. NO claim in either direction.

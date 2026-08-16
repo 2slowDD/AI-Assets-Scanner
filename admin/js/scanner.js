@@ -2284,18 +2284,22 @@
     function buildSummaryParts( o ) {
         var parts = [];
         function push( value, bold ) { parts.push( { text: '' + value, bold: !! bold } ); }
-        // Bold a count only when it is a real, non-zero number: zero is not news, and a
-        // NaN/undefined count must never be shouted. o.urls is NEVER bold — it renders the
-        // literal '?' whenever the scanned-URL count is unknown, and '?' is not a quantity.
+        // Bold the count together with its noun as ONE segment, and only when the count is a
+        // real, non-zero number: zero is not news, and a NaN/undefined count must never be
+        // shouted. o.urls is NEVER bold — it renders the literal '?' whenever the scanned-URL
+        // count is unknown, and '?' is not a quantity.
         function isNonZero( n ) { return Number( n ) > 0; }
+        // FU-I: singular fires ONLY on an exact numeric 1 — NaN / 'abc' / undefined / null /
+        // negative numbers all fall through to the plural noun, same as before this branch.
+        function noun( n, singular, plural ) { return ( Number( n ) === 1 ) ? singular : plural; }
 
         push( 'Scan complete. ' );
         push( o.urls );
         push( ' URLs scanned, ' );
-        push( o.safeCount, isNonZero( o.safeCount ) );
-        push( ' safe rules, ' );
-        push( o.aggCount, isNonZero( o.aggCount ) );
-        push( ' aggressive rules generated.' );
+        push( o.safeCount + ' ' + noun( o.safeCount, 'safe rule', 'safe rules' ), isNonZero( o.safeCount ) );
+        push( ', ' );
+        push( o.aggCount + ' ' + noun( o.aggCount, 'aggressive rule', 'aggressive rules' ), isNonZero( o.aggCount ) );
+        push( ' generated.' );
 
         var ap = o.alreadyPresent;
         if ( !ap ) return parts;                       // null => cannot know => no claim
