@@ -1,0 +1,11 @@
+{
+  "name": "ai-assets-scanner-dev",
+  "private": true,
+  "description": "Dev tooling for the AI Assets Scanner WordPress plugin. NOT shipped to customers: build-release.py's TOP_FILES is an explicit 5-file whitelist and does not include this file. Deliberately carries no \"version\" field - the plugin version lives in exactly three places (ai-assets-scanner.php header, CU_SCANNER_VERSION, README.md badge) and a fourth copy here would be one more surface to drift.",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 \"tests/js/*.test.js\""
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
