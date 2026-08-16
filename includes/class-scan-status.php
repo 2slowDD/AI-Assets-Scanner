@@ -207,6 +207,12 @@ class AIAS_Scan_Status {
 				'kept_protection' => is_array( $page['kept_protection'] ?? null )
 					? array_values( array_filter( $page['kept_protection'], [ self::class, 'entry_contributes_handle' ] ) )
 					: [],
+				// R20 — the number the per-row chip renders as "N kept", spanning BOTH keep
+				// fields. Decided here, at the producer, for the same reason kept_protection's
+				// filter is: the client then needs one plain `> 0` test instead of a second
+				// copy of the note's predicate in JS, and two predicates that must agree is the
+				// defect class this file exists to close.
+				'kept_count' => self::count_kept_composites( $page ),
 			];
 		}
 		return $rows;
@@ -243,5 +249,50 @@ class AIAS_Scan_Status {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * R20 — how many kept assets this ONE page contributes, across both keep fields.
+	 *
+	 * UNIT: distinct '<handle>|<type>' COMPOSITES, the same unit
+	 * ScannerAjax::aggregate_kept_protection() counts the scan-level headline in. Deliberately
+	 * NOT the entry count: `gravity-forms` is a single entry carrying two handles
+	 * (gform_gravityforms + gform_json), and the note's own word is "assets" — two files were
+	 * kept, two files load. An entry-based count would render "1 kept" beside a note counting
+	 * both, and the two numbers are read on the same screen.
+	 *
+	 * Both fields feed ONE set, so a composite appearing in both is counted ONCE. Spec AC-8
+	 * says protection and known-asset keeps are disjoint today; this does not rely on that
+	 * holding, because the failure mode if it ever stops holding is an inflated number in
+	 * front of a customer.
+	 *
+	 * Do NOT explode( '|', … ) — the composite IS the identity, exactly as in the aggregation.
+	 *
+	 * D5: both fields arrive from the Railway worker — untrusted input under WP Compliance
+	 * Rule 1 — so every level is is_array / is_string guarded and no shape of junk can fatal
+	 * or inflate the count. Pure function, no WP calls.
+	 *
+	 * @param array<string,mixed> $page One raw Railway per-page result row.
+	 */
+	private static function count_kept_composites( array $page ): int {
+		$composites = array();
+		foreach ( array( 'kept_protection', 'kept_known_assets' ) as $field ) {
+			// `?? null`, NOT `?? array()` — same load-bearing reason as the row field above.
+			$entries = $page[ $field ] ?? null;
+			if ( ! is_array( $entries ) ) {
+				continue;
+			}
+			foreach ( $entries as $entry ) {
+				if ( ! is_array( $entry ) || ! is_array( $entry['handles'] ?? null ) ) {
+					continue;
+				}
+				foreach ( $entry['handles'] as $h ) {
+					if ( is_string( $h ) && '' !== $h ) {
+						$composites[ $h ] = true;
+					}
+				}
+			}
+		}
+		return count( $composites );
 	}
 }

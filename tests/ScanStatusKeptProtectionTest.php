@@ -226,4 +226,78 @@ final class ScanStatusKeptProtectionTest extends TestCase {
         $this->assertContains( 'Cloudflare Turnstile', $summary['vendors'],
             'the name-only vendor is still listed by the note, just not attributed to a row' );
     }
+
+    // -----------------------------------------------------------------------------------
+    // R20 — the chip gate must widen to NON-PROTECTION keeps.
+    //
+    // Before R20 the only keeps on the wire were protection, so kept_protection alone was the
+    // whole truth. The worker now also ships kept_known_assets (Fathom, Stripe, Gravity Forms,
+    // wp-core...). A page whose keeps are ENTIRELY non-protection — which is MOST pages — must
+    // still show a chip, or the scan-level note counts 9 while no row says where any of them
+    // landed. Verified live on 1.7.95b: an ewwwiodev page rendered "1 protection script kept"
+    // with a single static chip while the worker shipped eight further keeps alongside it.
+    //
+    // kept_count is the per-row number the chip renders as "N kept". Its unit is the DISTINCT
+    // '<handle>|<type>' COMPOSITE — the same unit aggregate_kept_protection() counts in, and
+    // deliberately NOT the entry count: one entry can carry two handles (gravity-forms ships
+    // gform_gravityforms + gform_json) and the note's own word is "assets".
+    // -----------------------------------------------------------------------------------
+
+    private function knownAsset( string $id, string $name, string $category, array $handles ): array {
+        return [ 'id' => $id, 'display_name' => $name, 'category' => $category, 'handles' => $handles ];
+    }
+
+    /** AC-10 — the whole point: keeps that are entirely non-protection still get a chip. */
+    public function test_chip_renders_on_a_page_whose_keeps_are_entirely_non_protection(): void {
+        $rows = AIAS_Scan_Status::build_pages( [ $this->page( [
+            'kept_known_assets' => [
+                $this->knownAsset( 'fathom-analytics', 'Fathom Analytics', 'analytics', [ 'fathom|script' ] ),
+                $this->knownAsset( 'stripe-payments', 'Stripe payments', 'payment', [ 'stripe|script' ] ),
+            ],
+        ] ) ], [] );
+        $this->assertSame( 2, $rows[0]['kept_count'],
+            'a page with no protection keeps at all must still report a chip count' );
+    }
+
+    /** The key must exist on EVERY row — same silent-never-renders defect shape as kept_protection's. */
+    public function test_kept_count_key_is_always_present_on_the_row(): void {
+        $rows = AIAS_Scan_Status::build_pages( [ $this->page( [] ) ], [] );
+        $this->assertArrayHasKey( 'kept_count', $rows[0] );
+        $this->assertSame( 0, $rows[0]['kept_count'] );
+    }
+
+    /** The unit is composites, not entries. One entry carrying two handles counts 2. */
+    public function test_kept_count_counts_composites_not_entries(): void {
+        $rows = AIAS_Scan_Status::build_pages( [ $this->page( [
+            'kept_known_assets' => [ $this->knownAsset(
+                'gravity-forms', 'Gravity Forms', 'form',
+                [ 'gform_gravityforms|script', 'gform_json|script' ]
+            ) ],
+        ] ) ], [] );
+        $this->assertSame( 2, $rows[0]['kept_count'] );
+    }
+
+    /**
+     * Both fields feed ONE count, deduped on the composite — never summed twice. AC-8 says an
+     * asset cannot appear in both fields today; counting it twice if that ever changes would
+     * inflate a customer-facing number, so the dedupe is pinned rather than assumed.
+     */
+    public function test_kept_count_spans_both_fields_and_dedupes_the_composite(): void {
+        $rows = AIAS_Scan_Status::build_pages( [ $this->page( [
+            'kept_protection'   => [ [ 'display_name' => 'Turnstile', 'handles' => [ 'cf-challenge|script' ] ] ],
+            'kept_known_assets' => [
+                $this->knownAsset( 'fathom-analytics', 'Fathom Analytics', 'analytics', [ 'fathom|script' ] ),
+                $this->knownAsset( 'overlap', 'Overlap', 'analytics', [ 'cf-challenge|script' ] ),
+            ],
+        ] ) ], [] );
+        $this->assertSame( 2, $rows[0]['kept_count'] );
+    }
+
+    /** Junk from the untrusted worker payload must not fatal or inflate the count (Rule 1). */
+    public function test_kept_count_ignores_junk_known_assets(): void {
+        $rows = AIAS_Scan_Status::build_pages( [ $this->page( [
+            'kept_known_assets' => 'not-an-array',
+        ] ) ], [] );
+        $this->assertSame( 0, $rows[0]['kept_count'] );
+    }
 }
