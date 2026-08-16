@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.95b — 2026-08-16
+
+### Fixed
+- Your API key is no longer lost when it fails to authenticate. Saving the settings used to write the submitted key to the database *before* checking it, so a typo or an expired key replaced the working one and the connection dropped until you pasted a valid key again. The key is now stored only after it authenticates; a failed save leaves the previous key untouched. The `railway_url` and balance fields are guarded the same way.
+- The scan summary no longer says "1 safe rules". Counts of exactly one now read as singular throughout the sentence — "1 URL scanned", "1 safe rule", "1 aggressive rule". A count of zero, and an unknown URL count, stay plural as before.
+
+### Changed
+- The scan summary now bolds the whole phrase, not just the digit: **9 aggressive rules** rather than **9** aggressive rules. Zero counts stay plain, and the number of URLs scanned is still never bolded — it can render as "?" when the count is unknown, and "?" is not a quantity.
+
 ## 1.7.94b — 2026-08-15
 
 ### Added
