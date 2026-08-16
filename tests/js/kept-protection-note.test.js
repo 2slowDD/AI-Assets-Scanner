@@ -276,6 +276,98 @@ async function run() {
       'with the same copy the live path renders');
   }
 
+  // --- R20: the note reports EVERY keep, not just protection ----------------------
+  // Spec §11 FINAL, the operator-chosen copy. Everything above this block keeps the OLD
+  // {count, vendors} shape on purpose: that is the back-compat pin. A user who updates the
+  // plugin has their last scan sitting in localStorage in the old shape, and the note must
+  // still render for them rather than throwing or vanishing.
+  {
+    const live = await liveScanWith({
+      count: 9,
+      vendors: ['Cloudflare Turnstile', 'Gravity Forms', 'Fathom Analytics', 'Stripe payments',
+        'wp.domReady', 'wp.hooks', 'wp.i18n', 'Underscore.js'],
+      rows: [
+        { label: 'Cloudflare Turnstile', count: 1, category: 'protection' },
+        { label: 'Fathom Analytics', count: 1, category: 'analytics' },
+        { label: 'Gravity Forms', count: 2, category: 'form' },
+        { label: 'Stripe payments', count: 1, category: 'payment' },
+        { label: 'Underscore.js', count: 1, category: 'core' },
+        { label: 'wp.domReady', count: 1, category: 'core' },
+        { label: 'wp.hooks', count: 1, category: 'core' },
+        { label: 'wp.i18n', count: 1, category: 'core' },
+      ],
+    });
+    const notes = notesIn(live);
+    assert.strictEqual(notes.length, 1, 'R20 note renders exactly once');
+    assert.strictEqual(
+      notes[0].textContent,
+      '🛡 9 assets kept by the known-asset whitelist — Cloudflare Turnstile (protection), '
+      + 'Fathom Analytics, Gravity Forms (2), Stripe payments, '
+      + 'WordPress core (4): Underscore.js, wp.domReady, wp.hooks, wp.i18n. '
+      + 'These are kept, not unloaded.',
+      'R20 copy: grouped rows, (protection) annotation, (n) counts, core expanded to members'
+    );
+  }
+
+  // The core group is built at the RENDERER from category === "core" — the wire carries no
+  // group label. Drop the category and the four entries must render as four ordinary rows.
+  {
+    const live = await liveScanWith({
+      count: 2, vendors: ['wp.hooks', 'wp.i18n'],
+      rows: [
+        { label: 'wp.hooks', count: 1, category: 'other' },
+        { label: 'wp.i18n', count: 1, category: 'other' },
+      ],
+    });
+    assert.strictEqual(
+      notesIn(live)[0].textContent,
+      '🛡 2 assets kept by the known-asset whitelist — wp.hooks, wp.i18n. These are kept, not unloaded.',
+      'without category core there is no grouped row'
+    );
+  }
+
+  // Singular at 1 — the same discipline FU-I just shipped for the summary line. "1 assets"
+  // is exactly the defect that cost a release.
+  {
+    const live = await liveScanWith({
+      count: 1, vendors: ['Fathom Analytics'],
+      rows: [{ label: 'Fathom Analytics', count: 1, category: 'analytics' }],
+    });
+    assert.strictEqual(
+      notesIn(live)[0].textContent,
+      '🛡 1 asset kept by the known-asset whitelist — Fathom Analytics. These are kept, not unloaded.',
+      'singular noun at a count of exactly one'
+    );
+  }
+
+  // A protection row that kept more than one file needs BOTH facts. The approved sample has
+  // no such row, so this is the extension rather than a copy the operator signed off.
+  {
+    const live = await liveScanWith({
+      count: 2, vendors: ['Cloudflare Turnstile'],
+      rows: [{ label: 'Cloudflare Turnstile', count: 2, category: 'protection' }],
+    });
+    assert.strictEqual(
+      notesIn(live)[0].textContent,
+      '🛡 2 assets kept by the known-asset whitelist — Cloudflare Turnstile (2, protection). '
+      + 'These are kept, not unloaded.',
+      'count and protection annotation share one parenthetical'
+    );
+  }
+
+  // Junk rows from a remote worker must degrade to the old sentence, never throw and never
+  // leave a half-built row on screen.
+  {
+    const live = await liveScanWith({
+      count: 1, vendors: ['Cloudflare Turnstile'], rows: 'not-an-array',
+    });
+    assert.strictEqual(
+      notesIn(live)[0].textContent,
+      '🛡 1 protection script kept (Cloudflare Turnstile)' + COPY_TAIL,
+      'a non-array rows value falls back to the pre-R20 sentence'
+    );
+  }
+
   console.log('kept-protection-note: all assertions passed');
 }
 

@@ -215,6 +215,51 @@ function runChipOrderingAgainstNotes() {
   console.log('OK chip sits in the inline run, before the block-level choff note');
 }
 
+// ---------------------------------------------------------------------------------------
+// R20 — the chip carries THAT ROW'S count and covers non-protection keeps.
+//
+// Every fixture above deliberately omits kept_count: those are pre-R20 rows, and their
+// continued green is the back-compat pin. A user who updates the plugin has their last scan
+// in localStorage without the key, and the chip must degrade to the countless form rather
+// than disappear.
+// ---------------------------------------------------------------------------------------
+function runR20CountChip() {
+  // A row with a kept_count renders it. `n kept`, not the bare `kept`.
+  const withCount = function (count, keep) {
+    const row = makeRow(1, 'https://example.test/a', keep === undefined ? [] : keep);
+    row.kept_count = count;
+    return row;
+  };
+
+  const m = /<span class="cu-kept-chip">([\s\S]*?)<\/span>/.exec(render([ withCount(3) ]));
+  assert.ok(m, 'a counted row still renders a chip');
+  assert.strictEqual(m[1], '\u{1F6E1} 3 kept', 'chip text carries that row\'s own count');
+
+  // AC-10 AT THE RENDER LAYER — the whole point of R20. kept_protection is EMPTY here: every
+  // keep on this page is non-protection (Fathom, Stripe, wp-core). Before R20 this row showed
+  // no chip at all while the scan note counted its keeps.
+  const nonProtection = render([ withCount(4, []) ]);
+  assert.ok(/cu-kept-chip/.test(nonProtection),
+    'a page whose keeps are entirely non-protection must still show a chip');
+  assert.strictEqual(
+    /<span class="cu-kept-chip">([\s\S]*?)<\/span>/.exec(nonProtection)[1], '\u{1F6E1} 4 kept');
+
+  // Zero and junk both mean "no chip" — never a chip reading "0 kept" or "NaN kept". The
+  // count reaches an HTML sink, so a non-numeric payload must fail the gate, not stringify.
+  [0, -1, 'abc', null, {}, [], '3; alert(1)'].forEach(function (bad) {
+    const html = render([ withCount(bad) ]);
+    assert.strictEqual((html.match(/cu-kept-chip/g) || []).length, 0,
+      'kept_count ' + JSON.stringify(bad) + ' must render no chip');
+  });
+
+  // A numeric string is still a number after coercion, and only digits can reach the markup.
+  assert.strictEqual(
+    /<span class="cu-kept-chip">([\s\S]*?)<\/span>/.exec(render([ withCount('7') ]))[1],
+    '\u{1F6E1} 7 kept', 'a numeric string coerces to its number');
+
+  console.log('OK R20 chip carries the row count and covers non-protection keeps');
+}
+
 runChipPresent();
 runChipTextPinned();
 runChipAbsentVariants();
@@ -223,3 +268,4 @@ runMixedTableDiscrimination();
 runPayloadIsStaticOnly();
 runNooptShapeUndisturbed();
 runChipOrderingAgainstNotes();
+runR20CountChip();

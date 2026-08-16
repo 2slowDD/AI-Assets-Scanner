@@ -2334,6 +2334,78 @@
      * life (a live build_result after a localStorage restore): the second render must
      * REPLACE the first, not append to it.
      */
+    /**
+     * R20 — the Step-4 keeplist sentence, built from the aggregation's per-label `rows`.
+     *
+     * Returns a STRING and touches no DOM: every value in it comes from the Railway worker,
+     * so the caller assigns it with textContent and this must never learn to build markup.
+     *
+     * Shape: "<label> (<n>)" when a label kept more than one file, "(protection)" for the
+     * protection field, and both in one parenthetical when both apply. Every row whose
+     * category is 'core' collapses into a single "WordPress core (n): member, member" row —
+     * the group label lives HERE, not on the wire, which is why the worker ships those
+     * entries with member-only display names ("wp.hooks", not "WordPress Core: wp.hooks").
+     * A "(n)" expands its members only when those members are themselves rows: Gravity Forms'
+     * 2 are two handles inside ONE entry with no per-handle name, and inventing names for
+     * them would break naming rule R3.
+     *
+     * Falls back to the pre-R20 sentence when `rows` is missing or malformed. That is not
+     * defensive noise: a user who updates the plugin has their previous scan in localStorage
+     * in the old {count, vendors} shape, and it must still render.
+     */
+    function buildKeptNoteText( summary ) {
+        var rows = summary && summary.rows;
+        if ( ! Array.isArray( rows ) || rows.length === 0 ) {
+            var vendors = ( ( summary && summary.vendors ) || [] ).join( ', ' );
+            return '🛡 ' + summary.count + ' protection script' + ( summary.count === 1 ? '' : 's' )
+                + ' kept' + ( vendors ? ' (' + vendors + ')' : '' )
+                + ' — anti-bot/anti-spam scripts detected on pages with forms are never unloaded.';
+        }
+
+        var byLabel = function ( a, b ) {
+            return String( a ).toLowerCase().localeCompare( String( b ).toLowerCase() );
+        };
+        var coreMembers = [];
+        var coreCount   = 0;
+        var rendered    = [];
+
+        rows.forEach( function ( row ) {
+            if ( ! row || typeof row.label !== 'string' || row.label === '' ) {
+                return;
+            }
+            var count = Number( row.count );
+            if ( ! ( count > 0 ) ) {
+                return;  // AC-12 — a zero-count label never renders.
+            }
+            if ( row.category === 'core' ) {
+                coreMembers.push( row.label );
+                coreCount += count;
+                return;
+            }
+            var notes = [];
+            if ( count > 1 ) { notes.push( String( count ) ); }
+            if ( row.category === 'protection' ) { notes.push( 'protection' ); }
+            rendered.push( {
+                sort: row.label,
+                text: row.label + ( notes.length ? ' (' + notes.join( ', ' ) + ')' : '' ),
+            } );
+        } );
+
+        if ( coreMembers.length ) {
+            coreMembers.sort( byLabel );
+            rendered.push( {
+                sort: 'WordPress core',
+                text: 'WordPress core (' + coreCount + '): ' + coreMembers.join( ', ' ),
+            } );
+        }
+        rendered.sort( function ( a, b ) { return byLabel( a.sort, b.sort ); } );
+
+        return '🛡 ' + summary.count + ' asset' + ( summary.count === 1 ? '' : 's' )
+            + ' kept by the known-asset whitelist — '
+            + rendered.map( function ( r ) { return r.text; } ).join( ', ' )
+            + '. These are kept, not unloaded.';
+    }
+
     function renderSummaryParts( el, parts ) {
         el.textContent = '';
         parts.forEach( function ( p ) {
@@ -2424,7 +2496,6 @@
         // line and above the refund line. textContent only: vendor display names come from the
         // Railway worker (a remote service), so this must never become an HTML sink.
         if (keptProtection && keptProtection.count > 0) {
-            var vendors = (keptProtection.vendors || []).join(', ');
             var kpEl = document.getElementById('cu-kept-protection-note');
             if (!kpEl) {
                 var summaryEl = document.getElementById('cu-result-summary');
@@ -2442,9 +2513,7 @@
                 }
             }
             if (kpEl) {
-                kpEl.textContent = '🛡 ' + keptProtection.count + ' protection script' + (keptProtection.count === 1 ? '' : 's')
-                    + ' kept' + (vendors ? ' (' + vendors + ')' : '')
-                    + ' — anti-bot/anti-spam scripts detected on pages with forms are never unloaded.';
+                kpEl.textContent = buildKeptNoteText(keptProtection);
             }
         } else {
             // restoreStep4 runs more than once per page life (live build_result after a
@@ -2745,9 +2814,24 @@
             // sink). The safety therefore comes from the PAYLOAD: the content is STATIC TEXT,
             // the array is read ONLY for its non-empty length, and nothing inside it —
             // display_name, handles, anything — is ever interpolated into this markup.
-            var keptChip = ( Array.isArray( p.kept_protection ) && p.kept_protection.length > 0 )
-                ? ' <span class="cu-kept-chip">🛡 kept</span>'
-                : '';
+            // R20 — the chip now carries THAT ROW'S OWN count and covers non-protection keeps.
+            // kept_count is computed server-side in AIAS_Scan_Status::build_pages() so the client
+            // keeps one plain `> 0` test instead of a second copy of the note's predicate.
+            //
+            // This IS an HTML sink, so the number is Number()-coerced before interpolation
+            // (ruling R19 permits exactly that here): after coercion it can only stringify as
+            // digits, and a non-numeric payload becomes NaN and fails the > 0 test rather than
+            // reaching the markup. Nothing else from the payload is interpolated — the rest of
+            // the chip is still static text.
+            var keptCount = Number( p.kept_count );
+            var keptChip  = '';
+            if ( Number.isFinite( keptCount ) && keptCount > 0 ) {
+                keptChip = ' <span class="cu-kept-chip">🛡 ' + keptCount + ' kept</span>';
+            } else if ( ! ( 'kept_count' in p ) && Array.isArray( p.kept_protection ) && p.kept_protection.length > 0 ) {
+                // A row restored from pre-R20 storage has no kept_count. Degrade to the old
+                // countless chip rather than dropping the annotation off a stored result.
+                keptChip = ' <span class="cu-kept-chip">🛡 kept</span>';
+            }
             // FU-AAS-URL-SUFFIX-DIM — every scanned URL carries the optimizer-bypass suffixes the
             // scanner appended (?nowprocket&nowpcu&perfmattersoff). In a word-break:break-all cell
             // they are as visually loud as the page path itself, so the query string is dimmed and
