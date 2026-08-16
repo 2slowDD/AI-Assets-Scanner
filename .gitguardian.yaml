@@ -1,0 +1,50 @@
+# GitGuardian configuration — AI Assets Scanner
+#
+# SCOPE, stated plainly so nobody over-trusts this file: it governs **ggshield**
+# (the CLI, pre-commit hook and CI scans). It does NOT retroactively close
+# incidents already raised by the GitHub integration on the dashboard — those
+# are resolved in the GitGuardian UI. Its job here is to stop *future* runs
+# burying a real hit under known-fixture noise.
+#
+# WHY THIS EXISTS: incident #36194510 (2026-08-16) flagged
+# `cusk_WRONGKEY_999999` in tests/SettingsAjaxSaveTest.php as a "Generic High
+# Entropy Secret". It is a fixture in a test that mocks a 401 "Invalid API key"
+# and asserts the key is NOT persisted — it exists precisely to prove a wrong
+# key is rejected. The detector matches the `cusk_` prefix shape, not entropy:
+# on the same sweep it also matched `sk-gradient-background`, a CSS class.
+#
+# ⚠️ `cusk_` IS THE REAL PRODUCTION KEY PREFIX. Do not "fix" this by renaming
+# fixtures to something that looks fake. `includes/class-settings.php` validates
+# free keys with `/^cusk_Freekey_[1-9][0-9]*$/` and matches the exact sentinel
+# `cusk_Freekey_?`; `admin/views/settings-page.php` shows `cusk_...` to the user
+# as the expected format. Fixtures must keep the prefix or they stop exercising
+# the validator. The guard against a REAL key landing here is the allowlist
+# test (tests/SecretFixtureAllowlistTest.php), not fixture naming.
+
+version: 2
+
+secret:
+  # Test fixtures only. Production paths are deliberately NOT ignored — a real
+  # key committed under admin/ or includes/ must still raise an incident.
+  ignored-paths:
+    - 'tests/**'
+
+  ignored-matches:
+    # Paid-key fixtures. Self-describing placeholders; none is a valid key.
+    - name: 'test fixture — rejected-key case (401 path)'
+      match: 'cusk_WRONGKEY_999999'
+    - name: 'test fixture — replacement-key case'
+      match: 'cusk_NEWKEY_111111'
+    - name: 'test fixture — baseline stored key'
+      match: 'cusk_TESTKEY_000000'
+    - name: 'test fixture — asserts a key is never echoed back'
+      match: 'cusk_APIKEY_SHOULD_NOT_LEAK'
+
+    # Free-key fixtures. These MUST satisfy the production regex
+    # /^cusk_Freekey_[1-9][0-9]*$/ — renaming them breaks what they test.
+    - name: 'test fixture — free key (must match the production validator)'
+      match: 'cusk_Freekey_9'
+    - name: 'test fixture — free key (must match the production validator)'
+      match: 'cusk_Freekey_10'
+    - name: 'test fixture — free key (must match the production validator)'
+      match: 'cusk_Freekey_12'
