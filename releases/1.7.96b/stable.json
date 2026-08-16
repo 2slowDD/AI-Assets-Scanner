@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.96b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0.4",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.96b/ai-assets-scanner.zip",
+    "sha256": "4c85d7aec91a01430a84fee5440a7972fb77a7d1e85fd1981f476eac6604a436",
+    "signature": "",
+    "released_at": "2026-08-16T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.96b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.7.96b (beta).</p><p><strong>Changed</strong></p><ul><li>The note below the scan summary now reports <strong>every</strong> asset the scan deliberately kept, not only the anti-bot and anti-spam ones. A page where the scan kept a payment script, a form script, an analytics script and four WordPress core files used to say \"1 protection script kept\" and name only the anti-bot vendor &mdash; the other eight were kept just as deliberately and went unmentioned. The note now names them all, puts a count beside any vendor whose kept files number more than one, and lists the WordPress core files individually.</li><li>The 🛡 badge beside a scanned URL now says how many assets were kept on that page, and appears on pages whose kept assets are all non-protection. Previously it read simply \"kept\" and appeared only where an anti-bot or anti-spam script was found, so on most pages the summary counted keeps that no row accounted for.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
