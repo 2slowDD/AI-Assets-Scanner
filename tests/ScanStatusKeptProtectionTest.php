@@ -234,7 +234,7 @@ final class ScanStatusKeptProtectionTest extends TestCase {
     // whole truth. The worker now also ships kept_known_assets (Fathom, Stripe, Gravity Forms,
     // wp-core...). A page whose keeps are ENTIRELY non-protection — which is MOST pages — must
     // still show a chip, or the scan-level note counts 9 while no row says where any of them
-    // landed. Verified live on 1.7.95b: an ewwwiodev page rendered "1 protection script kept"
+    // landed. Verified live on 1.7.95b: a scanned page rendered "1 protection script kept"
     // with a single static chip while the worker shipped eight further keeps alongside it.
     //
     // kept_count is the per-row number the chip renders as "N kept". Its unit is the DISTINCT

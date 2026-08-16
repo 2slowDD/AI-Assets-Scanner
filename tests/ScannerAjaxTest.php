@@ -1281,7 +1281,7 @@ class ScannerAjaxTest extends TestCase {
      */
     private function r20ReferencePage(): array {
         return [
-            'url'             => 'https://ewwwiodev.example/compare/',
+            'url'             => 'https://example.test/compare/',
             'kept_protection' => [
                 [ 'display_name' => 'Cloudflare Turnstile', 'handles' => [ 'cf-challenge|script' ] ],
             ],
@@ -1322,7 +1322,7 @@ class ScannerAjaxTest extends TestCase {
     public function test_aggregate_row_counts_sum_to_the_headline(): void {
         $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( [
             $this->r20ReferencePage(),
-            [ 'url' => 'https://ewwwiodev.example/other/', 'kept_known_assets' => [
+            [ 'url' => 'https://example.test/other/', 'kept_known_assets' => [
                 // Same composite under a DIFFERENT label. The producer resolves collisions, but
                 // if one ever reaches here it must not be counted under both labels - that is
                 // exactly how the per-label numbers stop adding up to the headline on screen.
