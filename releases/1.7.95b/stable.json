@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.95b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0.4",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.95b/ai-assets-scanner.zip",
+    "sha256": "94b407ed5a3546024efaced7c1fe920348c7edef115bc7327230738eefe735b3",
+    "signature": "",
+    "released_at": "2026-08-16T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.95b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.7.95b (beta).</p><p><strong>Fixed</strong></p><ul><li>Your API key is no longer lost when it fails to authenticate. Saving the settings used to write the submitted key to the database <em>before</em> checking it, so a typo or an expired key replaced the working one and the connection dropped until you pasted a valid key again. The key is now stored only after it authenticates; a failed save leaves the previous key untouched. The <code>railway_url</code> and balance fields are guarded the same way.</li><li>The scan summary no longer says \"1 safe rules\". Counts of exactly one now read as singular throughout the sentence &mdash; \"1 URL scanned\", \"1 safe rule\", \"1 aggressive rule\". A count of zero, and an unknown URL count, stay plural as before.</li></ul><p><strong>Changed</strong></p><ul><li>The scan summary now bolds the whole phrase, not just the digit: <strong>9 aggressive rules</strong> rather than <strong>9</strong> aggressive rules. Zero counts stay plain, and the number of URLs scanned is still never bolded &mdash; it can render as \"?\" when the count is unknown, and \"?\" is not a quantity.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
