@@ -2313,39 +2313,106 @@ class ScannerAjax {
      * downstream at render time JS-side (cuEscHtml), so escaping here would
      * double-escape — WP Compliance Rules 2 and 3.
      *
+     * R20 — the same walk now also reads `kept_known_assets` (the worker's non-protection
+     * whitelist keeps: analytics, payments, forms, wp-core) and returns `rows`, the per-label
+     * breakdown the note prints: one {label, count, category} per distinct display_name.
+     *
+     * `count` and `vendors` keep their meanings EXACTLY; `count` simply now spans both fields,
+     * which is the entire point of R20 (a page reporting "1 protection script kept" while the
+     * scanner kept nine things).
+     *
+     * Each composite is claimed by the FIRST label that presents it, protection field first.
+     * That is what makes the per-label counts add up to the headline (AC-9) even if a composite
+     * ever reaches here under two labels — per-label numbers that do not sum to the headline
+     * printed beside them is the visible failure this ordering prevents.
+     *
+     * Zero-count labels are dropped (AC-12): a vendor that contributed no countable handle
+     * would otherwise render as "(0)". It stays in `vendors`, which is unchanged.
+     *
+     * Core entries are NOT grouped here. They carry member-only display_names ("wp.hooks") and
+     * category 'core'; the renderer builds "WordPress core (4): wp.hooks, …" from that. Grouping
+     * here would discard the member names the grouped row exists to expand.
+     *
      * @param array<int,mixed> $pages_raw Railway per-page result rows.
-     * @return array{count:int,vendors:array<int,string>}
+     * @return array{count:int,vendors:array<int,string>,rows:array<int,array{label:string,count:int,category:string}>}
      */
     public static function aggregate_kept_protection( array $pages_raw ): array {
         $handles = [];  // Composite-string set, used purely as a dedupe index.
         $vendors = [];
+        $labels  = [];  // display_name => [ 'count' => int, 'category' => string ]
         foreach ( $pages_raw as $page ) {
-            $kp = is_array( $page ) ? ( $page['kept_protection'] ?? null ) : null;
-            if ( ! is_array( $kp ) ) {
+            if ( ! is_array( $page ) ) {
                 continue;
             }
-            foreach ( $kp as $entry ) {
-                if ( ! is_array( $entry ) ) {
+            // Protection FIRST: in the degenerate case of one composite reaching us under two
+            // labels, the protection label claims it — that is the attribution a customer is
+            // least able to afford being wrong.
+            foreach ( [ 'kept_protection' => 'protection', 'kept_known_assets' => '' ] as $field => $forced_category ) {
+                $kp = $page[ $field ] ?? null;
+                if ( ! is_array( $kp ) ) {
                     continue;
                 }
-                $hs = $entry['handles'] ?? null;
-                if ( is_array( $hs ) ) {
-                    foreach ( $hs as $h ) {
-                        // Dedupe on the FULL '<handle>|<type>' composite — it IS the identity.
-                        if ( ! is_string( $h ) || '' === $h ) {
-                            continue;
-                        }
-                        $handles[ (string) $h ] = true;
+                foreach ( $kp as $entry ) {
+                    if ( ! is_array( $entry ) ) {
+                        continue;
                     }
-                }
-                // A valid display_name still lists even when this entry contributed no handles.
-                $name = $entry['display_name'] ?? null;
-                if ( is_string( $name ) && '' !== $name && ! in_array( $name, $vendors, true ) ) {
-                    $vendors[] = $name;
+                    $new = 0;
+                    $hs  = $entry['handles'] ?? null;
+                    if ( is_array( $hs ) ) {
+                        foreach ( $hs as $h ) {
+                            // Dedupe on the FULL '<handle>|<type>' composite — it IS the identity.
+                            if ( ! is_string( $h ) || '' === $h || isset( $handles[ $h ] ) ) {
+                                continue;
+                            }
+                            $handles[ $h ] = true;
+                            ++$new;
+                        }
+                    }
+                    // A valid display_name still lists even when this entry contributed no
+                    // handles. A nameless entry still COUNTS but can produce no row: the only
+                    // per-member strings it offers are raw WP handles, and naming rule R3
+                    // forbids those in customer copy.
+                    $name = $entry['display_name'] ?? null;
+                    if ( ! is_string( $name ) || '' === $name ) {
+                        continue;
+                    }
+                    if ( ! in_array( $name, $vendors, true ) ) {
+                        $vendors[] = $name;
+                    }
+                    if ( ! isset( $labels[ $name ] ) ) {
+                        $category = $forced_category;
+                        if ( '' === $category ) {
+                            $c        = $entry['category'] ?? null;
+                            $category = ( is_string( $c ) && '' !== $c ) ? $c : 'other';
+                        }
+                        $labels[ $name ] = [ 'count' => 0, 'category' => $category ];
+                    }
+                    $labels[ $name ]['count'] += $new;
                 }
             }
         }
-        return [ 'count' => count( $handles ), 'vendors' => $vendors ];
+
+        $rows = [];
+        foreach ( $labels as $label => $data ) {
+            if ( $data['count'] < 1 ) {
+                continue;  // AC-12 — a zero-count label must never render as "(0)".
+            }
+            $rows[] = [
+                'label'    => (string) $label,
+                'count'    => $data['count'],
+                'category' => $data['category'],
+            ];
+        }
+        // Deterministic render order, independent of payload order. Case-insensitive so
+        // "wp.hooks" sorts with words rather than after every capitalised vendor.
+        usort(
+            $rows,
+            static function ( array $a, array $b ): int {
+                return strcasecmp( $a['label'], $b['label'] );
+            }
+        );
+
+        return [ 'count' => count( $handles ), 'vendors' => $vendors, 'rows' => $rows ];
     }
 
     /**

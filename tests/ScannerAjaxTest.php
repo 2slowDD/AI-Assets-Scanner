@@ -1256,4 +1256,159 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( 1, $out['count'] );
         $this->assertSame( [ 'Vendor' ], $out['vendors'] );
     }
+
+    // ---------------------------------------------------------------------------------------
+    // R20 — the aggregation reads BOTH keep fields and returns per-label rows.
+    //
+    // `count` and `vendors` keep their existing meanings exactly (the note's headline and the
+    // vendor list); `rows` is new: one {label, count, category} per distinct display_name,
+    // zero-count labels omitted (AC-12), sorted case-insensitively by label so the render order
+    // is deterministic rather than payload-order-dependent.
+    //
+    // Core entries are NOT collapsed here. They arrive carrying member-only display_names
+    // ("wp.hooks", not "WordPress Core: wp.hooks", worker commit 25b80821) and category 'core';
+    // the renderer groups them into "WordPress core (4): …". Doing it here would throw away the
+    // member names the grouped row has to expand.
+    // ---------------------------------------------------------------------------------------
+
+    private function keptKnown( string $id, string $name, string $category, array $handles ): array {
+        return [ 'id' => $id, 'display_name' => $name, 'category' => $category, 'handles' => $handles ];
+    }
+
+    /**
+     * The R20 reference shape: the 9 keeps of spec §11's approved copy, on one page.
+     * Turnstile 1 (protection), Gravity Forms 2, Fathom 1, Stripe 1, WordPress core 4.
+     */
+    private function r20ReferencePage(): array {
+        return [
+            'url'             => 'https://ewwwiodev.example/compare/',
+            'kept_protection' => [
+                [ 'display_name' => 'Cloudflare Turnstile', 'handles' => [ 'cf-challenge|script' ] ],
+            ],
+            'kept_known_assets' => [
+                $this->keptKnown( 'gravity-forms', 'Gravity Forms', 'form',
+                    [ 'gform_gravityforms|script', 'gform_json|script' ] ),
+                $this->keptKnown( 'fathom-analytics', 'Fathom Analytics', 'analytics', [ 'fathom|script' ] ),
+                $this->keptKnown( 'stripe-payments', 'Stripe payments', 'payment', [ 'stripe|script' ] ),
+                $this->keptKnown( 'wp-dom-ready', 'wp.domReady', 'core', [ 'wp-dom-ready|script' ] ),
+                $this->keptKnown( 'wp-hooks', 'wp.hooks', 'core', [ 'wp-hooks|script' ] ),
+                $this->keptKnown( 'wp-i18n', 'wp.i18n', 'core', [ 'wp-i18n|script' ] ),
+                $this->keptKnown( 'underscore', 'Underscore.js', 'core', [ 'underscore|script' ] ),
+            ],
+        ];
+    }
+
+    /** AC-1 shape — the headline is 9 and every label carries its own count and category. */
+    public function test_aggregate_reports_every_keep_not_just_protection(): void {
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( [ $this->r20ReferencePage() ] );
+
+        $this->assertSame( 9, $out['count'], 'headline spans both fields' );
+        $this->assertSame(
+            [
+                [ 'label' => 'Cloudflare Turnstile', 'count' => 1, 'category' => 'protection' ],
+                [ 'label' => 'Fathom Analytics',     'count' => 1, 'category' => 'analytics' ],
+                [ 'label' => 'Gravity Forms',        'count' => 2, 'category' => 'form' ],
+                [ 'label' => 'Stripe payments',      'count' => 1, 'category' => 'payment' ],
+                [ 'label' => 'Underscore.js',        'count' => 1, 'category' => 'core' ],
+                [ 'label' => 'wp.domReady',          'count' => 1, 'category' => 'core' ],
+                [ 'label' => 'wp.hooks',             'count' => 1, 'category' => 'core' ],
+                [ 'label' => 'wp.i18n',              'count' => 1, 'category' => 'core' ],
+            ],
+            $out['rows']
+        );
+    }
+
+    /** AC-9 — one assertion that catches the whole cross-label collision class. */
+    public function test_aggregate_row_counts_sum_to_the_headline(): void {
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( [
+            $this->r20ReferencePage(),
+            [ 'url' => 'https://ewwwiodev.example/other/', 'kept_known_assets' => [
+                // Same composite under a DIFFERENT label. The producer resolves collisions, but
+                // if one ever reaches here it must not be counted under both labels - that is
+                // exactly how the per-label numbers stop adding up to the headline on screen.
+                $this->keptKnown( 'imposter', 'Imposter Analytics', 'analytics', [ 'fathom|script' ] ),
+                $this->keptKnown( 'lottie', 'LottieFiles Web Player', 'media', [ 'lottie|script' ] ),
+            ] ],
+        ] );
+
+        $this->assertSame( 10, $out['count'] );
+        $this->assertSame( $out['count'], array_sum( array_column( $out['rows'], 'count' ) ),
+            'AC-9: the per-label counts must add up to the headline the note prints' );
+    }
+
+    /** AC-12 — a label that contributed no countable handle must not render as "(0)". */
+    public function test_aggregate_omits_zero_count_labels_but_still_names_the_vendor(): void {
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( [
+            [ 'url' => 'https://example.test/', 'kept_protection' => [
+                [ 'display_name' => 'Cloudflare Turnstile', 'handles' => [ 'cf|script' ] ],
+                [ 'display_name' => 'Nameless Vendor' ], // valid name, no usable handle
+            ] ],
+        ] );
+
+        $this->assertSame( [ 'Cloudflare Turnstile' ], array_column( $out['rows'], 'label' ),
+            'AC-12: a zero-count label must not become a row' );
+        $this->assertContains( 'Nameless Vendor', $out['vendors'],
+            'vendors keeps its existing meaning - the name-only vendor is still listed there' );
+    }
+
+    /** H3 — the same asset kept on 10 pages is "(2)", never "(20)". */
+    public function test_aggregate_dedupes_the_same_asset_across_pages(): void {
+        $pages = [];
+        for ( $i = 0; $i < 10; $i++ ) {
+            $pages[] = [ 'url' => "https://example.test/$i/", 'kept_known_assets' => [
+                $this->keptKnown( 'gravity-forms', 'Gravity Forms', 'form',
+                    [ 'gform_gravityforms|script', 'gform_json|script' ] ),
+            ] ];
+        }
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+        $this->assertSame( 2, $out['count'] );
+        $this->assertSame( [ [ 'label' => 'Gravity Forms', 'count' => 2, 'category' => 'form' ] ], $out['rows'] );
+    }
+
+    /** AC-11 — a protection-only scan keeps count and vendors byte-identical, and gains rows. */
+    public function test_aggregate_protection_only_scan_is_unchanged_except_for_rows(): void {
+        $pages = [ [ 'url' => 'https://example.test/', 'kept_protection' => [
+            [ 'display_name' => 'Cloudflare Turnstile', 'handles' => [ 'cf-challenge|script' ] ],
+        ] ] ];
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( $pages );
+
+        $this->assertSame( 1, $out['count'] );
+        $this->assertSame( [ 'Cloudflare Turnstile' ], $out['vendors'] );
+        $this->assertSame( [ [ 'label' => 'Cloudflare Turnstile', 'count' => 1, 'category' => 'protection' ] ],
+            $out['rows'], 'protection rows are tagged so the renderer can annotate "(protection)"' );
+    }
+
+    /**
+     * DELIBERATE, pinned so it is a decision and not a surprise: an entry with handles but NO
+     * display_name contributes to the headline (existing behaviour, and the per-row chip agrees
+     * with it) but can produce no row, because the only per-member strings available are raw WP
+     * handles and naming rule R3 forbids those in customer copy. This is the ONE shape where
+     * the rows do not sum to the headline; every real worker entry carries a display_name.
+     */
+    public function test_aggregate_nameless_entry_counts_but_cannot_become_a_row(): void {
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( [
+            [ 'url' => 'https://example.test/', 'kept_known_assets' => [
+                [ 'id' => 'mystery', 'category' => 'analytics', 'handles' => [ 'mystery|script' ] ],
+            ] ],
+        ] );
+        $this->assertSame( 1, $out['count'] );
+        $this->assertSame( [], $out['rows'] );
+        $this->assertSame( [], $out['vendors'] );
+    }
+
+    /** D5 / Rule 1 — kept_known_assets is untrusted worker data, same as kept_protection. */
+    public function test_aggregate_known_assets_survives_hostile_shapes(): void {
+        $out = \CUScanner\Admin\ScannerAjax::aggregate_kept_protection( [
+            [ 'url' => 'https://example.test/', 'kept_known_assets' => 'not-an-array' ],
+            [ 'url' => 'https://example.test/2/', 'kept_known_assets' => [
+                'not-an-entry',
+                [ 'display_name' => 'Real', 'category' => 'analytics', 'handles' => [ 'real|script' ] ],
+                [ 'display_name' => 'Bad handles', 'category' => 'analytics', 'handles' => [ 123, null, [ 'x' ], '' ] ],
+                [ 'display_name' => 'Bad category', 'category' => 42, 'handles' => [ 'ok|script' ] ],
+            ] ],
+        ] );
+        $this->assertSame( 2, $out['count'] );
+        $this->assertSame( [ 'Bad category', 'Real' ], array_column( $out['rows'], 'label' ) );
+        $this->assertSame( 'other', $out['rows'][0]['category'], 'a non-string category degrades, never fatals' );
+    }
 }

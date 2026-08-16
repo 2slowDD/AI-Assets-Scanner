@@ -316,7 +316,15 @@ class ResultTruthRefundClaimTest extends TestCase {
 		] );
 		$persisted = $this->persisted_last_result();
 
-		$expected = [ 'count' => 1, 'vendors' => [ 'Cloudflare Turnstile' ] ];
+		// R20 / AC-11 — a PROTECTION-ONLY scan. `count` and `vendors` are unchanged; `rows` is
+		// the new per-label breakdown, and this pin is the reason the shape change was caught
+		// at the payload writers rather than on a customer's screen. Both writers must carry it:
+		// rows on the live return but not on the restored one is exactly the bug class above.
+		$expected = [
+			'count'   => 1,
+			'vendors' => [ 'Cloudflare Turnstile' ],
+			'rows'    => [ [ 'label' => 'Cloudflare Turnstile', 'count' => 1, 'category' => 'protection' ] ],
+		];
 		$this->assertArrayHasKey( 'kept_protection_summary', $out, 'writer 1 — the live return' );
 		$this->assertArrayHasKey( 'kept_protection_summary', $persisted, 'writer 2 — the aias_last_result option' );
 		$this->assertSame( $expected, $out['kept_protection_summary'] );
