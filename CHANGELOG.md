@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.96b — 2026-08-16
+
+### Changed
+- The note below the scan summary now reports **every** asset the scan deliberately kept, not only the anti-bot and anti-spam ones. A page where the scan kept a payment script, a form script, an analytics script and four WordPress core files used to say "1 protection script kept" and name only the anti-bot vendor — the other eight were kept just as deliberately and went unmentioned. The note now names them all, puts a count beside any vendor whose kept files number more than one, and lists the WordPress core files individually.
+- The 🛡 badge beside a scanned URL now says how many assets were kept on that page, and appears on pages whose kept assets are all non-protection. Previously it read simply "kept" and appeared only where an anti-bot or anti-spam script was found, so on most pages the summary counted keeps that no row accounted for.
+
 ## 1.7.95b — 2026-08-16
 
 ### Fixed

@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.7.95b-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.7.96b-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
@@ -46,6 +46,7 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
   - **Default (`?nowpcu` applied, Code Unloader switched off for the scan)** — a **fresh, full measurement** of everything the page could unload. Code Unloader's current rules are not consulted and play no part: every rule found is a finding of this scan, counts are reported as measured, and every page that yields rules is billed normally. This is the mode to use when you want to see the page's complete unloadable surface.
   - **With *Remove Code Unloader's suffix (?nowpcu) from scans* ticked** — an **incremental** scan of the site as visitors actually receive it, with your existing rules live. Assets Code Unloader already unloads never appear as candidates, so a low or zero result is the **expected, healthy outcome** — the screen says *"No new unloads found since the last time"* rather than urging a rescan that would cost credits to reconfirm a non-problem. Here the screen also splits its counts into *"N new, M already in Code Unloader"*; a page whose every rule was already there is shown as what it is (**S:0 / A:0, 0 credits**, labelled *"Already in Code Unloader"*) and its page credit is returned automatically, so the row and the charge agree. Scan History shows the charge and the return side by side (`3 (2 returned)`) and the CSV export gains a **Credits Returned** column. Requires Code Unloader to be active — when it cannot be consulted, the screen makes no claim in either direction rather than reporting zero.
 - **Protection scripts are never unloaded, and the scan says so (1.7.94b)** — anti-bot and anti-spam scripts found on pages with forms are deliberately kept, because unloading them can break the form or let spam through. Previously they simply did not appear in the results, so there was no way to tell a deliberately-kept script from one the scan had missed. A note below the results summary now says how many were kept and which service they belong to, and a **🛡 kept** badge marks each URL row where one was kept. The protection also holds on the extra-time re-scan path: an older rule that would have unloaded one of these scripts is discarded rather than reinstated.
+- **Every kept asset is reported, not just the protection ones (1.7.96b)** — the scanner keeps more than anti-bot scripts: payment and form scripts, analytics, and WordPress core files are all deliberately left loaded. Only the anti-bot ones were ever named, so a page that kept nine assets reported one. The summary note now lists every kept vendor, counts any vendor with more than one kept file, and names the WordPress core files individually; the **🛡 kept** badge now carries that page's own count and appears on pages whose kept assets are all non-protection — which is most pages.
 
 ## How it works
 
