@@ -2295,7 +2295,12 @@
 
         push( 'Scan complete. ' );
         push( o.urls );
-        push( ' URLs scanned, ' );
+        // Operator ruling 2026-08-16: the same singular fix as the rule counts, keyed the
+        // same way (Number(n) === 1). o.urls stays plain here too — this segment only ever
+        // carries the noun, never the count, so o.urls above keeps its own unbold push. The
+        // '?' unknown-count fallback is not 1, so it falls through to the plural exactly
+        // like NaN/undefined do for the rule counts.
+        push( ' ' + noun( o.urls, 'URL scanned', 'URLs scanned' ) + ', ' );
         push( o.safeCount + ' ' + noun( o.safeCount, 'safe rule', 'safe rules' ), isNonZero( o.safeCount ) );
         push( ', ' );
         push( o.aggCount + ' ' + noun( o.aggCount, 'aggressive rule', 'aggressive rules' ), isNonZero( o.aggCount ) );

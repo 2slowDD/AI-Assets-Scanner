@@ -52,6 +52,12 @@
 //                                       stays on the bare count instead of moving with the
 //                                       words, so <strong> wraps "3" instead of "3 safe
 //                                       rules".
+//  12. testUrlsScannedSingularNoun    — Operator ruling 2026-08-16: FU-I alone left a
+//                                       1-URL scan reading "1 URLs scanned" while the rule
+//                                       counts read grammatically — worse than uniform. The
+//                                       URLs-scanned segment gets the same singular branch,
+//                                       keyed the same way (Number(n) === 1), with the '?'
+//                                       unknown-count fallback pinned to stay PLURAL.
 const assert = require('assert');
 const { createHarness } = require('./r3-stage-c-harness');
 
@@ -232,6 +238,34 @@ function testBoldPhraseNotBareDigit() {
   console.log('OK the bold segment carries the whole count+noun phrase, not a bare digit');
 }
 
+// --- 12. Operator ruling 2026-08-16: the URLs-scanned segment gets the same singular ---
+// branch as FU-I, so the sentence doesn't ship half-fixed ("1 URLs scanned, 1 safe rule").
+// o.urls stays PLAIN in every case — this is a noun fix, not a bolding change — and the
+// '?' unknown-count fallback must stay PLURAL: '?' is not a real numeric 1.
+function testUrlsScannedSingularNoun() {
+  const one = render({ urlsScanned: 1, safeCount: 0, aggCount: 0 });
+  assert.ok(one.text.indexOf('Scan complete. 1 URL scanned, ') === 0,
+    'a 1-URL scan takes the singular noun; got: ' + JSON.stringify(one.text));
+
+  const three = render({ urlsScanned: 3, safeCount: 0, aggCount: 0 });
+  assert.ok(three.text.indexOf('Scan complete. 3 URLs scanned, ') === 0,
+    'any other real count keeps the plural noun; got: ' + JSON.stringify(three.text));
+
+  // The '?' fallback (urlsScanned absent/non-number) is the input nobody thinks to test —
+  // it must NEVER take the singular noun.
+  const unknown = render({ urlsScanned: undefined, safeCount: 0, aggCount: 0 });
+  assert.ok(unknown.text.indexOf('Scan complete. ? URLs scanned, ') === 0,
+    "the '?' fallback keeps the plural noun, never singular; got: " + JSON.stringify(unknown.text));
+
+  // o.urls must never become bold as a side effect of this segment's grammar fix — this
+  // render has safeCount:0/aggCount:0 too, so ANY <strong> here can only be the URL count.
+  assert.deepStrictEqual(one.strongs, [],
+    'the URL count is never bold, singular or not; got: ' + JSON.stringify(one.strongs));
+  assert.deepStrictEqual(unknown.strongs, [],
+    "the '?' fallback is never bold either; got: " + JSON.stringify(unknown.strongs));
+  console.log('OK the URLs-scanned segment takes the singular noun only for a real count of 1, stays plain always, and never singularises "?"');
+}
+
 // --- 8. A second render replaces the first, never stacks on it ------------------------
 // restoreStep4 runs more than once per page life (a live build_result after a localStorage
 // restore), so renderSummaryParts must clear before it writes.
@@ -307,6 +341,7 @@ testHintDoesNotFlattenTheBold();
 testAlreadyPresentTailNotBold();
 testSingularNounForCountOfOne();
 testBoldPhraseNotBareDigit();
+testUrlsScannedSingularNoun();
 testReRenderReplaces();
 testLiveScanPathRendersBold()
   .then(function () { console.log('summary-bold-counts: all assertions passed'); })
