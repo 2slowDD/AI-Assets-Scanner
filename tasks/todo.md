@@ -225,14 +225,29 @@ string, costing one missed optimization on the second host. F-MISS only, never F
   the ledger refers to the **17 `*.test.js` files**, all passing. Keep stating the `*.test.js` qualifier — the bare
   count moves every time a JS test is added, which is exactly how this line went stale within one session.
 
-### Found while implementing FU-L (2026-08-15) — still open
+### Found while implementing FU-L (2026-08-15) — ✅ BOTH CLOSED 2026-08-16
 
-- **FU-O · a non-allowlisted `railway_url` now misreports a save that succeeded.** `Settings::set_railway_url()`
+> **FU-O ✅ `7776f06` · FU-N ✅ `fa324c9`, released in 1.7.97b.** Both were verified against the CODE
+> before being touched — neither was implemented, so neither was a stale row. Two notes worth keeping:
+>
+> - **FU-N's count was wrong.** The row below names TWO fetch chains (submit + refresh). There are
+>   **three** — `postAckCdn` was missed because the count came from a hand-written list. Found by
+>   sweeping for `fetch(`. All three now have handlers, each mutation-proven.
+> - **The version bump was not a judgement call.** B4's drift guard went red on the `settings.js`
+>   edit and named the fix — the guard's first real catch, the same day it shipped. The new
+>   fingerprint row was ADDED, not rewritten; `SCANNER_JS_VERSION` deliberately did not move,
+>   because `scanner.js` did not change.
+>
+> New coverage: `tests/js/settings-fetch-failure.test.js` drives the real `settings.js` through a
+> rejecting fetch (not a source-text pin for `.catch`), and `SettingsAjaxSaveTest` gains the
+> rejected-`railway_url` case beside the existing absent- and null- ones.
+
+- ✅ **CLOSED `7776f06`** — **FU-O · a non-allowlisted `railway_url` now misreports a save that succeeded.** `Settings::set_railway_url()`
   throws `RuntimeException( 'Refused to store Railway URL: must be HTTPS and on the host allowlist.' )`
   (`includes/class-settings.php`, re-derive by content). Post-fix the API key is committed **before** that throw, so
   the user sees a Railway-allowlist error on a save that did in fact store their key. Behaviour is safe and strictly
   better than pre-fix, but the message is wrong. Trivial. Bundle with FU-N in Phase 4.
-- **FU-N · `settings.js` `fetch` chains have no `.catch()`** (submit + refresh handlers). FU-M removes the specific
+- ✅ **CLOSED `fa324c9`** — **FU-N · `settings.js` `fetch` chains have no `.catch()`** ~~(submit + refresh handlers)~~ **— three chains, not two.** FU-M removes the specific
   500 that exposed this, but any other 5xx or non-JSON response still leaves the form silently doing nothing.
   Trivial; belongs with FU-K/FU-I in Phase 4.
 
