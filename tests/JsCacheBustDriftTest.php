@@ -39,6 +39,11 @@ final class JsCacheBustDriftTest extends TestCase {
 	private const ADMIN_JS_BY_PLUGIN_VERSION = array(
 		// R20 keep note + counted chip. First row: earlier builds predate the guard.
 		'1.7.96b' => 'efcce89e7685eea728946ee1fc2d59a7dfa03f8e854d81fd01b5bc524f15f738',
+		// FU-N — .catch() on all three settings.js fetch chains. Added, not rewritten: the
+		// row above is 1.7.96b's shipped fingerprint and rewriting it would assert that a
+		// released build was something other than what it was. This row is also the guard's
+		// first real catch — it went red on the settings.js edit the same day it shipped.
+		'1.7.97b' => 'a0d8fd4098ba6c5bc26d696e9d2443320456221f8a68196c6ca8da0881b640f9',
 	);
 
 	/**

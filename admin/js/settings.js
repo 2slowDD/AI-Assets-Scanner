@@ -46,6 +46,14 @@
                     } else {
                         showMsg('Error: ' + res.data, 'error');
                     }
+                })
+                .catch(function () {
+                    // FU-N — r.json() REJECTS on a 5xx that answers with an HTML error page, and
+                    // on any non-JSON body. Without this the promise died here and the form did
+                    // nothing at all, so a failed save was indistinguishable from a slow one.
+                    // Deliberately generic: the rejection carries no server message worth
+                    // showing, and the branch above already surfaces wp_send_json_error() text.
+                    showMsg('Could not save settings — the server did not respond as expected. Please try again.', 'error');
                 });
         });
 
@@ -65,6 +73,15 @@
                             apiKeyInput.dataset.masked = '1';
                         }
                     }
+                })
+                .catch(function () {
+                    // FU-N — this handler runs on load and on every window focus, so without it
+                    // the balance sat on the '…' spinner set above forever. The em-dash is the
+                    // same "unknown" state the non-success branch uses, so a transport failure
+                    // and a server refusal read identically, which is correct: neither yields a
+                    // balance. No message here — an auto-refresh that fires on focus must not
+                    // spray notices at someone who is only switching tabs.
+                    setBalance('—');
                 });
         });
 
@@ -126,6 +143,17 @@
                     if (res.success && typeof onSuccess === 'function') {
                         onSuccess();
                     }
+                })
+                .catch(function () {
+                    // FU-N — deliberately silent, and that is not laziness: it matches the
+                    // non-success branch above exactly. The CDN ack is best-effort, and a
+                    // failure correctly leaves the button in its pre-click state so it can be
+                    // retried. The handler exists so the rejection is handled rather than
+                    // escaping as an unhandled promise rejection.
+                    //
+                    // This is the THIRD fetch chain in this file. The FU-N row named two (the
+                    // submit and refresh handlers) — the count came from a hand-written list,
+                    // and this one was found by sweeping for `fetch(` instead.
                 });
         }
 

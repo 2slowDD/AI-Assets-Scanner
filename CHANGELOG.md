@@ -4,6 +4,12 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.97b — 2026-08-16
+
+### Fixed
+- The settings page no longer goes quiet when something goes wrong. If the server answered a save with an error page instead of a proper response, the form simply did nothing — no message, no spinner, no way to tell a failed save from a slow one — and you were left re-clicking Save. Saving now tells you when it could not complete. The credit balance behaves the same way: instead of sitting on its loading dots forever, it falls back to "—" when it cannot be read.
+- Saving your settings no longer reports a failure when it actually succeeded. If the server returned a worker address the plugin does not trust, your API key had already been saved — but the page showed an error about the address, so a save that worked looked like a save that failed. The key is stored, the untrusted address is ignored, and the save now reports success.
+
 ## 1.7.96b — 2026-08-16
 
 ### Changed
