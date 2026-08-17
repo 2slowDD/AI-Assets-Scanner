@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.30';
+    const SCANNER_JS_VERSION = '1.0.10.31';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -3511,8 +3511,51 @@
 
     detectPlugins();
 
+    /**
+     * FU-AAS-TOOLTIP-SCROLLBAR-FLICKER — place a `.cu-help-box` against the viewport.
+     *
+     * The box is `position: fixed` (see the CSS) so it adds nothing to the results list's
+     * scrollable overflow — that overflow is what produced a scrollbar, which narrowed the
+     * container, which slid the `?` out from under a stationary cursor, which hid the tooltip,
+     * which removed the scrollbar, forever. Fixed positioning means the box floats over the
+     * table the way the short ET-candidate tooltip already did.
+     *
+     * The cost of `fixed` is that CSS can no longer anchor it to the `?`: with `top`/`left` auto
+     * it lands at its static position, which is line-layout dependent and was measured 61px apart
+     * between two headers in the same row. So the offsets are computed here instead.
+     *
+     * Geometry reproduces what the CSS used to do — right edge aligned to the `?`, sitting just
+     * below it — then clamps to the viewport so a tooltip on the last column cannot run off the
+     * right edge, which `right: 0` could not express once the box left its containing block.
+     */
+    function positionHelpBox( trigger ) {
+        var box = trigger.querySelector( '.cu-help-box' );
+        if ( ! box ) { return; }
+        var r   = trigger.getBoundingClientRect();
+        var GAP = 6, EDGE = 8;
+        // Width comes from the stylesheet; read it rather than restating 240px in two places.
+        var w    = box.offsetWidth || box.getBoundingClientRect().width || 240;
+        var left = r.right - w;
+        var max  = document.documentElement.clientWidth - w - EDGE;
+        if ( left > max ) { left = max; }
+        if ( left < EDGE ) { left = EDGE; }
+        box.style.left = Math.round( left ) + 'px';
+        box.style.top  = Math.round( r.bottom + GAP ) + 'px';
+    }
+
+    // Delegated, so it keeps working across the re-renders that pagination and every restoreStep4
+    // perform — per-element listeners would have to be re-attached on each one, and the ones added
+    // to discarded nodes would leak.
+    [ 'mouseover', 'focusin' ].forEach( function ( ev ) {
+        document.addEventListener( ev, function ( e ) {
+            var t = e.target && e.target.closest ? e.target.closest( '.cu-help' ) : null;
+            if ( t ) { positionHelpBox( t ); }
+        }, true );
+    } );
+
     // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
     window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,
+                        positionHelpBox: positionHelpBox,
                         renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4,
                         showProbeOutcomeDialog: showProbeOutcomeDialog,
                         buildSummaryLine: buildSummaryLine, buildSummaryParts: buildSummaryParts,

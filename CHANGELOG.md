@@ -4,6 +4,11 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.98b — 2026-08-17
+
+### Fixed
+- The **S / A / N** help tooltip no longer flickers. Hovering it on a scan with only a few URLs made a scrollbar appear beside the results, which narrowed the table just enough to slide the "?" out from under the pointer — so the tooltip closed, the scrollbar vanished, the "?" moved back, and the whole thing repeated for as long as you kept the mouse there. The tooltip now floats above the table instead of stretching it, so no scrollbar appears and nothing moves. This is the behaviour the shorter **ET candidate** and **Extra Time** tooltips already had; they were unaffected only because they were small enough to fit.
+
 ## 1.7.97b — 2026-08-16
 
 ### Fixed

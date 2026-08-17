@@ -32,10 +32,20 @@ use PHPUnit\Framework\TestCase;
 final class JsCacheBustDriftTest extends TestCase {
 
 	/**
-	 * Plugin version => sha256 of every admin/js/*.js file concatenated in filename order.
-	 * The cache-bust key for ALL enqueued JS is CU_SCANNER_VERSION, so the whole directory is
-	 * one fingerprint: any file changing must move the version.
+	 * Plugin version => sha256 of every cache-busted admin ASSET, concatenated in path order.
+	 *
+	 * ⚠️ Covers admin/css TOO, not just admin/js. The first version of this guard watched only
+	 * `admin/js/*.js` — but `class-admin-pages.php:36` enqueues the stylesheet at the SAME
+	 * `?ver=CU_SCANNER_VERSION`, so a CSS-only change could ship with nothing demanding a bump.
+	 * That is the identical drift class this file exists to close, one directory over, and it was
+	 * found the day after shipping by a CSS-only fix that the guard let through in silence.
+	 *
+	 * If another cache-busted asset directory is ever added, extend ASSET_GLOBS below — a guard
+	 * that watches a subset of what it claims to protect is worse than none, because the green
+	 * run reads as coverage.
 	 */
+	private const ASSET_GLOBS = array( '/admin/js/*.js', '/admin/css/*.css' );
+
 	private const ADMIN_JS_BY_PLUGIN_VERSION = array(
 		// R20 keep note + counted chip. First row: earlier builds predate the guard.
 		'1.7.96b' => 'efcce89e7685eea728946ee1fc2d59a7dfa03f8e854d81fd01b5bc524f15f738',
@@ -44,6 +54,10 @@ final class JsCacheBustDriftTest extends TestCase {
 		// released build was something other than what it was. This row is also the guard's
 		// first real catch — it went red on the settings.js edit the same day it shipped.
 		'1.7.97b' => 'a0d8fd4098ba6c5bc26d696e9d2443320456221f8a68196c6ca8da0881b640f9',
+		// FU-AAS-TOOLTIP-SCROLLBAR-FLICKER. ⚠️ NOT COMPARABLE to the two rows above: this is the
+		// first fingerprint that also covers admin/css, so it would differ from 1.7.97b even had
+		// no byte changed. Rows are per-version fingerprints, never a diff between versions.
+		'1.7.98b' => '0716df1d2561d11618b6fb39553885d6c650e0db3e900c269cca4c4c14268278',
 	);
 
 	/**
@@ -53,6 +67,10 @@ final class JsCacheBustDriftTest extends TestCase {
 	 */
 	private const SCANNER_JS_BY_BANNER_VERSION = array(
 		'1.0.10.30' => 'bb0cc8c75e600da9f606b6bea5858c0064811d657c25f4ad214fcb2b20f6ce13',
+		// positionHelpBox() + its delegated listeners (FU-AAS-TOOLTIP-SCROLLBAR-FLICKER). This
+		// row exists because the guard caught the omission: scanner.js gained a function and the
+		// banner had not moved, which is the second time it has fired on a real miss.
+		'1.0.10.31' => '4ec33d11e90d56e69a7c3882087564e496c2a8f2f74db27b101ba7ddc5fe714a',
 	);
 
 	private function root(): string {
@@ -81,7 +99,10 @@ final class JsCacheBustDriftTest extends TestCase {
 	}
 
 	private function admin_js_fingerprint(): string {
-		$files = glob( $this->root() . '/admin/js/*.js' );
+		$files = array();
+		foreach ( self::ASSET_GLOBS as $glob ) {
+			$files = array_merge( $files, (array) glob( $this->root() . $glob ) );
+		}
 		sort( $files );
 		$blob = '';
 		foreach ( $files as $file ) {
