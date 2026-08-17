@@ -279,4 +279,49 @@ final class SettingsAjaxSaveTest extends TestCase {
         $this->assertSame( 0, $sent->payload['credits'], 'a missing balance put null on the wire instead of 0' );
         $this->assertSame( self::RAILWAY_URL, $sent->payload['railway_url'] );
     }
+
+    // ---------------------------------------------------------------------
+    // FU-O — a railway_url we REFUSE to store is not a failed save.
+    //
+    // set_railway_url() throws RuntimeException on a host outside the allowlist, and that
+    // throw used to escape to the handler's outer catch, which answers wp_send_json_error().
+    // But the key is authenticated and committed BEFORE that point, so the user was told
+    // "Refused to store Railway URL..." about a save that had in fact stored their key —
+    // the one thing they opened the form to do. The behaviour was safe; the message lied.
+    //
+    // The value comes from the SaaS auth response, NOT from the user, so there is no user
+    // action to prompt for. A URL we distrust is therefore treated exactly like an ABSENT
+    // one (the case pinned above): cached URL untouched, save reports success.
+    // ---------------------------------------------------------------------
+
+    public function test_auth_success_with_rejected_railway_url_commits_key_and_succeeds(): void {
+        $this->mock_common();
+        $this->mock_auth_response( 200, '{"balance":5,"railway_url":"https://evil.example.com"}' );
+
+        $_POST['api_key'] = 'cusk_NEWKEY_111111';
+
+        $sent = $this->run_handler();
+
+        $this->assertSame(
+            [ 'cusk_NEWKEY_111111' ],
+            $this->api_key_writes(),
+            'the authenticated key must still be committed when the railway_url is rejected'
+        );
+        $this->assertNotContains(
+            'cu_scanner_railway_url',
+            array_column( $this->writes, 0 ),
+            'a host outside the allowlist must never be stored'
+        );
+        $this->assertSame(
+            'success',
+            $sent->kind,
+            'FU-O: an error here told the user their settings did not save, when their key did'
+        );
+        $this->assertSame( 5, $sent->payload['credits'] );
+        $this->assertSame(
+            '',
+            $sent->payload['railway_url'],
+            'the response must not advertise a URL we refused to store'
+        );
+    }
 }

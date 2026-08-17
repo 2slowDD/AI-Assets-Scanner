@@ -90,7 +90,22 @@ class SettingsAjax {
             // success that simply leaves the cached URL untouched.
             $railway_url = ! empty( $auth['railway_url'] ) ? (string) $auth['railway_url'] : '';
             if ( '' !== $railway_url ) {
-                $settings->set_railway_url( $railway_url );
+                try {
+                    $settings->set_railway_url( $railway_url );
+                } catch ( \RuntimeException $e ) {
+                    // FU-O — a URL we REFUSE to store is not a failed save. By this point the
+                    // key has authenticated and been committed above, so letting this throw
+                    // reach the outer catch answered wp_send_json_error() and told the user
+                    // their settings had not saved — about a save that had stored their key,
+                    // the one thing they opened the form to do. Safe behaviour, lying message.
+                    //
+                    // The value arrives in the SaaS auth response, NOT from the user, so there
+                    // is no user action to prompt for. Treated exactly like an ABSENT
+                    // railway_url (see the guard above): cached URL untouched, save succeeds.
+                    // Blanked rather than echoed back so the response cannot advertise a URL
+                    // we just declined to trust.
+                    $railway_url = '';
+                }
             }
             // balance is guarded for the same reason and in the same style as
             // fetch_balance() below: an auth response without it would emit an
