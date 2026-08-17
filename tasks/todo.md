@@ -248,11 +248,26 @@ string, costing one missed optimization on the second host. F-MISS only, never F
 
 ## Carried from the prior plan (still open, unrelated to the FU queue)
 
-- **Harden the `AAS-update` skill so `tested_wp` stops being manual** — add a release step that reads
+- ✅ **CLOSED 2026-08-16 — the skill now carries it.** 🟢 Verified in the live `AAS-update/SKILL.md`: a
+  *"Compatibility (`tested_wp`) — derive it, never copy it forward"* section with the `api.wordpress.org`
+  command, a three-surface table (served manifest / plugin header / `TESTED_WP` fallback), step **4a** in
+  the Release Workflow, and a Required-Verification line that fails a release whose `tested_wp` is older
+  than current WordPress. Exercised for real on the 1.7.96b release: **7.0.4 derived live**, all three
+  surfaces checked and already in agreement. *(Original item kept verbatim below.)*
+  ~~**Harden the `AAS-update` skill so `tested_wp` stops being manual**~~ — add a release step that reads
   `https://api.wordpress.org/core/version-check/1.7/` and sets `tested_wp` from it instead of copying a previous
   manifest forward; add it to Required Verification so a stale value blocks the release; cover the in-repo surfaces
   carrying the same fact (plugin header `Tested up to:`, `class-private-updater.php` `TESTED_WP` fallback).
-- **`AAS-update/SKILL.md` machine-path drift** — carries `C:\AI\CU\...` paths that do not exist on this PC, and says
+- ✅ **CLOSED 2026-08-16 — both halves fixed in the live skill.** 🟢 Verified: paths are now written as
+  `<AI-ROOT>\CU\...` with an explicit note that `<AI-ROOT>` is machine-dependent (it names the PC root and
+  the laptop root separately) plus a "resolve it from the paths you are actually working in" instruction —
+  which is the whole point, so this file should not restate either literal; the wp-compliance
+  count now reads *"it was 25 when this line was written and 28 by 2026-08-15"*, which is accurate rather
+  than stale — the live skill announced **28 rules active** when invoked this session. *(Item kept verbatim
+  below.)*
+  ~~**`AAS-update/SKILL.md` machine-path drift**~~ — carries *[laptop-root literal redacted 2026-08-16 — this
+  is a public repo and `public-push-sweep.py` flags it; the original wrote the drive path out in full]*`\CU\...`
+  paths that do not exist on this PC, and says
   "25 rules active" for wp-compliance where the live skill announces 28.
 - **Release-history gap** — `releases/1.7.92b` and `1.7.93b` exist only on the laptop; the repo's release history is
   not reproducible from this machine alone.
