@@ -73,6 +73,13 @@ HOST_RE = re.compile(r"https?://([A-Za-z0-9.-]+)")
 # run. Their contents are already governed by tests/SecretFixtureAllowlistTest.php.
 SKIP_PATHS = ("tests/SecretFixtureAllowlistTest.php",)
 
+# That guard is the AUTHORITY on which credential-shaped literals are known fixtures, each with a
+# written reason. Re-reporting them here would duplicate its judgement and, worse, train the
+# reader to skim past this sweep's key findings - which is exactly how a real one gets missed. So
+# the allowlist is READ rather than restated: a literal it already clears is not reported here.
+ALLOWLIST_SOURCE = "tests/SecretFixtureAllowlistTest.php"
+ALLOWLIST_ENTRY_RE = re.compile(r"'([^']+)'\s*=>")
+
 
 def added_lines(rng):
     """(file, line_text) for every added line in the range, excluding the +++ header."""
@@ -93,16 +100,29 @@ def added_lines(rng):
             yield current, line[1:]
 
 
+def allowlisted_fixtures():
+    """Literals already cleared, with a stated reason, by the secret-fixture guard."""
+    try:
+        with open(ALLOWLIST_SOURCE, "r", encoding="utf-8") as fh:
+            return set(ALLOWLIST_ENTRY_RE.findall(fh.read()))
+    except OSError:
+        return set()   # Run from elsewhere, or the guard is gone: report everything.
+
+
 def main():
     rng = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_RANGE
     findings = []
+    known = allowlisted_fixtures()
 
     for path, text in added_lines(rng):
         if path in SKIP_PATHS:
             continue
         for name, pattern, why in CHECKS:
             for hit in pattern.findall(text):
-                findings.append((name, path, hit if isinstance(hit, str) else hit[0], why))
+                hit = hit if isinstance(hit, str) else hit[0]
+                if hit.strip("'\"") in known:
+                    continue
+                findings.append((name, path, hit, why))
         for host in HOST_RE.findall(text):
             if host.lower() not in PUBLIC_HOSTS:
                 findings.append((

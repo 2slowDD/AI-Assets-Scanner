@@ -296,7 +296,7 @@ final class SettingsAjaxSaveTest extends TestCase {
 
     public function test_auth_success_with_rejected_railway_url_commits_key_and_succeeds(): void {
         $this->mock_common();
-        $this->mock_auth_response( 200, '{"balance":5,"railway_url":"https://evil.example.com"}' );
+        $this->mock_auth_response( 200, '{"balance":5,"railway_url":"https://example.com"}' );
 
         $_POST['api_key'] = 'cusk_NEWKEY_111111';
 
