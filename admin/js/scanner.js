@@ -2700,6 +2700,25 @@
              + CU_CHOFF_BOX_BODY.split( '%s' ).join( cuEscHtml( list ) ) + '</span></span>';
     }
 
+    // FU-KEPT-BADGE-HOVER-INFO — one row's kept_breakdown ([{label, count}], producer-derived)
+    // as the chip's title text. Guards mirror buildKeptNoteText: label must be a non-empty
+    // string, count Number-coerced and > 0, count 1 renders bare, > 1 parenthesized. Returns
+    // '' when nothing survives (legacy rows, junk shapes) — the caller then leaves the chip
+    // untitled rather than showing an empty tooltip. The return value is assigned to the
+    // title PROPERTY only; it must never be concatenated into markup (ruling R19).
+    function buildKeptChipTitle( rows ) {
+        if ( ! Array.isArray( rows ) ) { return ''; }
+        var parts = [];
+        rows.forEach( function ( r ) {
+            if ( ! r || typeof r.label !== 'string' || r.label === '' ) { return; }
+            var n = Number( r.count );
+            if ( ! ( n > 0 ) ) { return; }
+            parts.push( r.label + ( n > 1 ? ' (' + n + ')' : '' ) );
+        } );
+        if ( ! parts.length ) { return ''; }
+        return 'Kept on this page — never unloaded: ' + parts.join( ', ' );
+    }
+
     function renderResultUrlList( pages, scanId, cuRulesActive ) {
         var host = document.getElementById('cu-result-url-list');
         if ( ! host ) { return; }
@@ -2735,7 +2754,7 @@
                 }
             } );
         }
-        var rows = slice.map( function ( p ) {
+        var rows = slice.map( function ( p, sliceIdx ) {
             // Operator ruling 2026-08-05: a page whose every rule was ALREADY in Code Unloader
             // delivered nothing new, so it reads as a zero-yield page — S:0 A:0, 0 credits, the
             // same yellow noopt row as any other zero. `all_already` is the SERVER's refund
@@ -2830,14 +2849,19 @@
             // digits, and a non-numeric payload becomes NaN and fails the > 0 test rather than
             // reaching the markup. Nothing else from the payload is interpolated — the rest of
             // the chip is still static text.
+            // FU-KEPT-BADGE-HOVER-INFO — data-cu-row carries THIS chip's slice index so the
+            // post-render tooltip pass below can find its row without re-deriving the chip
+            // predicate (two predicates that must agree is the defect class kept_count
+            // exists to close). sliceIdx is the map() loop counter — digits by construction,
+            // so interpolating it keeps the R19 payload-is-static line intact.
             var keptCount = Number( p.kept_count );
             var keptChip  = '';
             if ( Number.isFinite( keptCount ) && keptCount > 0 ) {
-                keptChip = ' <span class="cu-kept-chip">🛡 ' + keptCount + ' kept</span>';
+                keptChip = ' <span class="cu-kept-chip" data-cu-row="' + sliceIdx + '">🛡 ' + keptCount + ' kept</span>';
             } else if ( ! ( 'kept_count' in p ) && Array.isArray( p.kept_protection ) && p.kept_protection.length > 0 ) {
                 // A row restored from pre-R20 storage has no kept_count. Degrade to the old
                 // countless chip rather than dropping the annotation off a stored result.
-                keptChip = ' <span class="cu-kept-chip">🛡 kept</span>';
+                keptChip = ' <span class="cu-kept-chip" data-cu-row="' + sliceIdx + '">🛡 kept</span>';
             }
             // FU-AAS-URL-SUFFIX-DIM — every scanned URL carries the optimizer-bypass suffixes the
             // scanner appended (?nowprocket&nowpcu&perfmattersoff). In a word-break:break-all cell
@@ -2896,6 +2920,19 @@
                 if ( cb.checked ) { st.etChecked.add( url ); } else { st.etChecked.delete( url ); }
                 syncEtResultAll();
             } );
+        } );
+        // FU-KEPT-BADGE-HOVER-INFO — native tooltip naming THIS ROW's kept assets, from the
+        // producer-derived kept_breakdown (AIAS_Scan_Status::build_pages(), same composite
+        // unit as the chip's own number). The labels are worker strings — untrusted — so
+        // they reach the DOM ONLY via the title PROPERTY, which never parses as HTML; they
+        // are never concatenated into the innerHTML pipeline above (ruling R19 — and note
+        // cuEscHtml() does NOT escape double quotes, so a title="" attribute concat would
+        // be an attribute-breakout, not a safe alternative). Runs inside this render
+        // function like the checkbox pass above, so pagination re-renders re-title for free.
+        host.querySelectorAll('.cu-kept-chip[data-cu-row]').forEach( function ( chip ) {
+            var rp  = slice[ Number( chip.getAttribute( 'data-cu-row' ) ) ];
+            var tip = buildKeptChipTitle( rp && rp.kept_breakdown );
+            if ( tip ) { chip.title = tip; }
         } );
         // Per-row "Scan again" link removed — noopt rows now show plain "Please scan again" text;
         // the bottom "Rescan 0-Results URLs" button rescans every noopt URL in one batch.

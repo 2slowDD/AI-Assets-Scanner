@@ -3,7 +3,7 @@
 // see r3-stage-c-harness.js) and asserts BOTH directions: the chip appears EXACTLY on rows
 // whose kept_protection is a non-empty array, and on no other row shape.
 //
-// IMPORTANT: CHIP_HTML below is an INDEPENDENT copy of the markup scanner.js builds. It is
+// IMPORTANT: chipHtml below is an INDEPENDENT copy of the markup scanner.js builds. It is
 // deliberately NOT imported from the source — a test that reads its expectation out of the
 // code under test cannot fail when that code changes. Keep the two in sync by hand.
 //
@@ -16,7 +16,11 @@ const { createHarness } = require('./r3-stage-c-harness');
 
 // The chip, verbatim. U+1F6E1 with NO variation selector — matches the bare-codepoint
 // convention already shipping in this file (👁 at scanner.js's choff note).
-const CHIP_HTML = ' <span class="cu-kept-chip">\u{1F6E1} kept</span>';
+// FU-KEPT-BADGE-HOVER-INFO — the chip carries its OWN slice index as data-cu-row, so the
+// post-render tooltip pass can find its row without re-deriving the chip predicate (two
+// predicates that must agree is the defect class kept_count exists to close). The index is
+// a map() loop counter — digits by construction, static-safe for the R19 innerHTML sink.
+const chipHtml = (i) => ' <span class="cu-kept-chip" data-cu-row="' + i + '">\u{1F6E1} kept</span>';
 
 // The two noopt S/A/N-cell notes, verbatim from scanner.js. A2c must not touch this cell:
 // the chip lives in the URL cell, these notes live in the S/A/N cell.
@@ -76,7 +80,7 @@ const ENTRY = { display_name: 'Cloudflare', handles: ['cf-challenge|script'] };
 function runChipPresent() {
   const html = render([ makeRow(1, 'https://example.test/a', [ ENTRY ]) ]);
   const cell = urlCellHtml(html, 0);
-  assert.strictEqual(cell, escHtml('https://example.test/a') + CHIP_HTML,
+  assert.strictEqual(cell, escHtml('https://example.test/a') + chipHtml(0),
     'URL cell of a kept-protection row must be the URL followed by exactly the chip');
   console.log('OK chip renders on a non-empty kept_protection row');
 }
@@ -85,7 +89,7 @@ function runChipPresent() {
 // carries class="cu-kept-chip" and would sail past a class-only assertion.
 function runChipTextPinned() {
   const html = render([ makeRow(1, 'https://example.test/a', [ ENTRY, ENTRY ]) ]);
-  const m = /<span class="cu-kept-chip">([\s\S]*?)<\/span>/.exec(html);
+  const m = /<span class="cu-kept-chip" data-cu-row="\d+">([\s\S]*?)<\/span>/.exec(html);
   assert.ok(m, 'a cu-kept-chip span must be present');
   assert.strictEqual(m[1], '\u{1F6E1} kept', 'chip text must be the shield glyph followed by "kept"');
   // The array is read for LENGTH only: two entries must not produce two chips or a count.
@@ -156,7 +160,7 @@ function runPayloadIsStaticOnly() {
   ];
   const html = render([ makeRow(1, 'https://example.test/a', hostile) ]);
   const cell = urlCellHtml(html, 0);
-  assert.strictEqual(cell, escHtml('https://example.test/a') + CHIP_HTML,
+  assert.strictEqual(cell, escHtml('https://example.test/a') + chipHtml(0),
     'a hostile kept_protection payload must render the SAME static chip, byte for byte');
   ['onerror', 'onload', '<script', '<img', '<svg', 'alert(', 'Cloudflare'].forEach(function (needle) {
     assert.strictEqual(html.indexOf(needle), -1,
@@ -192,7 +196,7 @@ function runNooptShapeUndisturbed() {
   // the URL cell and an untouched S/A/N cell.
   assert.strictEqual(sanCellHtml(html, 2), 'S:0 A:0 N:5' + NOOPT_PLAIN,
     'a noopt row carrying kept_protection must leave the S/A/N cell untouched');
-  assert.strictEqual(urlCellHtml(html, 2), escHtml('https://example.test/n3') + CHIP_HTML,
+  assert.strictEqual(urlCellHtml(html, 2), escHtml('https://example.test/n3') + chipHtml(2),
     'the chip goes in the URL cell, on a noopt row too');
   assert.strictEqual(urlCellHtml(html, 0).indexOf('cu-kept-chip'), -1, 'no chip on a noopt row without kept');
   // The noopt row class is what colours the row; the chip must not disturb it.
@@ -236,7 +240,7 @@ function runR20CountChip() {
     return row;
   };
 
-  const m = /<span class="cu-kept-chip">([\s\S]*?)<\/span>/.exec(render([ withCount(3) ]));
+  const m = /<span class="cu-kept-chip" data-cu-row="\d+">([\s\S]*?)<\/span>/.exec(render([ withCount(3) ]));
   assert.ok(m, 'a counted row still renders a chip');
   assert.strictEqual(m[1], '\u{1F6E1} 3 kept', 'chip text carries that row\'s own count');
 
@@ -247,7 +251,7 @@ function runR20CountChip() {
   assert.ok(/cu-kept-chip/.test(nonProtection),
     'a page whose keeps are entirely non-protection must still show a chip');
   assert.strictEqual(
-    /<span class="cu-kept-chip">([\s\S]*?)<\/span>/.exec(nonProtection)[1], '\u{1F6E1} 4 kept');
+    /<span class="cu-kept-chip" data-cu-row="\d+">([\s\S]*?)<\/span>/.exec(nonProtection)[1], '\u{1F6E1} 4 kept');
 
   // Zero and junk both mean "no chip" — never a chip reading "0 kept" or "NaN kept". The
   // count reaches an HTML sink, so a non-numeric payload must fail the gate, not stringify.
@@ -259,10 +263,78 @@ function runR20CountChip() {
 
   // A numeric string is still a number after coercion, and only digits can reach the markup.
   assert.strictEqual(
-    /<span class="cu-kept-chip">([\s\S]*?)<\/span>/.exec(render([ withCount('7') ]))[1],
+    /<span class="cu-kept-chip" data-cu-row="\d+">([\s\S]*?)<\/span>/.exec(render([ withCount('7') ]))[1],
     '\u{1F6E1} 7 kept', 'a numeric string coerces to its number');
 
   console.log('OK R20 chip carries the row count and covers non-protection keeps');
+}
+
+// ---------------------------------------------------------------------------------------
+// FU-KEPT-BADGE-HOVER-INFO — the chip's hover tooltip names THIS ROW's kept assets from
+// p.kept_breakdown (producer-derived in AIAS_Scan_Status::build_pages(), same composite
+// unit as kept_count). R19 line held: labels are worker strings and reach the DOM ONLY via
+// the title PROPERTY (post-render pass), which never parses as HTML — a hostile label must
+// land in .title verbatim-inert and never in the markup.
+// ---------------------------------------------------------------------------------------
+function renderH(pages) {
+  const h = createHarness();
+  h.sandbox.window.__cuTest.restoreStep4({
+    jobId: 'job1', safeCount: 1, aggCount: 0, canPush: true, externalOnly: false,
+    bannerData: {}, urlsScanned: pages.length, pages: pages, scanId: 'scan1',
+    hasActiveCuRules: false,
+  });
+  return h.els['cu-result-url-list'];
+}
+
+function runKeptTooltip() {
+  const rowWith = function (n, url, breakdown, count) {
+    const row = makeRow(n, url, [ ENTRY ]);
+    if (breakdown !== undefined) row.kept_breakdown = breakdown;
+    if (count !== undefined) row.kept_count = count;
+    return row;
+  };
+
+  // Named breakdown → title lists labels in producer order; count > 1 parenthesized,
+  // count 1 bare — mirroring the scan-level note's convention.
+  const host = renderH([
+    rowWith(1, 'https://example.test/1',
+      [ { label: 'Cloudflare Turnstile', count: 1 }, { label: 'Gravity Forms', count: 2 } ], 3),
+    rowWith(2, 'https://example.test/2'),                                   // legacy: no breakdown key
+    rowWith(3, 'https://example.test/3', [], 1),                            // empty breakdown
+  ]);
+  const chips = host.querySelectorAll('.cu-kept-chip');
+  assert.strictEqual(chips.length, 3, 'all three rows render a chip');
+  assert.strictEqual(chips[0].title,
+    'Kept on this page — never unloaded: Cloudflare Turnstile, Gravity Forms (2)',
+    'tooltip names the row\'s kept assets with composite counts');
+  assert.ok(!chips[1].title, 'a legacy row without kept_breakdown gets no tooltip');
+  assert.ok(!chips[2].title, 'an empty breakdown gets no tooltip');
+
+  // The R19 line, extended to the tooltip: hostile labels are INERT in the title property
+  // and NEVER reach the markup.
+  const hostileLabel = '"><img src=x onerror=alert(9)>';
+  const host2 = renderH([ rowWith(1, 'https://example.test/h',
+    [ { label: hostileLabel, count: 1 } ], 1) ]);
+  const chip2 = host2.querySelector('.cu-kept-chip');
+  assert.ok(chip2.title.indexOf(hostileLabel) !== -1,
+    'a hostile label lands in the title property verbatim (inert text, never parsed)');
+  assert.strictEqual(host2._html.indexOf('onerror'), -1,
+    'no kept_breakdown-derived string may reach the markup');
+  assert.strictEqual(host2._html.indexOf('alert(9)'), -1,
+    'no kept_breakdown-derived string may reach the markup');
+
+  // Junk shapes: no throw, no tooltip, filtered per-row like every other worker field.
+  const host3 = renderH([
+    rowWith(1, 'https://example.test/j1', 'junk', 1),
+    rowWith(2, 'https://example.test/j2',
+      [ 'junk', null, { label: '', count: 2 }, { label: 'Real', count: 0 }, { label: 'Kept One', count: 1 } ], 1),
+  ]);
+  const chips3 = host3.querySelectorAll('.cu-kept-chip');
+  assert.ok(!chips3[0].title, 'a non-array breakdown gets no tooltip');
+  assert.strictEqual(chips3[1].title, 'Kept on this page — never unloaded: Kept One',
+    'junk entries, empty labels and zero counts are filtered; valid rows survive');
+
+  console.log('OK kept-chip tooltip: named rows, legacy/empty/junk silent, hostile label inert');
 }
 
 runChipPresent();
@@ -274,3 +346,4 @@ runPayloadIsStaticOnly();
 runNooptShapeUndisturbed();
 runChipOrderingAgainstNotes();
 runR20CountChip();
+runKeptTooltip();

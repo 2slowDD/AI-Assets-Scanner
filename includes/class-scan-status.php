@@ -213,6 +213,13 @@ class AIAS_Scan_Status {
 				// copy of the note's predicate in JS, and two predicates that must agree is the
 				// defect class this file exists to close.
 				'kept_count' => self::count_kept_composites( $page ),
+				// FU-KEPT-BADGE-HOVER-INFO — the [label, count] rows the chip's hover
+				// tooltip names its assets from. Decided here, at the producer, for the
+				// same reason kept_count is: the tooltip's arithmetic and the chip's
+				// number are read three pixels apart, and deriving both from the same
+				// composite-dedup walk is what keeps them consistent BY CONSTRUCTION
+				// instead of by two predicates that must agree in two languages.
+				'kept_breakdown' => self::build_kept_breakdown( $page ),
 			];
 		}
 		return $rows;
@@ -294,5 +301,81 @@ class AIAS_Scan_Status {
 			}
 		}
 		return count( $composites );
+	}
+
+	/**
+	 * FU-KEPT-BADGE-HOVER-INFO — one page's kept assets as [ label, count ] rows, for the
+	 * kept-chip hover tooltip.
+	 *
+	 * MUST stay in step with ScannerAjax::aggregate_kept_protection() — this is that walk,
+	 * page-scoped: same protection-first field order (in the degenerate case of one
+	 * composite reaching us under two labels, the protection label claims it — the
+	 * attribution a customer is least able to afford being wrong), same dedupe on the FULL
+	 * '<handle>|<type>' composite, same display_name guards (a nameless entry still
+	 * CONSUMES composites — naming rule R3 forbids raw WP handles in customer copy, so it
+	 * can produce no row, but letting a later named entry re-claim its handles would
+	 * overstate the chip's N), same zero-count drop (never "(0)"), same case-insensitive
+	 * order. And in step with count_kept_composites() above: both walk the same two fields
+	 * with the same guards, so a fully-named page's counts sum exactly to kept_count — the
+	 * number printed on the chip this tooltip hangs off (invariant pinned in
+	 * ScanStatusKeptBreakdownTest).
+	 *
+	 * D5: both fields arrive from the Railway worker — untrusted input under WP Compliance
+	 * Rule 1 — so every level is is_array / is_string guarded and no shape of junk can
+	 * fatal or inflate a count. Pure function, no WP calls. The client interpolates NONE of
+	 * this into markup: labels reach the DOM only via the title PROPERTY (ruling R19).
+	 *
+	 * @param array<string,mixed> $page One raw Railway per-page result row.
+	 * @return array<int,array{label:string,count:int}>
+	 */
+	private static function build_kept_breakdown( array $page ): array {
+		$seen   = array(); // Composite-string set — dedupe index, same unit as kept_count.
+		$labels = array(); // display_name => count of NEW composites it contributed.
+		foreach ( array( 'kept_protection', 'kept_known_assets' ) as $field ) {
+			// `?? null`, NOT `?? array()` — same load-bearing reason as the row fields above.
+			$entries = $page[ $field ] ?? null;
+			if ( ! is_array( $entries ) ) {
+				continue;
+			}
+			foreach ( $entries as $entry ) {
+				if ( ! is_array( $entry ) ) {
+					continue;
+				}
+				$new = 0;
+				$hs  = $entry['handles'] ?? null;
+				if ( is_array( $hs ) ) {
+					foreach ( $hs as $h ) {
+						if ( ! is_string( $h ) || '' === $h || isset( $seen[ $h ] ) ) {
+							continue;
+						}
+						$seen[ $h ] = true;
+						++$new;
+					}
+				}
+				$name = $entry['display_name'] ?? null;
+				if ( ! is_string( $name ) || '' === $name ) {
+					continue;
+				}
+				$labels[ $name ] = ( $labels[ $name ] ?? 0 ) + $new;
+			}
+		}
+
+		$rows = array();
+		foreach ( $labels as $label => $count ) {
+			if ( $count < 1 ) {
+				continue;
+			}
+			$rows[] = array(
+				'label' => (string) $label,
+				'count' => $count,
+			);
+		}
+		usort(
+			$rows,
+			static function ( array $a, array $b ): int {
+				return strcasecmp( $a['label'], $b['label'] );
+			}
+		);
+		return $rows;
 	}
 }
