@@ -937,8 +937,15 @@
    wrapping (the note grows in HEIGHT, below the numbers); the fixed width pins the column to a
    constant ~185px at every viewport instead of letting auto-layout collapse it to a ragged
    ~86px ribbon. The triplet keeps its nowrap because this override is scoped to the note span. */
-.cu-noopt-note { display: block; white-space: normal; width: 165px; font-style: italic; }
-.cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; }
+/* FU-NOOPT-NOTE-CONFLATION — the four PLAIN noopt notes are informational: muted
+   gray italic, no decoration. The ET-candidate note is an ACTION prompt and must be
+   unmistakable next to them (A customer read a plain "Please scan again" as a second ET
+   candidate): amber badge — light background, amber left border, upright weight-600 text,
+   plus the ⏳ glyph the JS prepends. box-sizing:border-box keeps the badge's outer width
+   at the same 165px the plain notes occupy, so the S/A/N column geometry does not shift
+   between a plain and an ET row (equal render mode is not equal render geometry). */
+.cu-noopt-note { display: block; white-space: normal; width: 165px; font-style: italic; color: #646970; }
+.cu-noopt-note.cu-noopt-et { color: #996800; font-weight: 600; font-style: normal; background: #fcf9e8; border-left: 3px solid #dba617; border-radius: 2px; padding: 3px 6px; box-sizing: border-box; }
 /* FU-RATCHET-RECOVERED — the "↩ +N" ratchet badge (scanner.js) reads as a secondary
    annotation, not another S:/A:/N: count: muted grey + one step below the 13px row base
    (set on `.cu-url-table th, .cu-url-table td`). */

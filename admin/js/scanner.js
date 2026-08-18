@@ -2754,7 +2754,14 @@
                     // of them was a duplicate. Naming that beats any rescan prompt.
                     nooptNote = ' <span class="cu-noopt-note">Already in Code Unloader —<br>nothing new to unload on this page.</span>';
                 } else if ( p.et_candidate && ! p.et_charged ) {
-                    nooptNote = ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>';
+                    // FU-NOOPT-NOTE-CONFLATION — the ⏳ prefix plus the amber badge
+                    // styling on .cu-noopt-et (admin CSS) make this note unmistakable next to
+                    // the four PLAIN noopt notes below, which are muted-gray informational
+                    // text. A customer read a plain "Please scan again" as a second ET candidate
+                    // and reported a phantom "lost rescan candidate" — the two notes were
+                    // near-identical at a glance. Static text only: this region is an
+                    // innerHTML sink (ruling R19) and nothing here comes from the payload.
+                    nooptNote = ' <span class="cu-noopt-note cu-noopt-et">⏳ Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>';
                 } else if ( p.et_candidate ) {
                     nooptNote = ' <span class="cu-noopt-note">Please scan again</span>';
                 } else if ( st.cuRulesActive ) {

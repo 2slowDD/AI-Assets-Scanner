@@ -21,7 +21,12 @@ const CHIP_HTML = ' <span class="cu-kept-chip">\u{1F6E1} kept</span>';
 // The two noopt S/A/N-cell notes, verbatim from scanner.js. A2c must not touch this cell:
 // the chip lives in the URL cell, these notes live in the S/A/N cell.
 const NOOPT_PLAIN = ' <span class="cu-noopt-note">This scan found nothing to unload —<br>a rescan occasionally finds more. Please rescan.</span>';
-const NOOPT_ET = ' <span class="cu-noopt-note cu-noopt-et">Needs Extra Time —<br>rescan with \u{201C}Rescan ET Candidates\u{201D}</span>';
+// FU-NOOPT-NOTE-CONFLATION — the ET note carries a \u{23F3} prefix (plus CSS badge
+// styling) so it cannot be misread as one of the four plain informational noopt notes:
+// A customer read a plain "Please scan again" as a second ET candidate and reported a phantom
+// "lost rescan candidate". The glyph is part of the pinned markup on purpose — dropping it
+// silently would re-open the conflation.
+const NOOPT_ET = ' <span class="cu-noopt-note cu-noopt-et">\u{23F3} Needs Extra Time —<br>rescan with \u{201C}Rescan ET Candidates\u{201D}</span>';
 
 function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
