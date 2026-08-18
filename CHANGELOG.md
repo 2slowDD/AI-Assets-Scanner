@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.7.99b — 2026-08-18
+
+### Changed
+- The **Needs Extra Time** note can no longer be mistaken for the ordinary "please scan again" notes. All five zero-result notes used to render in the same style, close enough at a glance that a plain rescan prompt could be read as a second Extra-Time candidate. The Extra-Time note now stands out as an amber badge with an ⏳ mark; the informational notes step back to muted gray. The column keeps its exact width either way.
+- Hovering a row's **🛡 N kept** badge now shows which assets that page kept. The badge said "9 kept" with no way to see which nine without scrolling to the summary note — and the note counts the whole scan, not that page. The tooltip names each kept vendor with its count, and the numbers always add up to the badge's own N.
+
+### Fixed
+- Sites running **WP Fastest Cache** are now recognized on every scan, not only when the page came from cache. Recognition used to rely on a signature the plugin writes solely on a cache hit, so scanning a page served fresh reported "couldn't tell what's optimizing this site" while naming no cause. The scan itself was never affected — this fixes what the pre-scan check can tell you, and drops one now-unnecessary extra request per scan.
+
 ## 1.7.98b — 2026-08-17
 
 ### Fixed

@@ -58,6 +58,10 @@ final class JsCacheBustDriftTest extends TestCase {
 		// first fingerprint that also covers admin/css, so it would differ from 1.7.97b even had
 		// no byte changed. Rows are per-version fingerprints, never a diff between versions.
 		'1.7.98b' => '0716df1d2561d11618b6fb39553885d6c650e0db3e900c269cca4c4c14268278',
+		// 1.7.99b train: ET-note amber badge + plain-note muting (scanner.js + admin.css),
+		// kept-chip hover tooltip with data-cu-row + title pass (scanner.js). Added, not
+		// rewritten — the 1.7.98b row above is that shipped build's fingerprint.
+		'1.7.99b' => '5edfe15cb998872cbd1dc8e9436943edd7deec588ffc5636a141fdfd759166f7',
 	);
 
 	/**
@@ -71,6 +75,9 @@ final class JsCacheBustDriftTest extends TestCase {
 		// row exists because the guard caught the omission: scanner.js gained a function and the
 		// banner had not moved, which is the second time it has fired on a real miss.
 		'1.0.10.31' => '4ec33d11e90d56e69a7c3882087564e496c2a8f2f74db27b101ba7ddc5fe714a',
+		// 1.7.99b train: ET noopt note gains the ⏳ prefix; kept chip gains data-cu-row and
+		// the post-render title pass + buildKeptChipTitle() (FU-KEPT-BADGE-HOVER-INFO).
+		'1.0.10.32' => '5020ccf7ef42c7457ac15141b943f15b1b80108cb07a3cfc3c7d9f154a1fb785',
 	);
 
 	private function root(): string {
