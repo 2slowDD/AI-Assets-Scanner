@@ -55,4 +55,7 @@ tests / 2262 assertions / 0 failures (5 skipped, 2 risky — pre-existing), JS 1
 TDD red→green on every FU; kept-breakdown dedup mutation-proven (3 red, reverted).
 Version lockstep 1.7.99b (header + const + badge), SCANNER_JS_VERSION 1.0.10.32,
 both fingerprint rows ADDED (never rewritten), CHANGELOG entry written.
-NOT pushed, NOT packaged — P9 gate + AAS-update packaging await operator YES.
+Pushed 2026-08-18 under operator P9 YES: b7fb7d6..1f4319a on public main, pure
+fast-forward, ls-remote-verified. Pre-push: whole-train review (SHIP-WITH-FIXES;
+both blockers fixed - identifier history rewrite + SIGNATURE_SCHEMA_VERSION '8')
+and the P9 content-safety sweep, 0 hits. Packaging via AAS-update follows.
