@@ -37,7 +37,7 @@ class PluginDetectorUrlResolutionKeyTest extends TestCase {
         $a = PluginDetector::__test_build_url_resolution_key( 'HTTPS://Host.com/pricing/' );
         $b = PluginDetector::__test_build_url_resolution_key( 'https://host.com:443/pricing/' );
         $this->assertSame( $a, $b, 'case + explicit default port must not change the key' );
-        $this->assertStringStartsWith( 'cu_scanner_url_res_v7_', $a );
+        $this->assertStringStartsWith( 'cu_scanner_url_res_v8_', $a );
     }
     public function test_key_distinguishes_paths_and_preserves_query(): void {
         $this->stub_wp_parse_url();

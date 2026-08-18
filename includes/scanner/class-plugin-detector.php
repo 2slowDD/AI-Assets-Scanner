@@ -125,7 +125,10 @@ class PluginDetector {
     // OPTIMIZERS / PAGE_CACHE_PLUGINS signatures or probe logic change — the key
     // change auto-invalidates every host's cached probe result (replaces the manual
     // v1/v2/v3 literal discipline that let stale pre-upgrade results pin for 24h).
-    private const SIGNATURE_SCHEMA_VERSION = '7';
+    // '8': the WPFC wpfc-minified head marker (FU-WPFC-DETECTION-HIT-ONLY-MARKER) —
+    // without the bump, a host with a positive verdict cached pre-upgrade would not
+    // see the new marker for up to 24h (positive_cache_ttl).
+    private const SIGNATURE_SCHEMA_VERSION = '8';
 
     /**
      * Rev-2 C1 — injectable-override seams for detector dependencies.

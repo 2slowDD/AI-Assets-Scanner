@@ -37,8 +37,9 @@ Order ratified by operator + Phase-1 assumption audit (all load-bearing claims �
 ## Constraints carried
 - Tests in this fresh worktree only; `git add -f` for tests/ if ignored.
 - ⚠️ repo is PUBLIC — content-safety sweep before push; no push without operator YES.
-- CF-host notice (FU-CF-HOST-INTEGRATION-NOTICE) deliberately NOT in this train —
-  needs operator copy decisions first.
+- ~~CF-host notice deliberately NOT in this train~~ — SUPERSEDED: the operator answered
+  the copy questions 2026-08-18 and FU-CF-HOST-INTEGRATION-NOTICE was folded in as the
+  train's 5th commit (targeted same-host gate + explain-and-reassure copy).
 
 ## Follow-ups discovered during this task
 - 🟡 WPFC MISS-case generality: the WPFC probe site served cached HIT even query-busted; if a
@@ -49,7 +50,7 @@ Order ratified by operator + Phase-1 assumption audit (all load-bearing claims �
 
 ## Review (2026-08-18)
 
-Train complete, 4 commits on this train branch (base `b7fb7d6`). Suites: PHP 941
+Train complete, 6 commits on this train branch (base `b7fb7d6`). Suites: PHP 941
 tests / 2262 assertions / 0 failures (5 skipped, 2 risky — pre-existing), JS 18/18.
 TDD red→green on every FU; kept-breakdown dedup mutation-proven (3 red, reverted).
 Version lockstep 1.7.99b (header + const + badge), SCANNER_JS_VERSION 1.0.10.32,
