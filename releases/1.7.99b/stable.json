@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.7.99b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.0.4",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.99b/ai-assets-scanner.zip",
+    "sha256": "8d4d09b844b75285898254db45de07405607b88a907053491492dcf04fa88517",
+    "signature": "",
+    "released_at": "2026-08-18T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.7.99b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.7.99b (beta).</p><p><strong>Changed</strong></p><ul><li>The <strong>Needs Extra Time</strong> note can no longer be mistaken for the ordinary \"please scan again\" notes. All five zero-result notes used to render in the same style, close enough at a glance that a plain rescan prompt could be read as a second Extra-Time candidate. The Extra-Time note now stands out as an amber badge with an ⏳ mark; the informational notes step back to muted gray. The column keeps its exact width either way.</li><li>Hovering a row's <strong>🛡 N kept</strong> badge now shows which assets that page kept. The badge said \"9 kept\" with no way to see which nine without scrolling to the summary note &mdash; and the note counts the whole scan, not that page. The tooltip names each kept vendor with its count, and the numbers always add up to the badge's own N.</li></ul><ul><li>The pre-scan Cloudflare notice now explains <strong>host-managed Cloudflare</strong>. When Cloudflare and a hosting platform that bundles it (such as WP Engine) are detected together, the notice says plainly that whitelisting the scanner usually isn't possible on such plans &mdash; instead of only telling you to set up an exemption you may have no way to create. It also reassures: scanning is still safe to try, blocked pages are reported as blocked, and can be rescanned once the host adds an exception.</li></ul><p><strong>Fixed</strong></p><ul><li>Sites running <strong>WP Fastest Cache</strong> are now recognized on every scan, not only when the page came from cache. Recognition used to rely on a signature the plugin writes solely on a cache hit, so scanning a page served fresh reported \"couldn't tell what's optimizing this site\" while naming no cause. The scan itself was never affected &mdash; this fixes what the pre-scan check can tell you, and drops one now-unnecessary extra request per scan.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
