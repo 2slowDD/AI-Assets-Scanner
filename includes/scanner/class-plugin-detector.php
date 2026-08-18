@@ -232,7 +232,13 @@ class PluginDetector {
             'name' => 'WP Fastest Cache', 'class' => 'B', 'bypass_query' => null,
             'disable_method' => null, 'warning' => null,
             'target_headers' => [],
-            'target_body_markers' => ['WP Fastest Cache file was created'],
+            // FU-WPFC-DETECTION-HIT-ONLY-MARKER: 'file was created' is an end-of-body
+            // comment emitted only on a cache HIT (live-measured at byte ~103K — past the
+            // 32KB Pass-1 window; the reason this entry sits in PAGE_CACHE_PLUGINS). The
+            // wpfc-minified hrefs sit in the HEAD on every response (live-measured at byte
+            // 1041), so Pass 1 detects HIT and MISS alike and skips the forced tail fetch —
+            // same path-marker shape as Hummingbird's /wp-content/cache/hummingbird/ below.
+            'target_body_markers' => ['WP Fastest Cache file was created', '/wp-content/cache/wpfc-minified/'],
             'target_body_pattern' => '/\bwp[- _]?fastest[- _]?cache\b/i',
         ],
         'w3-total-cache/w3-total-cache.php' => [

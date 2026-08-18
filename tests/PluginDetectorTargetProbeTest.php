@@ -1413,6 +1413,36 @@ class PluginDetectorTargetProbeTest extends TestCase {
         $this->assertTrue( $r );
     }
 
+    /**
+     * FU-WPFC-DETECTION-HIT-ONLY-MARKER — 'WP Fastest Cache file was created' is an
+     * end-of-body comment emitted only on a cache HIT (live-measured at byte ~103K on a
+     * 103KB page — past Pass 1's 32KB window, which is exactly why WPFC sits in
+     * PAGE_CACHE_PLUGINS forcing an extra full-body tail fetch). The minified-asset hrefs
+     * (/wp-content/cache/wpfc-minified/) sit in the HEAD on every response — live-measured
+     * at byte 1041 — same shape Hummingbird and Autoptimize already detect by. With the
+     * path marker, Pass 1 detects WPFC without the tail fetch, and a MISS page (no HIT
+     * comment anywhere) stops classifying as no_clue.
+     */
+    public function test_wpfc_minified_href_detects_in_pass1_head_window(): void {
+        $entry = $this->getOptimizerEntry( 'WP Fastest Cache' );
+
+        // The MISS shape: minified hrefs in the head, NO 'file was created' comment at all.
+        $miss = '<html><head><link rel="stylesheet" href="/wp-content/cache/wpfc-minified/2r3ap9jr/dnyk3.css" media="all"></head>'
+            . '<body>content with no cache-hit comment</body></html>';
+        $this->assertTrue(
+            PluginDetector::__test_body_match( $miss, $entry['target_body_markers'], true ),
+            'wpfc-minified href in the 32KB head window must detect WPFC on a cache MISS (Pass 1)'
+        );
+
+        // Over-breadth guard: another plugin's /wp-content/cache/ subtree must NOT match
+        // the WPFC markers — the marker is the wpfc-minified segment, not the cache dir.
+        $other = '<html><head><link href="/wp-content/cache/hummingbird/x.css"></head><body></body></html>';
+        $this->assertFalse(
+            PluginDetector::__test_body_match( $other, $entry['target_body_markers'], true ),
+            'a foreign /wp-content/cache/ path must not detect WPFC'
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Regex backtracking safety lint
     // -------------------------------------------------------------------------
