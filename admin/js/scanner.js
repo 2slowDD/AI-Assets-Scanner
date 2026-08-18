@@ -466,6 +466,32 @@
         const p = document.createElement('p');
         p.textContent = 'The scan may be challenged or blocked. Set up the scanner exemption before spending credits, or continue anyway.';
         wrap.appendChild(p);
+        // FU-CF-HOST-INTEGRATION-NOTICE — on WPE-style host-integrated Cloudflare the
+        // customer usually CANNOT set up the exemption (no CF dashboard access without a
+        // plan upgrade), so the sentence above alone tells them to do something impossible
+        // (customer report, 2026-08-10). Inference is SAME-HOST only: Cloudflare and a known
+        // CF-integrating platform detected on the one result row — CF on host A plus WPE
+        // on host B proves nothing about either. Platform list matches detected[].name
+        // strings from the OPTIMIZERS registry verbatim; extend it as more CF-integrating
+        // hosts are confirmed. The exemption link below stays either way — some host plans
+        // do allow custom firewall rules. textContent only, per this block's convention.
+        const cfHostPlatforms = [ 'WP Engine Page Cache' ];
+        const hostCf = (results || []).some(function (r) {
+            if (!r || ((r.security_stacks || []).indexOf('cloudflare') === -1)) return false;
+            return (r.detected || []).some(function (d) {
+                return !!d && cfHostPlatforms.indexOf(d.name) !== -1;
+            });
+        });
+        if (hostCf) {
+            const hn = document.createElement('p');
+            hn.className = 'cu-cf-host-note';
+            hn.textContent = 'This site’s Cloudflare appears to come through its hosting platform. '
+                + 'Host-managed Cloudflare usually can’t whitelist individual tools unless the hosting '
+                + 'plan includes custom firewall rules. You can still continue — pages the firewall '
+                + 'blocks are reported as blocked, not silently skipped, and can be rescanned once your '
+                + 'host adds an exception.';
+            wrap.appendChild(hn);
+        }
         if (typeof cuReasonCopy === 'object' && cuReasonCopy && cuReasonCopy.settings_url) {
             const a = document.createElement('a');
             a.setAttribute('href', cuReasonCopy.settings_url);

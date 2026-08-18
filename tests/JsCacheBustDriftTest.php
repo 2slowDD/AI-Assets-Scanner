@@ -61,7 +61,7 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.7.99b train: ET-note amber badge + plain-note muting (scanner.js + admin.css),
 		// kept-chip hover tooltip with data-cu-row + title pass (scanner.js). Added, not
 		// rewritten — the 1.7.98b row above is that shipped build's fingerprint.
-		'1.7.99b' => '5edfe15cb998872cbd1dc8e9436943edd7deec588ffc5636a141fdfd759166f7',
+		'1.7.99b' => 'fb730330926e5954dba60f8cc2286fcaaa8f1bf9375a63f2daab1b19ca05900f',
 	);
 
 	/**
@@ -77,7 +77,7 @@ final class JsCacheBustDriftTest extends TestCase {
 		'1.0.10.31' => '4ec33d11e90d56e69a7c3882087564e496c2a8f2f74db27b101ba7ddc5fe714a',
 		// 1.7.99b train: ET noopt note gains the ⏳ prefix; kept chip gains data-cu-row and
 		// the post-render title pass + buildKeptChipTitle() (FU-KEPT-BADGE-HOVER-INFO).
-		'1.0.10.32' => '5020ccf7ef42c7457ac15141b943f15b1b80108cb07a3cfc3c7d9f154a1fb785',
+		'1.0.10.32' => '2877a279c39106b55da50e0932517e6b3001443a9272f8a1dc3439c90021447e',
 	);
 
 	private function root(): string {

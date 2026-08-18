@@ -161,6 +161,61 @@ function runStackDetectedCase() {
   });
 }
 
+// (b1b) FU-CF-HOST-INTEGRATION-NOTICE — when Cloudflare AND a CF-integrating host
+// platform are detected on the SAME host, the stack block explains that host-managed
+// Cloudflare usually can't whitelist the scanner (customer report, 2026-08-10: WPE-integrated
+// CF has no whitelisting without a plan upgrade — the exemption instruction alone tells
+// that customer to do something impossible). Gate precision pinned in all four directions.
+function runHostIntegratedCfNote() {
+  const NOTE = 'This site’s Cloudflare appears to come through its hosting platform. '
+    + 'Host-managed Cloudflare usually can’t whitelist individual tools unless the hosting '
+    + 'plan includes custom firewall rules. You can still continue — pages the firewall '
+    + 'blocks are reported as blocked, not silently skipped, and can be rescanned once your '
+    + 'host adds an exception.';
+  // Returns the whole BODY, not the dialog — the WPE-alone case below takes the
+  // informational toast path and renders no dialog at all.
+  const mk = function (rows) {
+    const h = createHarness();
+    h.sandbox.window.__cuTest.showProbeOutcomeDialog({
+      summary: { uniform_outcome: true }, per_host_results: rows,
+    });
+    return h.sandbox.document.body;
+  };
+
+  // CF + WPE on the SAME host → note present, verbatim, inside the stack block.
+  const d1 = mk([{ host: 'wpe.example', outcome: 'no_clue',
+    detected: [{ name: 'WP Engine Page Cache', class: 'B' }], security_stacks: ['cloudflare'] }]);
+  // Simple selector only — the harness's parseSelector has no descendant combinator.
+  // Containment is asserted via parentNode instead.
+  const note = d1.querySelector('.cu-cf-host-note');
+  assert.ok(note, 'CF + WP Engine on one host must render the host-integration note');
+  assert.strictEqual(note.textContent, NOTE, 'note copy is pinned verbatim');
+  assert.strictEqual(note.parentNode && note.parentNode.className, 'cu-security-stack-block',
+    'the note lives inside the security-stack block');
+
+  // CF alone → no note (plain-CF customers keep the unqualified exemption prompt).
+  const d2 = mk([{ host: 'cf.example', outcome: 'no_clue', detected: [], security_stacks: ['cloudflare'] }]);
+  assert.ok(d2.querySelector('.cu-security-stack-block'), 'stack block still renders for plain CF');
+  assert.strictEqual(d2.querySelector('.cu-cf-host-note'), null, 'no host note on plain CF');
+
+  // WPE alone, no CF → informational toast path: no dialog, no block, no note.
+  const d3 = mk([{ host: 'wpe.example', outcome: 'class_bc_only',
+    detected: [{ name: 'WP Engine Page Cache', class: 'B' }], security_stacks: [] }]);
+  assert.strictEqual(d3.querySelector('.cu-cf-host-note'), null, 'no note without CF');
+
+  // Cross-host: CF on host A, WPE on host B → the same-host inference does NOT hold.
+  const d4 = mk([
+    { host: 'a.example', outcome: 'no_clue', detected: [], security_stacks: ['cloudflare'] },
+    { host: 'b.example', outcome: 'class_bc_only',
+      detected: [{ name: 'WP Engine Page Cache', class: 'B' }], security_stacks: [] },
+  ]);
+  assert.ok(d4.querySelector('.cu-security-stack-block'), 'stack block renders (CF on host A)');
+  assert.strictEqual(d4.querySelector('.cu-cf-host-note'), null,
+    'CF on one host + WPE on another must NOT claim host-integrated CF');
+
+  console.log('OK host-integrated-CF note: same-host only, verbatim copy, absent otherwise');
+}
+
 // (b2) Cancel on the gate still resolves false — the bail path is intact.
 function runStackCancelCase() {
   const h = createHarness();
@@ -315,6 +370,7 @@ Promise.resolve()
   .then(runCleanCase)
   .then(runUniformCleanCase)
   .then(runStackDetectedCase)
+  .then(runHostIntegratedCfNote)
   .then(runStackCancelCase)
   .then(runUntrustedStackId)
   .then(runUntrustedHostInToast)
