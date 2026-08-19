@@ -73,6 +73,9 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.0b final UI refinement: 11px table headings, working Settings help, aligned
 		// completion copy, consistent 12px buttons, and simplified result guidance.
 		'1.8.0b.3' => '6c64fbbe2e1a7eaafddb2daec34a5012177dc26362872e6e02531c129828ab58',
+		// Header h2 weight 700 -> 600 (operator copy tweak, 2026-08-19). Asset-key-only bump:
+		// the plugin version stays 1.8.0b by operator ruling; this suffix exists for exactly that.
+		'1.8.0b.4' => '37871950e32ca55b707c726ca1073484b50bb8592bca9f6bcc46cf6807afaa84',
 	);
 
 	/**

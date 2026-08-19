@@ -20,6 +20,7 @@ All notable changes to AI Assets Scanner are documented here.
 - Reduced the active radar by about 10% and separated it from the progress card so the full circle remains visible.
 - Push and Sync now stay visible but disabled when a mixed scan contains recommendations only for external URLs and no rules eligible for the current site.
 - Simplified the results sidebar by removing the duplicate kept-assets total, while retaining the blue crucial-assets strip in the main results column.
+- Softened the scanner page title from bold to semi-bold so the header reads as a label rather than a headline. (Same-version package refresh; asset cache key 1.8.0b.4.)
 - Restyled the Speed Analyzer calls to action as secondary buttons and refined the completion-heading alignment and Settings credit-balance weight.
 
 ### Internal
