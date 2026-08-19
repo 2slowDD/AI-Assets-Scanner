@@ -1561,7 +1561,8 @@ class ScannerAjax {
         }
         unset( $row );
 
-        $can_push      = ( new RulePusher() )->can_push();
+        $can_push          = ( new RulePusher() )->can_push();
+        $has_internal_rules = ! empty( $this->filter_internal_rules( $cu_json )['rules'] );
 
         // $cu_rules_active is read ABOVE, at the dedupe gate — it decides both whether the
         // apparatus runs at all and, on the payload, which zero-finding copy the client shows.
@@ -1578,6 +1579,7 @@ class ScannerAjax {
             'safe_count'    => $safe_count,
             'agg_count'     => $agg_count,
             'can_push'      => $can_push,
+            'has_internal_rules' => $has_internal_rules,
             'external_only' => false,
             'total_pages'   => count( $pages_raw ),
             'scan_id'       => $scan_id_display,
@@ -1608,6 +1610,7 @@ class ScannerAjax {
             // TRUE when this scan ran with Code Unloader's rules live (?nowpcu suffix omitted).
             'cu_rules_active'  => $cu_rules_active,
             'can_push'         => $can_push,
+            'has_internal_rules' => $has_internal_rules,
             'scan_id'          => $scan_id_display,
             'pages_blocked'    => $pages_blocked,
             'blocked_reasons'  => $blocked_reasons,
@@ -1731,6 +1734,7 @@ class ScannerAjax {
         }
         try {
             $decoded = $this->filter_internal_rules( json_decode( $json, true ) );
+            if ( empty( $decoded['rules'] ) ) { wp_send_json_error( 'No internal rules to push' ); return; }
             $summary = $pusher->push( $decoded );
             if ( empty( $summary['error_count'] ) ) {
                 ( new LastPushSyncUndo() )->store_from_summary( 'push', $job_id, $summary );

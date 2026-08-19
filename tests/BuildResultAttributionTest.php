@@ -60,6 +60,7 @@ class BuildResultAttributionTest extends TestCase {
 	 * payload it produces for the given worker pages.
 	 */
 	private function build_payload_for( array $pages ): array {
+		WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://site.test' );
 		WP_Mock::userFunction( 'wp_parse_url' )
 			->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
 		WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );

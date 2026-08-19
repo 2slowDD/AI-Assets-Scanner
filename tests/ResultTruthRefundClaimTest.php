@@ -71,7 +71,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 	 * produces is billed. So the default here is the only mode in which this class's subject
 	 * exists. The suffix-applied case has its own explicit tests below.
 	 */
-	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = true, ?array $kept_protection = null ): array {
+	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = true, ?array $kept_protection = null, string $page_url = 'https://s.com/p' ): array {
 		WP_Mock::userFunction( 'wp_parse_url' )
 			->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
 		WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
@@ -84,7 +84,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 			fn( $r ) => is_array( $r ) && isset( $r['__refund'] ) ? (int) $r['__code'] : 200
 		);
 		WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing(
-			function ( $r ) use ( $refund_response, $kept_protection ) {
+			function ( $r ) use ( $refund_response, $kept_protection, $page_url ) {
 				if ( is_array( $r ) && isset( $r['__refund'] ) ) {
 					return json_encode( $refund_response ?? [ 'message' => 'Not Found' ] );
 				}
@@ -92,7 +92,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 					'status'    => 'complete',
 					'total'     => 1,
 					'completed' => 1,
-					'pages'     => [ $this->page( 'https://s.com/p', $kept_protection ) ],
+					'pages'     => [ $this->page( $page_url, $kept_protection ) ],
 					'flags'     => [],
 				] );
 			}
@@ -298,6 +298,20 @@ class ResultTruthRefundClaimTest extends TestCase {
 		);
 		$this->assertSame( $out['credits_refunded'], $persisted['credits_refunded'] );
 		$this->assertSame( $out['cu_rules_active'], $persisted['cu_rules_active'] );
+	}
+
+	/** Direct-action eligibility is present on both live and restored payloads. */
+	public function test_internal_rule_availability_lands_on_both_payload_writers(): void {
+		$internal = $this->run_build( false, null );
+		$this->assertTrue( $internal['has_internal_rules'] );
+		$this->assertTrue( $this->persisted_last_result()['has_internal_rules'] );
+	}
+
+	/** Direct-action eligibility follows the same site-host filter as Push and Sync. */
+	public function test_external_recommendations_are_not_internal_rules(): void {
+		$external = $this->run_build( false, null, true, true, null, 'https://external.example/p' );
+		$this->assertFalse( $external['has_internal_rules'] );
+		$this->assertFalse( $this->persisted_last_result()['has_internal_rules'] );
 	}
 
 	/**

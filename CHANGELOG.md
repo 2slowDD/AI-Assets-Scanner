@@ -6,11 +6,24 @@ All notable changes to AI Assets Scanner are documented here.
 
 ## 1.8.0b — 2026-08-19
 
-### Changed
+### Major redesign changes
 - The scanner admin now uses a wider, responsive diagnostic workspace with one consolidated Scan Readiness card, clearer discovery and active-scan states, and an expanded completion dashboard.
 - Completed scans now separate the summary, recommendation actions, page results and S/A/N guidance. Safe and Aggressive remain positive green recommendation tiers; Needed remains neutral.
 - Result rows retain their existing outcome classes while using restrained status tints, a strong left marker, readable URL hierarchy and distinct Safe, Aggressive and Needed badges.
 - The existing radar, animated stage lights, probe safety gates, result tooltips, kept-asset badges, Push/Sync controls and restored Step 4 behavior remain in place.
+
+### Fixed
+- Restored the active radar sweep using the 1.7.99b three-second rotation while retaining the larger 1.8 radar artwork and synchronized bright blips.
+- Result-table help markers and the Settings scan-option marker now display their explanatory tooltips without creating horizontal or vertical scrollbars; the redundant S/A/N sidebar marker was removed.
+- Gave long result statuses more room, inset the Extra Time bulk control, and kept status content clear of the Credits column.
+- Refined result typography: table headers now use 11px/600 text, S/A/N badges and admin buttons use 12px text, and the result summary uses 12px text with 600-weight emphasized counts.
+- Reduced the active radar by about 10% and separated it from the progress card so the full circle remains visible.
+- Push and Sync now stay visible but disabled when a mixed scan contains recommendations only for external URLs and no rules eligible for the current site.
+- Simplified the results sidebar by removing the duplicate kept-assets total, while retaining the blue crucial-assets strip in the main results column.
+- Restyled the Speed Analyzer calls to action as secondary buttons and refined the completion-heading alignment and Settings credit-balance weight.
+
+### Internal
+- Kept the public plugin version at `1.8.0b` and scanner diagnostic banner at `1.0.11.5`, and advanced the admin-asset cache key to `1.8.0b.3` so browsers fetch the corrected stylesheet.
 
 ## 1.7.99b — 2026-08-18
 

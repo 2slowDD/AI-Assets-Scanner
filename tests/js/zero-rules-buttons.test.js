@@ -27,11 +27,33 @@ function runWithRules() {
   const h = createHarness();
   const T = h.sandbox.window.__cuTest;
   T.restoreStep4({ jobId: 'job2', safeCount: 1, aggCount: 0, canPush: true, externalOnly: false,
+                   hasInternalRules: true,
                    bannerData: {}, urlsScanned: 5, pages: [], scanId: 'scan2', hasActiveCuRules: false });
   const push = h.els['cu-btn-push'];
   assert.strictEqual(push.disabled, false, 'Push enabled when >=1 rule exists');
   assert.ok(!push._classes.has('cu-btn-dormant'), 'Push not dormant when rules exist');
   console.log('OK with-rules-buttons');
+}
+
+// A mixed scan can contain aggregate recommendations from external URLs while producing
+// no rules eligible for this site's Code Unloader. Both direct actions must remain visible
+// but dormant, matching the server-side host filter used by Push and Sync.
+function runExternalRecommendationsOnly() {
+  const h = createHarness();
+  const T = h.sandbox.window.__cuTest;
+  T.restoreStep4({ jobId: 'job-mixed', safeCount: 0, aggCount: 15, canPush: true, externalOnly: false,
+                   hasInternalRules: false,
+                   bannerData: {}, urlsScanned: 4, pages: [], scanId: 'scan-mixed', hasActiveCuRules: false });
+
+  const push = h.els['cu-btn-push'];
+  const sync = h.els['cu-btn-sync'];
+  assert.strictEqual(push.style.display, '', 'Push remains visible when no internal rules exist');
+  assert.strictEqual(sync.style.display, '', 'Sync remains visible when no internal rules exist');
+  assert.strictEqual(push.disabled, true, 'Push is disabled when only external recommendations exist');
+  assert.strictEqual(sync.disabled, true, 'Sync is disabled when only external recommendations exist');
+  assert.ok(push._classes.has('cu-btn-dormant'), 'Push has cu-btn-dormant with no internal rules');
+  assert.ok(sync._classes.has('cu-btn-dormant'), 'Sync has cu-btn-dormant with no internal rules');
+  console.log('OK external-recommendations-only buttons');
 }
 
 // A zero-result rescan is page-result state, not sticky UI state. Reusing Step 4 for a
@@ -60,4 +82,5 @@ function runZeroResultRescanReset() {
 
 runZeroRules();
 runWithRules();
+runExternalRecommendationsOnly();
 runZeroResultRescanReset();

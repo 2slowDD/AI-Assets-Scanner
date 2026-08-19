@@ -315,13 +315,13 @@
                 <section class="cu-speed-footer">
                     <img src="<?php echo esc_url( CU_SCANNER_URL . 'admin/images/iconSA-256x256.png' ); ?>" alt="Speed Analyzer">
                     <div><span class="cu-eyebrow">Measure the improvement</span><h3>Compare performance with Speed Analyzer</h3><p>Check how much the applied recommendations improved your pages.</p></div>
-                    <a href="https://wordpress.org/plugins/speed-analyzer/" target="_blank" rel="noopener noreferrer" class="button button-primary">Get Speed Analyzer</a>
+                    <a href="https://wordpress.org/plugins/speed-analyzer/" target="_blank" rel="noopener noreferrer" class="button button-secondary">Get Speed Analyzer</a>
                 </section>
             </div>
 
             <aside class="cu-results-guidance" aria-label="Recommendation guidance">
                 <div class="cu-guidance-card cu-guidance-card--legend">
-                    <h3>Recommendations S / A / N <span class="cu-help" tabindex="0" aria-label="Safe, Aggressive, Needed and Kept recommendation definitions."></span></h3>
+                    <h3>Recommendations S / A / N</h3>
                     <p>Review the recommendations for each URL.</p>
                     <dl class="cu-guidance-list">
                         <div><dt><span class="cu-legend-token cu-legend-token--safe">Safe</span></dt><dd>Not loaded on the page</dd></div>
@@ -334,7 +334,6 @@
                     <h3>Ready to apply</h3>
                     <div class="cu-ready-list">
                         <div><span class="cu-ready-icon cu-ready-icon--rules" aria-hidden="true">&#10021;</span><p><strong><span id="cu-ready-rule-total">0</span> unload rules will be added</strong><small><span id="cu-apply-safe">0</span> safe + <span id="cu-apply-aggressive">0</span> aggressive</small></p></div>
-                        <div><span class="cu-ready-icon cu-ready-icon--kept" aria-hidden="true">&#10003;</span><p><strong><span id="cu-apply-kept">0</span> assets will be kept</strong><small>Protected or needed assets</small></p></div>
                         <div><span class="cu-ready-icon cu-ready-icon--credits" aria-hidden="true">&#36;</span><p><strong id="cu-ready-credits">0 credits were used</strong><small id="cu-ready-balance" hidden></small></p></div>
                     </div>
                 </div>
@@ -364,7 +363,7 @@
             <a href="https://wordpress.org/plugins/speed-analyzer/" target="_blank" rel="noopener noreferrer" class="cu-sidebar-sa-link">
                 <img src="<?php echo esc_url( CU_SCANNER_URL . 'admin/images/iconSA-256x256.png' ); ?>" alt="Speed Analyzer" class="cu-sidebar-sa-icon">
             </a>
-            <a href="https://wordpress.org/plugins/speed-analyzer/" target="_blank" rel="noopener noreferrer" class="button button-primary cu-sidebar-btn">
+            <a href="https://wordpress.org/plugins/speed-analyzer/" target="_blank" rel="noopener noreferrer" class="button button-secondary cu-sidebar-btn">
                 Get Speed Analyzer
             </a>
         </div>

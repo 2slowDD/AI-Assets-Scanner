@@ -46,7 +46,7 @@ final class JsCacheBustDriftTest extends TestCase {
 	 */
 	private const ASSET_GLOBS = array( '/admin/js/*.js', '/admin/css/*.css' );
 
-	private const ADMIN_JS_BY_PLUGIN_VERSION = array(
+	private const ADMIN_ASSETS_BY_CACHE_VERSION = array(
 		// R20 keep note + counted chip. First row: earlier builds predate the guard.
 		'1.7.96b' => 'efcce89e7685eea728946ee1fc2d59a7dfa03f8e854d81fd01b5bc524f15f738',
 		// FU-N — .catch() on all three settings.js fetch chains. Added, not rewritten: the
@@ -65,6 +65,14 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.0b admin redesign: scanner workflow markup/behavior and the full visual-system CSS.
 		// Added as a new release fingerprint; all previously shipped rows remain immutable.
 		'1.8.0b' => '2e2805f5a26a1f6ffe1090a4a546ec38d6f3710a83559d6bb7193681060ccacf',
+		// 1.8.0b post-deploy UI fixes. Public plugin version intentionally remains 1.8.0b;
+		// the independent asset key forces browsers to fetch the corrected CSS and JS.
+		'1.8.0b.1' => '8a5af706d79ea60b3e1cf84dfdd3e0a956370d985798587823afb1ed1539b7b6',
+		// 1.8.0b typography/radar refinement plus internal-rule action eligibility.
+		'1.8.0b.2' => '7cc25ddc5f9a125c819a78395d8d4fbfa9a76d11cd79279ff8c8be9e3beb903b',
+		// 1.8.0b final UI refinement: 11px table headings, working Settings help, aligned
+		// completion copy, consistent 12px buttons, and simplified result guidance.
+		'1.8.0b.3' => '6c64fbbe2e1a7eaafddb2daec34a5012177dc26362872e6e02531c129828ab58',
 	);
 
 	/**
@@ -93,6 +101,10 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.0b visual refinement: zero-result rescan visibility resets on every result
 		// render while the header progress track and compact result layout stay CSS-owned.
 		'1.0.11.3' => '30e8b5497eca149650aac60105ad8980c86ca39933bd8c054e46564f83be1147',
+		// 1.8.0b post-deploy motion, tooltip, and result-table layout fixes.
+		'1.0.11.4' => 'de666d599a64ec0e7f339c8335d308396b8b4971030917438c44bb19e36e7b22',
+		// 1.8.0b mixed-scan guard: disable direct actions when no internal rules exist.
+		'1.0.11.5' => '20c1c828303a3d87c5a5201427dc67b534b035c54667882f29d8bace7a1835a2',
 	);
 
 	private function root(): string {
@@ -110,6 +122,13 @@ final class JsCacheBustDriftTest extends TestCase {
 		$src = (string) file_get_contents( $this->root() . '/ai-assets-scanner.php' );
 		$this->assertSame( 1, preg_match( '/^\s*\*\s*Version:\s*(\S+)\s*$/m', $src, $m ),
 			'the plugin header Version: line must be findable' );
+		return $m[1];
+	}
+
+	private function asset_version_from_source(): string {
+		$src = (string) file_get_contents( $this->root() . '/ai-assets-scanner.php' );
+		$this->assertSame( 1, preg_match( "/define\(\s*'CU_SCANNER_ASSET_VERSION',\s*'([^']+)'\s*\)/", $src, $m ),
+			'CU_SCANNER_ASSET_VERSION must be findable' );
 		return $m[1];
 	}
 
@@ -133,22 +152,21 @@ final class JsCacheBustDriftTest extends TestCase {
 		return hash( 'sha256', $blob );
 	}
 
-	public function test_admin_js_has_not_changed_without_a_plugin_version_bump(): void {
-		$version = $this->plugin_version_from_source();
+	public function test_admin_assets_have_not_changed_without_an_asset_version_bump(): void {
+		$version = $this->asset_version_from_source();
 		$this->assertArrayHasKey(
 			$version,
-			self::ADMIN_JS_BY_PLUGIN_VERSION,
-			"No admin/js fingerprint is pinned for plugin version {$version}. If you bumped the "
-			. 'version, add a row to ADMIN_JS_BY_PLUGIN_VERSION with the new fingerprint.'
+			self::ADMIN_ASSETS_BY_CACHE_VERSION,
+			"No admin asset fingerprint is pinned for cache version {$version}. If you bumped the "
+			. 'asset version, add a row to ADMIN_ASSETS_BY_CACHE_VERSION with the new fingerprint.'
 		);
 		$this->assertSame(
-			self::ADMIN_JS_BY_PLUGIN_VERSION[ $version ],
+			self::ADMIN_ASSETS_BY_CACHE_VERSION[ $version ],
 			$this->admin_js_fingerprint(),
-			"admin/js/*.js changed but the plugin version is still {$version}. Every admin JS "
-			. 'file is enqueued at ?ver=CU_SCANNER_VERSION, so shipping this would give two '
-			. 'different builds the same version and WordPress could offer no update between '
-			. 'them. Bump the version in all three places (plugin header, CU_SCANNER_VERSION, '
-			. 'README badge) and ADD a row here — do not rewrite the existing one.'
+			"Admin assets changed but CU_SCANNER_ASSET_VERSION is still {$version}. Every admin "
+			. 'asset is enqueued with that cache key, so shipping this would give two different '
+			. 'builds the same browser/CDN identity. Bump CU_SCANNER_ASSET_VERSION and ADD a row '
+			. 'here — do not rewrite an existing released fingerprint.'
 		);
 	}
 

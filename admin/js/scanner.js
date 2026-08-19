@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.11.3';
+    const SCANNER_JS_VERSION = '1.0.11.5';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1972,6 +1972,7 @@
                     canPush: d.can_push, externalOnly: externalOnly, bannerData: bannerData,
                     urlsScanned: d.total_pages, pages: d.pages, scanId: d.scan_id,
                     hasActiveCuRules: d.has_active_cu_rules,
+                    hasInternalRules: d.has_internal_rules,
                     alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
                     creditsRefunded: d.credits_refunded,
                     cuRulesActive: d.cu_rules_active,
@@ -2529,6 +2530,7 @@
      */
     function buildNextStepCopy( o ) {
         if ( o.noRules )      return '';   // both buttons dormant, Download inert — nothing to apply
+        if ( o.noInternalRules ) return ''; // aggregate recommendations exist, but none belong to this site
         if ( o.nothingNew )   return '';   // every rule is already in CU; buildSyncCopy says so — don't contradict it
         if ( o.externalOnly ) return ' You can download the CU import file and import it into Code Unloader.';
         if ( o.syncOnly )     return ' You can add them to your existing rules with the Sync button.';
@@ -2607,6 +2609,7 @@
     function renderResultSidebar( o ) {
         var externalOnly = !! o.externalOnly;
         var noRules = !! o.noRules;
+        var noInternalRules = !! o.noInternalRules;
         var syncOnly = !! o.syncOnly;
         var canPush = !! o.canPush;
         var nothingNew = !! o.nothingNew;
@@ -2616,6 +2619,9 @@
         if ( externalOnly ) {
             setResultText( 'cu-recommendations-copy', 'Download the CU import JSON and apply it manually to the scanned site.' );
             setResultText( 'cu-recommendations-footnote', 'Push and Sync are unavailable for external-only tests.' );
+        } else if ( noInternalRules ) {
+            setResultText( 'cu-recommendations-copy', 'No rules from this site are available to Push or Sync.' );
+            setResultText( 'cu-recommendations-footnote', 'Download JSON remains available for review or manual import.' );
         } else {
             setResultText( 'cu-recommendations-copy', 'Sync is the safest way to add these rules while keeping your existing Code Unloader setup.' );
             setResultText( 'cu-recommendations-footnote', 'You can undo the last Push/Sync after applying changes.' );
@@ -2638,9 +2644,11 @@
         if ( externalOnly ) {
             setResultText( 'cu-next-step-title', 'Download the JSON file' );
             setResultText( 'cu-next-step-copy', 'Import it manually into the Code Unloader setup for the scanned site.' );
-        } else if ( noRules ) {
+        } else if ( noRules || noInternalRules ) {
             setResultText( 'cu-next-step-title', 'No rules to apply' );
-            setResultText( 'cu-next-step-copy', 'Review the URL rows or run another scan.' );
+            setResultText( 'cu-next-step-copy', noInternalRules
+                ? 'No recommendations from this site are eligible for direct application.'
+                : 'Review the URL rows or run another scan.' );
         } else if ( nothingNew ) {
             setResultText( 'cu-next-step-title', 'Everything is already synced' );
             setResultText( 'cu-next-step-copy', 'Every generated rule is already present in Code Unloader.' );
@@ -2728,6 +2736,8 @@
         var pages            = o.pages;
         var scanId           = o.scanId;
         var hasActiveCuRules = o.hasActiveCuRules;
+        var totalRules       = ( Number( safeCount ) || 0 ) + ( Number( aggCount ) || 0 );
+        var hasInternalRules = o.hasInternalRules === undefined ? totalRules > 0 : !! o.hasInternalRules;
         var alreadyPresent   = ( o.alreadyPresent === undefined ) ? null : o.alreadyPresent;
         var creditsRefunded  = o.creditsRefunded;
         // Defaults FALSE on every path that does not carry it (legacy rows restored from
@@ -2775,7 +2785,8 @@
         const syncOnly  = isRequeue && !!hasActiveCuRules;
         // FU \u2014 a completed scan that produced 0 rules (0 safe + 0 aggressive) has nothing to
         // push or sync; both buttons stay dormant.
-        const noRules   = ( ( Number( safeCount ) || 0 ) + ( Number( aggCount ) || 0 ) ) === 0;
+        const noRules         = totalRules === 0;
+        const noInternalRules = ! noRules && ! hasInternalRules;
         // 1.7.60b — a 0-rule scan has nothing to import; the Download button goes dormant
         // (same noRules gate as push/sync below; href removed so the anchor is inert).
         if ( noRules ) {
@@ -2793,25 +2804,31 @@
             // 1.7.63b \u2014 on a 0-rule external scan the Download button is dormant, so the
             // "rules can only be downloaded" notice is redundant; suppress it.
             pushResult.innerHTML = noRules ? '' : '<div class="notice notice-info inline"><p><strong>External URLs scanned.</strong> Rules can only be downloaded \u2014 direct push/sync to Code Unloader is not available when all scanned URLs are from external sites.</p></div>';
-        } else if (noRules) {
+        } else if (noRules || noInternalRules) {
             pushBtn.style.display = '';
             syncBtn.style.display = '';
             pushBtn.disabled = true;
             syncBtn.disabled = true;
             pushBtn.classList.add('cu-btn-dormant');
             syncBtn.classList.add('cu-btn-dormant');
-            pushResult.innerHTML = '<div class="notice notice-info inline"><p>This scan produced no rules \u2014 nothing to push or sync.</p></div>';
+            pushResult.innerHTML = noInternalRules
+                ? '<div class="notice notice-info inline"><p>This scan produced no rules for this site \u2014 Push and Sync are unavailable.</p></div>'
+                : '<div class="notice notice-info inline"><p>This scan produced no rules \u2014 nothing to push or sync.</p></div>';
         } else if (syncOnly) {
             syncBtn.style.display = '';
             pushBtn.style.display = '';
             pushBtn.disabled = true;
             pushBtn.classList.add('cu-btn-dormant');
+            syncBtn.disabled = false;
+            syncBtn.classList.remove('cu-btn-dormant');
             pushResult.innerHTML = '<div class="notice notice-info inline"><p>These rules are from a re-scan. Use <strong>Sync</strong> to add them to your existing pushed rules \u2014 Push is disabled so it can\u2019t replace them.</p></div>';
         } else if (canPush) {
             pushBtn.style.display = '';
             syncBtn.style.display = '';
             pushBtn.disabled = false;
+            syncBtn.disabled = false;
             pushBtn.classList.remove('cu-btn-dormant');
+            syncBtn.classList.remove('cu-btn-dormant');
         }
 
         // Result-truth Sync notice — COMPUTED here rather than at its append site below,
@@ -2831,7 +2848,8 @@
         // as flat text, silently un-bolding the counts on every path that has a hint. Still
         // a text sink, so the sentence stays inert; only the write form changed.
         var nextStep = buildNextStepCopy( {
-            noRules: noRules, externalOnly: externalOnly, syncOnly: syncOnly,
+            noRules: noRules, noInternalRules: noInternalRules,
+            externalOnly: externalOnly, syncOnly: syncOnly,
             canPush: canPush, nothingNew: !! syncNotice
         } );
         if ( nextStep ) {
@@ -2848,6 +2866,7 @@
         renderResultSidebar( {
             externalOnly: externalOnly,
             noRules: noRules,
+            noInternalRules: noInternalRules,
             syncOnly: syncOnly,
             canPush: canPush,
             nothingNew: !! syncNotice,
@@ -3604,6 +3623,7 @@
                 canPush: d.can_push, externalOnly: !!d.external_only, bannerData: undefined,
                 urlsScanned: d.total_pages, pages: d.pages, scanId: d.scan_id,
                 hasActiveCuRules: d.has_active_cu_rules,
+                hasInternalRules: d.has_internal_rules,
                 alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
                 creditsRefunded: d.credits_refunded,
                 cuRulesActive: d.cu_rules_active,
@@ -3799,36 +3819,54 @@
 
     detectPlugins();
 
+    var activeHelpTrigger = null;
+    var helpPopover = null;
+
+    function getHelpPopover() {
+        if ( helpPopover ) { return helpPopover; }
+        helpPopover = document.createElement( 'div' );
+        helpPopover.className = 'cu-help-popover';
+        helpPopover.setAttribute( 'role', 'tooltip' );
+        helpPopover.hidden = true;
+        document.body.appendChild( helpPopover );
+        return helpPopover;
+    }
+
     /**
-     * FU-AAS-TOOLTIP-SCROLLBAR-FLICKER — place a `.cu-help-box` against the viewport.
-     *
-     * The box is `position: fixed` (see the CSS) so it adds nothing to the results list's
-     * scrollable overflow — that overflow is what produced a scrollbar, which narrowed the
-     * container, which slid the `?` out from under a stationary cursor, which hid the tooltip,
-     * which removed the scrollbar, forever. Fixed positioning means the box floats over the
-     * table the way the short ET-candidate tooltip already did.
-     *
-     * The cost of `fixed` is that CSS can no longer anchor it to the `?`: with `top`/`left` auto
-     * it lands at its static position, which is line-layout dependent and was measured 61px apart
-     * between two headers in the same row. So the offsets are computed here instead.
-     *
-     * Geometry reproduces what the CSS used to do — right edge aligned to the `?`, sitting just
-     * below it — then clamps to the viewport so a tooltip on the last column cannot run off the
-     * right edge, which `right: 0` could not express once the box left its containing block.
+     * Render help text in one viewport-level popover. Keeping the visible box outside the
+     * results table guarantees that it cannot enlarge either scroll axis or be clipped by
+     * the sticky guidance card.
      */
     function positionHelpBox( trigger ) {
         var box = trigger.querySelector( '.cu-help-box' );
         if ( ! box ) { return; }
+        var popover = getHelpPopover();
+        popover.innerHTML = box.innerHTML;
+        popover.hidden = false;
+        popover.style.visibility = 'hidden';
+
         var r   = trigger.getBoundingClientRect();
         var GAP = 6, EDGE = 8;
-        // Width comes from the stylesheet; read it rather than restating 240px in two places.
-        var w    = box.offsetWidth || box.getBoundingClientRect().width || 240;
+        var w    = popover.offsetWidth || 240;
+        var h    = popover.offsetHeight || 80;
         var left = r.right - w;
         var max  = document.documentElement.clientWidth - w - EDGE;
         if ( left > max ) { left = max; }
         if ( left < EDGE ) { left = EDGE; }
-        box.style.left = Math.round( left ) + 'px';
-        box.style.top  = Math.round( r.bottom + GAP ) + 'px';
+        var top = r.bottom + GAP;
+        if ( top + h > window.innerHeight - EDGE && r.top - h - GAP >= EDGE ) {
+            top = r.top - h - GAP;
+        }
+        popover.style.left = Math.round( left ) + 'px';
+        popover.style.top = Math.round( top ) + 'px';
+        popover.style.visibility = 'visible';
+        activeHelpTrigger = trigger;
+    }
+
+    function hideHelpBox( trigger ) {
+        if ( trigger && activeHelpTrigger !== trigger ) { return; }
+        if ( helpPopover ) { helpPopover.hidden = true; }
+        activeHelpTrigger = null;
     }
 
     // Delegated, so it keeps working across the re-renders that pagination and every restoreStep4
@@ -3840,6 +3878,22 @@
             if ( t ) { positionHelpBox( t ); }
         }, true );
     } );
+    document.addEventListener( 'mouseout', function ( e ) {
+        var t = e.target && e.target.closest ? e.target.closest( '.cu-help' ) : null;
+        if ( t && ! t.contains( e.relatedTarget ) ) { hideHelpBox( t ); }
+    }, true );
+    document.addEventListener( 'focusout', function ( e ) {
+        var t = e.target && e.target.closest ? e.target.closest( '.cu-help' ) : null;
+        if ( t && ! t.contains( e.relatedTarget ) ) { hideHelpBox( t ); }
+    }, true );
+    if ( window.addEventListener ) {
+        window.addEventListener( 'resize', function () {
+            if ( activeHelpTrigger ) { positionHelpBox( activeHelpTrigger ); }
+        } );
+        window.addEventListener( 'scroll', function () {
+            if ( activeHelpTrigger ) { positionHelpBox( activeHelpTrigger ); }
+        }, true );
+    }
 
     // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
     window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,

@@ -33,9 +33,9 @@ class AdminPages {
     public function enqueue_assets( string $hook ): void {
         $pages = [ 'toplevel_page_cu-scanner', 'ai-assets-scanner_page_cu-scanner-settings', 'ai-assets-scanner_page_cu-scanner-history' ];
         if ( ! in_array( $hook, $pages, true ) ) return;
-        wp_enqueue_style( 'cu-scanner-admin', CU_SCANNER_URL . 'admin/css/ai-assets-scanner-admin.css', [], CU_SCANNER_VERSION );
+        wp_enqueue_style( 'cu-scanner-admin', CU_SCANNER_URL . 'admin/css/ai-assets-scanner-admin.css', [], CU_SCANNER_ASSET_VERSION );
         if ( $hook === 'toplevel_page_cu-scanner' ) {
-            wp_enqueue_script( 'cu-scanner-scanner', CU_SCANNER_URL . 'admin/js/scanner.js', [], CU_SCANNER_VERSION, true );
+            wp_enqueue_script( 'cu-scanner-scanner', CU_SCANNER_URL . 'admin/js/scanner.js', [], CU_SCANNER_ASSET_VERSION, true );
             wp_localize_script( 'cu-scanner-scanner', 'cuScanner', [
                 'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
                 'nonce'            => wp_create_nonce( 'cu_scanner_nonce' ),
@@ -65,7 +65,7 @@ class AdminPages {
             ] );
         }
         if ( $hook === 'ai-assets-scanner_page_cu-scanner-settings' ) {
-            wp_enqueue_script( 'cu-scanner-settings', CU_SCANNER_URL . 'admin/js/settings.js', [], CU_SCANNER_VERSION, true );
+            wp_enqueue_script( 'cu-scanner-settings', CU_SCANNER_URL . 'admin/js/settings.js', [], CU_SCANNER_ASSET_VERSION, true );
             wp_localize_script( 'cu-scanner-settings', 'cuScannerSettings', [
                 'ajaxUrl' => admin_url( 'admin-ajax.php' ),
                 'nonce'   => wp_create_nonce( 'cu_scanner_settings_nonce' ),
@@ -76,7 +76,7 @@ class AdminPages {
                 'cu-scanner-history',
                 CU_SCANNER_URL . 'admin/js/history.js',
                 [ 'jquery' ],
-                CU_SCANNER_VERSION,
+                CU_SCANNER_ASSET_VERSION,
                 true
             );
             wp_localize_script( 'cu-scanner-history', 'cuScannerHistory', [
