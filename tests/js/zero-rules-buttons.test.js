@@ -34,5 +34,30 @@ function runWithRules() {
   console.log('OK with-rules-buttons');
 }
 
+// A zero-result rescan is page-result state, not sticky UI state. Reusing Step 4 for a
+// later positive result must hide the bulk rescan again.
+function runZeroResultRescanReset() {
+  const h = createHarness({
+    querySelectorAll: (selector, els) => selector === '#step-4 .cu-btn-rescan-noopt-all'
+      ? [els['cu-rescan-noopt-button']]
+      : [],
+  });
+  const T = h.sandbox.window.__cuTest;
+  const button = h.els['cu-rescan-noopt-button'];
+  button.style.display = 'none';
+
+  T.restoreStep4({ jobId: 'job-zero-page', safeCount: 0, aggCount: 0, canPush: false, externalOnly: false,
+                   bannerData: {}, urlsScanned: 1, scanId: 'scan-zero-page', hasActiveCuRules: false,
+                   pages: [{ url: 'https://example.test/zero', status_class: 'ok', safe: 0, aggressive: 0, needed: 12, credits: 1 }] });
+  assert.strictEqual(button.style.display, '', 'OK S:0 A:0 reveals Rescan 0-Results URLs');
+
+  T.restoreStep4({ jobId: 'job-positive-page', safeCount: 1, aggCount: 0, canPush: true, externalOnly: false,
+                   bannerData: {}, urlsScanned: 1, scanId: 'scan-positive-page', hasActiveCuRules: false,
+                   pages: [{ url: 'https://example.test/positive', status_class: 'ok', safe: 1, aggressive: 0, needed: 10, credits: 1 }] });
+  assert.strictEqual(button.style.display, 'none', 'later positive result hides Rescan 0-Results URLs');
+  console.log('OK zero-result rescan visibility resets');
+}
+
 runZeroRules();
 runWithRules();
+runZeroResultRescanReset();

@@ -80,6 +80,8 @@ class VersionLockstepTest extends TestCase {
         $define = $this->capture_one( self::DEFINE_RE, $plugin, "ai-assets-scanner.php define( 'CU_SCANNER_VERSION', … )" );
         $badge  = $this->capture_one( self::BADGE_RE, $readme, 'README.md shields.io VERSION badge' );
 
+		$this->assertSame( '1.8.0b', $header, 'the approved admin redesign ships as AAS 1.8.0b' );
+
         // Shape first: without it, three empty captures would "agree" and pass.
         foreach ( [ 'plugin header' => $header, 'CU_SCANNER_VERSION define' => $define, 'README badge' => $badge ] as $where => $v ) {
             $this->assertMatchesRegularExpression(

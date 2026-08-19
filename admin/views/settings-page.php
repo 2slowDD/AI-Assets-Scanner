@@ -1,5 +1,7 @@
 <?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
-<div class="wrap" id="cu-scanner-settings">
+<div class="wrap cu-admin-page" id="cu-scanner-settings">
+<h1 class="screen-reader-text">AI Assets Scanner settings</h1>
+<h2 class="screen-reader-text cu-admin-notice-anchor">AI Assets Scanner notices</h2>
 <div class="cu-wrap">
 
     <div class="cu-header">
@@ -7,7 +9,7 @@
              src="<?php echo esc_url( CU_SCANNER_URL . 'admin/images/ai-assets-scanner-logo.png' ); ?>"
              alt="AI Assets Scanner" />
         <div class="cu-header-text">
-            <h2>AI Assets Scanner <small style="font-size:11px;font-weight:normal;color:#a7aaad;vertical-align:middle;">v<?php echo esc_html( CU_SCANNER_VERSION ); ?></small></h2>
+            <h2>AI Assets Scanner <small class="cu-header-version">v<?php echo esc_html( CU_SCANNER_VERSION ); ?></small></h2>
             <span class="cu-step-label">Settings</span>
         </div>
         <svg class="cu-header-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
@@ -20,7 +22,7 @@
         <span class="cu-header-by">by <a href="https://wpservice.pro/" target="_blank" rel="noopener">WPservice.pro</a></span>
     </div>
 
-    <div class="cu-body">
+    <main class="cu-settings-grid">
         <?php
         // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template file included within a class method; variables are local to method scope, not global.
         $settings  = new CUScanner\Settings();
@@ -36,89 +38,91 @@
         $omit_cu_bypass = $settings->get_omit_cu_bypass();
         // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
         ?>
-        <form id="cu-scanner-settings-form">
-            <table class="form-table">
-                <tr>
-                    <th><label for="cu_api_key">API Key</label></th>
-                    <td>
-                        <input type="text" id="cu_api_key" name="api_key"
-                               value="<?php echo esc_attr( $masked ); ?>"
-                               <?php if ( $is_masked ) : ?>data-masked="1"<?php endif; ?>
-                               autocomplete="off"
-                               class="regular-text" placeholder="cusk_..." />
-                        <p class="description">Get your API key from <a href="https://wpservice.pro" target="_blank">wpservice.pro</a></p>
-                        <?php if ( $settings->is_pending_free_key( $api_key ) ) : ?>
-                            <p class="description">Free API key activation is pending. Please try again later.</p>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Credit Balance</th>
-                    <td>
-                        <div class="cu-balance-widget">
-                            <div class="cu-balance-card" id="cu-balance-card">
-                                <svg class="cu-balance-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-                                    <circle cx="10" cy="10" r="9" stroke="#c8a000" stroke-width="1.4"/>
-                                    <text x="10" y="14.5" text-anchor="middle" fill="#c8a000" font-size="11" font-weight="700" font-family="sans-serif">C</text>
-                                </svg>
-                                <div class="cu-balance-info">
-                                    <span class="cu-balance-num" id="cu-credit-balance">—</span>
-                                    <span class="cu-balance-label">credits</span>
-                                </div>
-                            </div>
-                            <button type="button" id="cu-refresh-balance" class="button cu-balance-btn" title="Refresh balance">
-                                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-2px">
-                                    <path d="M3 10a7 7 0 1 1 1.6 4.4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                                    <polyline points="3,14.4 3,10 7.4,10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                                Refresh
-                            </button>
-                            <a href="<?php echo esc_url( $buy_url ); ?>" target="_blank" class="button button-primary cu-balance-btn">+ Buy Credits</a>
+        <form id="cu-scanner-settings-form" class="cu-settings-form">
+            <section class="cu-settings-card cu-settings-card--account" aria-labelledby="cu-settings-account-title">
+                <div class="cu-settings-card-heading">
+                    <span class="cu-settings-icon" aria-hidden="true">&#9673;</span>
+                    <div><span class="cu-eyebrow">Account</span><h2 id="cu-settings-account-title">API access and credits</h2><p>Connect the scanner and keep track of available scan credits.</p></div>
+                </div>
+                <div class="cu-settings-field">
+                    <label for="cu_api_key">API key</label>
+                    <input type="text" id="cu_api_key" name="api_key"
+                           value="<?php echo esc_attr( $masked ); ?>"
+                           <?php if ( $is_masked ) : ?>data-masked="1"<?php endif; ?>
+                           autocomplete="off" class="regular-text" placeholder="cusk_..." />
+                    <p class="description">Get your API key from <a href="https://wpservice.pro" target="_blank" rel="noopener">wpservice.pro</a>.</p>
+                    <?php if ( $settings->is_pending_free_key( $api_key ) ) : ?>
+                        <p class="cu-inline-state cu-inline-state--pending">Free API key activation is pending. Please try again later.</p>
+                    <?php endif; ?>
+                </div>
+                <div class="cu-settings-field cu-settings-field--balance">
+                    <span class="cu-settings-label">Credit balance</span>
+                    <div class="cu-balance-widget">
+                        <div class="cu-balance-card" id="cu-balance-card">
+                            <svg class="cu-balance-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22" aria-hidden="true">
+                                <circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="1.4"/>
+                                <text x="10" y="14.5" text-anchor="middle" fill="currentColor" font-size="11" font-weight="700" font-family="sans-serif">C</text>
+                            </svg>
+                            <div class="cu-balance-info"><span class="cu-balance-num" id="cu-credit-balance">&mdash;</span><span class="cu-balance-label">credits available</span></div>
                         </div>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label>HTTP Basic Auth</label></th>
-                    <td>
-                        <p class="description">For staging sites protected by server-level HTTP authentication.</p>
-                        <input type="text" name="http_user" placeholder="Username"
-                               value="<?php echo esc_attr( $http_auth['username'] ?? '' ); ?>" class="regular-text" />
-                        <input type="password" name="http_pass" placeholder="Password" value="" class="regular-text" />
-                        <?php if ( $http_auth ) : ?>
-                            <label><input type="checkbox" name="clear_http_auth" value="1" /> Clear saved credentials</label>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label for="cu-scanner-secret">Scanner Secret</label></th>
-                    <td>
-                        <input type="text" id="cu-scanner-secret"
-                               value="<?php echo esc_attr( $scanner_secret ); ?>"
-                               readonly class="regular-text" style="font-family:monospace" />
-                        <button type="button" id="cu-copy-secret" class="button" style="margin-left:6px">Copy</button>
-                        <p class="description">Used to create a Cloudflare WAF bypass rule. Do not share this value publicly.</p>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label for="cu_omit_cu_bypass">Scan Options</label></th>
-                    <td>
-                        <label for="cu_omit_cu_bypass">
-                            <input type="checkbox" id="cu_omit_cu_bypass" name="omit_cu_bypass" value="1"
-                                   <?php checked( $omit_cu_bypass ); ?> />
-                            <?php esc_html_e( "Remove Code Unloader's suffix (?nowpcu) from scans", 'ai-assets-scanner' ); ?>
-                        </label><span class="cu-help" tabindex="0" aria-label="Scans normally add ?nowpcu to each URL, which switches Code Unloader off so the scanner sees every asset a page can load. Tick this to leave the suffix off. Scans then run with your existing Code Unloader rules applied, the pages as visitors actually receive them. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it. Assets your current rules already unload will not appear in the results, so use Sync with Code Unloader to add new rules on top of your existing ones. Push would replace them."><span class="cu-help-box">Scans normally add <strong>?nowpcu</strong> to each URL, which switches Code Unloader off so the scanner sees every asset a page can load.<br><br>Tick this to leave the suffix off. Scans then run with your existing Code Unloader rules applied &mdash; the pages as visitors actually receive them. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it.<br><br>Assets your current rules already unload won't appear in the results, so use <strong>Sync with Code Unloader</strong> to add new rules on top of your existing ones. <strong>Push</strong> would replace them.</span></span>
-                    </td>
-                </tr>
-            </table>
-            <?php wp_nonce_field( 'cu_scanner_settings_nonce', 'nonce' ); ?>
-            <p class="submit">
-                <button type="submit" class="button button-primary">Save Settings</button>
-            </p>
-        </form>
-        <div id="cu-settings-message" style="display:none"></div>
-    </div>
+                        <button type="button" id="cu-refresh-balance" class="button cu-balance-btn" title="Refresh balance">Refresh</button>
+                        <a href="<?php echo esc_url( $buy_url ); ?>" target="_blank" rel="noopener" class="button button-primary cu-balance-btn">Buy credits</a>
+                    </div>
+                </div>
+            </section>
 
-    <div class="cu-body" id="cu-cloudflare-waf-bypass" style="margin-top:24px">
+            <section class="cu-settings-card cu-settings-card--environment" aria-labelledby="cu-settings-environment-title">
+                <div class="cu-settings-card-heading">
+                    <span class="cu-settings-icon" aria-hidden="true">&#9678;</span>
+                    <div><span class="cu-eyebrow">Scan environment</span><h2 id="cu-settings-environment-title">Access and bypass behavior</h2><p>Configure protected staging access and how the scanner sees your pages.</p></div>
+                </div>
+                <div class="cu-settings-field">
+                    <span class="cu-settings-label">HTTP Basic Auth</span>
+                    <p class="description">For staging sites protected by server-level HTTP authentication.</p>
+                    <div class="cu-input-pair">
+                        <input type="text" name="http_user" placeholder="Username" value="<?php echo esc_attr( $http_auth['username'] ?? '' ); ?>" class="regular-text" autocomplete="username" />
+                        <input type="password" name="http_pass" placeholder="Password" value="" class="regular-text" autocomplete="new-password" />
+                    </div>
+                    <?php if ( $http_auth ) : ?>
+                        <label class="cu-check-row"><input type="checkbox" name="clear_http_auth" value="1" /> Clear saved credentials</label>
+                    <?php endif; ?>
+                </div>
+                <div class="cu-settings-field">
+                    <label for="cu-scanner-secret">Scanner secret</label>
+                    <div class="cu-secret-row">
+                        <input type="text" id="cu-scanner-secret" value="<?php echo esc_attr( $scanner_secret ); ?>" readonly class="regular-text cu-mono-input" />
+                        <button type="button" id="cu-copy-secret" class="button">Copy</button>
+                    </div>
+                    <p class="description">Used to create a CDN or WAF exemption. Keep this value private.</p>
+                </div>
+            </section>
+
+            <section class="cu-settings-card cu-settings-card--options" aria-labelledby="cu-settings-options-title">
+                <div class="cu-settings-card-heading">
+                    <span class="cu-settings-icon" aria-hidden="true">&#9881;</span>
+                    <div><span class="cu-eyebrow">Scan behavior</span><h2 id="cu-settings-options-title">Scan options</h2><p>Control how AAS prepares pages before each scan.</p></div>
+                </div>
+                <div class="cu-settings-options-list">
+                    <label for="cu_omit_cu_bypass" class="cu-option-row">
+                        <input type="checkbox" id="cu_omit_cu_bypass" name="omit_cu_bypass" value="1" <?php checked( $omit_cu_bypass ); ?> />
+                        <span><strong><?php esc_html_e( "Remove Code Unloader's suffix (?nowpcu) from scans", 'ai-assets-scanner' ); ?></strong><small>Scan pages with your existing Code Unloader rules applied.</small></span>
+                    </label><span class="cu-help" tabindex="0" aria-label="Scans normally add ?nowpcu to each URL, which switches Code Unloader off so the scanner sees every asset a page can load. Tick this to leave the suffix off. Scans then run with your existing Code Unloader rules applied, the pages as visitors actually receive them. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it. Assets your current rules already unload will not appear in the results, so use Sync with Code Unloader to add new rules on top of your existing ones. Push would replace them."><span class="cu-help-box">Scans normally add <strong>?nowpcu</strong> to each URL, which switches Code Unloader off so the scanner sees every asset a page can load.<br><br>Tick this to leave the suffix off. Scans then run with your existing Code Unloader rules applied &mdash; the pages as visitors actually receive them. On heavy pages this often surfaces rules an earlier scan missed, because the page loads lighter and the scanner gets further through it.<br><br>Assets your current rules already unload won't appear in the results, so use <strong>Sync with Code Unloader</strong> to add new rules on top of your existing ones. <strong>Push</strong> would replace them.</span></span>
+                </div>
+            </section>
+
+            <?php wp_nonce_field( 'cu_scanner_settings_nonce', 'nonce' ); ?>
+            <div class="cu-settings-savebar">
+                <div><strong>Save scanner settings</strong><span>Changes apply to future scans.</span></div>
+                <button type="submit" class="button button-primary">Save settings</button>
+            </div>
+            <div id="cu-settings-message" style="display:none"></div>
+        </form>
+
+        <section class="cu-settings-card cu-settings-card--cdn" id="cu-cloudflare-waf-bypass" aria-labelledby="cu-settings-cdn-title">
+            <div class="cu-settings-card-heading">
+                <span class="cu-settings-icon" aria-hidden="true">&#8644;</span>
+                <div><span class="cu-eyebrow">Network access</span><h2 id="cu-settings-cdn-title">CDN rate limiting exemption</h2><p>Allow authenticated scanner traffic through your CDN or web application firewall.</p></div>
+            </div>
         <?php
         // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- Template file included within a class method; variables are local to method scope, not global.
         $cdn_registry     = \CUScanner\Cdn\Detector::default_registry();
@@ -139,7 +143,7 @@
 
         <?php if ( null !== $detected_adapter ) : ?>
 
-            <h3 style="margin-top:0">CDN Rate Limiting Exemption</h3>
+            <h3>Detected network</h3>
             <p>We detected your site is proxied through <strong><?php echo esc_html( ucfirst( $detected_cdn ) ); ?></strong>.
                Configure the exemption below so the scanner can reach your pages without hitting rate limits.</p>
 
@@ -173,7 +177,7 @@
 
         <?php else : ?>
 
-            <h3 style="margin-top:0">CDN Rate Limiting Exemption <small style="font-weight:normal;font-size:12px;color:#a7aaad;">(Optional)</small></h3>
+            <h3>Manual network setup <small>(Optional)</small></h3>
             <p>We couldn&rsquo;t automatically detect a CDN on this site. If you use one, select it below
                to see instructions for creating a rate-limit exemption rule.</p>
 
@@ -210,7 +214,6 @@
 
         <?php endif; ?>
 
-    </div>
-
-</div>
+        </section>
+    </main>
 </div>

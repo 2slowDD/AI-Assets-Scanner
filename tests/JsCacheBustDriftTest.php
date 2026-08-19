@@ -62,6 +62,9 @@ final class JsCacheBustDriftTest extends TestCase {
 		// kept-chip hover tooltip with data-cu-row + title pass (scanner.js). Added, not
 		// rewritten — the 1.7.98b row above is that shipped build's fingerprint.
 		'1.7.99b' => 'fb730330926e5954dba60f8cc2286fcaaa8f1bf9375a63f2daab1b19ca05900f',
+		// 1.8.0b admin redesign: scanner workflow markup/behavior and the full visual-system CSS.
+		// Added as a new release fingerprint; all previously shipped rows remain immutable.
+		'1.8.0b' => '2e2805f5a26a1f6ffe1090a4a546ec38d6f3710a83559d6bb7193681060ccacf',
 	);
 
 	/**
@@ -78,6 +81,18 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.7.99b train: ET noopt note gains the ⏳ prefix; kept chip gains data-cu-row and
 		// the post-render title pass + buildKeptChipTitle() (FU-KEPT-BADGE-HOVER-INFO).
 		'1.0.10.32' => '2877a279c39106b55da50e0932517e6b3001443a9272f8a1dc3439c90021447e',
+		// 1.8.0b admin redesign: readiness summaries, step state, completion metrics, and
+		// semantic S / A / N result tokens.
+		'1.0.11.0' => '0e4251433dd4da43f069d415c7609f83140d2a3b6ffa6961c673aecf1abfcaa0',
+		// 1.8.0b results-reference refinement: live results sidebar, kept-assets disclosure,
+		// external-only guidance, and the two-line URL/suffix presentation.
+		'1.0.11.1' => '904444ea666f28768c6d09061200566614205a385b5d321daf2e2eebb188663b',
+		// 1.8.0b result alignment refinement: total-credit balance, inline table help icons,
+		// and restored non-zero recommendation emphasis.
+		'1.0.11.2' => 'c352a0e42da0571217892c8aeeeb44583bfe75bf4424f4d61b6cb23d4b312e8c',
+		// 1.8.0b visual refinement: zero-result rescan visibility resets on every result
+		// render while the header progress track and compact result layout stay CSS-owned.
+		'1.0.11.3' => '30e8b5497eca149650aac60105ad8980c86ca39933bd8c054e46564f83be1147',
 	);
 
 	private function root(): string {

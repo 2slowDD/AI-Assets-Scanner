@@ -111,4 +111,25 @@ class HistoryRenderTest extends TestCase {
 		$out = $this->render( [] );
 		$this->assertStringContainsString( 'No scans yet.', $out );
 	}
+
+	public function test_history_summary_and_status_chips_are_derived_from_real_records(): void {
+		$out = $this->render( [
+			$this->record(),
+			$this->record( [
+				'job_id'          => 'job2',
+				'page_count'      => 4,
+				'credits_used'    => 4,
+				'safe_count'      => 1,
+				'aggressive_count'=> 2,
+				'status'          => 'partial',
+			] ),
+		] );
+
+		$this->assertStringContainsString( '<strong>2</strong><span>Total scans</span>', $out );
+		$this->assertStringContainsString( '<strong>7</strong><span>URLs scanned</span>', $out );
+		$this->assertStringContainsString( '<strong>7</strong><span>Credits used</span>', $out );
+		$this->assertStringContainsString( '<strong>5</strong><span>Recommendations</span>', $out );
+		$this->assertStringContainsString( 'cu-history-status cu-history-status--complete', $out );
+		$this->assertStringContainsString( 'cu-history-status cu-history-status--partial', $out );
+	}
 }

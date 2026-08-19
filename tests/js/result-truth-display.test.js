@@ -197,7 +197,8 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
   assert.strictEqual(cellsOf(rows[0]).length, 7, 'one fewer cell per row after the column removal');
 
   // Row 1 — netted on BOTH the counts and the credit cell, and styled as a zero row.
-  assert.ok(/S:0 A:0 /.test(cellsOf(rows[0])[4]), 'all-already page nets its counts to zero');
+  assert.ok(/cu-san-safe">S:0<\/span>.*cu-san-aggressive">A:0<\/span>/.test(cellsOf(rows[0])[4]),
+    'all-already page nets its counts to zero');
   assert.strictEqual(cellsOf(rows[0])[3], '0',
     'all-already page shows 0 credits — it was credited back, so the gross charge is not what was paid');
   assert.ok(/cu-row-noopt/.test(rows[0]), 'and gets the same yellow row as any other zero');
@@ -207,12 +208,14 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
   // Row 2 — a real new rule must NOT be netted away.
   // FU-AAS-SAN-BOLD-NONZERO — a non-zero count is now wrapped in <strong> (see
   // san-bold-nonzero.test.js). The count itself is unchanged; only its markup moved.
-  assert.ok(/S:0 <strong>A:1<\/strong> /.test(cellsOf(rows[1])[4]), 'a genuinely new rule still renders its count');
+  assert.ok(/cu-san-safe">S:0<\/span>.*cu-san-aggressive is-positive"><strong>A:1<\/strong>/.test(cellsOf(rows[1])[4]),
+    'a genuinely new rule still renders its count');
   assert.strictEqual(cellsOf(rows[1])[3], '1', 'and still shows the credit it cost');
   assert.ok(!/cu-row-noopt/.test(rows[1]), 'not a zero row');
 
   // Row 3 — a missing key must degrade to today's behaviour, never to a false zero.
-  assert.ok(/<strong>S:1<\/strong> A:0 /.test(cellsOf(rows[2])[4]), 'absent all_already key leaves the counts alone');
+  assert.ok(/cu-san-safe is-positive"><strong>S:1<\/strong>.*cu-san-aggressive">A:0<\/span>/.test(cellsOf(rows[2])[4]),
+    'absent all_already key leaves the counts alone');
 }());
 
 // --- §2.3: zero-finding copy when the scan ran with CU's rules live -------------
@@ -239,8 +242,8 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
     'and never spend the customer credits reconfirming a non-problem');
 
   const off = render(false);
-  assert.ok(/a rescan occasionally finds more/.test(off),
-    'a NORMAL scan keeps the existing copy — a zero there really may be a miss');
+  assert.ok(/No unloads found\. A rescan may find more\./.test(off),
+    'a NORMAL scan keeps the compact rescan guidance — a zero there really may be a miss');
   assert.ok(!/No new unloads found since the last time/.test(off),
     'the new copy must not leak onto scans that ran with the suffix on');
 

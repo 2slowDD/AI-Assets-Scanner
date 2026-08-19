@@ -4,6 +4,14 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.0b — 2026-08-19
+
+### Changed
+- The scanner admin now uses a wider, responsive diagnostic workspace with one consolidated Scan Readiness card, clearer discovery and active-scan states, and an expanded completion dashboard.
+- Completed scans now separate the summary, recommendation actions, page results and S/A/N guidance. Safe and Aggressive remain positive green recommendation tiers; Needed remains neutral.
+- Result rows retain their existing outcome classes while using restrained status tints, a strong left marker, readable URL hierarchy and distinct Safe, Aggressive and Needed badges.
+- The existing radar, animated stage lights, probe safety gates, result tooltips, kept-asset badges, Push/Sync controls and restored Step 4 behavior remain in place.
+
 ## 1.7.99b — 2026-08-18
 
 ### Changed

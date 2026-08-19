@@ -24,16 +24,23 @@ const chipHtml = (i) => ' <span class="cu-kept-chip" data-cu-row="' + i + '">\u{
 
 // The two noopt S/A/N-cell notes, verbatim from scanner.js. A2c must not touch this cell:
 // the chip lives in the URL cell, these notes live in the S/A/N cell.
-const NOOPT_PLAIN = ' <span class="cu-noopt-note">This scan found nothing to unload —<br>a rescan occasionally finds more. Please rescan.</span>';
+const NOOPT_PLAIN = ' <span class="cu-noopt-note">No unloads found. A rescan may find more.</span>';
 // FU-NOOPT-NOTE-CONFLATION — the ET note carries a \u{23F3} prefix (plus CSS badge
 // styling) so it cannot be misread as one of the four plain informational noopt notes:
 // A customer read a plain "Please scan again" as a second ET candidate and reported a phantom
 // "lost rescan candidate". The glyph is part of the pinned markup on purpose — dropping it
 // silently would re-open the conflation.
 const NOOPT_ET = ' <span class="cu-noopt-note cu-noopt-et">\u{23F3} Needs Extra Time —<br>rescan with \u{201C}Rescan ET Candidates\u{201D}</span>';
+const ZERO_SAN = '<span class="cu-san-token cu-san-safe">S:0</span> '
+  + '<span class="cu-san-token cu-san-aggressive">A:0</span> '
+  + '<span class="cu-san-token cu-san-needed">N:5</span>';
 
 function escHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function expectedUrlCell(url, meta) {
+  return '<span class="cu-url-primary">' + escHtml(url) + '</span>'
+       + (meta ? '<span class="cu-url-meta">' + meta + '</span>' : '');
 }
 
 // Pulls the raw HTML of one row's <td class="..."> out of the rendered table, by row order
@@ -80,7 +87,7 @@ const ENTRY = { display_name: 'Cloudflare', handles: ['cf-challenge|script'] };
 function runChipPresent() {
   const html = render([ makeRow(1, 'https://example.test/a', [ ENTRY ]) ]);
   const cell = urlCellHtml(html, 0);
-  assert.strictEqual(cell, escHtml('https://example.test/a') + chipHtml(0),
+  assert.strictEqual(cell, expectedUrlCell('https://example.test/a', chipHtml(0)),
     'URL cell of a kept-protection row must be the URL followed by exactly the chip');
   console.log('OK chip renders on a non-empty kept_protection row');
 }
@@ -114,7 +121,7 @@ function runChipAbsentVariants() {
   cases.forEach(function (c) {
     const html = render([ makeRow(1, 'https://example.test/a', c[1]) ]);
     const cell = urlCellHtml(html, 0);
-    assert.strictEqual(cell, escHtml('https://example.test/a'),
+    assert.strictEqual(cell, expectedUrlCell('https://example.test/a'),
       'kept_protection = ' + c[0] + ' must render the URL cell with no chip at all');
   });
   console.log('OK no chip on []/null/string/number/object/array-like/boolean (' + cases.length + ' shapes)');
@@ -126,7 +133,7 @@ function runLegacyRowGuard() {
   let html;
   assert.doesNotThrow(function () { html = render([ makeRow(1, 'https://example.test/c') ]); },
     'legacy row (no kept_protection key) must not throw');
-  assert.strictEqual(urlCellHtml(html, 0), escHtml('https://example.test/c'),
+  assert.strictEqual(urlCellHtml(html, 0), expectedUrlCell('https://example.test/c'),
     'legacy row must render with no chip');
   console.log('OK legacy row (key absent entirely) renders with no chip and no throw');
 }
@@ -160,7 +167,7 @@ function runPayloadIsStaticOnly() {
   ];
   const html = render([ makeRow(1, 'https://example.test/a', hostile) ]);
   const cell = urlCellHtml(html, 0);
-  assert.strictEqual(cell, escHtml('https://example.test/a') + chipHtml(0),
+  assert.strictEqual(cell, expectedUrlCell('https://example.test/a', chipHtml(0)),
     'a hostile kept_protection payload must render the SAME static chip, byte for byte');
   ['onerror', 'onload', '<script', '<img', '<svg', 'alert(', 'Cloudflare'].forEach(function (needle) {
     assert.strictEqual(html.indexOf(needle), -1,
@@ -188,15 +195,15 @@ function runNooptShapeUndisturbed() {
     noopt(3, 'https://example.test/n3', false, [ ENTRY ]),    // plain noopt WITH kept
   ];
   const html = render(pages);
-  assert.strictEqual(sanCellHtml(html, 0), 'S:0 A:0 N:5' + NOOPT_PLAIN,
+  assert.strictEqual(sanCellHtml(html, 0), ZERO_SAN + NOOPT_PLAIN,
     'plain noopt S/A/N cell must render byte-identically');
-  assert.strictEqual(sanCellHtml(html, 1), 'S:0 A:0 N:5' + NOOPT_ET,
+  assert.strictEqual(sanCellHtml(html, 1), ZERO_SAN + NOOPT_ET,
     'ET noopt S/A/N cell must render byte-identically');
   // The load-bearing one: a noopt row that ALSO kept a protection script gets the chip in
   // the URL cell and an untouched S/A/N cell.
-  assert.strictEqual(sanCellHtml(html, 2), 'S:0 A:0 N:5' + NOOPT_PLAIN,
+  assert.strictEqual(sanCellHtml(html, 2), ZERO_SAN + NOOPT_PLAIN,
     'a noopt row carrying kept_protection must leave the S/A/N cell untouched');
-  assert.strictEqual(urlCellHtml(html, 2), escHtml('https://example.test/n3') + chipHtml(2),
+  assert.strictEqual(urlCellHtml(html, 2), expectedUrlCell('https://example.test/n3', chipHtml(2)),
     'the chip goes in the URL cell, on a noopt row too');
   assert.strictEqual(urlCellHtml(html, 0).indexOf('cu-kept-chip'), -1, 'no chip on a noopt row without kept');
   // The noopt row class is what colours the row; the chip must not disturb it.
@@ -220,7 +227,8 @@ function runChipOrderingAgainstNotes() {
   assert.ok(iBypass !== -1 && iChip !== -1 && iChoff !== -1, 'all three annotations render together');
   assert.ok(iBypass < iChip, 'the chip follows the inline bypass note');
   assert.ok(iChip < iChoff, 'the chip precedes the BLOCK-level choff note, so it is not orphaned onto its own line');
-  assert.ok(cell.startsWith(escHtml('https://example.test/a')), 'the URL still reads first');
+  assert.ok(cell.startsWith('<span class="cu-url-primary">' + escHtml('https://example.test/a') + '</span>'),
+    'the primary URL line still reads first');
   console.log('OK chip sits in the inline run, before the block-level choff note');
 }
 

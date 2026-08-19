@@ -44,6 +44,10 @@ function expectedHelpBox(list) {
 function expectedNote(list) {
   return ' <span class="cu-choff-note">\u{1F441} visual comparison off — ' + escHtml(list) + expectedHelpBox(list) + '</span>';
 }
+function expectedUrlCell(url, meta) {
+  return '<span class="cu-url-primary">' + escHtml(url) + '</span>'
+       + (meta ? '<span class="cu-url-meta">' + meta + '</span>' : '');
+}
 
 // Pulls the raw HTML of a single row's <td class="cu-url-cell">...</td> out of the
 // rendered table by URL cell order (rows render in st.pages order — see
@@ -80,7 +84,7 @@ function runSingleDevice() {
   const pages = [ makeRow(1, 'https://example.test/a', ['mobile']) ];
   const html = render(pages);
   const cell = urlCellHtml(html, 0);
-  const want = escHtml('https://example.test/a') + expectedNote('mobile');
+  const want = expectedUrlCell('https://example.test/a', expectedNote('mobile'));
   assert.strictEqual(cell, want, 'single-device (mobile) URL-cell HTML must match spec §3.2.2/§3.2.3 exactly');
   console.log('OK note+aria+help-box (mobile)');
 }
@@ -89,7 +93,7 @@ function runDualDevice() {
   const pages = [ makeRow(1, 'https://example.test/b', ['desktop', 'mobile']) ];
   const html = render(pages);
   const cell = urlCellHtml(html, 0);
-  const want = escHtml('https://example.test/b') + expectedNote('desktop & mobile');
+  const want = expectedUrlCell('https://example.test/b', expectedNote('desktop & mobile'));
   assert.strictEqual(cell, want, 'dual-device (desktop & mobile) URL-cell HTML must match spec §3.2.2/§3.2.3 exactly');
   console.log('OK note+aria+help-box (desktop & mobile)');
 }
@@ -101,7 +105,7 @@ function runLegacyRowGuard() {
   let html;
   assert.doesNotThrow(function () { html = render(pages); }, 'legacy row (no visual_channel_off key) must not throw');
   const cell = urlCellHtml(html, 0);
-  assert.strictEqual(cell, escHtml('https://example.test/c'), 'legacy row must render with no choff note');
+  assert.strictEqual(cell, expectedUrlCell('https://example.test/c'), 'legacy row must render with no choff note');
   assert.ok(!/cu-choff-note/.test(cell), 'legacy row must not contain a cu-choff-note span');
   console.log('OK legacy-row guard (no throw, no note)');
 }

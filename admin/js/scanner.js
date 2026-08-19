@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.10.32';
+    const SCANNER_JS_VERSION = '1.0.11.3';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -135,6 +135,9 @@
         // Update step label in header
         const label = document.getElementById('cu-step-label');
         if (label) label.innerHTML = STEP_LABELS[n] || '';
+
+        const app = document.getElementById('cu-scanner-app');
+        if (app) app.setAttribute('data-current-step', String(n));
 
         // Update pips
         for (let i = 1; i <= 4; i++) {
@@ -673,17 +676,62 @@
 
     // --- Step 1: Plugin detection ---
 
+    let readinessStats = { critical: 0, warnings: 0, bypasses: 0 };
+
+    function renderReadinessSummary() {
+        const summary = document.getElementById('cu-readiness-summary');
+        if (!summary) return;
+        summary.innerHTML = '';
+
+        const copy = document.createElement('span');
+        const bypassCopy = readinessStats.bypasses > 0
+            ? readinessStats.bypasses + ' automatic ' + (readinessStats.bypasses === 1 ? 'bypass' : 'bypasses')
+            : 'No automatic bypasses';
+        const warningCopy = readinessStats.warnings + readinessStats.critical;
+        copy.textContent = bypassCopy + ' · ' + warningCopy + ' ' + (warningCopy === 1 ? 'warning' : 'warnings');
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button-link cu-readiness-toggle';
+        button.textContent = 'View readiness';
+        button.addEventListener('click', function () {
+            const card = document.getElementById('cu-readiness-card');
+            if (!card) return;
+            const compact = card.classList.toggle('is-compact');
+            button.textContent = compact ? 'View readiness' : 'Hide readiness';
+        });
+
+        summary.appendChild(copy);
+        summary.appendChild(button);
+        summary.hidden = false;
+    }
+
+    function setReadinessCompact(compact) {
+        const card = document.getElementById('cu-readiness-card');
+        if (!card) return;
+        card.classList.toggle('is-compact', !!compact);
+        if (compact) renderReadinessSummary();
+    }
+
     function detectPlugins() {
         post('cu_scanner_detect_plugins').then(res => {
             if (!res.success) return;
             const warnings = document.getElementById('cu-plugin-warnings');
             const d = res.data;
             availableBalance = (typeof d.balance === 'number') ? d.balance : null;
+            const app = document.getElementById('cu-scanner-app');
+            if (app && app.getAttribute('data-current-step') === '4') {
+                setResultText('cu-metric-balance', availableBalance === null ? '\u2014' : Math.max(0, availableBalance));
+            }
             let html = '';
+            let criticalCount = 0;
+            let warningCount = 0;
+            let bypassCount = 0;
 
             // Code Unloader missing: red error notice shown at top
             if (d.cu_missing === true) {
-                html += `<div class="notice notice-error"><p><strong>The Code Unloader plugin was not found.</strong> AI Assets Scanner is designed to work with <a href="https://wordpress.org/plugins/code-unloader/" target="_blank" rel="noopener">Code Unloader</a>. Install and activate Code Unloader to be able to unload assets.</p></div>`;
+                criticalCount++;
+                html += `<div class="cu-readiness-row is-critical"><span class="cu-readiness-icon" aria-hidden="true">!</span><div><strong>Code Unloader not detected</strong><p>AI Assets Scanner works with <a href="https://wordpress.org/plugins/code-unloader/" target="_blank" rel="noopener">Code Unloader</a> to apply unload recommendations. Install and activate Code Unloader to enable Push and Sync.</p></div><span class="cu-readiness-badge">Action needed</span></div>`;
             }
 
             hasSoftBlocks = Object.keys(d.soft_block || {}).length > 0;
@@ -691,59 +739,68 @@
             // Soft-block: full WP notice (user must acknowledge)
             Object.entries(d.soft_block || {}).forEach(([name, reason]) => {
                 const id = 'override-' + name.replace(/\s+/g, '-');
-                html += `<div class="notice notice-error">
-                    <p><strong>${esc(name)}:</strong> ${esc(reason)}</p>
+                criticalCount++;
+                html += `<div class="cu-readiness-row is-critical"><span class="cu-readiness-icon" aria-hidden="true">!</span><div>
+                    <strong>${esc(name)}</strong><p>${esc(reason)}</p>
                     <label><input type="checkbox" class="cu-soft-block-override" data-plugin="${esc(name)}" id="${esc(id)}" />
-                    I have disabled ${esc(name)} \u2014 proceed anyway</label></div>`;
+                    I have disabled ${esc(name)} \u2014 proceed anyway</label></div><span class="cu-readiness-badge">Confirm</span></div>`;
             });
 
             // Soft-warn: full WP notice (informational)
             Object.entries(d.soft_warn || {}).forEach(([name, reason]) => {
-                html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(reason)}</p></div>`;
+                warningCount++;
+                html += `<div class="cu-readiness-row is-warning"><span class="cu-readiness-icon" aria-hidden="true">!</span><div><strong>${esc(name)}</strong><p>${esc(reason)}</p></div><span class="cu-readiness-badge">Review</span></div>`;
             });
 
             // Security-warn: warning notice
             Object.entries(d.security_warn || {}).forEach(([name, data]) => {
-                html += `<div class="notice notice-warning"><p><strong>${esc(name)}:</strong> ${esc(data.reason)}</p></div>`;
+                warningCount++;
+                html += `<div class="cu-readiness-row is-warning"><span class="cu-readiness-icon" aria-hidden="true">!</span><div><strong>${esc(name)}</strong><p>${esc(data.reason)}</p></div><span class="cu-readiness-badge">Review</span></div>`;
             });
 
             // CDN detected: warning notice with deep-link to WAF bypass settings
             if (d.cdn_notice) {
                 // Capitalise the CDN slug for display (e.g. "cloudflare" → "Cloudflare")
                 const cdnName = esc(d.cdn_notice.name).replace(/^./, c => c.toUpperCase());
-                html += `<div class="notice notice-warning"><p><strong>CDN detected (${cdnName})</strong> — if it rate-limits the scanner you'll get incomplete results. Whoever manages it can allowlist the scanner; if that's you, <a href="${esc(d.cdn_notice.settings_url)}">open the Cloudflare WAF Bypass settings</a>.</p></div>`;
+                warningCount++;
+                html += `<div class="cu-readiness-row is-warning"><span class="cu-readiness-icon" aria-hidden="true">!</span><div><strong>CDN detected (${cdnName})</strong><p>If it rate-limits the scanner you may get incomplete results. Whoever manages it can allowlist the scanner; if that is you, <a href="${esc(d.cdn_notice.settings_url)}">open the Cloudflare WAF Bypass settings</a>.</p></div><span class="cu-readiness-badge">Review</span></div>`;
             }
 
             // A1: last scan was rate-limited — attribution-branched pre-scan notice (supersedes cdn_notice for same CDN, server-side)
             if (d.last_scan_throttle) {
                 const t = d.last_scan_throttle;
+                warningCount++;
                 if (t.kind === 'cdn') {
                     const tName = esc(t.name).replace(/^./, c => c.toUpperCase());
-                    html += `<div class="notice notice-warning"><p><strong>Your last scan was rate-limited by ${tName}</strong> — whoever manages it needs to allowlist the scanner; if that's you, <a href="${esc(t.settings_url)}">open the Cloudflare WAF Bypass settings</a>. If your origin also enforces a limit, an exemption alone won't be enough.</p></div>`;
+                    html += `<div class="cu-readiness-row is-warning"><span class="cu-readiness-icon" aria-hidden="true">!</span><div><strong>Your last scan was rate-limited by ${tName}</strong><p>Whoever manages it needs to allowlist the scanner; if that is you, <a href="${esc(t.settings_url)}">open the Cloudflare WAF Bypass settings</a>. If your origin also enforces a limit, an exemption alone will not be enough.</p></div><span class="cu-readiness-badge">Review</span></div>`;
                 } else if (t.kind === 'origin') {
-                    html += `<div class="notice notice-warning"><p><strong>Your last scan was rate-limited by your origin server</strong> (e.g. Wordfence or host limits). A CDN exemption won't help — temporarily raise or disable rate limiting on your server before scanning.</p></div>`;
+                    html += `<div class="cu-readiness-row is-warning"><span class="cu-readiness-icon" aria-hidden="true">!</span><div><strong>Your last scan was rate-limited by your origin server</strong><p>A CDN exemption will not help. Temporarily raise or disable Wordfence or host-level rate limiting before scanning.</p></div><span class="cu-readiness-badge">Review</span></div>`;
                 } else {
-                    html += `<div class="notice notice-warning"><p><strong>Your last scan hit rate-limiting (429).</strong> If your site is behind a CDN, set up the exemption; otherwise check your origin/server rate limits.</p></div>`;
+                    html += `<div class="cu-readiness-row is-warning"><span class="cu-readiness-icon" aria-hidden="true">!</span><div><strong>Your last scan hit rate-limiting (429)</strong><p>If your site is behind a CDN, set up the exemption; otherwise check your origin or server rate limits.</p></div><span class="cu-readiness-badge">Review</span></div>`;
                 }
             }
 
             // Auto-bypass: compact single-line banner
             Object.keys(d.auto_bypass || {}).forEach(slug => {
+                bypassCount++;
                 // Canonical label from PHP (T7: "SWIS Performance", "WP Rocket", "LiteSpeed Cache");
                 // slug title-case only as a fallback for payloads from older plugin versions.
                 const label = (d.auto_bypass_labels || {})[slug]
                     || slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                html += `<div class="cu-bypass-notice">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="12" cy="12" r="10" stroke="#2271b1" stroke-width="2"/>
-                        <line x1="12" y1="8" x2="12" y2="12" stroke="#2271b1" stroke-width="2" stroke-linecap="round"/>
-                        <circle cx="12" cy="16" r="1" fill="#2271b1"/>
-                    </svg>
-                    <strong>${esc(label)}</strong> \u2014 temporary bypass applied.
-                </div>`;
+                html += `<div class="cu-readiness-row is-ready"><span class="cu-readiness-icon" aria-hidden="true">✓</span><div><strong>${esc(label)}</strong><p>Temporary bypass applied automatically for this scan.</p></div><span class="cu-readiness-badge">Ready</span></div>`;
             });
 
+            if (!html) {
+                html = '<div class="cu-readiness-row is-ready"><span class="cu-readiness-icon" aria-hidden="true">✓</span><div><strong>Ready to discover pages</strong><p>No scanner compatibility warnings were detected.</p></div><span class="cu-readiness-badge">Ready</span></div>';
+            }
+
             warnings.innerHTML = html;
+            readinessStats = { critical: criticalCount, warnings: warningCount, bypasses: bypassCount };
+            const readinessState = document.getElementById('cu-readiness-state');
+            if (readinessState) {
+                readinessState.textContent = criticalCount > 0 ? 'Action needed' : (warningCount > 0 ? 'Review warnings' : 'Ready');
+                readinessState.className = 'cu-readiness-state ' + (criticalCount > 0 ? 'is-critical' : (warningCount > 0 ? 'is-warning' : 'is-ready'));
+            }
 
             if (hasSoftBlocks) {
                 updateStartScanGate();
@@ -984,6 +1041,7 @@
             cb.addEventListener('change', onRowCheckboxChange);
         });
         list.querySelectorAll('.cu-et-cb').forEach(cb => { cb.addEventListener('change', onEtRowCheckboxChange); });
+        if (discoveryRan) setReadinessCompact(true);
     }
 
     // --- Checkbox logic ---
@@ -2485,6 +2543,174 @@
                ' returned — pages whose rules were already in Code Unloader are not billed.';
     }
 
+    function setResultText( id, value ) {
+        var el = document.getElementById( id );
+        if ( el ) el.textContent = String( value );
+    }
+
+    function renderResultDashboard( o ) {
+        var resultPages = Array.isArray( o.pages ) ? o.pages : [];
+        var urlCount = ( typeof o.urlsScanned === 'number' ) ? o.urlsScanned : resultPages.length;
+        var safe = Number( o.safeCount ) || 0;
+        var aggressive = Number( o.aggCount ) || 0;
+        var kept = o.keptProtectionSummary && Number( o.keptProtectionSummary.count ) > 0
+            ? Number( o.keptProtectionSummary.count )
+            : resultPages.reduce( function ( total, page ) {
+                var count = Number( page.kept_count );
+                return total + ( Number.isFinite( count ) && count > 0 ? count : 0 );
+            }, 0 );
+        var credits = resultPages.reduce( function ( total, page ) {
+            if ( page && page.all_already ) return total;
+            var value = Number( page && page.credits );
+            return total + ( Number.isFinite( value ) && value > 0 ? value : 0 );
+        }, 0 );
+        var balanceBeforeScan = ( typeof o.availableBalance === 'number' && Number.isFinite( o.availableBalance ) )
+            ? o.availableBalance
+            : availableBalance;
+
+        setResultText( 'cu-metric-urls', urlCount );
+        setResultText( 'cu-metric-safe', safe );
+        setResultText( 'cu-metric-aggressive', aggressive );
+        setResultText( 'cu-metric-credits', credits );
+        setResultText(
+            'cu-metric-balance',
+            ( typeof balanceBeforeScan === 'number' && Number.isFinite( balanceBeforeScan ) )
+                ? Math.max( 0, balanceBeforeScan - credits )
+                : '\u2014'
+        );
+        setResultText( 'cu-apply-safe', safe );
+        setResultText( 'cu-apply-aggressive', aggressive );
+        setResultText( 'cu-apply-kept', kept );
+        setResultText( 'cu-ready-rule-total', safe + aggressive );
+        setResultText( 'cu-ready-credits', credits + ' credit' + ( credits === 1 ? ' was' : 's were' ) + ' used' );
+        var successful = resultPages.reduce( function ( total, page ) {
+            return total + ( page && page.status_class === 'ok' ? 1 : 0 );
+        }, 0 );
+        setResultText( 'cu-results-success-count', successful + ' of ' + urlCount + ' successful' );
+        var balanceEl = document.getElementById( 'cu-ready-balance' );
+        if ( balanceEl ) {
+            if ( typeof balanceBeforeScan === 'number' && Number.isFinite( balanceBeforeScan ) ) {
+                balanceEl.textContent = 'Estimated balance after this scan: ' + Math.max( 0, balanceBeforeScan - credits ) + ' credits';
+                balanceEl.hidden = false;
+            } else {
+                balanceEl.textContent = '';
+                balanceEl.hidden = true;
+            }
+        }
+        setResultText( 'cu-complete-scan-id', o.scanId ? 'Scan ID: ' + o.scanId : '' );
+        setResultText(
+            'cu-complete-copy',
+            urlCount + ' ' + ( Number( urlCount ) === 1 ? 'URL' : 'URLs' ) + ' processed. Recommendations are ready.'
+        );
+    }
+
+    function renderResultSidebar( o ) {
+        var externalOnly = !! o.externalOnly;
+        var noRules = !! o.noRules;
+        var syncOnly = !! o.syncOnly;
+        var canPush = !! o.canPush;
+        var nothingNew = !! o.nothingNew;
+        var hasActiveCuRules = !! o.hasActiveCuRules;
+        var settingsLink = document.getElementById( 'cu-cu-settings-link' );
+
+        if ( externalOnly ) {
+            setResultText( 'cu-recommendations-copy', 'Download the CU import JSON and apply it manually to the scanned site.' );
+            setResultText( 'cu-recommendations-footnote', 'Push and Sync are unavailable for external-only tests.' );
+        } else {
+            setResultText( 'cu-recommendations-copy', 'Sync is the safest way to add these rules while keeping your existing Code Unloader setup.' );
+            setResultText( 'cu-recommendations-footnote', 'You can undo the last Push/Sync after applying changes.' );
+        }
+
+        if ( externalOnly ) {
+            setResultText( 'cu-cu-status-title', 'External URLs scanned' );
+            setResultText( 'cu-cu-status-copy', 'Push and Sync are unavailable for external-only tests.' );
+            if ( settingsLink ) settingsLink.hidden = true;
+        } else if ( canPush || hasActiveCuRules ) {
+            setResultText( 'cu-cu-status-title', 'Code Unloader is active' );
+            setResultText( 'cu-cu-status-copy', 'All available integrations are ready.' );
+            if ( settingsLink ) settingsLink.hidden = false;
+        } else {
+            setResultText( 'cu-cu-status-title', 'Manual import available' );
+            setResultText( 'cu-cu-status-copy', 'Download the JSON file to apply these recommendations manually.' );
+            if ( settingsLink ) settingsLink.hidden = false;
+        }
+
+        if ( externalOnly ) {
+            setResultText( 'cu-next-step-title', 'Download the JSON file' );
+            setResultText( 'cu-next-step-copy', 'Import it manually into the Code Unloader setup for the scanned site.' );
+        } else if ( noRules ) {
+            setResultText( 'cu-next-step-title', 'No rules to apply' );
+            setResultText( 'cu-next-step-copy', 'Review the URL rows or run another scan.' );
+        } else if ( nothingNew ) {
+            setResultText( 'cu-next-step-title', 'Everything is already synced' );
+            setResultText( 'cu-next-step-copy', 'Every generated rule is already present in Code Unloader.' );
+        } else if ( syncOnly ) {
+            setResultText( 'cu-next-step-title', 'Sync the new rules' );
+            setResultText( 'cu-next-step-copy', 'Sync adds these recommendations without replacing existing rules.' );
+        } else if ( canPush ) {
+            setResultText( 'cu-next-step-title', 'Choose Sync or Push' );
+            setResultText( 'cu-next-step-copy', 'Sync is safest; Push replaces the current AAS rules.' );
+        } else {
+            setResultText( 'cu-next-step-title', 'Download the JSON file' );
+            setResultText( 'cu-next-step-copy', 'Use the manual import when direct actions are unavailable.' );
+        }
+    }
+
+    function renderKeptAssetsPanel( keptProtection ) {
+        var panel = document.getElementById( 'cu-kept-assets-panel' );
+        var summary = document.getElementById( 'cu-kept-assets-summary' );
+        var toggle = document.getElementById( 'cu-kept-details-toggle' );
+        var detail = document.getElementById( 'cu-kept-protection-note' );
+
+        if ( keptProtection && Number( keptProtection.count ) > 0 ) {
+            if ( ! detail ) {
+                var summaryEl = document.getElementById( 'cu-result-summary' );
+                if ( summaryEl && summaryEl.parentNode ) {
+                    detail = document.createElement( 'p' );
+                    detail.id = 'cu-kept-protection-note';
+                    detail.className = 'cu-kept-protection';
+                    summaryEl.parentNode.insertBefore( detail, summaryEl.nextSibling );
+                }
+            }
+            if ( panel ) panel.hidden = false;
+            if ( summary ) {
+                var count = Number( keptProtection.count );
+                summary.textContent = count + ' crucial asset' + ( count === 1 ? '' : 's' ) + ' kept';
+            }
+            if ( detail ) {
+                detail.textContent = buildKeptNoteText( keptProtection );
+                if ( panel && detail.parentNode === panel ) detail.hidden = true;
+            }
+            if ( toggle && detail ) {
+                toggle.hidden = false;
+                toggle.textContent = 'View details';
+                toggle.setAttribute( 'aria-expanded', 'false' );
+                toggle.onclick = function () {
+                    var opening = detail.hidden;
+                    detail.hidden = ! opening;
+                    toggle.textContent = opening ? 'Hide details' : 'View details';
+                    toggle.setAttribute( 'aria-expanded', opening ? 'true' : 'false' );
+                };
+            }
+            return;
+        }
+
+        if ( panel ) panel.hidden = true;
+        if ( summary ) summary.textContent = '0 crucial assets kept';
+        if ( detail ) {
+            if ( panel && detail.parentNode === panel ) {
+                detail.textContent = '';
+                detail.hidden = true;
+            } else {
+                detail.remove();
+            }
+        }
+        if ( toggle ) {
+            toggle.hidden = true;
+            toggle.setAttribute( 'aria-expanded', 'false' );
+        }
+    }
+
     /**
      * ⚠️ Takes an OPTIONS OBJECT, not positional params. It previously took 10 positional
      * arguments; adding more would have turned a missed call site into a silent
@@ -2512,43 +2738,25 @@
         // entirely rather than sending a zero, so presence AND count are both gated below.
         var keptProtection   = o.keptProtectionSummary;
 
+        renderResultDashboard( {
+            urlsScanned: urlsScanned,
+            safeCount: safeCount,
+            aggCount: aggCount,
+            pages: pages,
+            scanId: scanId,
+            keptProtectionSummary: keptProtection,
+            availableBalance: o.availableBalance,
+        } );
+
         const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
         renderSummaryParts(
             document.getElementById('cu-result-summary'),
             buildSummaryParts({ urls: urls, safeCount: safeCount, aggCount: aggCount, alreadyPresent: alreadyPresent })
         );
 
-        // Challenge-script keeplist (Train 2, A2) — the note sits directly BELOW the summary
-        // line and above the refund line. textContent only: vendor display names come from the
-        // Railway worker (a remote service), so this must never become an HTML sink.
-        if (keptProtection && keptProtection.count > 0) {
-            var kpEl = document.getElementById('cu-kept-protection-note');
-            if (!kpEl) {
-                var summaryEl = document.getElementById('cu-result-summary');
-                // Guarded like every other parentNode-relative insertBefore in this file
-                // (:1206, :1646, :2031, :3289). Defensive only — this is NOT what keeps a
-                // missing element from reaching the localStorage-restore catch (which would
-                // delete the stored result): the summary write above already dereferences
-                // getElementById('cu-result-summary') unguarded (renderSummaryParts assigns
-                // el.textContent), so an absent element throws before control gets here.
-                if (summaryEl && summaryEl.parentNode) {
-                    kpEl = document.createElement('p');
-                    kpEl.id = 'cu-kept-protection-note';
-                    kpEl.className = 'cu-kept-protection';
-                    summaryEl.parentNode.insertBefore(kpEl, summaryEl.nextSibling);
-                }
-            }
-            if (kpEl) {
-                kpEl.textContent = buildKeptNoteText(keptProtection);
-            }
-        } else {
-            // restoreStep4 runs more than once per page life (live build_result after a
-            // localStorage restore). A second result that kept nothing must not leave the
-            // first one's claim on screen. REMOVED, not emptied — the class carries a border
-            // and background, so an emptied node would render as an empty blue box.
-            var staleKpEl = document.getElementById('cu-kept-protection-note');
-            if (staleKpEl) { staleKpEl.remove(); }
-        }
+        // Worker-provided labels stay in a textContent-only details region. The compact blue
+        // strip is count-first; the operator can expand the full producer-derived list.
+        renderKeptAssetsPanel( keptProtection );
 
         // Refund line lives with the SUMMARY, not in #cu-push-result — the externalOnly
         // branch below overwrites that element wholesale (AC-15).
@@ -2637,6 +2845,15 @@
             pushResult.innerHTML += '<div class="notice notice-info inline"><p>' + syncNotice + '</p></div>';
         }
 
+        renderResultSidebar( {
+            externalOnly: externalOnly,
+            noRules: noRules,
+            syncOnly: syncOnly,
+            canPush: canPush,
+            nothingNew: !! syncNotice,
+            hasActiveCuRules: hasActiveCuRules,
+        } );
+
         setUndoLastPushSyncState(undoLastPushSyncState);
 
         // Consume the re-queue marker now that the result screen has rendered.
@@ -2653,7 +2870,7 @@
         // Top "Run Another Scan" is redundant on a short results list. Hide it for
         // <10 scanned URLs, but RESERVE its space (visibility:hidden, not display:none)
         // so the content below does not shift (no CLS). Bottom button always shows.
-        var topRescan = document.querySelector('#step-4 .cu-rescan-row');
+        var topRescan = document.getElementById('cu-top-rescan-row');
         if (topRescan) {
             var scannedCount = Array.isArray(pages) ? pages.length : ((typeof urlsScanned === 'number') ? urlsScanned : 0);
             topRescan.style.visibility = (scannedCount < 10) ? 'hidden' : 'visible';
@@ -2679,9 +2896,9 @@
 
         // Reveal "Rescan 0-Results URLs" (both rows) when at least one S:0 A:0 (noopt) row exists.
         var hasNoopt = Array.isArray(pages) && pages.some(function (p) { return p && p.status_class === 'ok' && Number(p.safe) === 0 && Number(p.aggressive) === 0; });
-        if (hasNoopt) {
-            document.querySelectorAll('#step-4 .cu-btn-rescan-noopt-all').forEach(function (btn) { btn.style.display = ''; });
-        }
+        document.querySelectorAll('#step-4 .cu-btn-rescan-noopt-all').forEach(function (btn) {
+            btn.style.display = hasNoopt ? '' : 'none';
+        });
 
         showStep(4);
     }
@@ -2823,7 +3040,7 @@
                     // an empty page). So the copy claims only what THIS SCAN found and always
                     // prompts a rescan. A residual ET candidate that already got Extra Time
                     // (et_charged) keeps the plain rescan prompt.
-                    nooptNote = ' <span class="cu-noopt-note">This scan found nothing to unload —<br>a rescan occasionally finds more. Please rescan.</span>';
+                    nooptNote = ' <span class="cu-noopt-note">No unloads found. A rescan may find more.</span>';
                 }
             }
             // Operator request 2026-08-10 — bold S: / A: only when that count is > 0, so rows
@@ -2832,10 +3049,13 @@
             // effAgg are Number()-coerced above, so these are numeric interpolations and need no
             // escaping. A NaN count (field absent) compares false and renders unbolded — the
             // same output this line produced before.
-            var sanS = effSafe > 0 ? '<strong>S:' + effSafe + '</strong>' : 'S:' + effSafe;
-            var sanA = effAgg  > 0 ? '<strong>A:' + effAgg  + '</strong>' : 'A:' + effAgg;
+            var sanS = '<span class="cu-san-token cu-san-safe' + ( effSafe > 0 ? ' is-positive' : '' ) + '">'
+                + ( effSafe > 0 ? '<strong>S:' + effSafe + '</strong>' : 'S:' + effSafe ) + '</span>';
+            var sanA = '<span class="cu-san-token cu-san-aggressive' + ( effAgg > 0 ? ' is-positive' : '' ) + '">'
+                + ( effAgg > 0 ? '<strong>A:' + effAgg + '</strong>' : 'A:' + effAgg ) + '</span>';
+            var sanN = '<span class="cu-san-token cu-san-needed">N:' + cuEscHtml( p.needed ) + '</span>';
             var san = ( p.status_class === 'error' ) ? '—'
-                : ( sanS + ' ' + sanA + ' N:' + p.needed
+                : ( sanS + ' ' + sanA + ' ' + sanN
                     + ( p.ratchet_recovered > 0 ? ' <span class="cu-ratchet" title="restored from the first scan by the ET ratchet">↩ +' + p.ratchet_recovered + '</span>' : '' )
                     + nooptNote );
             var origUrl = submittedByResolved[ p.url ];
@@ -2906,15 +3126,14 @@
             // chip concatenated after it would be orphaned onto its own line instead of trailing
             // the URL text. Last of the INLINE annotations keeps it beside the URL on every row,
             // with or without a choff note, and leaves the URL + "← resolved from" pair intact.
-            var urlCell = urlHtml
-                + ( origUrl ? ' <span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' )
-                + bypassNote
-                + keptChip
-                + choffNote;
+            var urlMeta = ( origUrl ? '<span class="cu-resolved-note">← resolved from ' + cuEscHtml( origUrl ) + '</span>' : '' )
+                + bypassNote + keptChip + choffNote;
+            var urlCell = '<span class="cu-url-primary">' + urlHtml + '</span>'
+                + ( urlMeta ? '<span class="cu-url-meta">' + urlMeta + '</span>' : '' );
             return '<tr class="cu-row-' + cuEscHtml( p.status_class ) + ( noopt ? ' cu-row-noopt' : '' ) + '">'
                 + '<td>' + cuEscHtml( p.n ) + '</td>'
                 + '<td class="cu-url-cell">' + urlCell + '</td>'
-                + '<td>' + cuEscHtml( p.status_label ) + '</td>'
+                + '<td><span class="cu-row-status cu-row-status--' + esc( p.status_class ) + '">' + cuEscHtml( p.status_label ) + '</span></td>'
                 // 0 when every rule on this page was already in CU — the page was credited back,
                 // so the gross page_credit() charge is not what the customer actually paid.
                 // page_credit() itself is deliberately untouched (spec AC-7, golden-tested).
@@ -2931,9 +3150,8 @@
               + '<button type="button" class="button" id="cu-url-next"' + ( st.page >= pageCount - 1 ? ' disabled' : '' ) + '>Next »</button></div>'
             : '';
         host.innerHTML =
-            '<h3 class="cu-url-title">Scan ID: ' + cuEscHtml( st.scanId ) + '</h3>'
-          + '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error · ' + c.cancelled + ' cancelled (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th>#</th><th>URL</th><th>Status</th><th>Credits</th><th><span class="cu-th-inner">S / A / N<span class="cu-help" tabindex="0" aria-label="Safe: high-confidence unload rules with a low risk of affecting the page — tested and confirmed safe to unload. Aggressive: broader unload rules with slightly lower confidence — tested and confirmed safe to unload. Needed: assets required by the page — they will remain loaded when you push the rules."><span class="cu-help-box"><strong>Safe:</strong> High-confidence unload rules with a low risk of affecting the page. Tested and confirmed safe to unload.<br><strong>Aggressive:</strong> Broader unload rules with slightly lower confidence. Tested and confirmed safe to unload.<br><strong>Needed:</strong> Assets required by the page. They will remain loaded when you push the rules.</span></span></span></th><th><span class="cu-th-inner">ET candidate<span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></span></th><th><span class="cu-th-inner">Extra Time<span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
+            '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error · ' + c.cancelled + ' cancelled (' + total + ' URLs)</p>'
+          + '<table class="cu-url-table widefat"><thead><tr><th><span class="cu-th-inner">#</span></th><th><span class="cu-th-inner">URL</span></th><th><span class="cu-th-inner">Status</span></th><th><span class="cu-th-inner">Credits</span></th><th><span class="cu-th-inner">Recommendations S / A / N<span class="cu-help" tabindex="0" aria-label="Safe: high-confidence unload recommendation, tested and confirmed safe to remove. Aggressive: loaded but tested safe to remove, with lower confidence than Safe. Needed: required or not proven safe to remove, so it remains loaded."><span class="cu-help-box"><strong>Safe:</strong> High-confidence unload recommendation. Tested and confirmed safe to remove.<br><strong>Aggressive:</strong> Loaded but tested safe to remove. Lower confidence than Safe.<br><strong>Needed:</strong> Required or not proven safe to remove. Remains loaded.</span></span></span></th><th><span class="cu-th-inner">ET candidate<span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></span></th><th><span class="cu-th-inner">Extra Time<span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
           + '<p class="cu-et-result-all-row"><label><input type="checkbox" id="cu-et-result-all"> Extra Time: all ET candidates</label></p>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }

@@ -1016,3 +1016,1221 @@
     padding: 1px 7px;
     white-space: nowrap;
 }
+
+/* 1.8.0b — scanner admin redesign. The scanner is treated as a diagnostic instrument:
+   dark radar surfaces carry active state, quiet white cards carry decisions and results. */
+#cu-scanner-app {
+    --cu-ink: #17243a;
+    --cu-muted: #5d6878;
+    --cu-border: #d9e0e8;
+    --cu-surface: #ffffff;
+    --cu-canvas: #f3f6f9;
+    --cu-midnight: #16243a;
+    --cu-midnight-2: #203a5a;
+    --cu-blue: #2271b1;
+    --cu-signal: #53a6d8;
+    --cu-safe: #2e7d4d;
+    --cu-safe-soft: #e7f5eb;
+    --cu-aggressive: #5f7f32;
+    --cu-aggressive-soft: #eff6df;
+    --cu-warning: #a96008;
+    --cu-warning-soft: #fff8e5;
+    --cu-danger: #b32d2e;
+    --cu-danger-soft: #fff0f0;
+    color: var(--cu-ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#cu-scanner-app .cu-wrap {
+    width: min(100%, 1360px);
+    max-width: 1360px;
+    margin: 18px 0 36px;
+}
+
+#cu-scanner-app .cu-scanner-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 292px;
+    gap: 24px;
+    align-items: start;
+}
+
+#cu-scanner-app .cu-scanner-main { max-width: none; min-width: 0; }
+#cu-scanner-app[data-current-step="2"] .cu-scanner-layout,
+#cu-scanner-app[data-current-step="3"] .cu-scanner-layout,
+#cu-scanner-app[data-current-step="4"] .cu-scanner-layout { grid-template-columns: minmax(0, 1fr); }
+#cu-scanner-app[data-current-step="2"] .cu-step-one-sidebar,
+#cu-scanner-app[data-current-step="3"] .cu-step-one-sidebar,
+#cu-scanner-app[data-current-step="4"] .cu-step-one-sidebar { display: none; }
+
+#cu-scanner-app .cu-header {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(220px, 1fr) auto auto;
+    gap: 18px;
+    align-items: center;
+    max-width: none;
+    min-height: 72px;
+    padding: 18px 24px;
+    overflow: hidden;
+    border: 1px solid rgba(135, 190, 230, .2);
+    border-radius: 14px;
+    background:
+        radial-gradient(circle at 86% 45%, rgba(83, 166, 216, .22), transparent 23%),
+        linear-gradient(125deg, var(--cu-midnight), var(--cu-midnight-2));
+    box-shadow: 0 14px 34px rgba(22, 36, 58, .18);
+}
+
+#cu-scanner-app .cu-header::after {
+    content: "";
+    position: absolute;
+    inset: auto -50px -90px auto;
+    width: 220px;
+    height: 220px;
+    border: 1px solid rgba(114, 174, 230, .16);
+    border-radius: 50%;
+    box-shadow: 0 0 0 34px rgba(114, 174, 230, .06), 0 0 0 70px rgba(114, 174, 230, .035);
+    pointer-events: none;
+}
+
+#cu-scanner-app .cu-header-logo { width: 48px; height: 48px; object-fit: contain; }
+#cu-scanner-app .cu-header-text { position: relative; z-index: 1; }
+#cu-scanner-app .cu-header-text h2 {
+    margin: 0 0 5px;
+    padding: 0;
+    border: 0;
+    color: #fff;
+    font-size: 21px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+#cu-scanner-app .cu-header-version {
+    margin-left: 6px;
+    color: #b7c4d2;
+    font-size: 11px;
+    font-weight: 600;
+    vertical-align: middle;
+}
+#cu-scanner-app .cu-header-text .cu-step-label { color: #b9d9ee; font-size: 12px; letter-spacing: .02em; }
+#cu-scanner-app .cu-header-icon { position: relative; z-index: 1; width: 42px; height: 42px; }
+#cu-scanner-app .cu-header-by { position: relative; z-index: 1; white-space: nowrap; }
+
+#cu-scanner-app .cu-step-pips {
+    position: absolute;
+    right: 25px;
+    bottom: 12px;
+    display: flex;
+    gap: 14px;
+    z-index: 2;
+}
+#cu-scanner-app .cu-step-pips::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    height: 1px;
+    background: rgba(255, 255, 255, .18);
+}
+#cu-scanner-app .cu-pip {
+    position: relative;
+    width: 11px;
+    height: 11px;
+    border: 2px solid rgba(255, 255, 255, .45);
+    border-radius: 50%;
+    background: #314760;
+    box-sizing: border-box;
+}
+#cu-scanner-app .cu-pip.is-done { border-color: #65d39b; background: #45b77c; box-shadow: 0 0 0 3px rgba(69, 183, 124, .12); }
+#cu-scanner-app .cu-pip.is-active {
+    border-color: #bfe9ff;
+    background: #65c7ef;
+    box-shadow: 0 0 0 4px rgba(101, 199, 239, .16), 0 0 14px #65c7ef;
+    animation: cuStagePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes cuStagePulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(101, 199, 239, .12), 0 0 8px rgba(101, 199, 239, .7); }
+    50% { box-shadow: 0 0 0 7px rgba(101, 199, 239, 0), 0 0 18px #65c7ef; }
+}
+
+#cu-scanner-app .cu-step { padding: 24px 0 0; }
+#cu-scanner-app h2 { border-bottom: 0; }
+#cu-scanner-app .cu-panel,
+#cu-scanner-app .cu-completion-card,
+#cu-scanner-app .cu-results-guidance,
+#cu-scanner-app .cu-speed-footer {
+    border: 1px solid var(--cu-border);
+    border-radius: 12px;
+    background: var(--cu-surface);
+    box-shadow: 0 4px 14px rgba(30, 52, 75, .055);
+}
+#cu-scanner-app .cu-panel { padding: 22px; }
+#cu-scanner-app .cu-panel + .cu-panel { margin-top: 18px; }
+#cu-scanner-app .cu-panel-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 18px;
+}
+#cu-scanner-app .cu-panel-heading--compact { margin-bottom: 14px; }
+#cu-scanner-app .cu-panel-heading h2,
+#cu-scanner-app .cu-completion-heading h2,
+#cu-scanner-app .cu-results-heading-row h2 {
+    margin: 3px 0 5px;
+    padding: 0;
+    color: var(--cu-ink);
+    font-size: 20px;
+    line-height: 1.25;
+}
+#cu-scanner-app .cu-panel-heading p,
+#cu-scanner-app .cu-completion-heading p,
+#cu-scanner-app .cu-results-heading-row p { margin: 0; color: var(--cu-muted); }
+#cu-scanner-app .cu-eyebrow {
+    display: block;
+    color: #64758a;
+    font-size: 10px;
+    font-weight: 750;
+    letter-spacing: .12em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+#cu-scanner-app .cu-readiness-card { padding: 0; overflow: hidden; }
+#cu-scanner-app .cu-readiness-card > .cu-panel-heading { margin: 0; padding: 20px 22px 15px; }
+#cu-scanner-app .cu-readiness-state,
+#cu-scanner-app .cu-readiness-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    background: #edf2f6;
+    color: #455669;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+#cu-scanner-app .cu-readiness-state.is-ready { background: var(--cu-safe-soft); color: #21633d; }
+#cu-scanner-app .cu-readiness-state.is-warning { background: var(--cu-warning-soft); color: #81500b; }
+#cu-scanner-app .cu-readiness-state.is-critical { background: var(--cu-danger-soft); color: #8f2022; }
+#cu-scanner-app #cu-plugin-warnings { border-top: 1px solid #edf1f5; }
+#cu-scanner-app .cu-readiness-row {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: start;
+    padding: 14px 22px;
+    border-bottom: 1px solid #edf1f5;
+}
+#cu-scanner-app .cu-readiness-row:last-child { border-bottom: 0; }
+#cu-scanner-app .cu-readiness-row p { margin: 3px 0 0; color: var(--cu-muted); }
+#cu-scanner-app .cu-readiness-row label { display: block; margin-top: 8px; font-weight: 600; }
+#cu-scanner-app .cu-readiness-icon {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #eef3f7;
+    color: #526779;
+    font-weight: 800;
+}
+#cu-scanner-app .cu-readiness-row.is-ready .cu-readiness-icon { background: var(--cu-safe-soft); color: var(--cu-safe); }
+#cu-scanner-app .cu-readiness-row.is-ready .cu-readiness-badge { background: var(--cu-safe-soft); color: #21633d; }
+#cu-scanner-app .cu-readiness-row.is-warning { background: #fffdf8; }
+#cu-scanner-app .cu-readiness-row.is-warning .cu-readiness-icon,
+#cu-scanner-app .cu-readiness-row.is-warning .cu-readiness-badge { background: var(--cu-warning-soft); color: #81500b; }
+#cu-scanner-app .cu-readiness-row.is-critical { background: #fffafa; }
+#cu-scanner-app .cu-readiness-row.is-critical .cu-readiness-icon,
+#cu-scanner-app .cu-readiness-row.is-critical .cu-readiness-badge { background: var(--cu-danger-soft); color: #8f2022; }
+#cu-scanner-app .cu-readiness-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 13px 22px;
+    border-top: 1px solid #edf1f5;
+    color: #405066;
+    font-weight: 600;
+}
+#cu-scanner-app .cu-readiness-card.is-compact #cu-plugin-warnings,
+#cu-scanner-app .cu-readiness-card.is-compact #cu-bot-notice { display: none !important; }
+#cu-scanner-app .cu-readiness-card:not(.is-compact) .cu-readiness-summary { display: none; }
+#cu-scanner-app #cu-bot-notice { margin: 12px 22px 18px; }
+
+#cu-scanner-app .cu-discovery-card { padding: 22px; }
+#cu-scanner-app .cu-discover-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 0;
+    padding: 14px 0 18px;
+    border-top: 1px solid #edf1f5;
+}
+#cu-scanner-app .button {
+    min-height: 34px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+#cu-scanner-app .button.button-primary { border-color: var(--cu-blue); background: var(--cu-blue); }
+#cu-scanner-app .button.button-primary:hover,
+#cu-scanner-app .button.button-primary:focus { border-color: #135e96; background: #135e96; }
+#cu-scanner-app .cu-url-input-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    margin-top: 18px;
+}
+#cu-scanner-app .cu-url-input-card {
+    padding: 15px;
+    border: 1px solid #dfe5eb;
+    border-radius: 9px;
+    background: #f9fbfc;
+}
+#cu-scanner-app .cu-url-input-card > label,
+#cu-scanner-app .cu-url-input-card > summary { display: block; margin-bottom: 8px; color: #26384d; font-weight: 700; cursor: pointer; }
+#cu-scanner-app .cu-url-input-card textarea { width: 100%; min-height: 88px; border-color: #cbd4dd; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+#cu-scanner-app .cu-url-input-card .description { margin: 6px 0 0; }
+#cu-scanner-app .cu-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 12px;
+    border: 1px solid #dfe5eb;
+    border-radius: 9px 9px 0 0;
+    background: #f6f8fa;
+}
+#cu-scanner-app .cu-filter-divider { display: none; }
+#cu-scanner-app .cu-filter-pill { border-radius: 99px; }
+#cu-scanner-app .cu-group-header { border-radius: 0; }
+#cu-scanner-app .cu-url-list { border-color: #dfe5eb; border-radius: 0 0 9px 9px; }
+#cu-scanner-app .cu-action-row { gap: 10px; padding-top: 18px; }
+#cu-scanner-app .cu-credit-badge { border-radius: 7px; }
+
+#cu-scanner-app .cu-sonar-anim {
+    padding: 18px;
+    border-radius: 11px;
+    background: linear-gradient(145deg, #142338, #203b5b);
+}
+#cu-scanner-app .cu-sonar-svg { width: 136px; height: 136px; }
+#cu-scanner-app .cu-sonar-label { color: #d8edf8; font-weight: 700; }
+
+#cu-scanner-app .cu-admin-sidebar { width: auto; max-width: none; }
+#cu-scanner-app .cu-sidebar-box {
+    padding: 20px;
+    border: 1px solid #d7e5d1;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #f8fcf5, #eef7e8);
+    box-shadow: 0 4px 14px rgba(30, 52, 75, .05);
+}
+#cu-scanner-app .cu-sidebar-heading { font-size: 18px; }
+#cu-scanner-app .cu-sidebar-sa-icon { width: 92px; height: 92px; margin: 8px auto 14px; }
+
+#cu-scanner-app .cu-reservation-card {
+    max-width: 620px;
+    margin: 30px auto 0;
+    padding: 44px;
+    text-align: center;
+}
+#cu-scanner-app .cu-reservation-card h2 { margin: 6px 0; font-size: 24px; }
+#cu-scanner-app .cu-reservation-card p { color: var(--cu-muted); }
+#cu-scanner-app .cu-state-orbit {
+    display: block;
+    width: 54px;
+    height: 54px;
+    margin: 0 auto 18px;
+    border: 2px solid #d2e9f6;
+    border-top-color: var(--cu-blue);
+    border-radius: 50%;
+    animation: cuOrbit 1.2s linear infinite;
+}
+@keyframes cuOrbit { to { transform: rotate(360deg); } }
+
+#cu-scanner-app .cu-scan-console {
+    display: grid;
+    grid-template-columns: minmax(240px, 32%) minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid var(--cu-border);
+    border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(30, 52, 75, .09);
+}
+#cu-scanner-app .cu-scan-radar-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 28px;
+    background: linear-gradient(150deg, #142338, #203b5b);
+}
+#cu-scanner-app .cu-scan-radar-panel .cu-eyebrow { color: #8fc5e5; }
+#cu-scanner-app .cu-scan-radar-panel .cu-sonar-anim { padding: 18px 0 0; background: transparent; }
+#cu-scanner-app .cu-scan-radar-panel .cu-sonar-svg { width: min(210px, 100%); height: auto; }
+#cu-scanner-app .cu-scan-details { min-width: 0; padding: 26px; }
+#cu-scanner-app #cu-progress-bar-wrap { margin: 0 0 18px; }
+#cu-scanner-app #cu-progress-bar { height: 12px; accent-color: var(--cu-blue); }
+#cu-scanner-app #cu-progress-text { min-width: 54px; color: #33465c; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 700; }
+#cu-scanner-app .cu-scan-note { margin: 0 0 18px; padding: 13px 15px; border-left: 3px solid var(--cu-signal); border-radius: 6px; background: #f0f7fb; }
+#cu-scanner-app .cu-scan-note p { margin: 0; }
+#cu-scanner-app .cu-scan-note p + p { margin-top: 5px; color: var(--cu-muted); }
+#cu-scanner-app #cu-pages-table { margin-bottom: 14px; }
+
+#cu-scanner-app .cu-completion-card {
+    position: relative;
+    overflow: hidden;
+    padding: 25px;
+    border-color: #294562;
+    background:
+        radial-gradient(circle at 94% 20%, rgba(101, 199, 239, .2), transparent 25%),
+        linear-gradient(132deg, #16243a, #203b5b);
+    color: #fff;
+}
+#cu-scanner-app .cu-completion-card::after {
+    content: "";
+    position: absolute;
+    right: -55px;
+    top: -90px;
+    width: 230px;
+    height: 230px;
+    border: 1px solid rgba(101, 199, 239, .14);
+    border-radius: 50%;
+    box-shadow: 0 0 0 34px rgba(101, 199, 239, .06), 0 0 0 72px rgba(101, 199, 239, .03);
+}
+#cu-scanner-app .cu-completion-heading {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+}
+#cu-scanner-app .cu-completion-heading h2 { color: #fff; font-size: 26px; }
+#cu-scanner-app .cu-completion-heading p { color: #c7d7e5; }
+#cu-scanner-app .cu-completion-heading .cu-eyebrow { color: #8fc5e5; }
+#cu-scanner-app .cu-complete-mark {
+    float: left;
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    margin: 2px 13px 10px 0;
+    border-radius: 50%;
+    background: #3ca66e;
+    color: #fff;
+    font-size: 21px;
+    font-weight: 800;
+}
+#cu-scanner-app .cu-scan-id { position: relative; z-index: 1; color: #b7c8d7; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+#cu-scanner-app .cu-metric-grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+}
+#cu-scanner-app .cu-metric { min-width: 0; padding: 13px 14px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 9px; background: rgba(255, 255, 255, .075); }
+#cu-scanner-app .cu-metric strong { display: block; color: #fff; font-size: 24px; line-height: 1.1; }
+#cu-scanner-app .cu-metric span { display: block; margin-top: 4px; color: #bfcddd; font-size: 11px; }
+#cu-scanner-app .cu-metric--safe { border-color: rgba(101, 211, 155, .32); background: rgba(69, 183, 124, .13); }
+#cu-scanner-app .cu-metric--aggressive { border-color: rgba(166, 204, 108, .28); background: rgba(139, 173, 83, .12); }
+#cu-scanner-app .cu-metric--kept { border-color: rgba(83, 166, 216, .32); background: rgba(83, 166, 216, .12); }
+
+#cu-scanner-app .cu-recommendations-card { margin-top: 18px; }
+#cu-scanner-app .cu-step4-action-row { margin: 0; padding: 15px 0; border-top: 1px solid #edf1f5; border-bottom: 1px solid #edf1f5; }
+#cu-scanner-app .cu-step4-side-actions { margin-left: auto; }
+#cu-scanner-app #cu-push-result { margin-top: 12px; }
+#cu-scanner-app .cu-rescan-row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-top: 14px; }
+
+#cu-scanner-app .cu-results-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+    align-items: start;
+    margin-top: 18px;
+}
+#cu-scanner-app .cu-results-card { min-width: 0; margin: 0; padding: 22px; }
+#cu-scanner-app .cu-results-heading-row { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+#cu-scanner-app #cu-result-summary { margin: 10px 0 6px; color: #33465c; font-size: 14px; }
+#cu-scanner-app #cu-result-refund { margin: 0 0 10px; color: #456173; }
+#cu-scanner-app #cu-result-url-list { margin-top: 14px; border: 1px solid #dfe5eb; border-radius: 9px; }
+#cu-scanner-app .cu-url-summary { margin: 0; padding: 10px 12px; border-bottom: 1px solid #dfe5eb; background: #f6f8fa; color: #526172; font-size: 12px; }
+#cu-scanner-app .cu-url-table { border-collapse: separate; border-spacing: 0; }
+#cu-scanner-app .cu-url-table th,
+#cu-scanner-app .cu-url-table td { padding: 10px 11px; border-bottom-color: #e6ebef; vertical-align: top; }
+#cu-scanner-app .cu-url-table thead th { height: 54px; background: #f7f9fb; color: #34465a; font-size: 11px; font-weight: 750; letter-spacing: .025em; }
+#cu-scanner-app .cu-url-table tbody tr:last-child td { border-bottom: 0; }
+#cu-scanner-app .cu-url-table td.cu-url-cell { color: #243b53; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-weight: 600; }
+#cu-scanner-app .cu-url-suffix { opacity: .68; font-weight: 400; }
+#cu-scanner-app .cu-url-table tr.cu-row-ok { background: #fbfefc; color: #294b35; box-shadow: inset 4px 0 0 #4e9b68; }
+#cu-scanner-app .cu-url-table tr.cu-row-partial,
+#cu-scanner-app .cu-url-table tr.cu-row-ok.cu-row-noopt { background: #fffaf0; color: #684d13; box-shadow: inset 4px 0 0 #d2a63b; }
+#cu-scanner-app .cu-url-table tr.cu-row-blocked { background: #fff5ea; color: #70400d; box-shadow: inset 4px 0 0 #d97706; }
+#cu-scanner-app .cu-url-table tr.cu-row-error { background: #fff2f1; color: #7b2728; box-shadow: inset 4px 0 0 #c94647; }
+#cu-scanner-app .cu-url-table tr.cu-row-skipped { background: #f5f7f8; color: #485565; box-shadow: inset 4px 0 0 #8a96a3; }
+#cu-scanner-app .cu-url-table tr:hover { filter: brightness(.992); }
+#cu-scanner-app .cu-row-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 7px;
+    border-radius: 99px;
+    background: #edf1f4;
+    color: #405064;
+    font-size: 11px;
+    font-weight: 750;
+    white-space: nowrap;
+}
+#cu-scanner-app .cu-row-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+#cu-scanner-app .cu-row-status--ok { background: var(--cu-safe-soft); color: #286d43; }
+#cu-scanner-app .cu-row-status--partial { background: var(--cu-warning-soft); color: #8a5c10; }
+#cu-scanner-app .cu-row-status--blocked { background: #fff0df; color: #a05208; }
+#cu-scanner-app .cu-row-status--error { background: var(--cu-danger-soft); color: #a2292b; }
+#cu-scanner-app .cu-row-status--skipped { background: #eceff2; color: #596777; }
+#cu-scanner-app .cu-url-table td.cu-san { min-width: 185px; font-family: inherit; white-space: normal; }
+#cu-scanner-app .cu-san-token {
+    display: inline-flex;
+    padding: 3px 6px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+#cu-scanner-app .cu-san-safe { border-color: #c7dfce; background: #f0f8f2; color: #39724c; }
+#cu-scanner-app .cu-san-safe.is-positive { border-color: #a8d2b4; background: var(--cu-safe-soft); color: #24643d; }
+#cu-scanner-app .cu-san-aggressive { border-color: #d7e3bf; background: #f7faef; color: #657746; }
+#cu-scanner-app .cu-san-aggressive.is-positive { border-color: #c4d99a; background: var(--cu-aggressive-soft); color: #536e2d; }
+#cu-scanner-app .cu-san-needed { border-color: #d9dee3; background: #f1f3f5; color: #5f6874; }
+#cu-scanner-app .cu-noopt-note { margin-top: 7px; }
+#cu-scanner-app .cu-kept-chip { display: inline-flex; align-items: center; }
+
+#cu-scanner-app .cu-results-guidance { overflow: hidden; padding: 0; }
+#cu-scanner-app .cu-guidance-card { padding: 19px; border-bottom: 1px solid #e4e9ee; }
+#cu-scanner-app .cu-guidance-card:last-child { border-bottom: 0; }
+#cu-scanner-app .cu-guidance-card h3 { margin: 4px 0 7px; color: #24364b; font-size: 16px; }
+#cu-scanner-app .cu-guidance-card p { margin: 0; color: var(--cu-muted); }
+#cu-scanner-app .cu-guidance-card--apply { background: #f6faf7; }
+#cu-scanner-app .cu-guidance-list { margin: 15px 0 0; }
+#cu-scanner-app .cu-guidance-list > div { display: grid; grid-template-columns: 84px 1fr; gap: 8px; padding: 9px 0; border-top: 1px solid #edf1f4; }
+#cu-scanner-app .cu-guidance-list dt,
+#cu-scanner-app .cu-guidance-list dd { margin: 0; }
+#cu-scanner-app .cu-guidance-list dd { color: #566576; font-size: 11px; line-height: 1.45; }
+#cu-scanner-app .cu-legend-token { display: inline-flex; padding: 3px 7px; border-radius: 5px; font-size: 11px; font-weight: 750; }
+#cu-scanner-app .cu-legend-token--safe { background: var(--cu-safe-soft); color: #24643d; }
+#cu-scanner-app .cu-legend-token--aggressive { background: var(--cu-aggressive-soft); color: #536e2d; }
+#cu-scanner-app .cu-legend-token--needed { background: #eef1f3; color: #596574; }
+
+#cu-scanner-app .cu-speed-footer {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    margin-top: 18px;
+    padding: 16px 20px;
+    background: linear-gradient(105deg, #f7fbf5, #eef7e8);
+}
+#cu-scanner-app .cu-speed-footer img { width: 54px; height: 54px; }
+#cu-scanner-app .cu-speed-footer h3 { margin: 3px 0; font-size: 15px; }
+#cu-scanner-app .cu-speed-footer p { margin: 0; color: var(--cu-muted); }
+
+#cu-scanner-app :where(button, a, input, textarea, summary, .cu-help):focus-visible {
+    outline: 3px solid rgba(34, 113, 177, .32);
+    outline-offset: 2px;
+}
+
+@media (max-width: 1280px) {
+    #cu-scanner-app .cu-wrap { width: calc(100% - 18px); }
+    #cu-scanner-app .cu-scanner-layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; }
+    #cu-scanner-app .cu-results-layout { grid-template-columns: minmax(0, 1fr) 270px; }
+}
+
+@media (max-width: 1100px) {
+    #cu-scanner-app .cu-scanner-layout { grid-template-columns: minmax(0, 1fr); }
+    #cu-scanner-app .cu-admin-sidebar { max-width: none; }
+    #cu-scanner-app .cu-sidebar-box { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center; }
+    #cu-scanner-app .cu-sidebar-sa-link { margin: 0; }
+    #cu-scanner-app .cu-sidebar-sa-icon { width: 58px; height: 58px; margin: 0; }
+    #cu-scanner-app .cu-results-layout { grid-template-columns: minmax(0, 1fr); }
+    #cu-scanner-app .cu-results-guidance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    #cu-scanner-app .cu-guidance-card { border-right: 1px solid #e4e9ee; border-bottom: 0; }
+    #cu-scanner-app .cu-guidance-card:last-child { border-right: 0; }
+}
+
+@media (max-width: 782px) {
+    #cu-scanner-app .cu-wrap { width: calc(100% - 10px); margin-top: 10px; }
+    #cu-scanner-app .cu-header { grid-template-columns: auto minmax(0, 1fr) auto; padding: 15px 17px 28px; }
+    #cu-scanner-app .cu-header-by { display: none; }
+    #cu-scanner-app .cu-step-pips { right: 18px; bottom: 10px; }
+    #cu-scanner-app .cu-panel { padding: 17px; }
+    #cu-scanner-app .cu-readiness-card { padding: 0; }
+    #cu-scanner-app .cu-readiness-row { grid-template-columns: 28px minmax(0, 1fr); padding: 13px 17px; }
+    #cu-scanner-app .cu-readiness-row .cu-readiness-badge { grid-column: 2; justify-self: start; }
+    #cu-scanner-app .cu-url-input-grid { grid-template-columns: 1fr; }
+    #cu-scanner-app .cu-scan-console { grid-template-columns: 1fr; }
+    #cu-scanner-app .cu-scan-radar-panel { min-height: 240px; align-items: center; }
+    #cu-scanner-app .cu-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #cu-scanner-app .cu-metric:last-child { grid-column: span 2; }
+    #cu-scanner-app .cu-step4-action-row { align-items: stretch; }
+    #cu-scanner-app .cu-step4-action-row > .button { flex: 1 1 180px; }
+    #cu-scanner-app .cu-step4-side-actions { width: 100%; margin-left: 0; }
+    #cu-scanner-app .cu-results-guidance { grid-template-columns: 1fr; }
+    #cu-scanner-app .cu-guidance-card { border-right: 0; border-bottom: 1px solid #e4e9ee; }
+    #cu-scanner-app .cu-speed-footer { grid-template-columns: 48px minmax(0, 1fr); }
+    #cu-scanner-app .cu-speed-footer .button { grid-column: 1 / -1; }
+}
+
+@media (max-width: 600px) {
+    #cu-scanner-app .cu-header { grid-template-columns: auto minmax(0, 1fr); }
+    #cu-scanner-app .cu-header-icon { display: none; }
+    #cu-scanner-app .cu-header-text h2 { font-size: 17px; }
+    #cu-scanner-app .cu-panel-heading,
+    #cu-scanner-app .cu-completion-heading { flex-direction: column; gap: 10px; }
+    #cu-scanner-app .cu-discover-row { flex-wrap: wrap; }
+    #cu-scanner-app .cu-discover-row .cu-spacer { display: none; }
+    #cu-scanner-app .cu-contact-hint { width: 100%; }
+    #cu-scanner-app .cu-metric-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #cu-scanner-app .cu-pip.is-active,
+    #cu-scanner-app .cu-state-orbit { animation: none; }
+}
+
+/* v1.8.0b — reference-led operational admin UI. */
+#cu-scanner-app,
+.cu-admin-page {
+    --cu-ink: #172238;
+    --cu-navy: #10294d;
+    --cu-blue: #1769e0;
+    --cu-blue-dark: #0e55bf;
+    --cu-green: #55e68a;
+    --cu-muted: #657386;
+    --cu-border: #d9e2ec;
+    --cu-canvas: #f4f7fa;
+    color: var(--cu-ink);
+}
+
+#cu-scanner-app .cu-wrap,
+.cu-admin-page .cu-wrap {
+    width: min(1440px, calc(100% - 32px));
+    margin: 18px auto 0;
+    border-radius: 12px;
+    background: var(--cu-canvas);
+    box-shadow: 0 1px 2px rgba(16, 41, 77, .06), 0 14px 36px rgba(16, 41, 77, .08);
+}
+
+#cu-scanner-app .cu-header,
+.cu-admin-page .cu-header {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    min-height: 104px;
+    padding: 14px 28px 20px 132px;
+    border-radius: 12px 12px 0 0;
+    background: var(--cu-navy);
+}
+
+#cu-scanner-app .cu-header-logo,
+.cu-admin-page .cu-header-logo {
+    position: absolute;
+    left: 24px;
+    top: 12px;
+    width: 88px;
+    height: 88px;
+    object-fit: contain;
+}
+
+#cu-scanner-app .cu-header-text h2,
+.cu-admin-page .cu-header-text h2 {
+    margin: 0 0 5px;
+    color: #fff;
+    font-size: 22px;
+    letter-spacing: -.02em;
+}
+
+#cu-scanner-app .cu-header-version,
+.cu-admin-page .cu-header-version {
+    margin-left: 6px;
+    color: #a8bad0;
+    font-size: 11px;
+    font-weight: 500;
+    vertical-align: middle;
+}
+
+#cu-scanner-app .cu-step-label,
+.cu-admin-page .cu-step-label { color: #b8c9dc; font-size: 13px; }
+#cu-scanner-app .cu-header-icon,
+.cu-admin-page .cu-header-icon { width: 44px; height: 44px; }
+#cu-scanner-app .cu-header-by,
+.cu-admin-page .cu-header-by { color: #9db0c5; }
+#cu-scanner-app .cu-header-by a,
+.cu-admin-page .cu-header-by a { color: #d8e4f0; }
+#cu-scanner-app .cu-step-pips {
+    --cu-step-fill: 0;
+    left: 132px;
+    right: auto;
+    bottom: 10px;
+    width: 150px;
+    justify-content: space-between;
+    gap: 0;
+}
+#cu-scanner-app[data-current-step="2"] .cu-step-pips { --cu-step-fill: .3333; }
+#cu-scanner-app[data-current-step="3"] .cu-step-pips { --cu-step-fill: .6667; }
+#cu-scanner-app[data-current-step="4"] .cu-step-pips { --cu-step-fill: 1; }
+#cu-scanner-app .cu-step-pips::before,
+#cu-scanner-app .cu-step-pips::after {
+    content: "";
+    position: absolute;
+    top: 4.5px;
+    left: 6px;
+    right: 6px;
+    height: 3px;
+    border-radius: 999px;
+}
+#cu-scanner-app .cu-step-pips::before { background: rgba(185, 207, 229, .28); }
+#cu-scanner-app .cu-step-pips::after {
+    background: #55e68a;
+    box-shadow: 0 0 8px rgba(85, 230, 138, .62);
+    transform: scaleX(var(--cu-step-fill));
+    transform-origin: left center;
+    transition: transform .25s ease;
+}
+#cu-scanner-app .cu-pip {
+    z-index: 1;
+    width: 12px;
+    height: 12px;
+    border-color: #10294d;
+    background: #69809a;
+}
+#cu-scanner-app .cu-pip.is-done { border-color: #b7f7ce; background: #55e68a; box-shadow: 0 0 0 3px rgba(85, 230, 138, .14), 0 0 10px rgba(85, 230, 138, .7); }
+#cu-scanner-app .cu-pip.is-active { border-color: #bfe2ff; background: #78baff; box-shadow: 0 0 0 3px rgba(120, 186, 255, .14), 0 0 11px rgba(120, 186, 255, .66); }
+
+#cu-scanner-app .cu-scanner-layout { display: block; }
+#cu-scanner-app .cu-scanner-main { width: 100%; min-width: 0; }
+#cu-scanner-app .cu-admin-sidebar { display: none; }
+#cu-scanner-app .cu-body { padding: 24px; }
+#cu-scanner-app .cu-panel,
+.cu-admin-page .cu-settings-card,
+.cu-admin-page .cu-history-table-card,
+.cu-admin-page .cu-history-empty {
+    border: 1px solid var(--cu-border);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 3px 14px rgba(16, 41, 77, .05);
+}
+
+/* Discovery: dense selection controls inspired by the approved reference. */
+#cu-scanner-app .cu-readiness-card { margin-bottom: 16px; }
+#cu-scanner-app .cu-readiness-row { min-height: 48px; }
+#cu-scanner-app .cu-discovery-card { padding: 20px; }
+#cu-scanner-app .cu-discover-row { padding: 12px 0 15px; }
+#cu-scanner-app .cu-filter-bar { gap: 6px; padding: 10px; background: #f7f9fc; }
+#cu-scanner-app .cu-filter-pill {
+    min-height: 27px;
+    padding: 4px 10px;
+    border: 1px solid #d6dfE9;
+    background: #fff;
+    color: #405169;
+    font-size: 11px;
+    font-weight: 700;
+}
+#cu-scanner-app .cu-filter-pill.is-active { border-color: #b7cff2; background: #eaf2ff; color: #0e55bf; }
+#cu-scanner-app .cu-group-header { padding: 9px 12px; background: #eef3f8; color: #2a3c54; }
+#cu-scanner-app .cu-group-header label { color: #2a3c54; }
+#cu-scanner-app .cu-group-count { background: #dce5ee; color: #52657a; }
+#cu-scanner-app .cu-group-toggle-link { color: #1769e0; }
+#cu-scanner-app .cu-url-list table { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+#cu-scanner-app .cu-url-list th,
+#cu-scanner-app .cu-url-list td { padding-top: 8px; padding-bottom: 8px; }
+
+/* Active scan: one large signature radar; everything else stays quiet. */
+#cu-scanner-app #step-3 { padding: 24px; }
+#cu-scanner-app .cu-scan-console { grid-template-columns: minmax(380px, 41%) minmax(0, 1fr); min-height: 610px; }
+#cu-scanner-app .cu-scan-radar-panel {
+    position: relative;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    padding: 34px 24px;
+    background: radial-gradient(circle at 50% 40%, #183f45 0, #102c39 38%, #0b1c2d 72%, #081522 100%);
+}
+#cu-scanner-app .cu-scan-radar-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(rgba(103, 186, 185, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(103, 186, 185, .035) 1px, transparent 1px);
+    background-size: 22px 22px;
+}
+#cu-scanner-app .cu-scan-radar-panel .cu-sonar-anim { z-index: 1; width: 100%; padding: 0; }
+#cu-scanner-app .cu-radar-stage { width: min(100%, 470px); margin: 0 auto; }
+#cu-scanner-app .cu-radar-svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 22px 35px rgba(0, 0, 0, .34)); }
+#cu-scanner-app .cu-radar-grid { opacity: .46; }
+#cu-scanner-app .cu-radar-sweep { transform-origin: 200px 200px; animation: cu-radar-turn 4.8s linear infinite; }
+#cu-scanner-app .cu-radar-blip {
+    fill: #68f2a0;
+    opacity: .18;
+    filter: url(#cu-radar-glow);
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: cu-radar-flare 4.8s ease-out infinite;
+}
+#cu-scanner-app .cu-radar-blip--1 { animation-delay: .25s; }
+#cu-scanner-app .cu-radar-blip--2 { animation-delay: 1s; }
+#cu-scanner-app .cu-radar-blip--3 { animation-delay: 1.75s; }
+#cu-scanner-app .cu-radar-blip--4 { animation-delay: 2.45s; }
+#cu-scanner-app .cu-radar-blip--5 { animation-delay: 3.15s; }
+#cu-scanner-app .cu-radar-blip--6 { animation-delay: 4s; }
+#cu-scanner-app .cu-radar-blip--7 { animation-delay: .72s; }
+#cu-scanner-app .cu-radar-core { fill: #8dffb7; }
+@keyframes cu-radar-turn { to { transform: rotate(360deg); } }
+@keyframes cu-radar-flare {
+    0%, 76%, 100% { opacity: .17; transform: scale(.72); }
+    5% { opacity: 1; transform: scale(1.65); }
+    14% { opacity: .68; transform: scale(1); }
+}
+#cu-scanner-app .cu-radar-progress-card {
+    width: calc(100% - 42px);
+    margin: -26px auto 0;
+    padding: 14px 16px 15px;
+    border: 1px solid rgba(111, 188, 186, .32);
+    border-radius: 9px;
+    background: rgba(8, 25, 36, .9);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .24);
+    color: #e7f3f5;
+    backdrop-filter: blur(8px);
+}
+#cu-scanner-app .cu-radar-progress-heading { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+#cu-scanner-app .cu-radar-progress-heading strong { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+#cu-scanner-app .cu-radar-progress-card #cu-progress-text { color: #b9cbd3; font-size: 12px; }
+#cu-scanner-app .cu-radar-progress-card #cu-progress-bar { display: block; width: 100%; height: 8px; margin: 0 0 8px; accent-color: var(--cu-green); }
+#cu-scanner-app .cu-radar-progress-card .cu-sonar-label { margin: 0; color: #9eb6c0; font-size: 11px; font-weight: 500; text-align: left; }
+
+#cu-scanner-app .cu-scan-details { display: flex; flex-direction: column; gap: 16px; padding: 30px; }
+#cu-scanner-app .cu-scan-details-heading { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding-bottom: 17px; border-bottom: 1px solid #e4eaf0; }
+#cu-scanner-app .cu-scan-details-heading h2 { margin: 2px 0 5px; color: var(--cu-ink); font-size: 23px; }
+#cu-scanner-app .cu-scan-details-heading p { margin: 0; color: var(--cu-muted); }
+#cu-scanner-app .cu-scan-signal { width: 10px; height: 10px; margin-top: 8px; border-radius: 50%; background: var(--cu-green); box-shadow: 0 0 0 5px rgba(85, 230, 138, .14); animation: cu-live-pulse 1.8s ease-out infinite; }
+#cu-scanner-app .cu-live-state { padding: 5px 9px; border-radius: 99px; background: #e9f9ef; color: #237544; font-size: 11px; font-weight: 750; }
+@keyframes cu-live-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgba(85, 230, 138, .12); } 50% { box-shadow: 0 0 0 8px rgba(85, 230, 138, 0); } }
+#cu-scanner-app #cu-target-stack-notice:empty { display: none; }
+#cu-scanner-app #cu-target-stack-notice:not(:empty) { padding: 12px 14px; border: 1px solid #cfe0f5; border-radius: 7px; background: #f2f7fd; }
+#cu-scanner-app .cu-scan-validation-list { border: 1px solid #dfe6ed; border-radius: 8px; }
+#cu-scanner-app .cu-scan-validation-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 62px; padding: 10px 14px; }
+#cu-scanner-app .cu-scan-validation-row + .cu-scan-validation-row { border-top: 1px solid #e7ecf1; }
+#cu-scanner-app .cu-scan-validation-row small { display: block; margin-top: 3px; color: var(--cu-muted); }
+#cu-scanner-app .cu-scan-validation-row > span:last-child { color: #237544; font-size: 11px; font-weight: 750; }
+#cu-scanner-app .cu-validation-icon { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; background: #e7f8ed; color: #2c8b50; font-size: 12px; font-weight: 800; }
+#cu-scanner-app .cu-scan-note { margin: 0; }
+#cu-scanner-app .cu-live-pages { min-width: 0; }
+#cu-scanner-app .cu-live-pages-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+#cu-scanner-app .cu-live-pages-heading span { color: var(--cu-muted); font-size: 11px; }
+#cu-scanner-app #cu-pages-table { margin: 0; border-color: #dfe6ed; }
+#cu-scanner-app #cu-pages-table td:first-child { max-width: 520px; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+#cu-scanner-app .cu-scan-footer-actions { display: flex; align-items: center; gap: 12px; margin-top: auto; padding-top: 2px; }
+#cu-scanner-app .cu-scan-footer-actions span { color: var(--cu-muted); font-size: 11px; }
+
+/* Results retain their semantic row backgrounds while URL details stay legible. */
+#cu-scanner-app .cu-completion-card {
+    padding: 20px;
+    border-color: var(--cu-border);
+    background: #fff;
+    color: var(--cu-ink);
+}
+#cu-scanner-app .cu-completion-card::after { display: none; }
+#cu-scanner-app .cu-completion-heading { align-items: center; margin-bottom: 16px; padding: 0 2px 15px; border-bottom: 1px solid #e5ebf1; }
+#cu-scanner-app .cu-completion-heading h2 { color: var(--cu-ink); font-size: 24px; }
+#cu-scanner-app .cu-completion-heading p { color: var(--cu-muted); }
+#cu-scanner-app .cu-completion-heading .cu-eyebrow { color: #237544; }
+#cu-scanner-app .cu-scan-id { color: #7a8796; }
+#cu-scanner-app .cu-metric { border-color: #dde5ed; border-radius: 7px; background: #f8fafc; }
+#cu-scanner-app .cu-metric strong { color: var(--cu-ink); font-size: 22px; }
+#cu-scanner-app .cu-metric span { color: var(--cu-muted); }
+#cu-scanner-app .cu-metric--safe { border-color: #c9ead5; background: #f1faf4; }
+#cu-scanner-app .cu-metric--aggressive { border-color: #dce8bf; background: #f7faef; }
+#cu-scanner-app .cu-metric--kept { border-color: #c9def6; background: #f2f7fd; }
+#cu-scanner-app .cu-recommendations-card { padding: 17px 20px; }
+#cu-scanner-app .cu-recommendations-card .cu-panel-heading { margin-bottom: 8px; }
+#cu-scanner-app .cu-step4-action-row { padding: 10px 0; }
+#cu-scanner-app .cu-results-layout { grid-template-columns: minmax(0, 1fr) 286px; }
+#cu-scanner-app .cu-url-table td.cu-url-cell { color: #253750; }
+#cu-scanner-app .cu-url-base { color: #253750; font-weight: 650; }
+#cu-scanner-app .cu-url-query,
+#cu-scanner-app .cu-url-suffix { color: #7a8796; opacity: 1; font-weight: 400; }
+#cu-scanner-app .cu-url-table tr.cu-row-ok { background: #f1faf4; }
+#cu-scanner-app .cu-url-table tr.cu-row-partial,
+#cu-scanner-app .cu-url-table tr.cu-row-ok.cu-row-noopt { background: #fff8e8; }
+#cu-scanner-app .cu-url-table tr.cu-row-blocked { background: #fff3e4; }
+#cu-scanner-app .cu-url-table tr.cu-row-error { background: #fff0ef; }
+#cu-scanner-app .cu-url-table tr.cu-row-skipped { background: #f1f4f7; }
+
+/* Settings and History share the same restrained admin shell. */
+.cu-admin-page .cu-settings-grid,
+.cu-admin-page .cu-history-body { padding: 24px; }
+.cu-admin-page .cu-eyebrow { display: block; color: #597088; font-size: 10px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.cu-admin-page .button { min-height: 34px; border-radius: 6px; font-weight: 650; }
+.cu-admin-page .button.button-primary { border-color: var(--cu-blue); background: var(--cu-blue); }
+.cu-admin-page .button.button-primary:hover,
+.cu-admin-page .button.button-primary:focus { border-color: var(--cu-blue-dark); background: var(--cu-blue-dark); }
+.cu-admin-page :where(button, a, input, select, textarea, .cu-help):focus-visible { outline: 3px solid rgba(23, 105, 224, .28); outline-offset: 2px; }
+
+.cu-settings-grid { display: block; }
+.cu-settings-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.cu-settings-card { min-width: 0; padding: 22px; }
+.cu-settings-card--options { grid-column: 1; }
+.cu-settings-card--cdn { margin-top: 18px; }
+.cu-settings-card-heading { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #e6ebf1; }
+.cu-settings-card-heading h2 { margin: 2px 0 4px; color: var(--cu-ink); font-size: 19px; }
+.cu-settings-card-heading p { margin: 0; color: var(--cu-muted); }
+.cu-settings-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; background: #eaf2ff; color: var(--cu-blue); font-size: 20px; font-weight: 800; }
+.cu-settings-field + .cu-settings-field { margin-top: 20px; padding-top: 18px; border-top: 1px solid #edf1f5; }
+.cu-settings-field > label,
+.cu-settings-label { display: block; margin-bottom: 7px; color: #2e4058; font-weight: 700; }
+.cu-settings-field input[type="text"],
+.cu-settings-field input[type="password"] { width: 100%; max-width: none; min-height: 38px; border-color: #c8d3df; border-radius: 6px; }
+.cu-settings-field .description { color: var(--cu-muted); }
+.cu-input-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cu-secret-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.cu-mono-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.cu-balance-widget { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: stretch; }
+.cu-balance-card { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px; border: 1px solid #d8e3ee; border-radius: 7px; background: #f7fafd; color: #31516f; }
+.cu-balance-info span { display: block; }
+.cu-balance-num { color: var(--cu-ink); font-size: 20px; font-weight: 800; line-height: 1; }
+.cu-balance-label { margin-top: 3px; color: var(--cu-muted); font-size: 10px; }
+.cu-settings-options-list { position: relative; }
+.cu-option-row { display: grid !important; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: center; margin: 0 !important; padding: 12px 42px 12px 12px; border: 1px solid #dce4ec; border-radius: 7px; background: #f8fafc; }
+.cu-option-row > input[type="checkbox"] { align-self: center; margin: 0 !important; }
+.cu-option-row small { display: block; margin-top: 4px; color: var(--cu-muted); font-weight: 400; }
+.cu-option-row + .cu-help { display: inline-flex; position: absolute; top: 50%; right: 12px; width: 15px; height: 15px; margin: 0; transform: translateY(-50%); }
+.cu-check-row { display: flex !important; gap: 7px; align-items: center; margin-top: 9px !important; font-weight: 500 !important; }
+.cu-inline-state { padding: 8px 10px; border-radius: 6px; }
+.cu-inline-state--pending { background: #fff8e8; color: #745416; }
+.cu-settings-savebar { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 15px 17px; border: 1px solid #cbd8e5; border-radius: 8px; background: #edf3fa; }
+.cu-settings-savebar span { display: block; margin-top: 2px; color: var(--cu-muted); font-size: 11px; }
+#cu-settings-message { grid-column: 1 / -1; }
+.cu-settings-card--cdn h3 { margin: 18px 0 6px; color: #2b3e56; font-size: 15px; }
+.cu-settings-card--cdn h3 small { color: #8793a2; font-size: 11px; font-weight: 500; }
+.cu-settings-card--cdn select { min-height: 36px; border-color: #c8d3df; border-radius: 6px; }
+.cu-cdn-instructions-block { margin-top: 16px; padding: 15px; border: 1px solid #dae4ed; border-radius: 7px; background: #f8fafc; }
+
+.cu-history-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.cu-history-summary > div { padding: 17px 18px; border: 1px solid var(--cu-border); border-radius: 9px; background: #fff; box-shadow: 0 2px 8px rgba(16, 41, 77, .04); }
+.cu-history-summary strong { display: block; color: var(--cu-navy); font-size: 27px; line-height: 1.1; }
+.cu-history-summary span { display: block; margin-top: 5px; color: var(--cu-muted); font-size: 11px; font-weight: 650; }
+.cu-history-table-card { overflow: hidden; }
+.cu-history-table-heading { display: flex; justify-content: space-between; gap: 20px; align-items: center; padding: 18px 20px; border-bottom: 1px solid #e3e9ef; }
+.cu-history-table-heading h2 { margin: 2px 0 3px; color: var(--cu-ink); font-size: 19px; }
+.cu-history-table-heading p { margin: 0; color: var(--cu-muted); }
+.cu-history-actions { display: flex; gap: 8px; align-items: center; }
+.cu-history-table-scroll { overflow-x: auto; }
+.cu-history-table-card table { margin: 0; border: 0; box-shadow: none; }
+.cu-history-table-card th { padding: 10px 12px; background: #f6f8fb; color: #536276; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.cu-history-table-card td { padding: 12px; vertical-align: middle; }
+.cu-history-domain { color: #2e435c; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+.cu-history-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 99px; background: #edf1f5; color: #526174; font-size: 10px; font-weight: 750; white-space: nowrap; }
+.cu-history-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.cu-history-status--complete { background: #e9f8ee; color: #257344; }
+.cu-history-status--partial { background: #fff5dc; color: #8a5c10; }
+.cu-history-status--failed,
+.cu-history-status--error { background: #ffeded; color: #a32e32; }
+.cu-history-status--cancelled { background: #f0f2f5; color: #5a6878; }
+.cu-history-empty { padding: 54px 24px; text-align: center; }
+.cu-history-empty .dashicons { width: auto; height: auto; color: #8ca2b8; font-size: 38px; }
+.cu-history-empty h2 { margin: 10px 0 5px; }
+.cu-history-empty p { margin: 0 0 18px; color: var(--cu-muted); }
+
+@media (max-width: 1100px) {
+    #cu-scanner-app .cu-scan-console { grid-template-columns: minmax(330px, 42%) minmax(0, 1fr); }
+    #cu-scanner-app .cu-results-layout { grid-template-columns: minmax(0, 1fr); }
+    #cu-scanner-app .cu-results-guidance { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 782px) {
+    #cu-scanner-app .cu-wrap,
+    .cu-admin-page .cu-wrap { width: calc(100% - 10px); margin-top: 10px; }
+    #cu-scanner-app .cu-header,
+    .cu-admin-page .cu-header { min-height: 92px; padding: 13px 16px 24px 104px; }
+    #cu-scanner-app .cu-header-logo,
+    .cu-admin-page .cu-header-logo { left: 16px; top: 12px; width: 70px; height: 70px; }
+    #cu-scanner-app .cu-step-pips { left: 104px; right: 16px; }
+    #cu-scanner-app .cu-body,
+    .cu-admin-page .cu-settings-grid,
+    .cu-admin-page .cu-history-body { padding: 15px; }
+    #cu-scanner-app #step-3 { padding: 15px; }
+    #cu-scanner-app .cu-scan-console { grid-template-columns: 1fr; }
+    #cu-scanner-app .cu-scan-radar-panel { min-height: auto; padding: 24px 16px 32px; }
+    #cu-scanner-app .cu-radar-stage { width: min(100%, 430px); }
+    #cu-scanner-app .cu-scan-details { padding: 22px; }
+    .cu-settings-form { grid-template-columns: 1fr; }
+    .cu-settings-card--options { grid-column: auto; }
+    .cu-history-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cu-history-table-heading { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 600px) {
+    #cu-scanner-app .cu-header,
+    .cu-admin-page .cu-header { padding-left: 92px; }
+    #cu-scanner-app .cu-header-logo,
+    .cu-admin-page .cu-header-logo { width: 60px; height: 60px; }
+    #cu-scanner-app .cu-step-pips { left: 92px; }
+    #cu-scanner-app .cu-scan-details { padding: 18px; }
+    #cu-scanner-app .cu-scan-details-heading { grid-template-columns: 14px minmax(0, 1fr); }
+    #cu-scanner-app .cu-live-state { grid-column: 2; justify-self: start; }
+    #cu-scanner-app .cu-scan-validation-row { grid-template-columns: 26px minmax(0, 1fr); }
+    #cu-scanner-app .cu-scan-validation-row > span:last-child { grid-column: 2; }
+    #cu-scanner-app .cu-radar-progress-card { width: calc(100% - 18px); }
+    #cu-scanner-app .cu-metric-grid { grid-template-columns: 1fr 1fr; }
+    .cu-input-pair,
+    .cu-balance-widget { grid-template-columns: 1fr; }
+    .cu-settings-savebar,
+    .cu-history-actions { align-items: stretch; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #cu-scanner-app .cu-radar-sweep,
+    #cu-scanner-app .cu-radar-blip,
+    #cu-scanner-app .cu-scan-signal { animation: none; }
+    #cu-scanner-app .cu-radar-blip { opacity: .68; transform: none; }
+}
+
+/* v1.8.0b — Step 4 reference-image refinement. */
+#cu-scanner-app #step-4 { padding: 24px; }
+#cu-scanner-app #step-4 > #cu-banner-area:empty { display: none; }
+#cu-scanner-app #step-4 > #cu-banner-area:not(:empty) { margin: 0 0 14px; }
+#cu-scanner-app .cu-results-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 270px;
+    gap: 14px;
+    align-items: start;
+}
+#cu-scanner-app .cu-results-primary {
+    display: grid;
+    min-width: 0;
+    gap: 14px;
+}
+#cu-scanner-app .cu-results-primary > section { margin: 0; }
+
+#cu-scanner-app .cu-completion-card { padding: 14px 18px; }
+#cu-scanner-app .cu-completion-heading {
+    align-items: center;
+    min-height: 34px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+#cu-scanner-app .cu-completion-heading h2 { margin: 0 0 2px; font-size: 20px; }
+#cu-scanner-app .cu-completion-heading p { margin: 0; font-size: 12px; }
+#cu-scanner-app .cu-complete-mark { width: 34px; height: 34px; margin: 0 12px 0 0; font-size: 19px; }
+#cu-scanner-app .cu-completion-heading > div:first-child { display: flex; min-width: 0; min-height: 34px; align-items: center; }
+#cu-scanner-app .cu-completion-heading h2 { flex: 0 0 auto; align-self: center; margin: 0 8px 0 0; line-height: 1.2; }
+#cu-scanner-app .cu-completion-heading p,
+#cu-scanner-app .cu-completion-heading .cu-scan-id { align-self: center; line-height: 1.4; }
+#cu-scanner-app .cu-completion-heading p { white-space: nowrap; }
+#cu-scanner-app .cu-metric-card-grid { position: static; gap: 12px; }
+#cu-scanner-app .cu-metric-card-grid .cu-metric {
+    display: grid;
+    place-content: center;
+    min-height: 58px;
+    padding: 12px 15px;
+    border-color: #d8e1ea;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(16, 41, 77, .04);
+    text-align: center;
+}
+#cu-scanner-app .cu-metric-card-grid .cu-metric strong { color: #105dd3; font-size: 23px; }
+#cu-scanner-app .cu-metric-card-grid .cu-metric--safe strong { color: #208344; }
+#cu-scanner-app .cu-metric-card-grid .cu-metric--aggressive strong { color: #5f8d26; }
+#cu-scanner-app .cu-metric-card-grid .cu-metric--kept strong { color: #1769e0; }
+
+#cu-scanner-app .cu-recommendations-card {
+    display: grid;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    gap: 14px 20px;
+    align-items: center;
+    padding: 15px 18px;
+}
+#cu-scanner-app .cu-recommendations-copy h2 { margin: 0 0 3px; font-size: 17px; }
+#cu-scanner-app .cu-recommendations-copy p { margin: 0; color: #33465c; font-size: 11px; }
+#cu-scanner-app .cu-recommendations-copy small { display: block; margin-top: 7px; color: #657386; font-size: 10px; }
+#cu-scanner-app .cu-step4-action-row {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    gap: 9px;
+    align-items: stretch;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+#cu-scanner-app .cu-step4-action-row .button { display: inline-flex; flex: 1 1 0; align-items: center; justify-content: center; min-width: 0; max-width: 190px; min-height: 38px; padding-inline: 11px; white-space: nowrap; font-size: 11px; }
+#cu-scanner-app #cu-btn-download { color: #26384d; }
+#cu-scanner-app #cu-cu-settings-link[hidden] { display: none !important; }
+#cu-scanner-app #cu-push-result { grid-column: 1 / -1; margin: 0; }
+#cu-scanner-app #cu-push-result:empty { display: none; }
+
+#cu-scanner-app .cu-kept-assets-panel {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px 12px;
+    align-items: center;
+    padding: 12px 15px;
+    border: 1px solid #c6daf2;
+    border-radius: 7px;
+    background: #f1f7ff;
+    color: #1258bd;
+}
+#cu-scanner-app .cu-kept-assets-panel[hidden] { display: none; }
+#cu-scanner-app .cu-kept-assets-icon { display: grid; place-items: center; width: 22px; height: 22px; border: 1px solid #66a3ee; border-radius: 50%; font-size: 13px; font-weight: 800; }
+#cu-scanner-app .cu-kept-assets-copy strong,
+#cu-scanner-app .cu-kept-assets-copy span { display: block; }
+#cu-scanner-app .cu-kept-assets-copy strong { font-size: 11px; }
+#cu-scanner-app .cu-kept-assets-copy span { margin-top: 2px; color: #50739d; font-size: 10px; }
+#cu-scanner-app .cu-kept-details-toggle { padding: 5px 0; border: 0; background: transparent; color: #075ccc; cursor: pointer; font-size: 11px; font-weight: 750; }
+#cu-scanner-app .cu-kept-assets-panel .cu-kept-protection { grid-column: 2 / -1; margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid #d6e5f6; border-radius: 0; background: transparent; color: #334f70; font-size: 11px; }
+#cu-scanner-app .cu-kept-assets-panel .cu-kept-protection[hidden] { display: none; }
+
+#cu-scanner-app .cu-results-card { overflow: hidden; padding: 0; }
+#cu-scanner-app .cu-results-heading-row { margin: 0; padding: 13px 16px; border-bottom: 1px solid #dfe6ed; }
+#cu-scanner-app .cu-results-heading-row h2 { display: flex; gap: 12px; align-items: baseline; margin: 0; font-size: 17px; white-space: nowrap; }
+#cu-scanner-app .cu-results-heading-row h2 span { color: #657386; font-size: 11px; font-weight: 550; }
+#cu-scanner-app .cu-results-summary-block { padding: 9px 16px 10px; }
+#cu-scanner-app .cu-results-summary-block #cu-result-summary { margin: 0; font-size: 11px; }
+#cu-scanner-app .cu-results-summary-block #cu-result-summary strong { color: #203a59; font-weight: 800; }
+#cu-scanner-app .cu-results-summary-block #cu-result-refund { margin: 4px 0 0; font-size: 10px; }
+#cu-scanner-app #cu-result-url-list { overflow-x: auto; margin: 0; border: 0; border-top: 1px solid #e2e8ee; border-radius: 0; }
+#cu-scanner-app .cu-url-summary { padding: 8px 14px; }
+#cu-scanner-app .cu-url-table { width: 100%; min-width: 820px; table-layout: fixed; }
+#cu-scanner-app .cu-url-table th,
+#cu-scanner-app .cu-url-table td { padding: 9px 8px; }
+#cu-scanner-app .cu-url-table thead th {
+    height: auto;
+    padding-top: 9px;
+    padding-bottom: 9px;
+    white-space: nowrap;
+    font-size: 9px;
+    letter-spacing: 0;
+    vertical-align: middle;
+}
+#cu-scanner-app .cu-url-table th:nth-child(1) { width: 4%; }
+#cu-scanner-app .cu-url-table th:nth-child(2) { width: 46%; }
+#cu-scanner-app .cu-url-table th:nth-child(3) { width: 8%; }
+#cu-scanner-app .cu-url-table th:nth-child(4) { width: 6%; }
+#cu-scanner-app .cu-url-table th:nth-child(5) { width: 20%; }
+#cu-scanner-app .cu-url-table th:nth-child(6) { width: 8%; }
+#cu-scanner-app .cu-url-table th:nth-child(7) { width: 8%; }
+#cu-scanner-app .cu-url-table .cu-th-inner { display: inline-flex; min-height: 15px; gap: 4px; align-items: center; line-height: 15px; vertical-align: middle; white-space: nowrap; }
+#cu-scanner-app .cu-url-table thead th .cu-th-inner .cu-help {
+    position: relative;
+    top: auto;
+    left: auto;
+    margin: 0;
+}
+#cu-scanner-app .cu-url-table td.cu-url-cell {
+    max-width: none;
+    color: #253750;
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.35;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+#cu-scanner-app .cu-url-primary { display: block; }
+#cu-scanner-app .cu-url-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 7px;
+    align-items: center;
+    margin-top: 4px;
+    color: #5e7188;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight: 450;
+}
+#cu-scanner-app .cu-url-meta :where(.cu-bypass-note, .cu-resolved-note, .cu-choff-note) {
+    display: inline;
+    margin: 0;
+    color: #58779c;
+    font-size: 10px;
+    line-height: 1.35;
+}
+#cu-scanner-app .cu-url-meta .cu-kept-chip { font-size: 9px; }
+#cu-scanner-app .cu-url-suffix { color: #7a8796; opacity: 1; font-weight: 400; }
+#cu-scanner-app .cu-url-table td.cu-san { min-width: 0; white-space: nowrap; }
+#cu-scanner-app .cu-san-token { padding: 2px 5px; font-size: 9px; }
+#cu-scanner-app .cu-san-token.is-positive strong { font-size: 10px; font-weight: 800; }
+#cu-scanner-app .cu-noopt-note { max-width: 150px; font-size: 10px; }
+#cu-scanner-app .cu-results-footer-actions { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 12px 16px; border-top: 1px solid #e0e7ee; }
+#cu-scanner-app .cu-results-footer-actions .cu-rescan-row { margin: 0; }
+#cu-scanner-app .cu-results-contact { margin-left: auto; font-size: 11px; font-weight: 650; text-decoration: none; }
+
+#cu-scanner-app .cu-results-guidance {
+    position: sticky;
+    top: 32px;
+    display: block;
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid #d8e1ea;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 3px 14px rgba(16, 41, 77, .05);
+}
+#cu-scanner-app .cu-guidance-card { padding: 16px; border-right: 0; border-bottom: 1px solid #e2e8ee; }
+#cu-scanner-app .cu-guidance-card:last-child { border-bottom: 0; }
+#cu-scanner-app .cu-guidance-card h3 { margin: 0 0 8px; font-size: 15px; }
+#cu-scanner-app .cu-guidance-card > p { font-size: 11px; line-height: 1.5; }
+#cu-scanner-app .cu-guidance-card--legend .cu-help { width: 15px; height: 15px; color: #1769e0; font-size: 9px; vertical-align: 2px; }
+#cu-scanner-app .cu-guidance-list { margin-top: 11px; }
+#cu-scanner-app .cu-guidance-list > div { grid-template-columns: 72px 1fr; gap: 7px; align-items: center; padding: 8px 0; }
+#cu-scanner-app .cu-guidance-list dd { color: #34465b; font-size: 10px; }
+#cu-scanner-app .cu-guidance-card--apply { background: #fbfdfb; }
+#cu-scanner-app .cu-ready-list > div { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; padding: 8px 0; }
+#cu-scanner-app .cu-ready-list > div + div { border-top: 1px solid #edf1f4; }
+#cu-scanner-app .cu-ready-list p { margin: 0; }
+#cu-scanner-app .cu-ready-list strong,
+#cu-scanner-app .cu-ready-list small { display: block; }
+#cu-scanner-app .cu-ready-list strong { color: #2d3f55; font-size: 10px; }
+#cu-scanner-app .cu-ready-list small { margin-top: 2px; color: #68788b; font-size: 9px; }
+#cu-scanner-app .cu-ready-icon { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 11px; font-weight: 800; }
+#cu-scanner-app .cu-ready-icon--rules { color: #188a49; background: #e7f8ed; }
+#cu-scanner-app .cu-ready-icon--kept { color: #68788b; background: #eef2f6; }
+#cu-scanner-app .cu-ready-icon--credits { color: #d77b00; background: #fff3df; }
+#cu-scanner-app .cu-cu-status-row { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 8px; align-items: start; }
+#cu-scanner-app .cu-cu-status-icon { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #3db56c; border-radius: 50%; color: #218848; font-size: 11px; font-weight: 800; }
+#cu-scanner-app .cu-cu-status-row strong { color: #26384d; font-size: 11px; }
+#cu-scanner-app .cu-cu-status-row p { margin: 3px 0 0; color: #657386; font-size: 9px; }
+#cu-scanner-app .cu-guidance-card--status .button { width: 100%; margin-top: 12px; text-align: center; }
+#cu-scanner-app .cu-guidance-card--next > strong { display: block; color: #26384d; font-size: 11px; }
+#cu-scanner-app .cu-guidance-card--next > p { margin-top: 5px; }
+#cu-scanner-app .cu-guidance-card--undo { background: #fbfcfd; }
+#cu-scanner-app .cu-guidance-card--undo .button { width: 100%; }
+#cu-scanner-app .cu-guidance-card--undo p { margin: 8px 0 0; color: #657386; font-size: 9px; line-height: 1.45; }
+#cu-scanner-app .cu-speed-footer { margin: 0; }
+
+@media (max-width: 1180px) {
+    #cu-scanner-app .cu-results-shell { grid-template-columns: minmax(0, 1fr); }
+    #cu-scanner-app .cu-results-guidance { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #cu-scanner-app .cu-guidance-card { border-right: 1px solid #e2e8ee; }
+}
+
+@media (max-width: 782px) {
+    #cu-scanner-app #step-4 { padding: 15px; }
+    #cu-scanner-app .cu-recommendations-card { grid-template-columns: minmax(0, 1fr); }
+    #cu-scanner-app .cu-step4-action-row { flex-wrap: wrap; }
+    #cu-scanner-app .cu-step4-action-row .button { flex: 1 1 180px; }
+    #cu-scanner-app .cu-kept-assets-panel { grid-template-columns: auto minmax(0, 1fr); }
+    #cu-scanner-app .cu-kept-details-toggle { grid-column: 2; justify-self: start; }
+    #cu-scanner-app .cu-kept-assets-panel .cu-kept-protection { grid-column: 1 / -1; }
+    #cu-scanner-app .cu-results-guidance { grid-template-columns: minmax(0, 1fr); }
+    #cu-scanner-app .cu-guidance-card { border-right: 0; }
+    #cu-scanner-app .cu-completion-heading > div:first-child { flex-wrap: wrap; }
+    #cu-scanner-app .cu-completion-heading p { flex-basis: calc(100% - 46px); margin-left: 46px; white-space: normal; }
+}
+
+@media (max-width: 600px) {
+    #cu-scanner-app .cu-metric-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #cu-scanner-app .cu-metric-card-grid .cu-metric:last-child { grid-column: 1 / -1; }
+    #cu-scanner-app .cu-results-heading-row h2 { white-space: normal; }
+    #cu-scanner-app .cu-results-footer-actions { align-items: flex-start; flex-direction: column; }
+    #cu-scanner-app .cu-results-contact { margin-left: 0; }
+}

@@ -53,9 +53,9 @@ function cellFor(url) {
 // 1. The suffix is wrapped, the path is not, and '&' is still escaped inside the span.
 function testSuffixWrapped() {
   const cell = cellFor('https://example.test/a/?nowprocket&nowpcu&perfmattersoff');
-  const want = 'https://example.test/a/'
-             + '<span class="cu-url-suffix">' + escHtml('?nowprocket&nowpcu&perfmattersoff') + '</span>';
-  assert.strictEqual(cell, want, 'URL cell must render path + dimmed suffix span, & escaped');
+  const want = '<span class="cu-url-primary">https://example.test/a/'
+             + '<span class="cu-url-suffix">' + escHtml('?nowprocket&nowpcu&perfmattersoff') + '</span></span>';
+  assert.strictEqual(cell, want, 'URL cell must render its primary line with a dimmed, escaped suffix span');
   console.log('OK suffix wrapped in .cu-url-suffix (path outside the span)');
 }
 
@@ -64,7 +64,7 @@ function testSplitsOnFirstQuestionMarkOnly() {
   const cell = cellFor('https://example.test/b/?a=1&next=/x?y=2');
   assert.strictEqual((cell.match(/cu-url-suffix/g) || []).length, 1,
     'exactly one suffix span even when the query value contains another "?"');
-  assert.ok(cell.indexOf('https://example.test/b/<span class="cu-url-suffix">?a=1') === 0,
+  assert.ok(cell.indexOf('<span class="cu-url-primary">https://example.test/b/<span class="cu-url-suffix">?a=1') === 0,
     'span must open at the FIRST "?", with the whole remainder inside it');
   console.log('OK splits on the first "?" only');
 }
@@ -73,8 +73,8 @@ function testSplitsOnFirstQuestionMarkOnly() {
 //    channel-off-note.test.js asserts URL-cell HTML with strictEqual on suffix-less URLs.
 function testNoQueryStringIsUntouched() {
   const cell = cellFor('https://example.test/c/');
-  assert.strictEqual(cell, 'https://example.test/c/',
-    'suffix-less URL must render as the plain escaped URL with no span');
+  assert.strictEqual(cell, '<span class="cu-url-primary">https://example.test/c/</span>',
+    'suffix-less URL must render in the primary URL line with no suffix span');
   assert.ok(!/cu-url-suffix/.test(cell), 'suffix-less URL must emit no .cu-url-suffix span');
   console.log('OK suffix-less URL renders byte-identically (no span)');
 }
@@ -89,8 +89,8 @@ function testEscapingSurvivesTheSplit() {
   assert.ok(cell.indexOf(escHtml('?q=<img src=x>&b=1')) !== -1, 'query half stays escaped');
   // The ONLY markup the cell may introduce is the suffix span itself.
   const tags = cell.match(/<[^>]+>/g) || [];
-  assert.deepStrictEqual(tags, ['<span class="cu-url-suffix">', '</span>'],
-    'the suffix span must be the only markup emitted for a hostile URL');
+  assert.deepStrictEqual(tags, ['<span class="cu-url-primary">', '<span class="cu-url-suffix">', '</span>', '</span>'],
+    'only the primary URL and suffix spans may be emitted for a hostile URL');
   console.log('OK escaping survives the split (both halves, no injected markup)');
 }
 

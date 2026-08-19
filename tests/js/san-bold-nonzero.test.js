@@ -47,7 +47,10 @@ function cellFor(opts) {
 // 1. The screenshot case: A:13 bold, S:0 plain, N:56 plain.
 function testAggressiveNonZeroIsBold() {
   const cell = cellFor({ safe: 0, aggressive: 13, needed: 56 });
-  assert.strictEqual(cell, 'S:0 <strong>A:13</strong> N:56',
+  assert.strictEqual(cell,
+    '<span class="cu-san-token cu-san-safe">S:0</span> '
+      + '<span class="cu-san-token cu-san-aggressive is-positive"><strong>A:13</strong></span> '
+      + '<span class="cu-san-token cu-san-needed">N:56</span>',
     'A > 0 must be bold; S:0 and N: must stay plain');
   console.log('OK aggressive > 0 renders <strong>A:13</strong>, S:0 / N:56 plain');
 }
@@ -55,7 +58,10 @@ function testAggressiveNonZeroIsBold() {
 // 2. Same rule on the safe side — guards against both tokens keying off one field.
 function testSafeNonZeroIsBold() {
   const cell = cellFor({ safe: 4, aggressive: 0, needed: 12 });
-  assert.strictEqual(cell, '<strong>S:4</strong> A:0 N:12',
+  assert.strictEqual(cell,
+    '<span class="cu-san-token cu-san-safe is-positive"><strong>S:4</strong></span> '
+      + '<span class="cu-san-token cu-san-aggressive">A:0</span> '
+      + '<span class="cu-san-token cu-san-needed">N:12</span>',
     'S > 0 must be bold; A:0 and N: must stay plain');
   console.log('OK safe > 0 renders <strong>S:4</strong>, A:0 / N:12 plain');
 }
@@ -64,8 +70,8 @@ function testSafeNonZeroIsBold() {
 //    unconditional bolding would make the whole column heavy and defeat the point).
 function testZeroCountsAreNotBold() {
   const cell = cellFor({ safe: 0, aggressive: 0, needed: 93 });
-  assert.ok(cell.indexOf('S:0 A:0 N:93') === 0,
-    'zero counts must render plain, in order, with no markup between them');
+  assert.ok(/cu-san-safe">S:0<\/span>.*cu-san-aggressive">A:0<\/span>.*cu-san-needed">N:93<\/span>/.test(cell),
+    'zero counts must render plain, in order, inside their semantic badges');
   assert.ok(!/<strong>/.test(cell), 'a zero-count row must emit no <strong> at all');
   console.log('OK zero counts emit no <strong>');
 }
@@ -73,7 +79,10 @@ function testZeroCountsAreNotBold() {
 // 4. N: is not an outcome and must never be bolded, however large it gets.
 function testNeededIsNeverBold() {
   const cell = cellFor({ safe: 2, aggressive: 7, needed: 240 });
-  assert.strictEqual(cell, '<strong>S:2</strong> <strong>A:7</strong> N:240',
+  assert.strictEqual(cell,
+    '<span class="cu-san-token cu-san-safe is-positive"><strong>S:2</strong></span> '
+      + '<span class="cu-san-token cu-san-aggressive is-positive"><strong>A:7</strong></span> '
+      + '<span class="cu-san-token cu-san-needed">N:240</span>',
     'both counts bold when both > 0, and N: stays plain even at a large value');
   assert.ok(!/<strong>N:/.test(cell), 'N: must never be wrapped in <strong>');
   console.log('OK both counts bold; N:240 never bold');
