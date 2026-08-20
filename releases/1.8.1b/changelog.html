@@ -1,0 +1,16 @@
+<p>Version 1.8.1b (beta).</p>
+<p><strong>Added</strong></p>
+<ul>
+<li>The completed-scan header now offers a one-click copy control beside the Scan ID, with a confirmation state and a screen-reader announcement. Falls back to a legacy copy path on non-HTTPS admin origins, where the clipboard API is unavailable.</li>
+</ul>
+<p><strong>Fixed</strong></p>
+<ul>
+<li>The active-scan "Optimizer bypass" row no longer always reads <em>Applied</em>. It now reports the real state for the scan in progress: <em>Applied</em> when at least one URL carried a bypass, <em>Not applied (N/A)</em> when none did, and a neutral <em>Checking…</em> until every URL has been confirmed by the worker. A single bypass in a multi-URL scan still reads <em>Applied</em>.</li>
+<li>Optimizer-bypass suffixes in the live URL table now render in a lighter grey than the address they were appended to, so the page being scanned is legible at a glance. Query strings that are part of the submitted URL keep their normal weight &mdash; only the scanner's own appended parameters are dimmed.</li>
+<li>The Step-2 "Reserving credits" indicator no longer freezes into a static ring for visitors who have reduced motion enabled. It now pulses instead of rotating, so it still signals activity without vestibular motion. The duplicate WordPress spinner that sat in the corner of the same card was removed.</li>
+</ul>
+<p><strong>Internal</strong></p>
+<ul>
+<li>Advanced the public plugin version to <code>1.8.1b</code>, the admin-asset cache key to <code>1.8.1b.1</code>, and the scanner diagnostic banner to <code>1.0.11.6</code>.</li>
+<li>Declared compatibility with WordPress 7.1.</li>
+</ul>

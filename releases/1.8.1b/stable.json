@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.8.1b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.1",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.1b/ai-assets-scanner.zip",
+    "sha256": "bce146c9cab2ed1fa7055062798abecbe9f92f8b95bca98c721fd903a4596b23",
+    "signature": "",
+    "released_at": "2026-08-20T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.1b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.8.1b (beta).</p><p><strong>Added</strong></p><ul><li>The completed-scan header now offers a one-click copy control beside the Scan ID, with a confirmation state and a screen-reader announcement. Falls back to a legacy copy path on non-HTTPS admin origins, where the clipboard API is unavailable.</li></ul><p><strong>Fixed</strong></p><ul><li>The active-scan \"Optimizer bypass\" row no longer always reads <em>Applied</em>. It now reports the real state for the scan in progress: <em>Applied</em> when at least one URL carried a bypass, <em>Not applied (N/A)</em> when none did, and a neutral <em>Checking…</em> until every URL has been confirmed by the worker. A single bypass in a multi-URL scan still reads <em>Applied</em>.</li><li>Optimizer-bypass suffixes in the live URL table now render in a lighter grey than the address they were appended to, so the page being scanned is legible at a glance. Query strings that are part of the submitted URL keep their normal weight &mdash; only the scanner's own appended parameters are dimmed.</li><li>The Step-2 \"Reserving credits\" indicator no longer freezes into a static ring for visitors who have reduced motion enabled. It now pulses instead of rotating, so it still signals activity without vestibular motion. The duplicate WordPress spinner that sat in the corner of the same card was removed.</li></ul><p><strong>Internal</strong></p><ul><li>Advanced the public plugin version to <code>1.8.1b</code>, the admin-asset cache key to <code>1.8.1b.1</code>, and the scanner diagnostic banner to <code>1.0.11.6</code>.</li><li>Declared compatibility with WordPress 7.1.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
