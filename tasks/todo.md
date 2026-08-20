@@ -1,61 +1,114 @@
-# 1.7.99b release train — 3-FU AAS release train (2026-08-18)
+# 1.8.1b — Step 2/3/4 admin UI refinements (2026-08-20)
 
-Base: `b7fb7d6` (1.7.98b). Baselines green: JS 18/18, PHP 923/2241 0F.
-Order ratified by operator + Phase-1 assumption audit (all load-bearing claims 🟢, one 🟡 bounded).
+Base: `d5fe638` (1.8.0b), branch `codex/admin-ui-1.8.0b`.
+Scope: **presentational only** — no scan-pipeline, rule-generation, results, or credit-accounting changes.
+F-CHECK-EFF: **N/A** — UI/admin-render work; the F-* yardstick is scan-pipeline-scoped.
+
+Status: **COMPLETE** — JS 20/20, PHP 950 tests 0 failures, both mutation-verified.
+
+---
+
+## Phase-1 findings (assumptions tested before locking the approach)
+
+- 🟢 **CONFIRMED** — WP current version is **7.1** (`api.wordpress.org/core/version-check/1.7/`
+  returns `7.1` as the `upgrade` offer). `Tested up to: 7.0.4` was stale.
+- 🟢 **CONFIRMED** — the Step-2 orbit **is** animated and works. Rendered the real markup +
+  real CSS in Chromium: `animationName: cuOrbit`, `playState: running`, non-identity
+  `transform` matrix, 1 live animation.
+- 🟢 **CONFIRMED** — the orbit **froze into a dead ring under `prefers-reduced-motion:
+  reduce`**. The old rule set `animation: none` on `.cu-state-orbit`. Emulated it:
+  `animationName: none`, `transform: none`, **0 live animations**, identical transform
+  across a 600 ms sample.
+- 🟢 **CONFIRMED** — the plugin ships **no** `.spinner` CSS; the low-right circle was WP core's
+  `.spinner` (a background **GIF**, `float: right`). CSS cannot stop a GIF, so under reduced
+  motion the GIF kept spinning while the orbit was frozen — exactly the reported signature.
+- ⚠️ **Assumption (unresolved, non-blocking)** — that the operator's machine has reduced motion
+  enabled. Not verifiable from here. The shipped fix is correct in both worlds.
+- 🟢 **CONFIRMED** — bypass suffixes are always **appended last** in the query string
+  (`class-scanner-ajax.php:370-415`), so "first bypass param → end of string" is exactly the
+  appended suffix.
+- 🟢 **CONFIRMED** — full bypass param-key set (`PluginDetector::OPTIMIZERS` +
+  `auto_bypass['code-unloader']`): `nowprocket, perfmattersoff, ao_noptimize, nonitro,
+  wpacu_no_load, LSCWP_CTRL, swis_disable, no_optimize, nowpcu`. A bare `?` test would be a
+  **false positive** — pinned as a regression test.
+- 🟢 **CONFIRMED** — all touched files are **CRLF** and stayed CRLF (wp-compliance R28).
 
 ## Tasks
 
-- [x] **1. FU-NOOPT-NOTE-CONFLATION** — DONE `4414561`. (📧 promised) — make the ET-candidate note
-  unmistakable vs the four plain noopt notes. ET note → amber action badge (background +
-  left border + ⏳ prefix, not-italic); plain notes → muted gray italic. TDD: update the
-  verbatim pins in `tests/js/kept-protection-chip.test.js` FIRST (red), then
-  `admin/js/scanner.js:2757` + `admin/css/ai-assets-scanner-admin.css:940-941` (green).
-  Check every other test pinning noopt markup before editing (grep `cu-noopt`).
-- [x] **2. FU-KEPT-BADGE-HOVER-INFO** — DONE `5b6689f`. — per-row tooltip naming that row's kept assets.
-  Producer-side: `build_pages()` ships a precomputed `kept_breakdown` ([label, n] rows,
-  composite-unit, same dedup as `count_kept_composites()` so Σn == kept_count BY
-  CONSTRUCTION — pin that invariant in a PHP test). Client: title attr via the file's
-  own escaped-interpolation pattern (verify `cuEscHtml` escapes `"` first) or delegated
-  listener + `.title` property if it doesn't. R19: worker strings NEVER concatenated raw.
-- [x] **3. FU-WPFC-DETECTION-HIT-ONLY-MARKER** — DONE `f38007f`. — add `/wp-content/cache/wpfc-minified/`
-  to the wpfc `target_body_markers` (`class-plugin-detector.php:235`). Read the
-  PAGE_CACHE_PLUGINS Pass-1/Pass-2 interplay first; extend detector tests (HIT + MISS
-  shape). Premise 🟢 confirmed live (hrefs at byte 1041 < 32768; N=4).
-- [x] **4. Release close-out** — DONE (this commit). — version lockstep 1.7.99b THREE places (header +
-  CU_SCANNER_VERSION + README badge, `b` suffix), SCANNER_JS_VERSION bump, NEW
-  JsCacheBustDriftTest fingerprint row (never rewrite), CHANGELOG, full suites, then
-  AAS-update packaging. P9 public-push gate + operator YES before any push.
+- [x] **1. Version + WP-compat bump.** `1.8.1b` across the three lockstep sites
+      (`ai-assets-scanner.php` header `Version`, `CU_SCANNER_VERSION`, `README.md` badge —
+      the set `package.json` independently documents). Plus `CU_SCANNER_ASSET_VERSION` →
+      `1.8.1b.1`, `SCANNER_JS_VERSION` → `1.0.11.6`, `Tested up to: 7.1`, CHANGELOG entry.
 
-## WP Compliance notes (28 rules active, applied in controller)
-- Worker payload = untrusted (Rule 1): `kept_known_assets`/`kept_breakdown` defensive-
-  validated at producer, `?? null` convention (key is a CONDITIONAL SPREAD worker-side —
-  absent when empty, 🟢 page-analyzer.js:2794).
-- No worker string reaches an HTML sink unescaped (Rules 3/15, ruling R19).
-- No SQL, no new input surface, no caps/nonce changes in scope.
-- Line endings: uniform CRLF on touched files (Rule 28).
+- [x] **2. Step 4 — copy control on the Scan ID.** Text moved into its own child span so the
+      button survives the write; inline SVG (matches this file's convention). Clipboard API
+      with an `execCommand` fallback for non-secure origins, transient confirm state,
+      `aria-label` + SR `role="status"` announcement. Button hidden when scanId is empty.
 
-## Constraints carried
-- Tests in this fresh worktree only; `git add -f` for tests/ if ignored.
-- ⚠️ repo is PUBLIC — content-safety sweep before push; no push without operator YES.
-- ~~CF-host notice deliberately NOT in this train~~ — SUPERSEDED: the operator answered
-  the copy questions 2026-08-18 and FU-CF-HOST-INTEGRATION-NOTICE was folded in as the
-  train's 5th commit (targeted same-host gate + explain-and-reassure copy).
+- [x] **3. Step 3 — truthful optimizer-bypass status.** Driven from the real scan URLs, keyed
+      on the confirmed param set. Latches to *Applied* on first sighting; holds a neutral
+      *Checking…* until every page has a worker-echoed URL; only then reports
+      *Not applied (N/A)* with a neutral icon and muted styling.
+
+- [x] **4. Step 3 — bypass suffix rendered lighter than the URL.** Split at the first bypass
+      param, tail wrapped in `.cu-live-bypass-suffix`. Both halves escaped through the
+      existing `esc()`. Measured: suffix `rgb(101,115,134)` vs URL `rgb(23,34,56)` — lighter,
+      and still 4.83:1 on white (above WCAG AA 4.5:1).
+
+- [x] **5. Step 2 — orbit + spinner.** WP `.spinner` removed. The reduced-motion rule no longer
+      freezes the orbit: it evens out the border and swaps rotation for an opacity pulse, so
+      reduced-motion users keep an activity cue now that the spinner is gone.
+
+- [x] **6. Verification.** See Review.
 
 ## Follow-ups discovered during this task
-- 🟡 WPFC MISS-case generality: the WPFC probe site served cached HIT even query-busted; if a
-  true-MISS page lacks wpfc-minified links, detection falls back to today's behavior
-  (no regression). Recorded, not blocking.
-- Ledger body L44 still says the Superseded history section is "(this file)" — operator
-  call pending from the trim.
 
-## Review (2026-08-18)
+- `admin/css/ai-assets-scanner-admin.css` now carries **three** generations of rules
+  (pre-1.8.0b from ~line 1019, v1.8.0b from ~line 1600, v1.8.1b appended at the end), with
+  `.cu-state-orbit` still defined only in the oldest block. Worth a dedup pass.
+- The reduced-motion block still covers only `.cu-pip.is-active` and `.cu-state-orbit`, while
+  `.cu-radar-sweep` / `cu-radar-flare` / `cu-live-pulse` keep animating. Inconsistent
+  accessibility posture — candidate for a follow-up sweep.
+- `CU_SCANNER_ASSET_VERSION` and `SCANNER_JS_VERSION` are hand-maintained; the fingerprint
+  guards catch drift only *after* the fact. Candidate for deriving them from a build step.
+- **`tests/` is in `.gitignore`.** Existing test files are tracked (committed before that
+  rule), but the new `tests/js/step3-bypass-status.test.js` is ignored and needs an explicit
+  `git add -f` to be committed. Operator decision — not forced here.
+- `CU_BYPASS_PARAM_KEYS` in `scanner.js` duplicates the `bypass_query` values in
+  `class-plugin-detector.php`. No guard keeps them in lockstep; a PHP test asserting the JS
+  array matches `OPTIMIZERS` would close that drift surface.
 
-Train complete, 6 commits on this train branch (base `b7fb7d6`). Suites: PHP 941
-tests / 2262 assertions / 0 failures (5 skipped, 2 risky — pre-existing), JS 18/18.
-TDD red→green on every FU; kept-breakdown dedup mutation-proven (3 red, reverted).
-Version lockstep 1.7.99b (header + const + badge), SCANNER_JS_VERSION 1.0.10.32,
-both fingerprint rows ADDED (never rewritten), CHANGELOG entry written.
-Pushed 2026-08-18 under operator P9 YES: b7fb7d6..1f4319a on public main, pure
-fast-forward, ls-remote-verified. Pre-push: whole-train review (SHIP-WITH-FIXES;
-both blockers fixed - identifier history rewrite + SIGNATURE_SCHEMA_VERSION '8')
-and the P9 content-safety sweep, 0 hits. Packaging via AAS-update follows.
+## Review
+
+**What shipped.** Five changes across `ai-assets-scanner.php`, `README.md`, `CHANGELOG.md`,
+`admin/views/scanner-page.php`, `admin/js/scanner.js`, `admin/css/ai-assets-scanner-admin.css`,
+plus test updates in `tests/JsCacheBustDriftTest.php`, `tests/VersionLockstepTest.php`,
+`tests/js/r3-stage-c-harness.js` and a new `tests/js/step3-bypass-status.test.js`.
+
+**Verification performed.**
+- `php -l` clean on both touched PHP files; `node --check` clean on `scanner.js`.
+- Rendered the **real** markup + **real** CSS + **real** JS source slices in Chromium.
+  Bypass-detection matrix 8/8, including the two negatives that matter (`?utm_source=…`
+  not matched; wrong-case and near-miss keys not matched).
+- Clipboard round-trip through the shipped handler: `navigator.clipboard.readText()`
+  returned the scan ID.
+- Reduced-motion before/after: `animation: none` + 0 live animations → `cuOrbitPulse` +
+  1 live animation with opacity measurably changing (1 → 0.72).
+- XSS probe through `rowHtml`: hostile URL escaped on **both** halves of the split.
+- **Mutation-tested** both new guards: making any query string count as a bypass, and
+  removing the latch, each turned the suite red on the intended assertion; restoring
+  returned it green. The guards are not decorative.
+- Full suites: **JS 20/20 pass**, **PHP 950 tests / 2342 assertions / 0 failures**.
+  The 5 skipped + 2 risky (`MenuBadgeTest`) are pre-existing and untouched by this work.
+- CRLF verified byte-level on all ten changed files.
+
+**One process note worth keeping.** The first version bump was applied with `sed -i`, which
+silently converted both files from CRLF to LF — a wp-compliance R28 violation that git's
+autocrlf hid from `git diff`, and that a `grep -c $'\r'` check falsely reported as clean
+(empty-pattern match). Caught by a raw `od -c` / `tr -cd` byte count. Files were restored and
+re-edited with a byte-preserving tool. **Do not use `sed -i` on this repo's CRLF files.**
+
+**Guards that earned their keep.** Three PHP tests failed on the version bump and each named
+a required step that had not been done yet: the admin-asset fingerprint row, the
+`SCANNER_JS_VERSION` banner bump plus its row, and the version-lockstep pin. The release
+ritual is genuinely enforced rather than documented.

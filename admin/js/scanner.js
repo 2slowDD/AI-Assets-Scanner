@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.11.5';
+    const SCANNER_JS_VERSION = '1.0.11.6';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1687,6 +1687,7 @@
     // those paths legitimately repopulate the table from the worker's pages[] array.
     function beginScanPolling() {
         document.getElementById('cu-pages-tbody').innerHTML = '';
+        resetBypassStatus(); // 1.8.1b — clear a previous scan's latched "Applied".
         showStep(3);
         startPolling();
     }
@@ -1869,6 +1870,8 @@
             }
         });
 
+        updateBypassStatus(pages);
+
         if (data.status === 'paused') {
             renderPausedBanner(data);
             if (!countdownInterval) {                 // AC-C-4: never a second timer
@@ -1922,8 +1925,104 @@
         }
     }
 
+    // 1.8.1b — the optimizer-bypass query params the scanner appends to a scan URL.
+    // Sourced from PluginDetector::OPTIMIZERS `bypass_query` keys plus Code Unloader's own
+    // `nowpcu` (auto_bypass['code-unloader']). Keep in sync with class-plugin-detector.php.
+    //
+    // Testing for a bare "?" instead would be a FALSE POSITIVE: a user-submitted URL keeps
+    // its own query string, and only these keys mean "the scanner suppressed an optimizer
+    // for this request".
+    var CU_BYPASS_PARAM_KEYS = [
+        'nowprocket', 'perfmattersoff', 'ao_noptimize', 'nonitro',
+        'wpacu_no_load', 'LSCWP_CTRL', 'swis_disable', 'no_optimize', 'nowpcu'
+    ];
+
+    // Index of the separator ('?' or '&') that begins the appended bypass suffix, or -1
+    // when the URL carries none. class-scanner-ajax.php build_scan_url() always appends
+    // bypass params LAST, so everything from that separator to the end IS the suffix.
+    function cuBypassSuffixStart( url ) {
+        var u = String( url == null ? '' : url );
+        var i = u.indexOf( '?' );
+        if ( i === -1 ) return -1;
+        while ( i !== -1 && i < u.length ) {
+            var next = u.indexOf( '&', i + 1 );
+            var pair = u.slice( i + 1, next === -1 ? u.length : next );
+            var eq   = pair.indexOf( '=' );
+            var key  = eq === -1 ? pair : pair.slice( 0, eq );
+            if ( CU_BYPASS_PARAM_KEYS.indexOf( key ) !== -1 ) return i;
+            i = next;
+        }
+        return -1;
+    }
+
     function rowHtml(url, status) {
-        return `<td>${esc(url)}</td><td>${esc(status)}</td>`;
+        var u   = String( url == null ? '' : url );
+        var cut = cuBypassSuffixStart( u );
+        // Both halves go through the same attribute-safe esc() — splitting the string must
+        // not drop an escape on either side.
+        var urlCell = cut === -1
+            ? esc( u )
+            : esc( u.slice( 0, cut ) ) +
+              '<span class="cu-live-bypass-suffix">' + esc( u.slice( cut ) ) + '</span>';
+        return `<td>${urlCell}</td><td>${esc(status)}</td>`;
+    }
+
+    // 1.8.1b — Step-3 optimizer-bypass status. The markup used to hardcode "Applied",
+    // which lied on every scan where no optimizer was detected.
+    //
+    // Latching matters: pages arrive progressively, and a not-yet-started page comes back
+    // from the worker WITHOUT a `url` (see the FU-AAS-UNDEFINED-URL fallback in the poll
+    // handler), so its row falls back to the CLEAN submitted URL. Declaring "not applied"
+    // off that early state would just be a different wrong label. So: latch to applied on
+    // first sighting, and only declare "not applied" once every page has a real
+    // worker-echoed URL.
+    var bypassStatusLatched = false;
+
+    function resetBypassStatus() {
+        bypassStatusLatched = false;
+        applyBypassStatus( 'pending' );
+    }
+
+    function applyBypassStatus( state ) {
+        var row   = document.getElementById( 'cu-bypass-status-row' );
+        var icon  = document.getElementById( 'cu-bypass-status-icon' );
+        var label = document.getElementById( 'cu-bypass-status-label' );
+        var copy  = document.getElementById( 'cu-bypass-status-copy' );
+        if ( ! row || ! icon || ! label || ! copy ) return;
+        row.classList.toggle( 'is-not-applicable', state === 'none' );
+        if ( state === 'applied' ) {
+            icon.textContent  = '✓';
+            label.textContent = 'Applied';
+            copy.textContent  = 'Detected bypass rules are applied per URL when available.';
+        } else if ( state === 'none' ) {
+            icon.textContent  = '–';
+            label.textContent = 'Not applied (N/A)';
+            copy.textContent  = 'No optimizer bypass was needed for the URLs in this scan.';
+        } else {
+            icon.textContent  = '–';
+            label.textContent = 'Checking…';
+            copy.textContent  = 'Detected bypass rules are applied per URL when available.';
+        }
+    }
+
+    function updateBypassStatus( pages ) {
+        if ( bypassStatusLatched ) return;
+        var list        = Array.isArray( pages ) ? pages : [];
+        var anyBypass   = false;
+        var allResolved = list.length > 0;
+        list.forEach( function ( p ) {
+            if ( p && p.url ) {
+                if ( cuBypassSuffixStart( p.url ) !== -1 ) anyBypass = true;
+            } else {
+                allResolved = false;
+            }
+        } );
+        if ( anyBypass ) {
+            bypassStatusLatched = true;
+            applyBypassStatus( 'applied' );
+            return;
+        }
+        applyBypassStatus( allResolved ? 'none' : 'pending' );
     }
 
     // buildResult([terminalInfo]) — delivers the X-page rules and renders Step 4.
@@ -2550,6 +2649,76 @@
         if ( el ) el.textContent = String( value );
     }
 
+    // 1.8.1b — Step-4 Scan ID + copy control. The id text lives in its own child span so
+    // the copy button survives the write (the old code set textContent on the .cu-scan-id
+    // wrapper itself, which would wipe any sibling markup). The value is passed through
+    // DOM APIs only (textContent / setAttribute), never innerHTML, so there is no HTML
+    // interpolation to escape here.
+    function setScanId( scanId ) {
+        var textEl = document.getElementById( 'cu-complete-scan-id-text' );
+        var btn    = document.getElementById( 'cu-complete-scan-id-copy' );
+        var id     = scanId ? String( scanId ) : '';
+        if ( textEl ) textEl.textContent = id ? 'Scan ID: ' + id : '';
+        if ( btn ) {
+            btn.hidden = ( id === '' );
+            btn.setAttribute( 'data-scan-id', id );
+        }
+    }
+
+    // execCommand fallback: navigator.clipboard is undefined on non-secure origins, and
+    // plenty of wp-admin installs still run plain HTTP. Returns true on success.
+    function cuLegacyCopy( text ) {
+        var ta = document.createElement( 'textarea' );
+        ta.value = text;
+        ta.setAttribute( 'readonly', '' );
+        ta.style.position = 'fixed';
+        ta.style.top      = '-1000px';
+        ta.style.opacity  = '0';
+        document.body.appendChild( ta );
+        var ok = false;
+        try {
+            ta.select();
+            ta.setSelectionRange( 0, ta.value.length );
+            ok = document.execCommand( 'copy' );
+        } catch ( e ) {
+            ok = false;
+        }
+        document.body.removeChild( ta );
+        return ok;
+    }
+
+    function cuCopyScanId( btn ) {
+        var id = btn.getAttribute( 'data-scan-id' ) || '';
+        if ( ! id ) return;
+        var status = document.getElementById( 'cu-complete-scan-id-status' );
+        var settle = function ( ok ) {
+            btn.classList.toggle( 'is-copied', ok );
+            btn.setAttribute( 'aria-label', ok ? 'Scan ID copied to clipboard' : 'Copy scan ID to clipboard' );
+            if ( status ) status.textContent = ok ? 'Scan ID copied to clipboard' : 'Could not copy scan ID';
+            if ( btn.cuCopyTimer ) clearTimeout( btn.cuCopyTimer );
+            btn.cuCopyTimer = setTimeout( function () {
+                btn.classList.remove( 'is-copied' );
+                btn.setAttribute( 'aria-label', 'Copy scan ID to clipboard' );
+                if ( status ) status.textContent = '';
+            }, 2000 );
+        };
+        if ( navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext ) {
+            navigator.clipboard.writeText( id ).then(
+                function () { settle( true ); },
+                function () { settle( cuLegacyCopy( id ) ); }
+            );
+        } else {
+            settle( cuLegacyCopy( id ) );
+        }
+    }
+
+    ( function () {
+        var copyBtn = document.getElementById( 'cu-complete-scan-id-copy' );
+        if ( copyBtn ) {
+            copyBtn.addEventListener( 'click', function () { cuCopyScanId( copyBtn ); } );
+        }
+    } )();
+
     function renderResultDashboard( o ) {
         var resultPages = Array.isArray( o.pages ) ? o.pages : [];
         var urlCount = ( typeof o.urlsScanned === 'number' ) ? o.urlsScanned : resultPages.length;
@@ -2599,7 +2768,7 @@
                 balanceEl.hidden = true;
             }
         }
-        setResultText( 'cu-complete-scan-id', o.scanId ? 'Scan ID: ' + o.scanId : '' );
+        setScanId( o.scanId );
         setResultText(
             'cu-complete-copy',
             urlCount + ' ' + ( Number( urlCount ) === 1 ? 'URL' : 'URLs' ) + ' processed. Recommendations are ready.'

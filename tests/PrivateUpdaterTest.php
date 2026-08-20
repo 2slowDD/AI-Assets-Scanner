@@ -110,7 +110,7 @@ class PrivateUpdaterTest extends TestCase {
 
         $this->assertStringContainsString( 'View details', implode( ' ', $meta ) );
         $this->assertStringContainsString( 'https://wpservice.pro/our-products/ai-assets-scanner/', implode( ' ', $meta ) );
-        $this->assertContains( 'Tested upto: <strong>v7.0.4</strong>', $meta );
+        $this->assertContains( 'Tested upto: <strong>v7.1</strong>', $meta );
         $this->assertContains( 'Status: <span style="color:#2271b1">Available</span>', $meta );
         $this->assertStringNotContainsString( 'Ratings:', implode( ' ', $meta ) );
         $this->assertStringNotContainsString( 'Reviews:', implode( ' ', $meta ) );
@@ -193,7 +193,7 @@ class PrivateUpdaterTest extends TestCase {
         $meta = ( new PrivateUpdater( self::PLUGIN_FILE, '1.7.92b' ) )
             ->filter_plugin_row_meta( [], self::PLUGIN_FILE );
 
-        $this->assertContains( 'Tested upto: <strong>v7.0.4</strong>', $meta );
+        $this->assertContains( 'Tested upto: <strong>v7.1</strong>', $meta );
         $this->assertStringNotContainsString( 'script', implode( ' ', $meta ) );
     }
 

@@ -73,6 +73,10 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.0b final UI refinement: 11px table headings, working Settings help, aligned
 		// completion copy, consistent 12px buttons, and simplified result guidance.
 		'1.8.0b.3' => '6c64fbbe2e1a7eaafddb2daec34a5012177dc26362872e6e02531c129828ab58',
+		// 1.8.1b Step 2/3/4 refinements: Scan ID copy control, truthful optimizer-bypass status,
+		// dimmed bypass suffix in the live URL table, and a reduced-motion orbit that pulses
+		// instead of freezing (the WP spinner GIF beside it was removed).
+		'1.8.1b.1' => 'bce5d95fe685dabdd878e0f92e5a99fa6a1f17d1aa8f8234faa15e6fb889e221',
 	);
 
 	/**
@@ -105,6 +109,8 @@ final class JsCacheBustDriftTest extends TestCase {
 		'1.0.11.4' => 'de666d599a64ec0e7f339c8335d308396b8b4971030917438c44bb19e36e7b22',
 		// 1.8.0b mixed-scan guard: disable direct actions when no internal rules exist.
 		'1.0.11.5' => '20c1c828303a3d87c5a5201427dc67b534b035c54667882f29d8bace7a1835a2',
+		// 1.8.1b Step-4 Scan ID copy control plus the Step-3 bypass status/suffix rendering.
+		'1.0.11.6' => '651aadef7097d9047aa6dc94fe07c52eca62e9cb7a072dbc81e5d9f4796a6251',
 	);
 
 	private function root(): string {

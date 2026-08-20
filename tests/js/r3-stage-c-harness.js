@@ -209,6 +209,9 @@ function createHarness(opts = {}) {
    'cu-progress-text', 'cu-push-result', 'cu-queue-banner', 'cu-result-refund',
    'cu-result-summary',
    'cu-complete-title', 'cu-complete-copy', 'cu-complete-scan-id',
+   'cu-complete-scan-id-text', 'cu-complete-scan-id-copy', 'cu-complete-scan-id-status',
+   'cu-bypass-status-row', 'cu-bypass-status-icon', 'cu-bypass-status-label',
+   'cu-bypass-status-copy',
    'cu-metric-urls', 'cu-metric-safe', 'cu-metric-aggressive',
    'cu-metric-credits', 'cu-metric-balance',
    'cu-apply-safe', 'cu-apply-aggressive', 'cu-apply-kept',
@@ -231,6 +234,17 @@ function createHarness(opts = {}) {
   // load-time localStorage-restore path can reach it.
   const summaryHost = makeEl('', 'div');
   summaryHost.appendChild(els['cu-result-summary']);
+
+  // 1.8.1b — #cu-complete-scan-id is no longer a bare text span: scanner-page.php now nests
+  // the id text, the copy button and an SR status line inside it, so setScanId() can write
+  // the text WITHOUT wiping the button. Mirror that nesting here, otherwise getElementById
+  // hands back null for the children and setScanId() silently no-ops. Because the stub's
+  // textContent getter walks children (as the real DOM does), the wrapper still reads back
+  // the full 'Scan ID: …' string — which is why the existing assertion needs no change.
+  els['cu-complete-scan-id'].appendChild(els['cu-complete-scan-id-text']);
+  els['cu-complete-scan-id'].appendChild(els['cu-complete-scan-id-copy']);
+  els['cu-complete-scan-id'].appendChild(els['cu-complete-scan-id-status']);
+  els['cu-complete-scan-id-copy'].hidden = true; // matches the `hidden` attr in the shipped markup
 
   const timers = [];
   // document.body is real (an element) so code paths that append dialogs/toasts to it

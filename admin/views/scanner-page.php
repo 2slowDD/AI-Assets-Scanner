@@ -155,7 +155,6 @@
             <span class="cu-eyebrow">Preparing your scan</span>
             <h2>Reserving credits</h2>
             <p>Checking your balance and reserving credits for the selected URLs.</p>
-            <span class="spinner is-active"></span>
         </section>
     </div>
 
@@ -220,7 +219,7 @@
                 <div id="cu-target-stack-notice"></div>
                 <div class="cu-scan-validation-list">
                     <div class="cu-scan-validation-row"><span class="cu-validation-icon">&#10003;</span><div><strong>Access checks</strong><small>Connectivity and reserved scan access validated.</small></div><span>Ready</span></div>
-                    <div class="cu-scan-validation-row"><span class="cu-validation-icon">&#10003;</span><div><strong>Optimizer bypass</strong><small>Detected bypass rules are applied per URL when available.</small></div><span>Applied</span></div>
+                    <div class="cu-scan-validation-row" id="cu-bypass-status-row"><span class="cu-validation-icon" id="cu-bypass-status-icon">&ndash;</span><div><strong>Optimizer bypass</strong><small id="cu-bypass-status-copy">Detected bypass rules are applied per URL when available.</small></div><span id="cu-bypass-status-label">Checking&hellip;</span></div>
                 </div>
                 <div class="cu-scan-note">
                     <p><strong>You can safely close this tab.</strong> The scan runs in the background and results will be waiting when you return.</p>
@@ -253,7 +252,14 @@
                             <h2 id="cu-complete-title">Scan complete</h2>
                             <p id="cu-complete-copy">Recommendations are ready to review.</p>
                         </div>
-                        <span class="cu-scan-id" id="cu-complete-scan-id"></span>
+                        <span class="cu-scan-id" id="cu-complete-scan-id">
+                            <span id="cu-complete-scan-id-text"></span>
+                            <button type="button" class="cu-scan-id-copy" id="cu-complete-scan-id-copy" hidden aria-label="Copy scan ID to clipboard" title="Copy scan ID">
+                                <svg class="cu-scan-id-copy-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                                <svg class="cu-scan-id-copy-done" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"/></svg>
+                            </button>
+                            <span class="screen-reader-text" id="cu-complete-scan-id-status" role="status" aria-live="polite"></span>
+                        </span>
                     </div>
                 </section>
 

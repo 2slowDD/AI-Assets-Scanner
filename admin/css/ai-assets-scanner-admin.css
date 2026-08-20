@@ -1593,9 +1593,19 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #cu-scanner-app .cu-pip.is-active,
-    #cu-scanner-app .cu-state-orbit { animation: none; }
+    #cu-scanner-app .cu-pip.is-active { animation: none; }
+    /* 1.8.1b — the Step-2 orbit must NOT simply freeze here. A stalled ring with one
+       off-centre coloured arc reads as a broken spinner, and since the WP `.spinner`
+       GIF that used to sit beside it has been removed, the orbit is now the ONLY
+       activity cue on a screen whose entire job is "we are working". Swap the
+       rotation for an opacity pulse (no vestibular motion) and even out the border
+       so nothing looks stuck mid-spin. */
+    #cu-scanner-app .cu-state-orbit {
+        border-top-color: #d2e9f6;
+        animation: cuOrbitPulse 1.6s ease-in-out infinite;
+    }
 }
+@keyframes cuOrbitPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
 /* v1.8.0b — reference-led operational admin UI. */
 #cu-scanner-app,
@@ -2265,3 +2275,40 @@
     #cu-scanner-app .cu-results-footer-actions { align-items: flex-start; flex-direction: column; }
     #cu-scanner-app .cu-results-contact { margin-left: 0; }
 }
+
+/* ---------------------------------------------------------------------------
+   v1.8.1b — Step 2/3/4 refinements.
+   Appended last so these win on source order over the two earlier generations
+   of rules in this file (pre-1.8.0b from ~line 1019, v1.8.0b from ~line 1600).
+   --------------------------------------------------------------------------- */
+
+/* Step 4 — Scan ID copy control. */
+#cu-scanner-app .cu-scan-id { display: inline-flex; align-items: center; gap: 6px; }
+#cu-scanner-app .cu-scan-id-copy {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    opacity: .75;
+    transition: opacity .15s ease, background-color .15s ease, color .15s ease;
+}
+#cu-scanner-app .cu-scan-id-copy[hidden] { display: none; }
+#cu-scanner-app .cu-scan-id-copy:hover { background: rgba(23, 34, 56, .07); opacity: 1; }
+#cu-scanner-app .cu-scan-id-copy:focus-visible { outline: 2px solid var(--cu-blue); outline-offset: 1px; opacity: 1; }
+#cu-scanner-app .cu-scan-id-copy .cu-scan-id-copy-done { display: none; }
+#cu-scanner-app .cu-scan-id-copy.is-copied { color: #2c8b50; opacity: 1; }
+#cu-scanner-app .cu-scan-id-copy.is-copied .cu-scan-id-copy-icon { display: none; }
+#cu-scanner-app .cu-scan-id-copy.is-copied .cu-scan-id-copy-done { display: block; }
+
+/* Step 3 — the appended optimizer-bypass suffix reads lighter than the URL itself. */
+#cu-scanner-app #cu-pages-table td:first-child .cu-live-bypass-suffix { color: var(--cu-muted); }
+
+/* Step 3 — "not applied" is a neutral state, not a green pass. */
+#cu-scanner-app .cu-scan-validation-row.is-not-applicable .cu-validation-icon { background: #eef1f5; color: #8794a5; }
+#cu-scanner-app .cu-scan-validation-row.is-not-applicable > span:last-child { color: var(--cu-muted); }

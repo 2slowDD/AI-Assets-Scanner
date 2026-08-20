@@ -4,6 +4,20 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.1b — 2026-08-20
+
+### Added
+- The completed-scan header now offers a one-click copy control beside the Scan ID, with a confirmation state and a screen-reader announcement. Falls back to a legacy copy path on non-HTTPS admin origins, where the clipboard API is unavailable.
+
+### Fixed
+- The active-scan "Optimizer bypass" row no longer always reads *Applied*. It now reports the real state for the scan in progress: *Applied* when at least one URL carried a bypass, *Not applied (N/A)* when none did, and a neutral *Checking…* until every URL has been confirmed by the worker. A single bypass in a multi-URL scan still reads *Applied*.
+- Optimizer-bypass suffixes in the live URL table now render in a lighter grey than the address they were appended to, so the page being scanned is legible at a glance. Query strings that are part of the submitted URL keep their normal weight — only the scanner's own appended parameters are dimmed.
+- The Step-2 "Reserving credits" indicator no longer freezes into a static ring for visitors who have reduced motion enabled. It now pulses instead of rotating, so it still signals activity without vestibular motion. The duplicate WordPress spinner that sat in the corner of the same card was removed.
+
+### Internal
+- Advanced the public plugin version to `1.8.1b`, the admin-asset cache key to `1.8.1b.1`, and the scanner diagnostic banner to `1.0.11.6`.
+- Declared compatibility with WordPress 7.1.
+
 ## 1.8.0b — 2026-08-19
 
 ### Major redesign changes
