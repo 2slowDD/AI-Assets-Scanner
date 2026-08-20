@@ -1099,7 +1099,7 @@
     border: 0;
     color: #fff;
     font-size: 21px;
-    font-weight: 700;
+    font-weight: 600; /* operator copy tweak 2026-08-19 — rode the 1.8.0b same-version repack */
     letter-spacing: -.02em;
 }
 #cu-scanner-app .cu-header-version {

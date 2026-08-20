@@ -73,10 +73,14 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.0b final UI refinement: 11px table headings, working Settings help, aligned
 		// completion copy, consistent 12px buttons, and simplified result guidance.
 		'1.8.0b.3' => '6c64fbbe2e1a7eaafddb2daec34a5012177dc26362872e6e02531c129828ab58',
+		// Header h2 weight 700 -> 600 (operator copy tweak, 2026-08-19). Asset-key-only bump:
+		// the plugin version stays 1.8.0b by operator ruling; this suffix exists for exactly that.
+		'1.8.0b.4' => '37871950e32ca55b707c726ca1073484b50bb8592bca9f6bcc46cf6807afaa84',
 		// 1.8.1b Step 2/3/4 refinements: Scan ID copy control, truthful optimizer-bypass status,
 		// dimmed bypass suffix in the live URL table, and a reduced-motion orbit that pulses
-		// instead of freezing (the WP spinner GIF beside it was removed).
-		'1.8.1b.1' => 'bce5d95fe685dabdd878e0f92e5a99fa6a1f17d1aa8f8234faa15e6fb889e221',
+		// instead of freezing (the WP spinner GIF beside it was removed). Fingerprint recomputed
+		// after merging main, which added the h2-weight comment to the stylesheet above.
+		'1.8.1b.1' => 'f443b9539b1513e360430c4e573ef30df8176a00e56be0b35f5c66101c023d12',
 	);
 
 	/**
