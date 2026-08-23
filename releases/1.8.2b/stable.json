@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.8.2b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.1",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.2b/ai-assets-scanner.zip",
+    "sha256": "60f806a1506632be70cb8e1a53e4317775f357033b93ef91174b4dd617535f0a",
+    "signature": "",
+    "released_at": "2026-08-23T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.2b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.8.2b (beta).</p><p><strong>Added</strong></p><ul><li>Hovering a <strong>S:</strong> or <strong>A:</strong> count in the results table now names the assets behind that number, the same way the kept-assets badge already does. Only counts above zero are hoverable &mdash; there is nothing to name on a zero &mdash; and <strong>N:</strong> is never hoverable, since it is the untouched-asset residue rather than a recommendation.</li></ul><p><strong>Fixed</strong></p><ul><li>The <strong>Buy credits</strong> button on the Settings screen now centres its label vertically. It is a link styled as a button and, unlike the <strong>Refresh</strong> button beside it, it was not centring its own text inside the button height.</li><li>The <strong>Scan options</strong> checkbox row now starts its text at the same left edge as the card heading above it, instead of sitting a few pixels to the left.</li><li>Scan-history table headings are no longer heavier than the rest of the interface (font weight 800 down to 600).</li><li>The <strong>AI Assets Scanner</strong> title in the page header now renders at a consistent weight and letter-spacing on every screen. Settings and Scan history were picking up a heavier weight from an older style rule that the scan screen already overrode.</li><li>The Scan ID copy control now copies the labelled string (<code>Scan ID: ad4ada7c9bbc</code>) rather than the bare identifier, so a pasted value is self-describing in a ticket or chat.</li></ul><p><strong>Internal</strong></p><ul><li>The S:/A: asset lists are built at the same place the counts are &mdash; in the one rule-emitting pass, and again in the rescan-merge path that recomputes those counts &mdash; so a hover list cannot disagree with the number it hangs off. Both paths share one collapser, and the sum of a list is pinned to the count it describes.</li><li>Advanced the public plugin version to <code>1.8.2b</code>, the admin-asset cache key to <code>1.8.2b.1</code>, and the scanner diagnostic banner to <code>1.0.11.7</code>.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
