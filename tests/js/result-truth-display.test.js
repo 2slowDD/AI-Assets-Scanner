@@ -208,13 +208,13 @@ assert.ok(!/already optimi[sz]ed|already applied/i.test(all),
   // Row 2 — a real new rule must NOT be netted away.
   // FU-AAS-SAN-BOLD-NONZERO — a non-zero count is now wrapped in <strong> (see
   // san-bold-nonzero.test.js). The count itself is unchanged; only its markup moved.
-  assert.ok(/cu-san-safe">S:0<\/span>.*cu-san-aggressive is-positive"><strong>A:1<\/strong>/.test(cellsOf(rows[1])[4]),
+  assert.ok(/cu-san-safe">S:0<\/span>.*cu-san-aggressive is-positive"[^>]*><strong>A:1<\/strong>/.test(cellsOf(rows[1])[4]),
     'a genuinely new rule still renders its count');
   assert.strictEqual(cellsOf(rows[1])[3], '1', 'and still shows the credit it cost');
   assert.ok(!/cu-row-noopt/.test(rows[1]), 'not a zero row');
 
   // Row 3 — a missing key must degrade to today's behaviour, never to a false zero.
-  assert.ok(/cu-san-safe is-positive"><strong>S:1<\/strong>.*cu-san-aggressive">A:0<\/span>/.test(cellsOf(rows[2])[4]),
+  assert.ok(/cu-san-safe is-positive"[^>]*><strong>S:1<\/strong>.*cu-san-aggressive">A:0<\/span>/.test(cellsOf(rows[2])[4]),
     'absent all_already key leaves the counts alone');
 }());
 

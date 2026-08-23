@@ -49,12 +49,40 @@ class CuJsonBuilderTest extends TestCase {
         ];
         $output = ( new CuJsonBuilder() )->build( $pages );
         $this->assertArrayHasKey( 'by_page', $output );
-        $this->assertSame( [ 'safe' => 1, 'aggressive' => 1, 'needed' => 1 ], $output['by_page'][0] );
+        // FU-SAN-HOVER-BREAKDOWN (1.8.2b): by_page now also carries the handles behind the two
+        // counts, for the S:/A: hover tooltips. h1 emitted the safe rule, h2 the aggressive one,
+        // h3 emitted none (needed) and so appears in neither list.
+        $this->assertSame(
+            [
+                'safe'                 => 1,
+                'aggressive'           => 1,
+                'needed'               => 1,
+                'safe_breakdown'       => [ [ 'label' => 'h1', 'count' => 1 ] ],
+                'aggressive_breakdown' => [ [ 'label' => 'h2', 'count' => 1 ] ],
+            ],
+            $output['by_page'][0]
+        );
         $this->assertArrayNotHasKey( 1, $output['by_page'] ); // error page absent from by_page
         $safe = count( array_filter( $output['rules'], fn( $r ) => 1 === $r['group_id'] ) );
         $agg  = count( array_filter( $output['rules'], fn( $r ) => 2 === $r['group_id'] ) );
         $this->assertSame( $safe, array_sum( array_column( $output['by_page'], 'safe' ) ) );
         $this->assertSame( $agg,  array_sum( array_column( $output['by_page'], 'aggressive' ) ) );
+
+        // THE load-bearing invariant for the hover tooltip: the breakdown's counts must sum to the
+        // number the token displays. If these two can drift, the tooltip contradicts the digit it
+        // hangs off — which is the whole defect class collecting handles at the emit site avoids.
+        foreach ( $output['by_page'] as $row ) {
+            $this->assertSame(
+                $row['safe'],
+                array_sum( array_column( $row['safe_breakdown'], 'count' ) ),
+                'safe_breakdown counts must sum to the safe tally'
+            );
+            $this->assertSame(
+                $row['aggressive'],
+                array_sum( array_column( $row['aggressive_breakdown'], 'count' ) ),
+                'aggressive_breakdown counts must sum to the aggressive tally'
+            );
+        }
     }
 
     public function test_by_page_reconciles_with_phase2a_and_blocked_device(): void {
@@ -68,7 +96,18 @@ class CuJsonBuilderTest extends TestCase {
         ] ];
         $flags  = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
         $output = ( new CuJsonBuilder() )->build( $pages, $flags );
-        $this->assertSame( [ 'safe' => 0, 'aggressive' => 0, 'needed' => 1 ], $output['by_page'][0] );
+        $this->assertSame(
+            [
+                'safe'                 => 0,
+                'aggressive'           => 0,
+                'needed'               => 1,
+                // No rule emitted → no handle collected. An empty list is what leaves the token
+                // untitled in the client, which is the correct affordance for a zero count.
+                'safe_breakdown'       => [],
+                'aggressive_breakdown' => [],
+            ],
+            $output['by_page'][0]
+        );
         $this->assertCount( 0, $output['rules'] );
         $this->assertSame( 0, array_sum( array_column( $output['by_page'], 'safe' ) ) );
     }
@@ -399,7 +438,18 @@ class CuJsonBuilderTest extends TestCase {
         $flags   = [ 'combine_asymmetric_absent_enabled' => true, 'visual_diff_enabled' => true ];
         $output  = ( new CuJsonBuilder() )->build( $pages, $flags );
         $this->assertCount( 0, $output['rules'] );
-        $this->assertSame( [ 'safe' => 0, 'aggressive' => 0, 'needed' => 5 ], $output['by_page'][0] );
+        $this->assertSame(
+            [
+                'safe'                 => 0,
+                'aggressive'           => 0,
+                'needed'               => 5,
+                // S:0 must also mean an EMPTY safe list — a breakdown naming the five reverted
+                // handles while the token reads S:0 would resurrect the same bug in the tooltip.
+                'safe_breakdown'       => [],
+                'aggressive_breakdown' => [],
+            ],
+            $output['by_page'][0]
+        );
     }
 
     // ─────────────────────────────────────────────────────────────────────

@@ -2637,12 +2637,19 @@ class ScannerAjax {
         foreach ( $rules as $r ) {
             $pat = $r['url_pattern'];
             if ( ! isset( $rule_map[ $pat ] ) ) {
-                $rule_map[ $pat ] = [ 'safe' => 0, 'aggressive' => 0 ];
+                $rule_map[ $pat ] = [ 'safe' => 0, 'aggressive' => 0, 'safe_h' => [], 'agg_h' => [] ];
             }
+            // FU-SAN-HOVER-BREAKDOWN (1.8.2b) — collect the handle in the SAME branch that
+            // increments, exactly as CuJsonBuilder::build() does. This is the second producer of
+            // by_page: emitting the counts here but leaving the breakdown to the pre-merge builder
+            // would pair a MERGED number with an UNMERGED list, and the tooltip would quietly
+            // contradict the token it hangs off.
             if ( 1 === $r['group_id'] ) {
                 $rule_map[ $pat ]['safe']++;
+                $rule_map[ $pat ]['safe_h'][] = $r['asset_handle'] ?? null;
             } else {
                 $rule_map[ $pat ]['aggressive']++;
+                $rule_map[ $pat ]['agg_h'][] = $r['asset_handle'] ?? null;
             }
         }
 
@@ -2656,7 +2663,15 @@ class ScannerAjax {
             $agg    = $rule_map[ $pat ]['aggressive'] ?? 0;
             // Preserve original needed count — not affected by merge.
             $needed = $orig_by_page[ $i ]['needed'] ?? 0;
-            $by_page[ $i ] = [ 'safe' => $safe, 'aggressive' => $agg, 'needed' => $needed ];
+            $by_page[ $i ] = [
+                'safe'                 => $safe,
+                'aggressive'           => $agg,
+                'needed'               => $needed,
+                // One shared collapser with CuJsonBuilder::build() — not a second copy, so the
+                // two by_page producers cannot drift on dedup or sort order.
+                'safe_breakdown'       => CuJsonBuilder::handle_breakdown( $rule_map[ $pat ]['safe_h'] ?? [] ),
+                'aggressive_breakdown' => CuJsonBuilder::handle_breakdown( $rule_map[ $pat ]['agg_h'] ?? [] ),
+            ];
         }
         return $by_page;
     }

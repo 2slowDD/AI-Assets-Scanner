@@ -1657,7 +1657,12 @@
     margin: 0 0 5px;
     color: #fff;
     font-size: 22px;
-    letter-spacing: -.02em;
+    /* 1.8.2b — font-weight is declared HERE deliberately. The older `.cu-header-text h2` rule
+       (~line 145) pins 700, and this combined selector is the ONLY one that reaches both the
+       `#cu-scanner-app` scan wizard and the `.cu-admin-page` settings/history screens, so
+       leaving it undeclared let 700 win everywhere except the wizard. */
+    font-weight: 600;
+    letter-spacing: .03em;
 }
 
 #cu-scanner-app .cu-header-version,
@@ -1913,8 +1918,14 @@
 .cu-balance-num { color: var(--cu-ink); font-size: 20px; font-weight: 600; line-height: 1; }
 .cu-balance-label { margin-top: 3px; color: var(--cu-muted); font-size: 10px; }
 .cu-settings-options-list { position: relative; }
-.cu-option-row { display: grid !important; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: center; margin: 0 !important; padding: 12px 42px 12px 12px; border: 1px solid #dce4ec; border-radius: 7px; background: #f8fafc; }
-.cu-option-row > input[type="checkbox"] { align-self: center; margin: 0 !important; }
+/* 1.8.2b — first column is a FIXED 25px so the option text starts at the same x as the card
+   heading's text. The row is border-box with its own 1px border, so the sum that must equal the
+   heading's 38px icon column + 12px gap (= 50px) is: 1px border + 12px padding + 25px column +
+   12px gap. An `auto` column sized itself to the checkbox (~16px), landing the text ~13px left of
+   the heading above it. Structural, not a nudge — if the heading's columns change, these are the
+   numbers that move with them. Measured: heading and option text within 0.1px. */
+.cu-option-row { display: grid !important; grid-template-columns: 25px minmax(0, 1fr); gap: 12px; align-items: center; margin: 0 !important; padding: 12px 42px 12px 12px; border: 1px solid #dce4ec; border-radius: 7px; background: #f8fafc; }
+.cu-option-row > input[type="checkbox"] { align-self: center; justify-self: center; margin: 0 !important; }
 .cu-option-row small { display: block; margin-top: 4px; color: var(--cu-muted); font-weight: 400; }
 .cu-option-row + .cu-help { display: inline-flex; position: absolute; top: 50%; right: 12px; width: 15px; height: 15px; margin: 0; transform: translateY(-50%); }
 .cu-settings-options-list .cu-help:hover .cu-help-box,
@@ -1961,7 +1972,7 @@
 .cu-history-actions { display: flex; gap: 8px; align-items: center; }
 .cu-history-table-scroll { overflow-x: auto; }
 .cu-history-table-card table { margin: 0; border: 0; box-shadow: none; }
-.cu-history-table-card th { padding: 10px 12px; background: #f6f8fb; color: #536276; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.cu-history-table-card th { padding: 10px 12px; background: #f6f8fb; color: #536276; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .cu-history-table-card td { padding: 12px; vertical-align: middle; }
 .cu-history-domain { color: #2e435c; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
 .cu-history-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 99px; background: #edf1f5; color: #526174; font-size: 10px; font-weight: 750; white-space: nowrap; }
@@ -2312,3 +2323,24 @@
 /* Step 3 — "not applied" is a neutral state, not a green pass. */
 #cu-scanner-app .cu-scan-validation-row.is-not-applicable .cu-validation-icon { background: #eef1f5; color: #8794a5; }
 #cu-scanner-app .cu-scan-validation-row.is-not-applicable > span:last-child { color: var(--cu-muted); }
+
+/* ---------------------------------------------------------------------------
+   v1.8.2b — settings/history polish + S:/A: hover breakdown.
+   --------------------------------------------------------------------------- */
+
+/* Settings — "Buy credits" is an <a class="button">, not a <button>. `.cu-balance-btn` already
+   asks for inline-flex centring, but at specificity (0,1,0) it LOSES to WP core's
+   `.wp-core-ui .button` (0,2,0), which forces `display: inline-block`. A <button> centres its
+   content natively so Refresh looked fine; the anchor did not, and `.cu-admin-page .button`'s
+   `min-height: 34px` made the offset visible. Re-assert it above core's specificity. */
+.cu-admin-page .button.cu-balance-btn,
+#cu-scanner-app .button.cu-balance-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Results — S:/A: tokens carry a hover breakdown of the assets behind the number, but ONLY when
+   that count is > 0 (the title is assigned in JS and omitted otherwise). Key the affordance off
+   the title's PRESENCE so the cursor can never promise a tooltip that isn't there. */
+#cu-scanner-app .cu-san-token[title] { cursor: help; }

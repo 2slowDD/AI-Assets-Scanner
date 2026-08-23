@@ -49,9 +49,12 @@ function testAggressiveNonZeroIsBold() {
   const cell = cellFor({ safe: 0, aggressive: 13, needed: 56 });
   assert.strictEqual(cell,
     '<span class="cu-san-token cu-san-safe">S:0</span> '
-      + '<span class="cu-san-token cu-san-aggressive is-positive"><strong>A:13</strong></span> '
+      + '<span class="cu-san-token cu-san-aggressive is-positive" data-cu-row="0" data-cu-san="aggressive"><strong>A:13</strong></span> '
       + '<span class="cu-san-token cu-san-needed">N:56</span>',
     'A > 0 must be bold; S:0 and N: must stay plain');
+  // FU-SAN-HOVER-BREAKDOWN (1.8.2b): the hover tag rides the SAME > 0 test as the bolding, so
+  // this line also pins "no hover affordance on a zero token" — S:0 carries no data-cu-san.
+  assert.ok(!/cu-san-safe"[^>]*data-cu-san/.test(cell), 'S:0 must not be tagged for a hover breakdown');
   console.log('OK aggressive > 0 renders <strong>A:13</strong>, S:0 / N:56 plain');
 }
 
@@ -59,10 +62,11 @@ function testAggressiveNonZeroIsBold() {
 function testSafeNonZeroIsBold() {
   const cell = cellFor({ safe: 4, aggressive: 0, needed: 12 });
   assert.strictEqual(cell,
-    '<span class="cu-san-token cu-san-safe is-positive"><strong>S:4</strong></span> '
+    '<span class="cu-san-token cu-san-safe is-positive" data-cu-row="0" data-cu-san="safe"><strong>S:4</strong></span> '
       + '<span class="cu-san-token cu-san-aggressive">A:0</span> '
       + '<span class="cu-san-token cu-san-needed">N:12</span>',
     'S > 0 must be bold; A:0 and N: must stay plain');
+  assert.ok(!/cu-san-aggressive"[^>]*data-cu-san/.test(cell), 'A:0 must not be tagged for a hover breakdown');
   console.log('OK safe > 0 renders <strong>S:4</strong>, A:0 / N:12 plain');
 }
 
@@ -80,11 +84,13 @@ function testZeroCountsAreNotBold() {
 function testNeededIsNeverBold() {
   const cell = cellFor({ safe: 2, aggressive: 7, needed: 240 });
   assert.strictEqual(cell,
-    '<span class="cu-san-token cu-san-safe is-positive"><strong>S:2</strong></span> '
-      + '<span class="cu-san-token cu-san-aggressive is-positive"><strong>A:7</strong></span> '
+    '<span class="cu-san-token cu-san-safe is-positive" data-cu-row="0" data-cu-san="safe"><strong>S:2</strong></span> '
+      + '<span class="cu-san-token cu-san-aggressive is-positive" data-cu-row="0" data-cu-san="aggressive"><strong>A:7</strong></span> '
       + '<span class="cu-san-token cu-san-needed">N:240</span>',
     'both counts bold when both > 0, and N: stays plain even at a large value');
   assert.ok(!/<strong>N:/.test(cell), 'N: must never be wrapped in <strong>');
+  // N: is never a recommendation, so it never gets a hover breakdown however large it gets.
+  assert.ok(!/cu-san-needed"[^>]*data-cu-san/.test(cell), 'N: must never be tagged for a hover breakdown');
   console.log('OK both counts bold; N:240 never bold');
 }
 

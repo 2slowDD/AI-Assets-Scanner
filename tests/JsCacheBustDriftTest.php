@@ -81,6 +81,10 @@ final class JsCacheBustDriftTest extends TestCase {
 		// instead of freezing (the WP spinner GIF beside it was removed). Fingerprint recomputed
 		// after merging main, which added the h2-weight comment to the stylesheet above.
 		'1.8.1b.1' => 'f443b9539b1513e360430c4e573ef30df8176a00e56be0b35f5c66101c023d12',
+		// 1.8.2b settings/history polish + S:/A: hover breakdown: Buy-credits vertical centring,
+		// option-row text aligned to its card heading, history table headings 800 -> 600, header
+		// title 600 / .03em on every AAS screen, and the hover-tagged S: / A: tokens.
+		'1.8.2b.1' => '80e5f36b307c976c88ae2d0809d7e351a7cca9d1e997233d7ca254697cba1e30',
 	);
 
 	/**
@@ -115,6 +119,9 @@ final class JsCacheBustDriftTest extends TestCase {
 		'1.0.11.5' => '20c1c828303a3d87c5a5201427dc67b534b035c54667882f29d8bace7a1835a2',
 		// 1.8.1b Step-4 Scan ID copy control plus the Step-3 bypass status/suffix rendering.
 		'1.0.11.6' => '651aadef7097d9047aa6dc94fe07c52eca62e9cb7a072dbc81e5d9f4796a6251',
+		// 1.8.2b S:/A: hover breakdown: shared buildAssetListTitle(), data-cu-san tagging gated on
+		// the DISPLAYED count, and the post-render title pass beside the kept chip's.
+		'1.0.11.7' => '604594322a4378996054da13085f7a0202485a1147844c784cf793da681b585d',
 	);
 
 	private function root(): string {

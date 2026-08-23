@@ -64,6 +64,12 @@ class CuJsonBuilder {
                 if ( is_string( $d ) && '' !== $d ) { $has_delayed = true; break; }
             }
             $s = 0; $a = 0; $n = 0;
+            // FU-SAN-HOVER-BREAKDOWN (1.8.2b) — the handles behind the S:/A: numbers, collected
+            // in the SAME branch that increments the counters. That is the whole point: every
+            // combine() map entry emits at most one rule, so count(handles) === the counter BY
+            // CONSTRUCTION, and the hover list can never disagree with the number three pixels
+            // away from it. Deriving it anywhere else would be a second predicate that must agree.
+            $safe_handles = []; $agg_handles = [];
             foreach ( $page['assets'] ?? [] as $asset ) {
                 $desktop = $this->classify( $asset['desktop'] );
                 $mobile  = $this->classify( $asset['mobile'] );
@@ -84,11 +90,23 @@ class CuJsonBuilder {
                 } else {
                     foreach ( $out as $rule ) {
                         $rules[] = $rule;
-                        if ( self::GROUP_SAFE === $rule['group_id'] ) { $s++; } else { $a++; }
+                        if ( self::GROUP_SAFE === $rule['group_id'] ) {
+                            $s++;
+                            $safe_handles[] = $rule['asset_handle'];
+                        } else {
+                            $a++;
+                            $agg_handles[] = $rule['asset_handle'];
+                        }
                     }
                 }
             }
-            $by_page[ $i ] = [ 'safe' => $s, 'aggressive' => $a, 'needed' => $n ];
+            $by_page[ $i ] = [
+                'safe'                 => $s,
+                'aggressive'           => $a,
+                'needed'               => $n,
+                'safe_breakdown'       => self::handle_breakdown( $safe_handles ),
+                'aggressive_breakdown' => self::handle_breakdown( $agg_handles ),
+            ];
         }
 
         return [
@@ -103,6 +121,52 @@ class CuJsonBuilder {
             // Consumed by AIAS_Scan_Status::build_pages() for the Step-4 table.
             'by_page' => $by_page,
         ];
+    }
+
+    /**
+     * FU-SAN-HOVER-BREAKDOWN (1.8.2b) — collapse a per-page list of emitted rule handles into
+     * the [{label,count}] rows the S:/A: hover tooltip names its assets from.
+     *
+     * Deliberately the SAME shape as AIAS_Scan_Status::build_kept_breakdown() so the client can
+     * render all three tooltips through one builder instead of three near-copies.
+     *
+     * The invariant that matters: callers append exactly one handle per counted rule, so
+     * Σcount === the S/A number the token displays. Dedup collapses a handle that produced more
+     * than one rule on the page (same handle, two asset types) into `handle (2)` rather than
+     * dropping it — losing it would break Σcount silently, which is precisely the class of
+     * inconsistency this project keeps having to hunt down.
+     *
+     * `$handles` originates in rules built from untrusted Railway asset data, so non-string and
+     * empty entries are dropped here rather than trusted. Pure function, no WP calls. The client
+     * interpolates NONE of this into markup: labels reach the DOM only via the title PROPERTY
+     * (ruling R19 — cuEscHtml() does not escape double quotes, so a title="" concat would be an
+     * attribute-breakout, not a safe alternative).
+     *
+     * @param array<int,mixed> $handles One page's emitted rule handles, one entry per counted rule.
+     * @return array<int,array{label:string,count:int}> Sorted case-insensitively by label.
+     */
+    public static function handle_breakdown( array $handles ): array {
+        $counts = [];
+        foreach ( $handles as $h ) {
+            if ( ! is_string( $h ) || '' === $h ) {
+                continue;
+            }
+            $counts[ $h ] = ( $counts[ $h ] ?? 0 ) + 1;
+        }
+        $rows = [];
+        foreach ( $counts as $label => $count ) {
+            $rows[] = [
+                'label' => (string) $label,
+                'count' => (int) $count,
+            ];
+        }
+        usort(
+            $rows,
+            static function ( array $a, array $b ): int {
+                return strcasecmp( $a['label'], $b['label'] );
+            }
+        );
+        return $rows;
     }
 
     /**

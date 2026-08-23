@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.11.6';
+    const SCANNER_JS_VERSION = '1.0.11.7';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -2654,11 +2654,16 @@
     // wrapper itself, which would wipe any sibling markup). The value is passed through
     // DOM APIs only (textContent / setAttribute), never innerHTML, so there is no HTML
     // interpolation to escape here.
+    // Single source for the label, so the rendered text and the copied text cannot drift
+    // apart — the copy control puts the SAME "Scan ID: <id>" string on the clipboard that
+    // the operator can see on screen, which is what makes a pasted id self-describing.
+    var CU_SCAN_ID_LABEL = 'Scan ID: ';
+
     function setScanId( scanId ) {
         var textEl = document.getElementById( 'cu-complete-scan-id-text' );
         var btn    = document.getElementById( 'cu-complete-scan-id-copy' );
         var id     = scanId ? String( scanId ) : '';
-        if ( textEl ) textEl.textContent = id ? 'Scan ID: ' + id : '';
+        if ( textEl ) textEl.textContent = id ? CU_SCAN_ID_LABEL + id : '';
         if ( btn ) {
             btn.hidden = ( id === '' );
             btn.setAttribute( 'data-scan-id', id );
@@ -2690,6 +2695,9 @@
     function cuCopyScanId( btn ) {
         var id = btn.getAttribute( 'data-scan-id' ) || '';
         if ( ! id ) return;
+        // Copy the labelled string, not the bare id: a pasted "Scan ID: ad4ada7c9bbc" is
+        // self-describing in a ticket or chat, where a lone 12-hex token is not.
+        var payload = CU_SCAN_ID_LABEL + id;
         var status = document.getElementById( 'cu-complete-scan-id-status' );
         var settle = function ( ok ) {
             btn.classList.toggle( 'is-copied', ok );
@@ -2703,12 +2711,12 @@
             }, 2000 );
         };
         if ( navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext ) {
-            navigator.clipboard.writeText( id ).then(
+            navigator.clipboard.writeText( payload ).then(
                 function () { settle( true ); },
-                function () { settle( cuLegacyCopy( id ) ); }
+                function () { settle( cuLegacyCopy( payload ) ); }
             );
         } else {
-            settle( cuLegacyCopy( id ) );
+            settle( cuLegacyCopy( payload ) );
         }
     }
 
@@ -3137,7 +3145,12 @@
     // '' when nothing survives (legacy rows, junk shapes) — the caller then leaves the chip
     // untitled rather than showing an empty tooltip. The return value is assigned to the
     // title PROPERTY only; it must never be concatenated into markup (ruling R19).
-    function buildKeptChipTitle( rows ) {
+    // FU-SAN-HOVER-BREAKDOWN (1.8.2b) — the shared [{label,count}] -> tooltip renderer behind all
+    // three hovers (kept, S:, A:). One builder rather than three near-copies: the guards below are
+    // the contract for what a producer-side breakdown row must look like, and three copies of a
+    // contract is three chances for one to drift. Returns '' when nothing survives, which the
+    // callers treat as "leave it untitled" rather than showing an empty tooltip.
+    function buildAssetListTitle( rows, prefix ) {
         if ( ! Array.isArray( rows ) ) { return ''; }
         var parts = [];
         rows.forEach( function ( r ) {
@@ -3147,8 +3160,19 @@
             parts.push( r.label + ( n > 1 ? ' (' + n + ')' : '' ) );
         } );
         if ( ! parts.length ) { return ''; }
-        return 'Kept on this page — never unloaded: ' + parts.join( ', ' );
+        return prefix + parts.join( ', ' );
     }
+
+    function buildKeptChipTitle( rows ) {
+        return buildAssetListTitle( rows, 'Kept on this page — never unloaded: ' );
+    }
+
+    // Prefixes for the S: / A: hovers. Worded to say what the number MEANS, since the token itself
+    // is a bare letter and a digit.
+    var CU_SAN_TITLE_PREFIX = {
+        safe:       'Safe to unload on this page: ',
+        aggressive: 'Aggressive — loaded but unused on this page: '
+    };
 
     function renderResultUrlList( pages, scanId, cuRulesActive ) {
         var host = document.getElementById('cu-result-url-list');
@@ -3237,9 +3261,18 @@
             // effAgg are Number()-coerced above, so these are numeric interpolations and need no
             // escaping. A NaN count (field absent) compares false and renders unbolded — the
             // same output this line produced before.
-            var sanS = '<span class="cu-san-token cu-san-safe' + ( effSafe > 0 ? ' is-positive' : '' ) + '">'
+            // FU-SAN-HOVER-BREAKDOWN (1.8.2b) — tag S: / A: for the post-render title pass, but
+            // ONLY when the DISPLAYED count is > 0 (operator: no hover on a zero token). Gated on
+            // effSafe/effAgg, never on p.safe/p.aggressive: an `all_already` row displays S:0 A:0
+            // while the raw fields stay positive, so keying off the raw value would hang a tooltip
+            // naming assets on a token reading 0. N: is never tagged — it is the untouched-asset
+            // residue, not a recommendation. sliceIdx is the map() loop counter — digits by
+            // construction, so this interpolation needs no escaping (same basis as the kept chip).
+            var sanSAttr = effSafe > 0 ? ' data-cu-row="' + sliceIdx + '" data-cu-san="safe"' : '';
+            var sanAAttr = effAgg  > 0 ? ' data-cu-row="' + sliceIdx + '" data-cu-san="aggressive"' : '';
+            var sanS = '<span class="cu-san-token cu-san-safe' + ( effSafe > 0 ? ' is-positive' : '' ) + '"' + sanSAttr + '>'
                 + ( effSafe > 0 ? '<strong>S:' + effSafe + '</strong>' : 'S:' + effSafe ) + '</span>';
-            var sanA = '<span class="cu-san-token cu-san-aggressive' + ( effAgg > 0 ? ' is-positive' : '' ) + '">'
+            var sanA = '<span class="cu-san-token cu-san-aggressive' + ( effAgg > 0 ? ' is-positive' : '' ) + '"' + sanAAttr + '>'
                 + ( effAgg > 0 ? '<strong>A:' + effAgg + '</strong>' : 'A:' + effAgg ) + '</span>';
             var sanN = '<span class="cu-san-token cu-san-needed">N:' + cuEscHtml( p.needed ) + '</span>';
             var san = ( p.status_class === 'error' ) ? '—'
@@ -3365,6 +3398,24 @@
             var rp  = slice[ Number( chip.getAttribute( 'data-cu-row' ) ) ];
             var tip = buildKeptChipTitle( rp && rp.kept_breakdown );
             if ( tip ) { chip.title = tip; }
+        } );
+        // FU-SAN-HOVER-BREAKDOWN (1.8.2b) — same treatment for the S: / A: tokens, from the
+        // producer-derived safe_breakdown / aggressive_breakdown (CuJsonBuilder::build() and
+        // ScannerAjax::recompute_by_page(), whose counts these lists sum to by construction).
+        // Only tokens the renderer tagged are selected here, and it tags only counts > 0 — so the
+        // "no hover on a zero" rule is enforced at the single place the number is decided, not
+        // re-derived here as a second predicate. Handles are worker strings — untrusted — so they
+        // reach the DOM ONLY via the title PROPERTY, never the innerHTML pipeline (ruling R19).
+        // One marker, one semantic: data-cu-san alone identifies a tagged token (the renderer
+        // never writes one attribute without the other), so this needs no second attribute
+        // selector to be exact.
+        host.querySelectorAll('.cu-san-token[data-cu-san]').forEach( function ( tok ) {
+            var rp    = slice[ Number( tok.getAttribute( 'data-cu-row' ) ) ];
+            var which = tok.getAttribute( 'data-cu-san' );
+            if ( ! rp || ! CU_SAN_TITLE_PREFIX[ which ] ) { return; }
+            var rows = ( 'safe' === which ) ? rp.safe_breakdown : rp.aggressive_breakdown;
+            var tip  = buildAssetListTitle( rows, CU_SAN_TITLE_PREFIX[ which ] );
+            if ( tip ) { tok.title = tip; }
         } );
         // Per-row "Scan again" link removed — noopt rows now show plain "Please scan again" text;
         // the bottom "Rescan 0-Results URLs" button rescans every noopt URL in one batch.

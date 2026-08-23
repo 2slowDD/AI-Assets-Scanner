@@ -4,6 +4,22 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.2b — 2026-08-23
+
+### Added
+- Hovering a **S:** or **A:** count in the results table now names the assets behind that number, the same way the kept-assets badge already does. Only counts above zero are hoverable — there is nothing to name on a zero — and **N:** is never hoverable, since it is the untouched-asset residue rather than a recommendation.
+
+### Fixed
+- The **Buy credits** button on the Settings screen now centres its label vertically. It is a link styled as a button and, unlike the **Refresh** button beside it, it was not centring its own text inside the button height.
+- The **Scan options** checkbox row now starts its text at the same left edge as the card heading above it, instead of sitting a few pixels to the left.
+- Scan-history table headings are no longer heavier than the rest of the interface (font weight 800 down to 600).
+- The **AI Assets Scanner** title in the page header now renders at a consistent weight and letter-spacing on every screen. Settings and Scan history were picking up a heavier weight from an older style rule that the scan screen already overrode.
+- The Scan ID copy control now copies the labelled string (`Scan ID: ad4ada7c9bbc`) rather than the bare identifier, so a pasted value is self-describing in a ticket or chat.
+
+### Internal
+- The S:/A: asset lists are built at the same place the counts are — in the one rule-emitting pass, and again in the rescan-merge path that recomputes those counts — so a hover list cannot disagree with the number it hangs off. Both paths share one collapser, and the sum of a list is pinned to the count it describes.
+- Advanced the public plugin version to `1.8.2b`, the admin-asset cache key to `1.8.2b.1`, and the scanner diagnostic banner to `1.0.11.7`.
+
 ## 1.8.1b — 2026-08-20
 
 ### Added

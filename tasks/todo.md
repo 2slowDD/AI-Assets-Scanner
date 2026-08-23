@@ -1,114 +1,123 @@
-# 1.8.1b — Step 2/3/4 admin UI refinements (2026-08-20)
+# 1.8.2b — settings/history polish + S:/A: hover breakdown (2026-08-23)
 
-Base: `d5fe638` (1.8.0b), branch `codex/admin-ui-1.8.0b`.
-Scope: **presentational only** — no scan-pipeline, rule-generation, results, or credit-accounting changes.
-F-CHECK-EFF: **N/A** — UI/admin-render work; the F-* yardstick is scan-pipeline-scoped.
-
-Status: **COMPLETE** — JS 20/20, PHP 950 tests 0 failures, both mutation-verified.
+Base: `374ad93` (1.8.1b) on `main`, working in the `codex` worktree.
+Carries two already-staged 1.8.1b-era tweaks (labelled Scan-ID copy payload; header letter-spacing)
+— item 4 below **supersedes** the letter-spacing value.
 
 ---
 
-## Phase-1 findings (assumptions tested before locking the approach)
+## Phase-1 findings
 
-- 🟢 **CONFIRMED** — WP current version is **7.1** (`api.wordpress.org/core/version-check/1.7/`
-  returns `7.1` as the `upgrade` offer). `Tested up to: 7.0.4` was stale.
-- 🟢 **CONFIRMED** — the Step-2 orbit **is** animated and works. Rendered the real markup +
-  real CSS in Chromium: `animationName: cuOrbit`, `playState: running`, non-identity
-  `transform` matrix, 1 live animation.
-- 🟢 **CONFIRMED** — the orbit **froze into a dead ring under `prefers-reduced-motion:
-  reduce`**. The old rule set `animation: none` on `.cu-state-orbit`. Emulated it:
-  `animationName: none`, `transform: none`, **0 live animations**, identical transform
-  across a 600 ms sample.
-- 🟢 **CONFIRMED** — the plugin ships **no** `.spinner` CSS; the low-right circle was WP core's
-  `.spinner` (a background **GIF**, `float: right`). CSS cannot stop a GIF, so under reduced
-  motion the GIF kept spinning while the orbit was frozen — exactly the reported signature.
-- ⚠️ **Assumption (unresolved, non-blocking)** — that the operator's machine has reduced motion
-  enabled. Not verifiable from here. The shipped fix is correct in both worlds.
-- 🟢 **CONFIRMED** — bypass suffixes are always **appended last** in the query string
-  (`class-scanner-ajax.php:370-415`), so "first bypass param → end of string" is exactly the
-  appended suffix.
-- 🟢 **CONFIRMED** — full bypass param-key set (`PluginDetector::OPTIMIZERS` +
-  `auto_bypass['code-unloader']`): `nowprocket, perfmattersoff, ao_noptimize, nonitro,
-  wpacu_no_load, LSCWP_CTRL, swis_disable, no_optimize, nowpcu`. A bare `?` test would be a
-  **false positive** — pinned as a regression test.
-- 🟢 **CONFIRMED** — all touched files are **CRLF** and stayed CRLF (wp-compliance R28).
+- 🟢 **CONFIRMED** — item 1 root cause: `.cu-balance-btn` (specificity `0,1,0`) declares
+  `display: inline-flex; align-items: center`, but WP core's `.wp-core-ui .button` (`0,2,0`) wins on
+  `display` and forces `inline-block`. `.cu-admin-page .button` then pins `min-height: 34px`. A
+  `<button>` (Refresh) centres its content natively; an `<a>` (Buy credits) does not — which is
+  exactly the asymmetry in the screenshot. Fix must raise specificity, not re-declare at `0,1,0`.
+- 🟢 **CONFIRMED** — item 2 geometry: `.cu-settings-card-heading` is `grid-template-columns: 38px
+  minmax(0,1fr); gap: 12px` → heading text starts at **50px**. `.cu-option-row` is `auto
+  minmax(0,1fr); gap: 9px; padding-left: 12px` → text starts at `12 + checkbox + 9` ≈ **37px**.
+  Hence the ~13px left offset. Fix by making the first column a fixed width that sums to 50px,
+  not by a magic padding nudge.
+- 🟢 **CONFIRMED** — item 4: the title renders at `font-weight: 700` from the OLD-generation rule
+  `.cu-header-text h2` (`0,1,1`, line ~145). The later combined rule declares no `font-weight`, so
+  700 wins on `.cu-admin-page` pages. Settings/History use `.cu-admin-page`; the scan wizard uses
+  `#cu-scanner-app` — the combined selector covers both.
+- 🟢 **CONFIRMED** — item 5 data path: `CuJsonBuilder::build()` is the one true rule-emitting pass;
+  each emitted rule carries `asset_handle`, and `$s`/`$a` increment once per emitted rule.
+  **Every `combine()` map entry emits at most ONE rule**, so `count(handles) === $s` by construction.
+- 🟢 **CONFIRMED** — item 5 trap: `by_page` has a **SECOND producer**, `recompute_by_page()`
+  (`class-scanner-ajax.php:2634`, ET-ratchet merge path). It rebuilds safe/aggressive from the
+  MERGED rules. Adding the breakdown only in `CuJsonBuilder` would leave the tooltip silently dead
+  after a merge — and worse, counts from one producer with a breakdown from the other. Both
+  producers must derive the breakdown from the same rules they count.
+- 🟢 **CONFIRMED** — established precedent for this exact feature is `kept_breakdown`: producer
+  emits `[{label,count}]`, client assigns via the **title PROPERTY only** (ruling R19 — worker
+  strings are untrusted and `cuEscHtml()` does NOT escape double quotes, so a `title="…"` attribute
+  concat would be an attribute-breakout). Mirror it exactly.
 
 ## Tasks
 
-- [x] **1. Version + WP-compat bump.** `1.8.1b` across the three lockstep sites
-      (`ai-assets-scanner.php` header `Version`, `CU_SCANNER_VERSION`, `README.md` badge —
-      the set `package.json` independently documents). Plus `CU_SCANNER_ASSET_VERSION` →
-      `1.8.1b.1`, `SCANNER_JS_VERSION` → `1.0.11.6`, `Tested up to: 7.1`, CHANGELOG entry.
-
-- [x] **2. Step 4 — copy control on the Scan ID.** Text moved into its own child span so the
-      button survives the write; inline SVG (matches this file's convention). Clipboard API
-      with an `execCommand` fallback for non-secure origins, transient confirm state,
-      `aria-label` + SR `role="status"` announcement. Button hidden when scanId is empty.
-
-- [x] **3. Step 3 — truthful optimizer-bypass status.** Driven from the real scan URLs, keyed
-      on the confirmed param set. Latches to *Applied* on first sighting; holds a neutral
-      *Checking…* until every page has a worker-echoed URL; only then reports
-      *Not applied (N/A)* with a neutral icon and muted styling.
-
-- [x] **4. Step 3 — bypass suffix rendered lighter than the URL.** Split at the first bypass
-      param, tail wrapped in `.cu-live-bypass-suffix`. Both halves escaped through the
-      existing `esc()`. Measured: suffix `rgb(101,115,134)` vs URL `rgb(23,34,56)` — lighter,
-      and still 4.83:1 on white (above WCAG AA 4.5:1).
-
-- [x] **5. Step 2 — orbit + spinner.** WP `.spinner` removed. The reduced-motion rule no longer
-      freezes the orbit: it evens out the border and swaps rotation for an opacity pulse, so
-      reduced-motion users keep an activity cue now that the spinner is gone.
-
-- [x] **6. Verification.** See Review.
+- [x] **1. Buy-credits vertical centring.** Add a specificity-winning rule
+      (`.cu-admin-page .button.cu-balance-btn`, plus the `#cu-scanner-app` variant) restoring
+      `inline-flex` + `align-items/justify-content: center`. Verify in-browser, not by eye.
+- [x] **2. Option-row text alignment.** Give `.cu-option-row` a fixed first column so the row sums
+      to the card heading's 50px text origin. Shipped as `1px border + 12px padding + 25px column +
+      12px gap`; the first pass used a 26px column and measured 0.8px off, because the row is
+      border-box and its own 1px border was not in the arithmetic. Checkbox centred in its column.
+- [x] **3. History `th` weight.** `.cu-history-table-card th` `font-weight: 800` → `600`.
+- [x] **4. Title weight + tracking, ALL AAS pages.** On the combined
+      `#cu-scanner-app .cu-header-text h2, .cu-admin-page .cu-header-text h2` rule: add
+      `font-weight: 600` and set `letter-spacing: .03em` (supersedes the staged `.05em`).
+      Operator waived the fit test.
+- [x] **5. S:/A: hover breakdown.** Producer-side, mirroring `kept_breakdown`:
+      - `CuJsonBuilder::build()` — accumulate the handle on each rule emit, in the same branch that
+        increments `$s`/`$a`; emit `safe_breakdown` / `aggressive_breakdown` as `[{label,count}]`
+        deduped by handle, sorted case-insensitively. Σcount == the S/A number BY CONSTRUCTION.
+      - `recompute_by_page()` — same shape, built from the merged `$rules` it already walks.
+      - `AIAS_Scan_Status::build_pages()` — copy both onto the row, defensively validated.
+      - `scanner.js` — generalise `buildKeptChipTitle` into one shared builder; tag the S/A tokens
+        with `data-cu-row`; in the post-render pass assign `.title` **only when the count is > 0**
+        (operator: hover must not fire on a zero token). N: is never tagged.
+      - **Identifier choice: the asset HANDLE**, used identically for S and A (operator: "always
+        have the same approach"). It is what the emitted rule carries, so no second lookup can drift.
+- [x] **6. Version + release hygiene.** Bump to `1.8.2b` across the three lockstep sites, plus
+      `CU_SCANNER_ASSET_VERSION` and `SCANNER_JS_VERSION`; **ADD** (never rewrite) new fingerprint
+      rows computed with the test's own algorithm. Update `VersionLockstepTest`'s pin. Replace the
+      `[Unreleased]` CHANGELOG block with a real `## 1.8.2b` entry.
+- [x] **7. Verify + commit.** `php -l`, `node --check`, both suites, browser verification of items
+      1/2/4/5, CRLF byte-check on every touched file, mutation-test the new gate. Then commit.
 
 ## Follow-ups discovered during this task
 
-- `admin/css/ai-assets-scanner-admin.css` now carries **three** generations of rules
-  (pre-1.8.0b from ~line 1019, v1.8.0b from ~line 1600, v1.8.1b appended at the end), with
-  `.cu-state-orbit` still defined only in the oldest block. Worth a dedup pass.
-- The reduced-motion block still covers only `.cu-pip.is-active` and `.cu-state-orbit`, while
-  `.cu-radar-sweep` / `cu-radar-flare` / `cu-live-pulse` keep animating. Inconsistent
-  accessibility posture — candidate for a follow-up sweep.
-- `CU_SCANNER_ASSET_VERSION` and `SCANNER_JS_VERSION` are hand-maintained; the fingerprint
-  guards catch drift only *after* the fact. Candidate for deriving them from a build step.
-- **`tests/` is in `.gitignore`.** Existing test files are tracked (committed before that
-  rule), but the new `tests/js/step3-bypass-status.test.js` is ignored and needs an explicit
-  `git add -f` to be committed. Operator decision — not forced here.
-- `CU_BYPASS_PARAM_KEYS` in `scanner.js` duplicates the `bypass_query` values in
-  `class-plugin-detector.php`. No guard keeps them in lockstep; a PHP test asserting the JS
-  array matches `OPTIMIZERS` would close that drift surface.
+- The CSS file now carries FOUR generations of rules; `.cu-header-text h2` exists at ~145 (700),
+  ~1096 (600) and ~1655 (combined). Two of the three are dead weight. Dedup pass overdue.
+- `by_page`'s two producers (`CuJsonBuilder` + `recompute_by_page`) must stay in step on every
+  field. Nothing enforces that — a registry-sweep test asserting both emit the same key set would
+  close the drift surface this task had to navigate by hand.
+- `CU_BYPASS_PARAM_KEYS` (JS) still duplicates `OPTIMIZERS` (PHP) with no lockstep guard — carried
+  over from 1.8.1b.
 
 ## Review
 
-**What shipped.** Five changes across `ai-assets-scanner.php`, `README.md`, `CHANGELOG.md`,
-`admin/views/scanner-page.php`, `admin/js/scanner.js`, `admin/css/ai-assets-scanner-admin.css`,
-plus test updates in `tests/JsCacheBustDriftTest.php`, `tests/VersionLockstepTest.php`,
-`tests/js/r3-stage-c-harness.js` and a new `tests/js/step3-bypass-status.test.js`.
+**Shipped.** All five operator items plus the two carried-over 1.8.1b-era tweaks, released as 1.8.2b.
+
+**Root causes, not symptoms.**
+- Item 1 was not a padding problem: `.cu-balance-btn` already asked for flex centring but lost the
+  `display` declaration to WP core at higher specificity, so the anchor never became a flex box.
+  Re-declaring above core fixed it; a padding nudge would have masked it at one font size.
+- Item 2 was a grid-geometry mismatch, closed by making the option row sum to the heading text
+  origin (1px border + 12px padding + 25px column + 12px gap = 50px). Measured 0.2px apart.
+- Item 4 was an inheritance gap: the combined selector declared no `font-weight`, so an older
+  `.cu-header-text h2` rule pinned 700 everywhere except the wizard, which overrode it separately.
 
 **Verification performed.**
-- `php -l` clean on both touched PHP files; `node --check` clean on `scanner.js`.
-- Rendered the **real** markup + **real** CSS + **real** JS source slices in Chromium.
-  Bypass-detection matrix 8/8, including the two negatives that matter (`?utm_source=…`
-  not matched; wrong-case and near-miss keys not matched).
-- Clipboard round-trip through the shipped handler: `navigator.clipboard.readText()`
-  returned the scan ID.
-- Reduced-motion before/after: `animation: none` + 0 live animations → `cuOrbitPulse` +
-  1 live animation with opacity measurably changing (1 → 0.72).
-- XSS probe through `rowHtml`: hostile URL escaped on **both** halves of the split.
-- **Mutation-tested** both new guards: making any query string count as a bypass, and
-  removing the latch, each turned the suite red on the intended assertion; restoring
-  returned it green. The guards are not decorative.
-- Full suites: **JS 20/20 pass**, **PHP 950 tests / 2342 assertions / 0 failures**.
-  The 5 skipped + 2 risky (`MenuBadgeTest`) are pre-existing and untouched by this work.
-- CRLF verified byte-level on all ten changed files.
+- Real-browser measurement of items 1-4 against the real markup + real stylesheet: Buy-credits text
+  gaps 12.6/13.4px (centred); option text 253.8 vs heading 254.0; history `th` 600; title 600 /
+  0.66px (= .03em x 22px) / 22px on a `.cu-admin-page` screen.
+- Item 5 verified in a real browser using production code SLICED FROM SOURCE (not retyped): the
+  selector matched exactly the two tagged tokens, S: and A: carried their handle lists with
+  `cursor: help`, and S:0 / A:0 / N: carried no title and no help cursor.
+- Mutation-tested both new guards. Gating the hover on the RAW count instead of the displayed one
+  turns the `all_already` test red; assigning an empty title turns the legacy-row test red.
+- Suites: JS 21/21, PHP 950 / 2344 assertions / 0 failures. The 5 skipped + 2 risky (`MenuBadgeTest`)
+  are pre-existing and untouched.
+- CRLF verified byte-level on every changed file.
 
-**One process note worth keeping.** The first version bump was applied with `sed -i`, which
-silently converted both files from CRLF to LF — a wp-compliance R28 violation that git's
-autocrlf hid from `git diff`, and that a `grep -c $'\r'` check falsely reported as clean
-(empty-pattern match). Caught by a raw `od -c` / `tr -cd` byte count. Files were restored and
-re-edited with a byte-preserving tool. **Do not use `sed -i` on this repo's CRLF files.**
+**Two traps caught before they shipped.**
+1. `by_page` has TWO producers. Adding the breakdown only to `CuJsonBuilder` would have paired a
+   MERGED count with an UNMERGED list on the ET-ratchet path — a tooltip quietly contradicting its
+   own token. Both producers now collect handles in the branch that increments.
+2. `all_already` rows DISPLAY S:0 A:0 while the raw fields stay positive. Keying the hover off
+   `p.safe` would have hung an asset list on a token reading 0. Gated on the displayed value, and
+   that is the mutation the test now pins.
 
-**Guards that earned their keep.** Three PHP tests failed on the version bump and each named
-a required step that had not been done yet: the admin-asset fingerprint row, the
-`SCANNER_JS_VERSION` banner bump plus its row, and the version-lockstep pin. The release
-ritual is genuinely enforced rather than documented.
+**One self-correction worth recording.** The first version of the hover test asserted
+`!tagged[0].title`, which a mutation assigning `title = ''` survived — `!''` is also true. That
+mattered: the `.cu-san-token[title]` cursor rule matches an EMPTY title, so the bug would have shown
+a help cursor promising a tooltip that never appears. Tightened to `strictEqual(undefined)`, which
+kills the mutation. A falsy check is not an absence check.
+
+**Harness limitation found.** `r3-stage-c-harness`s `parseSelector` supports only ONE `[attr]`, so
+the original `.cu-san-token[data-cu-row][data-cu-san]` selector would have returned `[]` there and
+every test would have passed for the wrong reason. Production now uses a single-marker selector —
+better design anyway (one marker, one semantic) — and the harness exercises the real path.

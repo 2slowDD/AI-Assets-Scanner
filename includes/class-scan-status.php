@@ -162,6 +162,16 @@ class AIAS_Scan_Status {
 				'safe'         => (int) ( $tally['safe'] ?? 0 ),
 				'aggressive'   => (int) ( $tally['aggressive'] ?? 0 ),
 				'needed'       => (int) ( $tally['needed'] ?? 0 ),
+				// FU-SAN-HOVER-BREAKDOWN (1.8.2b) — the [{label,count}] rows the S:/A: hover
+				// tooltips name their assets from, carried from the SAME $tally that produced the
+				// two counts directly above. Both by_page producers (CuJsonBuilder::build() and
+				// ScannerAjax::recompute_by_page()) collect the handle in the same branch that
+				// increments, so Σcount === the displayed number by construction rather than by
+				// two predicates agreeing. A legacy tally (older transient, replayed job) simply
+				// carries no key → [] → the client leaves the token untitled, which is the same
+				// output it produced before this field existed.
+				'safe_breakdown'       => self::validate_breakdown( $tally['safe_breakdown'] ?? null ),
+				'aggressive_breakdown' => self::validate_breakdown( $tally['aggressive_breakdown'] ?? null ),
 				// FU-AAS-ET-CANDIDATE-COLUMN: ok-only allowlist. Positive `=== 'ok'` (NOT `!== 'error'`)
 				// — also excludes partial/blocked/skipped per the do-NOT.
 				'et_candidate' => ( $bail > 0 && 'ok' === $st['class'] ),
@@ -328,6 +338,41 @@ class AIAS_Scan_Status {
 	 * @param array<string,mixed> $page One raw Railway per-page result row.
 	 * @return array<int,array{label:string,count:int}>
 	 */
+	/**
+	 * FU-SAN-HOVER-BREAKDOWN (1.8.2b) — shape-guard one by_page breakdown list on its way onto a
+	 * Step-4 row.
+	 *
+	 * The rows are produced server-side, but from handles that originate in untrusted Railway
+	 * asset data, and the tally can also arrive from an older transient whose shape predates this
+	 * field. Same defensive posture as the bypass_suffixes / kept_protection reads above: anything
+	 * that is not a well-formed {label:non-empty-string, count:int>0} row is dropped rather than
+	 * trusted, and a malformed input degrades to [] (token renders untitled) instead of fatalling.
+	 *
+	 * @param mixed $rows Candidate breakdown list.
+	 * @return array<int,array{label:string,count:int}>
+	 */
+	private static function validate_breakdown( $rows ): array {
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$label = $row['label'] ?? null;
+			$count = $row['count'] ?? null;
+			if ( ! is_string( $label ) || '' === $label || ! is_numeric( $count ) || (int) $count < 1 ) {
+				continue;
+			}
+			$out[] = array(
+				'label' => $label,
+				'count' => (int) $count,
+			);
+		}
+		return $out;
+	}
+
 	private static function build_kept_breakdown( array $page ): array {
 		$seen   = array(); // Composite-string set — dedupe index, same unit as kept_count.
 		$labels = array(); // display_name => count of NEW composites it contributed.
