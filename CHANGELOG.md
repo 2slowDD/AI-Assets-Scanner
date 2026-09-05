@@ -10,7 +10,7 @@ All notable changes to AI Assets Scanner are documented here.
 - Scans carry the plugin version to the worker (`plugin_version` on the job create request), so a scan in the worker's log can be attributed to the exact plugin build that ran it. Older workers ignore the field.
 
 ### Changed
-- **Discover / Re-discover** lists the homepage first within its group (Pages when a static front page is set; otherwise Other). When the home URL is not in the discovered set, the shortest URL is listed first instead. Restore-from-session shows the same order; manual include lists and Extra-Time carry-over are unchanged.
+- **Discover / Re-discover** lists the homepage first within its group (Pages when a static front page is set; otherwise Other). When the home URL is not in the discovered set, the shortest URL is listed first instead. Manual include lists and Extra-Time carry-over are unchanged.
 - The admin header byline now reads "Powered by WPservice.pro" (link unchanged).
 
 ### Internal

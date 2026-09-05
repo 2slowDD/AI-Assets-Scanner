@@ -45,7 +45,7 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 if ( ! class_exists( 'WP_Query' ) ) {
     class WP_Query {
         public static array $next_posts = [];
-        public array $posts;
+        public array $posts = [];
         public function __construct( array $args = [] ) { $this->posts = self::$next_posts; }
     }
 }
