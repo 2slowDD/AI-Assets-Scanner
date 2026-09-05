@@ -891,6 +891,53 @@ class ScannerAjax {
     }
 
     /**
+     * FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.1) — the scan's page set as CU url_patterns.
+     * Deduped, page order preserved. Every worker row, error pages included: the two by_page
+     * producers differ (CuJsonBuilder::build skips error pages; recompute_by_page walks every
+     * row), and the scope set must be a superset of what EITHER counts. Same transform as the
+     * rule side (UrlPattern::from_url), so membership is exact string equality.
+     * Rule 1: Railway rows are untrusted — string-cast, skip empties, never fatal.
+     *
+     * @param array<int,mixed> $pages_raw Railway per-page result rows.
+     * @return string[]
+     */
+    public static function scanned_patterns( array $pages_raw ): array {
+        $set = [];
+        foreach ( $pages_raw as $page ) {
+            $url = is_array( $page ) ? (string) ( $page['url'] ?? '' ) : '';
+            if ( '' === $url ) {
+                continue;
+            }
+            $set[ \CUScanner\Scanner\UrlPattern::from_url( $url ) ] = true;
+        }
+        return array_keys( $set );
+    }
+
+    /**
+     * FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.3 wire site 3) — safe/aggressive counts over a rule
+     * LIST. TOTAL by construction: two branches, no skip, no "known groups" filter, so
+     * count($rules) === safe + aggressive. The JS flag is derived from these two numbers, so a
+     * third branch here would silently dormant Push/Sync on a scan that has rules (AC-10(v)).
+     * group_id === 1 => safe, else aggressive — the identical strict test RulePusher::sync and
+     * do_push use, so card = Sync line = Push line.
+     *
+     * @param array<int,array<string,mixed>> $rules
+     * @return array{safe:int,aggressive:int}
+     */
+    public static function rule_counts_from_rules( array $rules ): array {
+        $safe = 0;
+        $agg  = 0;
+        foreach ( $rules as $rule ) {
+            if ( 1 === ( $rule['group_id'] ?? null ) ) {
+                $safe++;
+            } else {
+                $agg++;
+            }
+        }
+        return [ 'safe' => $safe, 'aggressive' => $agg ];
+    }
+
+    /**
      * Claim the duplicate-page credit-back. Best-effort by design.
      *
      * Single attempt, no sleep, no inline retry: this runs inside the result-build AJAX
@@ -1315,6 +1362,11 @@ class ScannerAjax {
             ] );
         }
 
+        // FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.1) — persist the scan's page set so Sync/Push and
+        // the Ready-to-apply card can scope to THIS scan's pages. Written after the ratchet block
+        // (rules final) and before json_encode/store_json. Additive key; older readers ignore it.
+        $cu_json['scanned_patterns'] = self::scanned_patterns( $pages_raw );
+
         // ── Operator ruling 2026-08-05: result-truth is scoped to CU-rules-live scans ──────────
         // The whole apparatus (dedupe → split summary → netting → credit-back) applies ONLY when
         // the scan ran with Code Unloader's rules ACTIVE, i.e. the `?nowpcu` suffix was omitted.
@@ -1562,7 +1614,12 @@ class ScannerAjax {
         unset( $row );
 
         $can_push          = ( new RulePusher() )->can_push();
-        $has_internal_rules = ! empty( $this->filter_internal_rules( $cu_json )['rules'] );
+        // FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.3 wire site 3) — ONE list feeds the button-state flag
+        // AND the Ready-to-apply card counts, so flag ≡ card ≡ the Sync/Push line by construction.
+        // host filter -> scope filter, the same composition sync_to_cu()/push_to_cu() apply.
+        $apply_rules        = $this->filter_scanned_rules( $this->filter_internal_rules( $cu_json ) )['rules'];
+        $apply_counts       = self::rule_counts_from_rules( $apply_rules );
+        $has_internal_rules = ! empty( $apply_rules );
 
         // $cu_rules_active is read ABOVE, at the dedupe gate — it decides both whether the
         // apparatus runs at all and, on the payload, which zero-finding copy the client shows.
@@ -1580,6 +1637,10 @@ class ScannerAjax {
             'agg_count'     => $agg_count,
             'can_push'      => $can_push,
             'has_internal_rules' => $has_internal_rules,
+            // FU-AAS-SYNC-SCOPE-LAST-SCAN — host-internal, scoped counts for the Ready-to-apply card.
+            // Same UNRENAMED names as the live payload and the JS writers (restore contract).
+            'apply_safe_count'       => $apply_counts['safe'],
+            'apply_aggressive_count' => $apply_counts['aggressive'],
             'external_only' => false,
             'total_pages'   => count( $pages_raw ),
             'scan_id'       => $scan_id_display,
@@ -1611,6 +1672,8 @@ class ScannerAjax {
             'cu_rules_active'  => $cu_rules_active,
             'can_push'         => $can_push,
             'has_internal_rules' => $has_internal_rules,
+            'apply_safe_count'       => $apply_counts['safe'],
+            'apply_aggressive_count' => $apply_counts['aggressive'],
             'scan_id'          => $scan_id_display,
             'pages_blocked'    => $pages_blocked,
             'blocked_reasons'  => $blocked_reasons,
@@ -1715,6 +1778,33 @@ class ScannerAjax {
                 $rule_host = strtolower( preg_replace( '/^www\./i', '', wp_parse_url( $rule['url_pattern'] ?? '', PHP_URL_HOST ) ?? '' ) );
                 return $rule_host === $site_host;
             }
+        ) );
+        return $decoded;
+    }
+
+    /**
+     * FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.2) — keep only rules whose url_pattern is one of
+     * the scan's own pages (`scanned_patterns`, written by do_build_result). Composes after
+     * filter_internal_rules(); shared by sync_to_cu(), push_to_cu() and the build-time
+     * apply_* / has_internal_rules computation.
+     *
+     * Semantics, FIXED: key absent or not an array => unchanged (pre-1.8.3b stored JSON keeps
+     * today's unscoped behaviour); key is an array => filter, even down to zero rules. A present
+     * array with no strings yields an EMPTY set and therefore zero rules — deliberately
+     * fail-closed: falling back to unscoped on an empty set would re-create the bug this FU
+     * fixes whenever the key is corrupt. Zero rules is F-MISS-only because both handlers guard
+     * empty($decoded['rules']) BEFORE the pusher (an empty list into RulePusher::push would
+     * retire every scanner rule via snapshot -> bump -> empty groups -> commit).
+     * Rule 1: the stored option is our own DB and still untrusted — is_array/is_string guards.
+     */
+    private function filter_scanned_rules( array $decoded ): array {
+        if ( ! isset( $decoded['scanned_patterns'] ) || ! is_array( $decoded['scanned_patterns'] ) ) {
+            return $decoded;
+        }
+        $set = array_flip( array_values( array_filter( $decoded['scanned_patterns'], 'is_string' ) ) );
+        $decoded['rules'] = array_values( array_filter(
+            $decoded['rules'] ?? [],
+            static fn( $rule ) => is_array( $rule ) && isset( $set[ (string) ( $rule['url_pattern'] ?? '' ) ] )
         ) );
         return $decoded;
     }
