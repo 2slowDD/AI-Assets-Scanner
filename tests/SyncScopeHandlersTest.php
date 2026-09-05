@@ -143,7 +143,13 @@ class SyncScopeHandlersTest extends TestCase {
      * test_ac4c_junk_array_is_fail_closed_on_sync_and_push() — the push leg guards the
      * retire-every-scanner-rule blast radius and must report independently of the sync leg.
      * Each leg gets its OWN fixture setup (own $this->stub() call) rather than sharing state.
-     * @dataProvider junk_arrays
+     *
+     * Final-review fold (2026-09-05): provider renamed junk_arrays -> fail_closed_keys and a
+     * 'strings-no-match' row added (spec §5 AC-5 second sentence / §3.2 fail-closed) — a
+     * WELL-FORMED, non-empty set of real strings that simply matches no rule. The prior rows
+     * ('ints', 'empty') only proved fail-closed on a malformed/empty key; this proves it also
+     * holds on a key that passed every earlier guard and still yields zero rules.
+     * @dataProvider fail_closed_keys
      */
     public function test_ac4c_sync_fail_closed( array $key ): void {
         $this->stub( $this->fixture_a( $key ) );
@@ -153,7 +159,7 @@ class SyncScopeHandlersTest extends TestCase {
         $this->assertSame( [], FakeRuleRepository::$rules, 'the pusher was never entered' );
     }
 
-    /** @dataProvider junk_arrays */
+    /** @dataProvider fail_closed_keys */
     public function test_ac4c_push_fail_closed( array $key ): void {
         // Own fixture, with a pre-seeded ACTIVE scanner rule that must survive.
         $this->stub( $this->fixture_a( $key ) );
@@ -167,7 +173,78 @@ class SyncScopeHandlersTest extends TestCase {
         $this->assertArrayNotHasKey( $gid, FakeRuleRepository::$updated_groups, 'no group was renamed or disabled — the pusher (snapshot/bump) never ran' );
         $this->assertCount( 1, FakeRuleRepository::$groups, 'no snapshot group and no fresh groups were created' );
     }
-    public function junk_arrays(): array { return [ 'ints' => [ [ 123 ] ], 'empty' => [ [] ] ]; }
+    public function fail_closed_keys(): array {
+        return [
+            'ints'             => [ [ 123 ] ],
+            'empty'            => [ [] ],
+            'strings-no-match' => [ [ 'https://site.test/nothing' ] ],
+        ];
+    }
+
+    // -------------------------------------------------------------- AC-5 (handler leg)
+    /**
+     * Final-review fold (2026-09-05): the AC-5 PHP-side test (SyncScopeBuildResultTest) only
+     * proves the BUILD-time payload/option (apply_* = 0, has_internal_rules = false). It never
+     * drives the stored JSON into the actual sync_to_cu()/push_to_cu() handlers, so the fold
+     * this FU makes — filter_scanned_rules dropping a host-internal-but-out-of-scan rule down
+     * to zero — was unpinned on the handler side. This feeds the REAL AC-5 producer's stored
+     * JSON, unmodified, into the real sync_to_cu().
+     */
+    public function test_ac5_sync_on_produced_mixed_host_json_is_refused(): void {
+        $json = ( new SyncScopeBuildResultTestFixtureAccess() )->mixed_host_et_json( $this );
+        // Non-vacuity guards (P17): without real strings in scanned_patterns AND a host-internal
+        // rule present in the produced JSON, the assertions after sync would pass trivially the
+        // moment the producer stopped emitting either one.
+        $this->assertNotEmpty( $json['scanned_patterns'], 'scanned_patterns carries real, non-empty strings' );
+        $this->assertNotEmpty(
+            array_filter( $json['rules'], fn( $r ) => str_starts_with( $r['url_pattern'], 'https://site.test/' ) ),
+            'host-internal rules exist in the produced JSON that the scope filter must drop'
+        );
+
+        $this->stub( $json, 'job-mixed' );
+        ( new ScannerAjax() )->sync_to_cu();
+        $this->assertSame( 'No internal rules to sync', $this->error );
+        $this->assertNull( $this->captured );
+        $this->assertSame( [], FakeRuleRepository::$rules, 'the pusher was never entered' );
+    }
+
+    // -------------------------------------------------------------- Minor #2 (type guards)
+    /**
+     * Final-review fold (2026-09-05): filter_scanned_rules()'s url_pattern match now requires
+     * is_string(), not a (string) cast — an int 123 must NOT match a scanned_patterns set that
+     * happens to contain the STRING '123', and an array url_pattern must never reach isset() at
+     * all (spec §3.2 Rule 1: "no other type is accepted").
+     *
+     * Exercised directly via Reflection on filter_scanned_rules, not through the full
+     * sync_to_cu()/push_to_cu() handlers: an array url_pattern crashes the UNRELATED,
+     * pre-existing filter_internal_rules() host check first — its wp_parse_url() call
+     * (string)-casts url_pattern, and PHP's "Array to string conversion" warning is elevated
+     * by PHPUnit into a test error even though sync_to_cu()'s own catch(\Throwable) handles it
+     * internally (verified empirically with a throwaway probe test, discarded before this
+     * commit: the handler-level result was 'Sync failed. Check server error logs.', not a
+     * clean pass — a pre-existing gap in filter_internal_rules(), out of scope for this fix).
+     * Reflection isolates exactly the changed method, following the ReflectionMethod pattern
+     * already used for ScannerAjax::friendly_error() in tests/ScannerAjaxTest.php.
+     */
+    public function test_url_pattern_type_guard_drops_array_and_int_rows(): void {
+        $json = $this->fixture_a();
+        $json['rules'][] = [ 'url_pattern' => [ 'https://site.test/' ], 'match_type' => 'exact', 'asset_handle' => 'bad-array', 'asset_type' => 'css', 'device_type' => 'all', 'group_id' => 2, 'source_label' => 'AA Scanner' ];
+        $json['rules'][] = [ 'url_pattern' => 123, 'match_type' => 'exact', 'asset_handle' => 'bad-int', 'asset_type' => 'css', 'device_type' => 'all', 'group_id' => 2, 'source_label' => 'AA Scanner' ];
+        $json['scanned_patterns'][] = '123'; // a real string '123' IS in scope — the int 123 must still not match it.
+
+        $m = new \ReflectionMethod( ScannerAjax::class, 'filter_scanned_rules' );
+        $m->setAccessible( true );
+        $filtered = $m->invoke( new ScannerAjax(), $json );
+
+        foreach ( $filtered['rules'] as $r ) {
+            $this->assertIsString( $r['url_pattern'], 'every surviving rule has a string url_pattern' );
+        }
+        $this->assertSame(
+            [ 'safe' => 0, 'aggressive' => 6 ],
+            ScannerAjax::rule_counts_from_rules( $filtered['rules'] ),
+            'the array- and int-typed url_pattern rows are dropped; the 6 real home rules are unchanged'
+        );
+    }
 
     // -------------------------------------------------------------- AC-6
     public function test_ac6_undo_removes_exactly_the_scoped_rules_and_disables_the_two_created_groups(): void {

@@ -124,7 +124,7 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.2b S:/A: hover breakdown: shared buildAssetListTitle(), data-cu-san tagging gated on
 		// the DISPLAYED count, and the post-render title pass beside the kept chip's.
 		'1.0.11.7' => '604594322a4378996054da13085f7a0202485a1147844c784cf793da681b585d',
-		// FU-AAS-SYNC-SCOPE-LAST-SCAN — scanner.js wire site 4 + menu-badge.js W2.
+		// FU-AAS-SYNC-SCOPE-LAST-SCAN — scanner.js wire site 4 (card second pair, flag derivation, W1/R1/whitelist literal).
 		'1.0.11.8' => 'fdc1dd329988b83a4ffb7ae2667ec1dd9f51fed1ff85711cf7479f776e4ef296',
 	);
 

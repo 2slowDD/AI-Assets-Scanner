@@ -896,7 +896,8 @@ class ScannerAjax {
      * producers differ (CuJsonBuilder::build skips error pages; recompute_by_page walks every
      * row), and the scope set must be a superset of what EITHER counts. Same transform as the
      * rule side (UrlPattern::from_url), so membership is exact string equality.
-     * Rule 1: Railway rows are untrusted — string-cast, skip empties, never fatal.
+     * Rule 1: Railway rows are untrusted — string-checked (no cast; a non-string url_pattern
+     * is skipped, never coerced), skip empties, never fatal.
      *
      * @param array<int,mixed> $pages_raw Railway per-page result rows.
      * @return string[]
@@ -904,11 +905,10 @@ class ScannerAjax {
     public static function scanned_patterns( array $pages_raw ): array {
         $set = [];
         foreach ( $pages_raw as $page ) {
-            $url = is_array( $page ) ? (string) ( $page['url'] ?? '' ) : '';
-            if ( '' === $url ) {
+            if ( ! is_array( $page ) || ! is_string( $page['url'] ?? null ) || '' === $page['url'] ) {
                 continue;
             }
-            $set[ \CUScanner\Scanner\UrlPattern::from_url( $url ) ] = true;
+            $set[ \CUScanner\Scanner\UrlPattern::from_url( $page['url'] ) ] = true;
         }
         return array_keys( $set );
     }
@@ -1796,6 +1796,9 @@ class ScannerAjax {
      * empty($decoded['rules']) BEFORE the pusher (an empty list into RulePusher::push would
      * retire every scanner rule via snapshot -> bump -> empty groups -> commit).
      * Rule 1: the stored option is our own DB and still untrusted — is_array/is_string guards.
+     * url_pattern is matched only when it IS a string (no (string) cast): an int or array
+     * value can never satisfy the guard, even if its cast form happens to collide with a
+     * member of the scanned_patterns set — no other type is accepted (spec §3.2 Rule 1).
      */
     private function filter_scanned_rules( array $decoded ): array {
         if ( ! isset( $decoded['scanned_patterns'] ) || ! is_array( $decoded['scanned_patterns'] ) ) {
@@ -1804,7 +1807,7 @@ class ScannerAjax {
         $set = array_flip( array_values( array_filter( $decoded['scanned_patterns'], 'is_string' ) ) );
         $decoded['rules'] = array_values( array_filter(
             $decoded['rules'] ?? [],
-            static fn( $rule ) => is_array( $rule ) && isset( $set[ (string) ( $rule['url_pattern'] ?? '' ) ] )
+            static fn( $rule ) => is_array( $rule ) && is_string( $rule['url_pattern'] ?? null ) && isset( $set[ $rule['url_pattern'] ] )
         ) );
         return $decoded;
     }

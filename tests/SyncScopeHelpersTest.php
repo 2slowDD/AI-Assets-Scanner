@@ -26,6 +26,9 @@ class SyncScopeHelpersTest extends TestCase {
             [ 'url' => 'https://site.test/b?x=1' ],   // collapses onto /b (query stripped, trailing slash stripped)
             [ 'url' => '' ],                            // skipped
             [ 'status' => 'error' ],                    // no url — skipped, never fatal
+            'https://site.test/plain-string-row',       // final-review fold: the ROW itself is a bare string, not an array — skipped, no warning
+            [ 'url' => [ 'x' ] ],                        // final-review fold: url is an array, not a string — skipped, no warning
+            [ 'url' => 123 ],                            // final-review fold: url is an int, not a string — skipped, no warning
             [ 'url' => 'https://ext.test/p/' ],         // external pages ARE in the scope set (host filter is separate)
         ];
         $this->assertSame(

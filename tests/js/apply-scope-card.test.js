@@ -62,6 +62,7 @@ function testLegacyBlobFallsBack() {
   const blob = { job_id: 'job1', safe_count: 1, agg_count: 8, can_push: true, external_only: false, total_pages: 4, pages: [], scan_id: 'scan1' };
   const h = createHarness({ localStorage: { cu_scanner_result: JSON.stringify(blob) } });
   assert.strictEqual(text(h, 'cu-ready-rule-total'), '9', 'no apply_* => card falls back to the scan totals (AC-5(iii))');
+  assert.ok(h.els['cu-btn-sync'], 'the Sync button element exists in the harness');
   assert.ok(!dormant(h, 'cu-btn-sync'), 'and the flag falls back to totalRules > 0');
   console.log('OK legacy blob: today\'s behaviour');
 }
@@ -69,6 +70,7 @@ function testNullIsNotKnown() {
   const h = createHarness();
   renderLive(h, { safe_count: 1, aggressive_count: 8, has_internal_rules: true, apply_safe_count: null, apply_aggressive_count: null });
   assert.strictEqual(text(h, 'cu-ready-rule-total'), '9', 'explicit nulls are NOT "known 0/0" (r3 m4)');
+  assert.ok(h.els['cu-btn-sync'], 'the Sync button element exists in the harness');
   assert.ok(!dormant(h, 'cu-btn-sync'));
   console.log('OK null apply_* is not treated as known');
 }

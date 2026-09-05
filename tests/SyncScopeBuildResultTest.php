@@ -132,6 +132,35 @@ trait SyncScopeBuildResultFixtures {
             'rescan' => [ $this->page( 'https://site.test/', [ 'home-a' ], [ 'extra_time_charged' => true ] ) ],
         ];
     }
+
+    /**
+     * Final-review fold (2026-09-05): the AC-5 mixed-host ET rescan scenario (spec §5 AC-5),
+     * extracted out of SyncScopeBuildResultTest::test_ac5_mixed_host_et_rescan_with_no_internal_in_scope_rules()
+     * the same way et_rescan_scenario() was extracted for AC-1/AC-9, so that test and
+     * SyncScopeBuildResultTestFixtureAccess::mixed_host_et_json() (the AC-5 handler-leg helper)
+     * can never silently diverge on what "the AC-5 scenario" means.
+     *
+     * Parent: internal /other/ produced rules; internal /empty/ has no rule (asset in use).
+     * Rescan: /empty/ (still no rule — asset now in use) + an external /x/ page that DOES
+     * produce rules. Net effect: the rescan itself contributes no host-internal rule, while the
+     * ratchet carries the internal /other/ rule forward into the stored JSON's 'rules' — a
+     * host-internal rule that sits OUTSIDE scanned_patterns (which is just /empty/ + /x/).
+     *
+     * Caller MUST have wp_parse_url live BEFORE calling: r_orig_from() runs the REAL
+     * CuJsonBuilder::build() -> UrlPattern::from_url ahead of stub_everything_impl().
+     */
+    private function mixed_host_et_scenario(): array {
+        $parent = [ $this->page( 'https://site.test/other/', [ 'other-a' ] ), $this->page( 'https://site.test/empty/', [] ), $this->page( 'https://ext.test/x/', [ 'x-a' ] ) ];
+        $used   = [ 'handle' => 'used-a', 'type' => 'style', 'desktop' => [ 'loaded' => true, 'coverage' => 0.9 ], 'mobile' => [ 'loaded' => true, 'coverage' => 0.9 ] ];
+        $rescan = [
+            [ 'url' => 'https://site.test/empty/', 'status' => 'done', 'assets' => [ $used ], 'extra_time_charged' => true ],
+            $this->page( 'https://ext.test/x/', [ 'x-a' ], [ 'extra_time_charged' => true ] ),
+        ];
+        return [
+            'r_orig' => $this->r_orig_from( $parent ),
+            'rescan' => $rescan,
+        ];
+    }
 }
 
 /**
@@ -259,15 +288,12 @@ class SyncScopeBuildResultTest extends TestCase {
 
     // ---------------------------------------------------------------- AC-5 (PHP side)
     public function test_ac5_mixed_host_et_rescan_with_no_internal_in_scope_rules(): void {
-        // Parent: internal /other/ produced rules; rescan: internal /empty/ (asset in use => no rule) + external /x/ with rules.
-        $parent = [ $this->page( 'https://site.test/other/', [ 'other-a' ] ), $this->page( 'https://site.test/empty/', [] ), $this->page( 'https://ext.test/x/', [ 'x-a' ] ) ];
-        $this->transients['cu_scanner_r_orig_1'] = $this->r_orig_from( $parent );
-        $used = [ 'handle' => 'used-a', 'type' => 'style', 'desktop' => [ 'loaded' => true, 'coverage' => 0.9 ], 'mobile' => [ 'loaded' => true, 'coverage' => 0.9 ] ];
-        $rescan = [
-            [ 'url' => 'https://site.test/empty/', 'status' => 'done', 'assets' => [ $used ], 'extra_time_charged' => true ],
-            $this->page( 'https://ext.test/x/', [ 'x-a' ], [ 'extra_time_charged' => true ] ),
-        ];
-        $this->stub_everything( $rescan );
+        // Scenario extracted to the shared trait (final-review fold, 2026-09-05) so the AC-5
+        // handler-leg helper (SyncScopeBuildResultTestFixtureAccess::mixed_host_et_json()) runs
+        // the exact same fixture and can never silently diverge from this test.
+        $scenario = $this->mixed_host_et_scenario();
+        $this->transients['cu_scanner_r_orig_1'] = $scenario['r_orig'];
+        $this->stub_everything( $scenario['rescan'] );
         $payload = ( new ScannerAjax() )->do_build_result( 'job-mixed', 'tok' );
 
         foreach ( [ 'live payload' => $payload, 'aias_last_result option' => $this->options['aias_last_result'] ] as $where => $p ) {
@@ -339,6 +365,37 @@ class SyncScopeBuildResultTestFixtureAccess {
 
         $test->assertArrayHasKey( 'cu_scanner_json_job-et', $options, 'the AC-1 ET-rescan producer stored the scan JSON' );
         $decoded = json_decode( (string) $options['cu_scanner_json_job-et'], true );
+
+        // Leave WP_Mock clean for the caller to register its OWN (handler-phase) stubs next.
+        WP_Mock::tearDown();
+        WP_Mock::setUp();
+
+        return $decoded;
+    }
+
+    /**
+     * Final-review fold (2026-09-05) — AC-5 handler-leg helper. Runs the SAME mixed-host ET
+     * rescan scenario as SyncScopeBuildResultTest::test_ac5_mixed_host_et_rescan_with_no_internal_in_scope_rules()
+     * — via the SHARED SyncScopeBuildResultFixtures::mixed_host_et_scenario(), not a hand-copied
+     * fixture — through the REAL ScannerAjax::do_build_result(), and hands back the decoded
+     * stored JSON for job "job-mixed". Same bracketing contract as et_rescan_json() above.
+     */
+    public function mixed_host_et_json( TestCase $test ): array {
+        // wp_parse_url must be live BEFORE mixed_host_et_scenario() runs (it calls
+        // r_orig_from(), which executes the REAL CuJsonBuilder::build() -> UrlPattern::from_url
+        // ahead of stub_everything_impl() below — same ordering constraint as et_rescan_json()).
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $u, $c = -1 ) => parse_url( (string) $u, $c ) );
+
+        $scenario = $this->mixed_host_et_scenario();
+
+        $options    = [];
+        $transients = [ 'cu_scanner_r_orig_1' => $scenario['r_orig'] ];
+        $this->stub_everything_impl( $scenario['rescan'], $options, $transients );
+
+        ( new ScannerAjax() )->do_build_result( 'job-mixed', 'tok' );
+
+        $test->assertArrayHasKey( 'cu_scanner_json_job-mixed', $options, 'the AC-5 mixed-host ET rescan producer stored the scan JSON' );
+        $decoded = json_decode( (string) $options['cu_scanner_json_job-mixed'], true );
 
         // Leave WP_Mock clean for the caller to register its OWN (handler-phase) stubs next.
         WP_Mock::tearDown();
