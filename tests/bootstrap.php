@@ -37,6 +37,19 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
     }
 }
 
+// FU-AAS-DISCOVER-HOMEPAGE-FIRST (1.8.5) — minimal WP_Query stub so ScannerAjax::discover_pages can
+// be driven as a REAL handler. Lives HERE behind class_exists (the WP_Error / WP_REST_Request
+// pattern), NEVER in a test file: PHPUnit loads test files alphabetically and a process-global class
+// declared in one file collides with, or silently shadows for, every later file. Tests set
+// WP_Query::$next_posts and reset it to [] in BOTH setUp and tearDown.
+if ( ! class_exists( 'WP_Query' ) ) {
+    class WP_Query {
+        public static array $next_posts = [];
+        public array $posts;
+        public function __construct( array $args = [] ) { $this->posts = self::$next_posts; }
+    }
+}
+
 spl_autoload_register( function ( string $class ): void {
     // Shared with ai-assets-scanner.php so the suite exercises the REAL production
     // autoload map, not a hand-maintained test-only copy that can silently drift.

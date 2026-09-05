@@ -220,10 +220,17 @@ class ScannerAjax {
         $discovery->set_excluded_urls( $excluded );
         $final = $discovery->get_urls();
 
+        // FU-AAS-DISCOVER-HOMEPAGE-FIRST (1.8.5, rulings B1–B3): the homepage leads the flat list and,
+        // because the groups below are built by walking $final in order, leads its own group too.
+        // Fresh Discover only — restore replays this response; manual include / ET carry-over are untouched.
+        $final = PageDiscovery::home_first( $final, $home_url );
+
         // Build post-type groups via WP_Query.
         // Normalise both map keys and lookup values so sitemap URLs
         // (which may differ in scheme or trailing slash) match get_permalink() output.
-        $normalise = fn( string $u ): string => trailingslashit( set_url_scheme( $u, 'https' ) );
+        // ONE normaliser for grouping AND home matching (PageDiscovery::normalise_url) — a scheme or
+        // trailing-slash divergence between the two would group the homepage in one place and promote another.
+        $normalise = static fn( string $u ): string => PageDiscovery::normalise_url( $u );
 
         $q = new \WP_Query( [
             'post_type'      => get_post_types( [ 'public' => true ] ),

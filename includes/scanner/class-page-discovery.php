@@ -73,6 +73,52 @@ class PageDiscovery {
         return array_values( array_unique( array_diff( $this->urls, $this->excluded_urls ) ) );
     }
 
+    /**
+     * FU-AAS-DISCOVER-HOMEPAGE-FIRST (1.8.5) — the ONE normaliser both the discover_pages group walk
+     * and home_first() use, so "is this URL the homepage" and "which post-type group is this URL"
+     * can never disagree on scheme or trailing slash. Sitemaps may list http:// or omit the slash;
+     * get_permalink() / get_home_url() output is https + slashed.
+     */
+    public static function normalise_url( string $u ): string {
+        return trailingslashit( set_url_scheme( $u, 'https' ) );
+    }
+
+    /**
+     * FU-AAS-DISCOVER-HOMEPAGE-FIRST (1.8.5) — move the homepage to index 0 (operator rulings B1/B2):
+     * the first URL whose normalised form equals the normalised $home_url; if none, the shortest URL by
+     * string length (ties → the earliest). Order of the rest is preserved, keys re-indexed. Pure.
+     */
+    public static function home_first( array $urls, string $home_url ): array {
+        if ( $urls === [] ) {
+            return $urls;
+        }
+        $urls  = array_values( $urls );
+        $home  = self::normalise_url( $home_url );
+        $index = null;
+        foreach ( $urls as $i => $u ) {
+            if ( self::normalise_url( (string) $u ) === $home ) {
+                $index = $i;
+                break;
+            }
+        }
+        if ( $index === null ) {
+            $shortest = PHP_INT_MAX;
+            foreach ( $urls as $i => $u ) {
+                $len = strlen( (string) $u );
+                if ( $len < $shortest ) {
+                    $shortest = $len;
+                    $index    = $i;
+                }
+            }
+        }
+        if ( $index === null || $index === 0 ) {
+            return $urls;
+        }
+        $picked = $urls[ $index ];
+        unset( $urls[ $index ] );
+        return array_values( array_merge( [ $picked ], $urls ) );
+    }
+
     public function get_credit_cost(): int {
         return count( $this->get_urls() );
     }

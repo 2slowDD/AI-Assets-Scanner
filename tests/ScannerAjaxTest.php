@@ -6,8 +6,8 @@ use WP_Mock;
 use WP_Mock\Tools\TestCase;
 
 class ScannerAjaxTest extends TestCase {
-    public function setUp(): void { parent::setUp(); WP_Mock::setUp(); }
-    public function tearDown(): void { WP_Mock::tearDown(); parent::tearDown(); }
+    public function setUp(): void { parent::setUp(); WP_Mock::setUp(); \WP_Query::$next_posts = []; }
+    public function tearDown(): void { \WP_Query::$next_posts = []; WP_Mock::tearDown(); parent::tearDown(); }
 
     private function mockCheck(): void {
         WP_Mock::userFunction( 'check_ajax_referer' )->andReturn( true );
@@ -1410,5 +1410,76 @@ class ScannerAjaxTest extends TestCase {
         $this->assertSame( 2, $out['count'] );
         $this->assertSame( [ 'Bad category', 'Real' ], array_column( $out['rows'], 'label' ) );
         $this->assertSame( 'other', $out['rows'][0]['category'], 'a non-string category degrades, never fatals' );
+    }
+
+    /** Common wiring for discover_pages: nonce/cap, sitemap with HOME LAST, normalisers, id → permalink/type maps. */
+    private function wire_discover( array $sitemap_locs, array $id_to_permalink, array $id_to_type ): array {
+        $this->mockCheck();
+        WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://site.test' );
+        WP_Mock::userFunction( 'trailingslashit' )->andReturnUsing( fn( string $s ): string => rtrim( $s, '/' ) . '/' );
+        WP_Mock::userFunction( 'set_url_scheme' )->andReturnUsing(
+            fn( string $url, string $scheme = 'https' ): string => preg_replace( '#^https?://#i', $scheme . '://', $url )
+        );
+        WP_Mock::userFunction( 'wp_remote_get' )->andReturn( [] );
+        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
+        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
+        $xml = '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
+        foreach ( $sitemap_locs as $loc ) { $xml .= '<url><loc>' . $loc . '</loc></url>'; }
+        $xml .= '</urlset>';
+        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( $xml );
+        WP_Mock::userFunction( 'wp_unslash' )->andReturnUsing( fn( $v ) => $v );
+        WP_Mock::userFunction( 'sanitize_url' )->andReturnUsing( fn( $v ) => $v );
+        WP_Mock::userFunction( 'get_post_types' )->andReturn( [ 'page' => 'page', 'post' => 'post' ] );
+        WP_Mock::userFunction( 'get_permalink' )->andReturnUsing( fn( int $id ) => $id_to_permalink[ $id ] ?? false );
+        WP_Mock::userFunction( 'get_post_type' )->andReturnUsing( fn( int $id ) => $id_to_type[ $id ] ?? 'post' );
+        \WP_Query::$next_posts = array_keys( $id_to_permalink );
+        $captured = [];
+        WP_Mock::userFunction( 'wp_send_json_success' )->once()->andReturnUsing( function ( $data ) use ( &$captured ) { $captured = $data; } );
+        unset( $_POST['excluded_urls'] );
+        ( new ScannerAjax() )->discover_pages();
+        $this->assertConditionsMet();
+        return $captured;
+    }
+
+    /** AC-B2 — static front page: home is a page's permalink; sitemap lists it LAST. */
+    public function test_discover_pages_puts_home_first_overall_and_first_in_pages_on_a_static_front_page_site(): void {
+        $out = $this->wire_discover(
+            [ 'https://site.test/about/', 'https://site.test/post-1/', 'https://site.test/contact/', 'https://site.test/' ],
+            [ 11 => 'https://site.test/about/', 12 => 'https://site.test/contact/', 13 => 'https://site.test/', 21 => 'https://site.test/post-1/' ],
+            [ 11 => 'page', 12 => 'page', 13 => 'page', 21 => 'post' ]
+        );
+        $this->assertSame( 'https://site.test/', $out['urls'][0] );
+        $this->assertSame( [ 'https://site.test/', 'https://site.test/about/', 'https://site.test/contact/' ], $out['groups']['page'] );
+        $this->assertSame( [ 'https://site.test/post-1/' ], $out['groups']['post'] );
+        $this->assertSame( [], $out['groups']['other'] );
+        $this->assertSame( 4, $out['count'] );
+    }
+
+    /** AC-B2 — posts-index front page: home is nobody's permalink → top of OTHER; pages order unchanged (ruling B1). */
+    public function test_discover_pages_puts_home_at_the_top_of_other_on_a_posts_index_site(): void {
+        $out = $this->wire_discover(
+            [ 'https://site.test/about/', 'https://site.test/feed-thing/', 'https://site.test/post-1/', 'https://site.test/' ],
+            [ 11 => 'https://site.test/about/', 21 => 'https://site.test/post-1/' ],
+            [ 11 => 'page', 21 => 'post' ]
+        );
+        $this->assertSame( 'https://site.test/', $out['urls'][0] );
+        $this->assertSame( [ 'https://site.test/about/' ], $out['groups']['page'] );
+        $this->assertSame( [ 'https://site.test/post-1/' ], $out['groups']['post'] );
+        $this->assertSame( [ 'https://site.test/', 'https://site.test/feed-thing/' ], $out['groups']['other'] );
+    }
+
+    /**
+     * AC-B2 — the sitemap spells home as http://site.test (no slash): ONE normaliser must both GROUP it
+     * (as the static front page) AND PROMOTE it. This leg carries the shared-normaliser property — do not trim it.
+     */
+    public function test_discover_pages_groups_and_promotes_a_scheme_and_slash_mismatched_home(): void {
+        $out = $this->wire_discover(
+            [ 'https://site.test/about/', 'http://site.test' ],
+            [ 11 => 'https://site.test/about/', 13 => 'https://site.test/' ],
+            [ 11 => 'page', 13 => 'page' ]
+        );
+        $this->assertSame( 'http://site.test', $out['urls'][0] );
+        $this->assertSame( [ 'http://site.test', 'https://site.test/about/' ], $out['groups']['page'] );
+        $this->assertSame( [], $out['groups']['other'] );
     }
 }
