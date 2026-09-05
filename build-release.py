@@ -53,7 +53,7 @@ def _changelog_block_lines(version):
 
 def _block_to_html(version):
     """Render the CHANGELOG block for <version> as the changelog.html snippet."""
-    html = ["<p>Version %s (beta).</p>" % version]
+    html = ["<p>Version %s.</p>" % version]
     in_ul = False
     for raw in _changelog_block_lines(version):
         s = raw.strip()

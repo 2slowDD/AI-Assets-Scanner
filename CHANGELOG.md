@@ -4,6 +4,20 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.4 — 2026-09-05
+
+First non-beta release.
+
+### Changed
+- **Sync** now treats a rule as already present when Code Unloader already unloads it on every device the rule targets: an **All** rule covers a Desktop or Mobile leg, and a Desktop + Mobile pair covers an All rule. Repeat Syncs no longer add redundant per-device rows beside an existing All rule; a rule whose device is not yet unloaded is still added.
+- When a Sync adds nothing, the success line reads "Synced to Code Unloader — all N rules are already present."
+- The result screen's "Nothing new to sync" notice and the duplicate-page credit-back (Code-Unloader-live scans only) use the same definition of "already present".
+
+### Internal
+- Sync decides presence with direct Code Unloader lookups (no cached bulk read on the write path); the result-screen computation keeps its bulk read.
+- Test doubles now mirror Code Unloader's duplicate handling; the JS test harness binds `this` for listeners.
+- Advanced the public plugin version to `1.8.4` (no beta suffix), the admin-asset cache key to `1.8.4.1` and the scanner.js banner to `1.0.11.9`.
+
 ## 1.8.3b — 2026-09-05
 
 ### Changed
