@@ -458,6 +458,16 @@ class RulePusherTest extends TestCase {
         $this->assertCount( 2, FakeRuleRepository::$rules, 'All is not covered by Desktop alone' );
     }
 
+    /** AC-4 / AC-3(4) — the exact gate is load-bearing for an UNRECOGNISED device repeated in one list: covers() is false on an empty needed set, so without the exact gate create_rule()'s silent dedup would return the existing id and count it as appended (Ruling D). */
+    public function test_ac4_unknown_device_repeated_twice_counts_once(): void {
+        $this->seed_groups_for_coverage();
+        $stats = $this->run_sync( [ $this->scan_rule( 'h', 'tablet' ), $this->scan_rule( 'h', 'tablet' ) ] );
+        $this->assertSame( [ 0, 1, 1 ], [ $stats['appended_safe'], $stats['appended_aggressive'], $stats['already_present'] ] );
+        $this->assertCount( 1, $stats['created_rule_ids'], 'the repeat hit the exact gate; its pre-existing id is NOT recorded twice' );
+        $this->assertCount( 1, array_unique( $stats['created_rule_ids'] ) );
+        $this->assertCount( 1, FakeRuleRepository::$rules );
+    }
+
     /** AC-5 (write-path leg): a repository WITHOUT get_all_rules is NOT degraded — sync() needs only find_duplicate/create_rule/get_all_groups. */
     public function test_ac5_sync_needs_no_bulk_read(): void {
         // The "floor" is modelled observably: a double that INHERITS the fake but records any
