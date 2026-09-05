@@ -37,7 +37,7 @@ class VersionLockstepTest extends TestCase {
     /** shields.io badge: .../badge/VERSION-<version>-<6 hex colour>?... */
     private const BADGE_RE = '#!\[Version\]\(https://img\.shields\.io/badge/VERSION-(.+?)-[0-9a-fA-F]{6}\?#';
 
-    /** A released AAS version is x.y.z with the beta 'b' suffix this project always carries. */
+    /** A released AAS version is x.y.z with an optional 'b' beta suffix (carried through 1.8.3b, retired at 1.8.4). */
     private const SHAPE_RE = '/^\d+\.\d+\.\d+[a-z]?$/';
 
     /**

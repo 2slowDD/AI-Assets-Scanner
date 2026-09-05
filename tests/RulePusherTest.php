@@ -485,5 +485,10 @@ class RulePusherTest extends TestCase {
 
         $this->assertSame( 1, $stats['already_present'], 'covered through find_duplicate probes alone' );
         $this->assertFalse( $repo::$bulk_called, 'sync() must not read get_all_rules (spec §3.2 — the bulk read is advisory-only)' );
+
+        // Positive control: the same double DOES record a bulk read when the advisory path runs,
+        // proving the override is wired and the assertFalse above is not vacuous.
+        ( new RulePusher( get_class( $repo ) ) )->already_present_by_pattern( $this->coverage_json( [ $this->scan_rule( 'h', 'desktop' ) ] ) );
+        $this->assertTrue( $repo::$bulk_called, 'already_present_by_pattern() reads get_all_rules through the same double' );
     }
 }
