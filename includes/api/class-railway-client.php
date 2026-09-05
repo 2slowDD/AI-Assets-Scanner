@@ -23,6 +23,12 @@ class RailwayClient {
         if ( $job_token === '' ) {
             throw new \RuntimeException( 'job_token required for Railway submit' );
         }
+        // FU-AAS-VERSION-IN-SCAN-LOG (1.8.5): tell the worker which plugin build created the scan
+        // so the Railway log can attribute it. Same expression the SaaS client sends on the free-key
+        // routes; set HERE (not in build_submit_payload) so the interactive submit AND the outbox
+        // replay both carry it, and a replay reports the build that actually replayed. The worker
+        // treats a missing or malformed value as absent — never a rejection.
+        $payload['plugin_version'] = defined( 'CU_SCANNER_VERSION' ) ? CU_SCANNER_VERSION : '';
         $response = wp_remote_post( $this->railway_url . '/jobs', [
             'headers' => [
                 'Content-Type'  => 'application/json',
