@@ -1823,7 +1823,10 @@ class ScannerAjax {
             return;
         }
         try {
-            $decoded = $this->filter_internal_rules( json_decode( $json, true ) );
+            // FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.3 wire site 2). The empty guard below is load-bearing:
+            // an empty list into RulePusher::push would snapshot -> bump (disable every scanner group) ->
+            // two empty fresh groups -> commit, retiring every scanner rule on the site (AC-4(c)).
+            $decoded = $this->filter_scanned_rules( $this->filter_internal_rules( json_decode( $json, true ) ) );
             if ( empty( $decoded['rules'] ) ) { wp_send_json_error( 'No internal rules to push' ); return; }
             $summary = $pusher->push( $decoded );
             if ( empty( $summary['error_count'] ) ) {
@@ -1845,7 +1848,10 @@ class ScannerAjax {
         $pusher = new RulePusher();
         if ( ! $pusher->can_push() ) { wp_send_json_error( 'Code Unloader not active' ); return; }
         try {
-            $decoded = $this->filter_internal_rules( json_decode( $json, true ) );
+            // FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.3 wire site 1): host filter -> scope filter, then the
+            // pre-existing empty guard — which MUST stay ahead of the pusher (spec §3.2: fail-closed is
+            // F-MISS-only because nothing reaches RulePusher on an empty list).
+            $decoded = $this->filter_scanned_rules( $this->filter_internal_rules( json_decode( $json, true ) ) );
             if ( empty( $decoded['rules'] ) ) { wp_send_json_error( 'No internal rules to sync' ); return; }
             $summary = $pusher->sync( $decoded );
             if ( empty( $summary['error_count'] ) ) {
