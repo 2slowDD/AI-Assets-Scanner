@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.8.3b",
+    "requires_wp": "6.2",
+    "tested_wp": "7.1",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.3b/ai-assets-scanner.zip",
+    "sha256": "e5e9ad0944a9179d0a083e087bc77a4a8a5768515b41454ffe52f9605c8f3c23",
+    "signature": "",
+    "released_at": "2026-09-05T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.3b/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.8.3b (beta).</p><p><strong>Changed</strong></p><ul><li><strong>Sync</strong> and <strong>Push to Code Unloader</strong> now send &mdash; and report &mdash; only the rules of the scan shown. After an Extra-Time rescan that is the rescanned pages' rules; the earlier scan's other pages are no longer re-sent (they are already in Code Unloader from the earlier Sync, or, on Push, kept in the snapshot group).</li><li>A scan whose own pages produced no rules for this site now shows Push and Sync as unavailable &mdash; on the live screen and after returning to the page &mdash; instead of sending rules from an earlier scan.</li><li>The <strong>Ready to apply</strong> count now excludes external-site pages and matches what Sync will add. The summary tiles still show the whole scan.</li></ul><p><strong>Internal</strong></p><ul><li>The stored and exported scan JSON gains an additive <code>scanned_patterns</code> key (the scan's own page patterns). Scans stored by earlier versions keep the previous Sync/Push behaviour.</li><li>Advanced the public plugin version to <code>1.8.3b</code> and the admin-asset cache key to <code>1.8.3b.1</code>.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
