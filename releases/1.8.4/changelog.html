@@ -1,0 +1,14 @@
+<p>Version 1.8.4.</p>
+<p>First non-beta release.</p>
+<p><strong>Changed</strong></p>
+<ul>
+<li><strong>Sync</strong> now treats a rule as already present when Code Unloader already unloads it on every device the rule targets: an <strong>All</strong> rule covers a Desktop or Mobile leg, and a Desktop + Mobile pair covers an All rule. Repeat Syncs no longer add redundant per-device rows beside an existing All rule; a rule whose device is not yet unloaded is still added.</li>
+<li>When a Sync adds nothing and reports no errors, the success line reads "Synced to Code Unloader &mdash; all N rules are already present."</li>
+<li>The result screen's "Nothing new to sync" notice and the duplicate-page credit-back (both Code-Unloader-live scans only) use the same definition of "already present".</li>
+</ul>
+<p><strong>Internal</strong></p>
+<ul>
+<li>Sync decides presence with direct Code Unloader lookups (no cached bulk read on the write path); the result-screen computation keeps its bulk read.</li>
+<li>Test doubles now mirror Code Unloader's duplicate handling; the JS test harness binds <code>this</code> for listeners.</li>
+<li>Advanced the public plugin version to <code>1.8.4</code> (no beta suffix), the admin-asset cache key to <code>1.8.4.1</code> and the scanner.js banner to <code>1.0.11.9</code>.</li>
+</ul>

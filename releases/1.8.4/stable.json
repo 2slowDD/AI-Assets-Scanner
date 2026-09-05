@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.8.4",
+    "requires_wp": "6.2",
+    "tested_wp": "7.1",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.4/ai-assets-scanner.zip",
+    "sha256": "950a112ba99ed36402a81b08e9c39f9e27f5bf01655b1c3448da92bde7f36d53",
+    "signature": "",
+    "released_at": "2026-09-05T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.4/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.8.4.</p><p>First non-beta release.</p><p><strong>Changed</strong></p><ul><li><strong>Sync</strong> now treats a rule as already present when Code Unloader already unloads it on every device the rule targets: an <strong>All</strong> rule covers a Desktop or Mobile leg, and a Desktop + Mobile pair covers an All rule. Repeat Syncs no longer add redundant per-device rows beside an existing All rule; a rule whose device is not yet unloaded is still added.</li><li>When a Sync adds nothing and reports no errors, the success line reads \"Synced to Code Unloader &mdash; all N rules are already present.\"</li><li>The result screen's \"Nothing new to sync\" notice and the duplicate-page credit-back (both Code-Unloader-live scans only) use the same definition of \"already present\".</li></ul><p><strong>Internal</strong></p><ul><li>Sync decides presence with direct Code Unloader lookups (no cached bulk read on the write path); the result-screen computation keeps its bulk read.</li><li>Test doubles now mirror Code Unloader's duplicate handling; the JS test harness binds <code>this</code> for listeners.</li><li>Advanced the public plugin version to <code>1.8.4</code> (no beta suffix), the admin-asset cache key to <code>1.8.4.1</code> and the scanner.js banner to <code>1.0.11.9</code>.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
