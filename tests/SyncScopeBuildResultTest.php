@@ -55,6 +55,25 @@ trait SyncScopeBuildResultFixtures {
         return array_merge( [ 'url' => $url, 'status' => 'done', 'assets' => $assets ], $extra );
     }
 
+    /**
+     * FU-AAS-SYNC-DEVICE-DUPLICATES — per-DEVICE buckets, so the real CuJsonBuilder cell map
+     * emits single-device legs: ['aggressive','needed'] => a Desktop rule, ['needed','aggressive']
+     * => a Mobile rule, ['aggressive','aggressive'] => All, ['absent','absent'] => All safe.
+     * $handles: handle => [desktop_bucket, mobile_bucket].
+     */
+    private function page_with_device_buckets( string $url, array $handles, array $extra = [] ): array {
+        $assets = [];
+        foreach ( $handles as $h => [ $d, $m ] ) {
+            $assets[] = [
+                'handle'  => $h,
+                'type'    => 'style',
+                'desktop' => [ 'loaded' => false, 'coverage' => 0.0, 'bucket' => $d ],
+                'mobile'  => [ 'loaded' => false, 'coverage' => 0.0, 'bucket' => $m ],
+            ];
+        }
+        return array_merge( [ 'url' => $url, 'status' => 'done', 'assets' => $assets ], $extra );
+    }
+
     /** The R_orig transient EXACTLY as persist_r_orig() writes it, from a REAL CuJsonBuilder::build of the parent pages. */
     private function r_orig_from( array $parent_pages ): array {
         $built = ( new CuJsonBuilder() )->build( $parent_pages, [] );
@@ -463,6 +482,40 @@ class SyncScopeBuildResultTestFixtureAccess {
         WP_Mock::tearDown();
         WP_Mock::setUp();
 
+        return [ 'json' => $decoded, 'payload' => $payload ];
+    }
+
+    /**
+     * Spec §5 Fixture E — PLAIN (non-ET) scan PRODUCED by the real do_build_result(): one
+     * internal page yielding 2 All aggressive + 2 Desktop aggressive + 1 Mobile aggressive +
+     * 1 All safe rule through the real cell map, plus one external page the host filter drops.
+     * Returns the decoded stored JSON for job "job-e" and the live payload (apply_* = 1 / 5).
+     */
+    public function fixture_e_plain_run( TestCase $test ): array {
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $u, $c = -1 ) => parse_url( (string) $u, $c ) );
+        $home = $this->page_with_device_buckets( 'https://site.test/', [
+            'a1' => [ 'aggressive', 'aggressive' ], 'a2' => [ 'aggressive', 'aggressive' ],
+            'd1' => [ 'aggressive', 'needed' ],     'd2' => [ 'aggressive', 'needed' ],
+            'm1' => [ 'needed', 'aggressive' ],
+            's1' => [ 'absent', 'absent' ],
+        ] );
+        $ext  = $this->page_with_device_buckets( 'https://ext.test/x/', [ 'x-a' => [ 'aggressive', 'aggressive' ] ] );
+
+        $options    = [];
+        $transients = [];
+        $this->stub_everything_impl( [ $home, $ext ], $options, $transients );
+
+        $payload = ( new ScannerAjax() )->do_build_result( 'job-e', 'tok' );
+
+        $test->assertArrayHasKey( 'cu_scanner_json_job-e', $options, 'the Fixture E producer stored the scan JSON' );
+        $decoded = json_decode( (string) $options['cu_scanner_json_job-e'], true );
+
+        // Non-vacuity (spec assumption #11): the real builder DID emit single-device legs.
+        $devices = array_count_values( array_column( array_filter( $decoded['rules'], fn( $r ) => str_starts_with( $r['url_pattern'], 'https://site.test/' ) ), 'device_type' ) );
+        $test->assertSame( [ 'all' => 3, 'desktop' => 2, 'mobile' => 1 ], [ 'all' => $devices['all'] ?? 0, 'desktop' => $devices['desktop'] ?? 0, 'mobile' => $devices['mobile'] ?? 0 ], 'the cell map produced the expected device legs' );
+
+        WP_Mock::tearDown();
+        WP_Mock::setUp();
         return [ 'json' => $decoded, 'payload' => $payload ];
     }
 }
