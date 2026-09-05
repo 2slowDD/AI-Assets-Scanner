@@ -240,8 +240,9 @@ class RulePusher {
     /**
      * Append the scan's rules to the existing active CU groups (vs push() which
      * overwrites). No snapshot, no version-bump — purely additive. Both groups
-     * end enabled. Duplicates are skipped via find_duplicate and reported as
-     * already_present, never counted as appended (spec §4.3 / §4.4 — R9).
+     * end enabled. Exact duplicates (find_duplicate) and device-covered rules
+     * (spec §3.1 coverage-subset) are reported as already_present, never counted
+     * as appended (spec §4.3 / §4.4 — R9).
      *
      * @return array{appended_safe:int,appended_aggressive:int,already_present:int,error_count:int,error_message:string,created_rule_ids:int[],group_ids:int[],created_group_ids:int[]}
      * @throws \RuntimeException if Code Unloader is not active.
@@ -276,7 +277,21 @@ class RulePusher {
             $target_group_id = $rule['group_id'] === 1 ? $safe_group_id : $aggressive_group_id;
             $payload = $this->build_rule_payload( $rule, $target_group_id );
 
+            // Exact gate FIRST (unchanged): create_rule() silently returns an EXISTING id on an
+            // exact duplicate, so without this gate a rule repeated inside one scan list would
+            // count as appended and its pre-existing id would land in created_rule_ids — and
+            // undo would later delete a row this Sync did not create.
             if ( $repo::find_duplicate( $payload ) !== null ) {
+                $already_present++;
+                continue;
+            }
+            // Coverage gate (spec §3.2 step 3): present when CU already unloads this rule on
+            // every device it targets (an All row covers a Desktop leg; Desktop + Mobile rows
+            // cover an All rule). Skipped on a null target group, mirroring
+            // already_present_by_pattern()'s find-only resolution (unreachable today: the
+            // builder always emits both group defs).
+            if ( null !== $target_group_id
+              && self::covers( $this->present_devices_by_probe( $repo, $payload ), self::needed_devices( $payload['device_type'] ?? 'all' ) ) ) {
                 $already_present++;
                 continue;
             }
@@ -391,6 +406,86 @@ class RulePusher {
     private function enable_both_groups( string $repo, ?int $safe_group_id, ?int $aggressive_group_id ): void {
         if ( $safe_group_id !== null )       { $repo::update_group( $safe_group_id,       [ 'enabled' => 1 ] ); }
         if ( $aggressive_group_id !== null ) { $repo::update_group( $aggressive_group_id, [ 'enabled' => 1 ] ); }
+    }
+
+    // -------------------------------------------------------------------------
+    // Device-coverage presence (FU-AAS-SYNC-DEVICE-DUPLICATES, spec §3.1)
+    // One definition of "already present", two providers of what CU holds.
+    // -------------------------------------------------------------------------
+
+    /**
+     * The device set a rule targets. 'all' is BOTH devices; an unknown value targets
+     * nothing and is therefore never covered (covers() is false on an empty set), so
+     * such a rule falls through to create_rule where CU stores its ENUM default.
+     *
+     * @param  mixed $device_type Rule/row device_type (null ⇒ 'all', as find_duplicate does).
+     * @return string[] Subset of ['desktop','mobile'].
+     */
+    private static function needed_devices( $device_type ): array {
+        return match ( (string) ( $device_type ?? 'all' ) ) {
+            'all'     => [ 'desktop', 'mobile' ],
+            'desktop' => [ 'desktop' ],
+            'mobile'  => [ 'mobile' ],
+            default   => [],
+        };
+    }
+
+    /**
+     * Coverage-subset rule (operator ruling 2026-09-05): present iff the rule targets at
+     * least one device AND every device it targets is already unloaded by an active rule
+     * of the same 5-key identity in the same scanner group. The empty-needed-set clause is
+     * explicit on purpose — a vacuous "for all" would call an unknown device covered.
+     *
+     * @param string[] $present Devices CU already unloads for this 5-key.
+     * @param string[] $needed  Devices the rule targets (needed_devices()).
+     */
+    private static function covers( array $present, array $needed ): bool {
+        if ( [] === $needed ) {
+            return false;
+        }
+        foreach ( $needed as $device ) {
+            if ( ! in_array( $device, $present, true ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The 5-key identity coverage is computed over: find_duplicate's six columns MINUS
+     * device_type, with its normalizations (string casts; IFNULL(group_id, 0)).
+     */
+    private static function coverage_key( array $payload ): string {
+        return implode( '|', [
+            (string) $payload['url_pattern'],
+            (string) $payload['match_type'],
+            (string) $payload['asset_handle'],
+            (string) $payload['asset_type'],
+            (string) ( isset( $payload['group_id'] ) && '' !== $payload['group_id'] && null !== $payload['group_id']
+                ? (int) $payload['group_id'] : 0 ),
+        ] );
+    }
+
+    /**
+     * WRITE-PATH provider: what CU holds for this payload's 5-key, asked through
+     * find_duplicate — which bypasses CU's caches and always reads the DB. ⚠️ Deliberately
+     * NOT get_all_rules(): RuleRepository::create_rule() clears only its request-static
+     * and never wp_cache_delete()s 'cdunloader_all_rules', so on a persistent-object-cache
+     * site the bulk read can predate every insert since the last non-insert mutation
+     * (spec §1.2). ≤3 indexed probes per rule; the exact variant is probed again here so
+     * this provider and the index provider return the SAME set for the same state.
+     *
+     * @return string[] Subset of ['desktop','mobile'].
+     */
+    private function present_devices_by_probe( string $repo, array $payload ): array {
+        $present  = [];
+        $variants = array_values( array_unique( array_merge( [ 'all' ], self::needed_devices( $payload['device_type'] ?? 'all' ) ) ) );
+        foreach ( $variants as $variant ) {
+            if ( $repo::find_duplicate( array_merge( $payload, [ 'device_type' => $variant ] ) ) !== null ) {
+                $present = array_merge( $present, self::needed_devices( $variant ) );
+            }
+        }
+        return array_values( array_unique( $present ) );
     }
 
     /**

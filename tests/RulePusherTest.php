@@ -348,4 +348,132 @@ class RulePusherTest extends TestCase {
             ],
         ];
     }
+
+    // ------------------------------------------------------------------ FU-AAS-SYNC-DEVICE-DUPLICATES (spec §5 AC-1 / AC-4 / AC-5)
+
+    /** The real scanner-group names (r2 Major): taken from the builder, asserted to carry the em dash. */
+    private function production_groups(): array {
+        \WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $u, $c = -1 ) => parse_url( (string) $u, $c ) );
+        $groups = ( new \CUScanner\Scanner\CuJsonBuilder() )->build( [ [ 'url' => 'https://site.test/', 'status' => 'done', 'assets' => [] ] ], [] )['groups'];
+        $this->assertStringContainsString( "\u{2014}", $groups[1]['name'], 'production group names carry an em dash (U+2014)' );
+        return $groups;
+    }
+
+    /** Seeds both scanner groups (Safe id 50, Aggressive id 51) under the PRODUCTION names; returns [safe_id, aggressive_id]. */
+    private function seed_groups_for_coverage(): array {
+        $groups = $this->production_groups();
+        FakeRuleRepository::$groups = [
+            [ 'id' => 50, 'name' => $groups[0]['name'], 'enabled' => 1 ],
+            [ 'id' => 51, 'name' => $groups[1]['name'], 'enabled' => 1 ],
+        ];
+        return [ 50, 51 ];
+    }
+
+    private function cu_row( string $handle, ?string $device, int $group_id, string $pattern = 'https://site.test/', string $type = 'css' ): array {
+        return [ 'id' => 200 + count( FakeRuleRepository::$rules ), 'group_id' => $group_id, 'url_pattern' => $pattern, 'match_type' => 'exact', 'asset_handle' => $handle, 'asset_type' => $type, 'device_type' => $device ];
+    }
+
+    private function scan_rule( string $handle, string $device, int $group = 2, string $pattern = 'https://site.test/', string $type = 'css' ): array {
+        return [ 'url_pattern' => $pattern, 'match_type' => 'exact', 'asset_handle' => $handle, 'asset_type' => $type, 'device_type' => $device, 'group_id' => $group, 'source_label' => 'AA Scanner' ];
+    }
+
+    private function coverage_json( array $rules ): array {
+        return [ 'groups' => $this->production_groups(), 'rules' => $rules ];
+    }
+
+    private function run_sync( array $rules ): array {
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+        return ( new RulePusher( FakeRuleRepository::class ) )->sync( $this->coverage_json( $rules ) );
+    }
+
+    /**
+     * AC-1 truth table. Each row: [ seeded CU rows (device list, all same 5-key), rule device to send, expect_present ].
+     * @dataProvider coverage_rows
+     */
+    public function test_ac1_coverage_subset_truth_table( array $seed_devices, string $send_device, bool $expect_present, string $why ): void {
+        [ , $agg ] = $this->seed_groups_for_coverage();
+        foreach ( $seed_devices as $d ) { FakeRuleRepository::$rules[] = $this->cu_row( 'h', $d, $agg ); }
+        $before = count( FakeRuleRepository::$rules );
+
+        $stats = $this->run_sync( [ $this->scan_rule( 'h', $send_device ) ] );
+
+        $this->assertSame( 0, $stats['error_count'], $why );
+        $this->assertSame( $expect_present ? 1 : 0, $stats['already_present'], $why );
+        $this->assertSame( $expect_present ? 0 : 1, $stats['appended_aggressive'], $why );
+        $this->assertCount( $expect_present ? 0 : 1, $stats['created_rule_ids'], $why );
+        $this->assertCount( $before + ( $expect_present ? 0 : 1 ), FakeRuleRepository::$rules, $why );
+    }
+    public function coverage_rows(): array {
+        return [
+            'desktop vs {all}'              => [ [ 'all' ],               'desktop', true,  'an All row unloads desktop too' ],
+            'desktop vs {desktop}'          => [ [ 'desktop' ],           'desktop', true,  'exact match' ],
+            'mobile vs {all}'               => [ [ 'all' ],               'mobile',  true,  'an All row unloads mobile too' ],
+            'all vs {all}'                  => [ [ 'all' ],               'all',     true,  'exact match' ],
+            'all vs {desktop, mobile}'      => [ [ 'desktop', 'mobile' ], 'all',     true,  'both legs together cover All' ],
+            'desktop vs {mobile}'           => [ [ 'mobile' ],            'desktop', false, 'F-MISS: desktop is not unloaded' ],
+            'all vs {desktop} alone'        => [ [ 'desktop' ],           'all',     false, 'F-MISS: mobile is not unloaded' ],
+            'all vs {mobile} alone'         => [ [ 'mobile' ],            'all',     false, 'F-MISS: desktop is not unloaded' ],
+            'unknown device vs {all}'       => [ [ 'all' ],               'tablet',  false, 'empty needed set is never covered (spec §3.1)' ],
+            'NULL row counts as all (fake-only guard; CU column is NOT NULL)' => [ [ null ], 'desktop', true, "find_duplicate's ?? 'all' on the row side" ],
+        ];
+    }
+
+    /** AC-1 negatives that vary something OTHER than device: group, pattern, type. Each must insert. */
+    public function test_ac1_other_group_pattern_or_type_never_covers(): void {
+        [ $safe, $agg ] = $this->seed_groups_for_coverage();
+        FakeRuleRepository::$groups[] = [ 'id' => 60, 'name' => 'Customer group', 'enabled' => 1 ];
+        FakeRuleRepository::$rules = [
+            $this->cu_row( 'h-group',   'all', $safe ),                                  // same key in the OTHER scanner group
+            $this->cu_row( 'h-cust',    'all', 60 ),                                     // same key in a non-scanner group
+            $this->cu_row( 'h-pattern', 'all', $agg, 'https://site.test/other' ),        // other url_pattern
+            $this->cu_row( 'h-type',    'all', $agg, 'https://site.test/', 'js' ),       // other asset_type
+        ];
+        $stats = $this->run_sync( [
+            $this->scan_rule( 'h-group', 'desktop' ), $this->scan_rule( 'h-cust', 'desktop' ),
+            $this->scan_rule( 'h-pattern', 'desktop' ), $this->scan_rule( 'h-type', 'desktop' ),
+        ] );
+        $this->assertSame( [ 0, 4, 0 ], [ $stats['appended_safe'], $stats['appended_aggressive'], $stats['already_present'] ] );
+        $this->assertCount( 4, $stats['created_rule_ids'] );
+    }
+
+    /** AC-4 — in-list interplay: the probes see THIS run's inserts. */
+    public function test_ac4_desktop_and_mobile_legs_then_all_in_one_list(): void {
+        $this->seed_groups_for_coverage();
+        $stats = $this->run_sync( [ $this->scan_rule( 'h', 'desktop' ), $this->scan_rule( 'h', 'mobile' ), $this->scan_rule( 'h', 'all' ) ] );
+        $this->assertSame( [ 0, 2, 1 ], [ $stats['appended_safe'], $stats['appended_aggressive'], $stats['already_present'] ] );
+        $this->assertCount( 2, FakeRuleRepository::$rules, 'the two legs only — the All was covered by them' );
+    }
+    public function test_ac4_same_exact_rule_twice_counts_once_and_records_one_id(): void {
+        $this->seed_groups_for_coverage();
+        $stats = $this->run_sync( [ $this->scan_rule( 'h', 'desktop' ), $this->scan_rule( 'h', 'desktop' ) ] );
+        $this->assertSame( [ 0, 1, 1 ], [ $stats['appended_safe'], $stats['appended_aggressive'], $stats['already_present'] ] );
+        $this->assertCount( 1, $stats['created_rule_ids'], 'the exact gate: the repeat is present, its pre-existing id is NOT recorded twice' );
+        $this->assertCount( 1, array_unique( $stats['created_rule_ids'] ) );
+    }
+    public function test_ac4_desktop_then_all_inserts_both(): void {
+        $this->seed_groups_for_coverage();
+        $stats = $this->run_sync( [ $this->scan_rule( 'h', 'desktop' ), $this->scan_rule( 'h', 'all' ) ] );
+        $this->assertSame( [ 0, 2, 0 ], [ $stats['appended_safe'], $stats['appended_aggressive'], $stats['already_present'] ] );
+        $this->assertCount( 2, FakeRuleRepository::$rules, 'All is not covered by Desktop alone' );
+    }
+
+    /** AC-5 (write-path leg): a repository WITHOUT get_all_rules is NOT degraded — sync() needs only find_duplicate/create_rule/get_all_groups. */
+    public function test_ac5_sync_needs_no_bulk_read(): void {
+        // The "floor" is modelled observably: a double that INHERITS the fake but records any
+        // get_all_rules() call. The write path must be covered through find_duplicate alone.
+        $repo = new class extends FakeRuleRepository {
+            public static bool $bulk_called = false;
+            public static function get_all_rules(): array { self::$bulk_called = true; return parent::get_all_rules(); }
+        };
+        [ , $agg ] = $this->seed_groups_for_coverage();
+        FakeRuleRepository::$rules = [ $this->cu_row( 'h', 'all', $agg ) ];
+        \WP_Mock::userFunction( 'is_plugin_active' )->andReturn( true );
+        \WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
+
+        $stats = ( new RulePusher( get_class( $repo ) ) )->sync( $this->coverage_json( [ $this->scan_rule( 'h', 'desktop' ) ] ) );
+
+        $this->assertSame( 1, $stats['already_present'], 'covered through find_duplicate probes alone' );
+        $this->assertFalse( $repo::$bulk_called, 'sync() must not read get_all_rules (spec §3.2 — the bulk read is advisory-only)' );
+    }
 }
