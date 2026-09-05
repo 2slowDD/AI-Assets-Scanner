@@ -7,34 +7,15 @@ use WP_Mock;
 use WP_Mock\Tools\TestCase;
 
 /**
- * FU-AAS-SYNC-SCOPE-LAST-SCAN — producer side, through the REAL do_build_result():
- *   AC-1  scanned_patterns is stored; the ratchet-carried other-page rule STAYS in rules.
- *   AC-5  mixed-host ET rescan with no internal in-scope rules: has_internal_rules false,
- *         apply_* 0/0, scan totals > 0 — on BOTH payload writers.
- *   AC-10 Fixture B (plain): apply_* = scoped host-internal counts on BOTH writers; scan totals
- *         unchanged; (v) has_internal_rules === (apply_safe + apply_agg) > 0 with NON-zero counts;
- *         get_badge_state returns the persisted option verbatim (the W3 hop).
- *   AC-11 the stored JSON (what download_json echoes verbatim) still satisfies CU's importer predicate.
- * P17: only the Railway HTTP boundary is stubbed. No hand-composed merged rule list.
+ * Task 2 review fold (Controller Ruling, 2026-09-05): shared fixture logic for
+ * SyncScopeBuildResultTest (the AC-1/5/10/11 producer suite) and
+ * SyncScopeBuildResultTestFixtureAccess (the AC-9 helper below) — ONE implementation of
+ * page(), r_orig_from(), the WP_Mock stub set, and the AC-1 ET-rescan scenario, so editing
+ * AC-1's fixture cannot silently desync from what AC-9 replays. A trait is not a TestCase
+ * subclass, so PHPUnit's directory suite loader does not collect it as its own test case —
+ * the Risky count stays at 2 (verified: see task-2-report.md fix-round evidence).
  */
-class SyncScopeBuildResultTest extends TestCase {
-    /** @var array<string,mixed> */
-    private array $options = [];
-    /** @var array<string,mixed> */
-    private array $transients = [];
-
-    public function setUp(): void {
-        parent::setUp();
-        WP_Mock::setUp();
-        $this->options    = [];
-        $this->transients = [];
-        // wp_parse_url must be live BEFORE stub_everything() runs: AC-1's ET-rescan fixture calls
-        // r_orig_from(), which runs the REAL CuJsonBuilder::build() (-> UrlPattern::from_url) ahead
-        // of stub_everything(). Test-stub-only fix (brief Step 8 pattern); no producer line moved.
-        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $u, $c = -1 ) => parse_url( (string) $u, $c ) );
-    }
-    public function tearDown(): void { WP_Mock::tearDown(); parent::tearDown(); }
-
+trait SyncScopeBuildResultFixtures {
     /** A worker page row: assets are (handle,type,desktop,mobile); loaded=false + coverage 0 on both devices => an unload rule (aggressive by default). */
     private function page( string $url, array $handles, array $extra = [] ): array {
         $assets = [];
@@ -65,7 +46,18 @@ class SyncScopeBuildResultTest extends TestCase {
         return [ 'urls' => array_values( array_unique( array_column( $parent_pages, 'url' ) ) ), 'rules' => $keys ];
     }
 
-    private function stub_everything( array $pages ): void {
+    /**
+     * Registers the full WP_Mock stub set do_build_result() needs, backed by the given
+     * $options/$transients arrays BY REFERENCE — so the TestCase (its own $this->options /
+     * $this->transients properties) and the AC-9 helper (local arrays) share this ONE
+     * implementation instead of two hand-copied stub sets drifting apart.
+     *
+     * wp_parse_url is registered here too (mirroring the original single-class stub_everything()),
+     * but callers whose scenario building runs r_orig_from() BEFORE calling this method must
+     * register wp_parse_url live first — r_orig_from() runs the REAL CuJsonBuilder::build()
+     * (-> UrlPattern::from_url) ahead of this stub set. See et_rescan_scenario()'s docblock.
+     */
+    private function stub_everything_impl( array $pages, array &$options, array &$transients ): void {
         WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://site.test' );
         WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
         WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
@@ -75,14 +67,14 @@ class SyncScopeBuildResultTest extends TestCase {
         WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( json_encode( [
             'status' => 'complete', 'total' => count( $pages ), 'completed' => count( $pages ), 'pages' => $pages, 'flags' => [],
         ] ) );
-        WP_Mock::userFunction( 'get_option' )->andReturnUsing( function ( $k, $default = false ) {
+        WP_Mock::userFunction( 'get_option' )->andReturnUsing( function ( $k, $default = false ) use ( &$options ) {
             if ( 'cu_scanner_railway_url' === $k ) { return 'https://cu-scanner-railway-production.up.railway.app'; }
             if ( 'cu_scanner_api_key' === $k )     { return 'api-key-123'; }
-            return array_key_exists( $k, $this->options ) ? $this->options[ $k ] : $default;   // ratchet default-ON falls through to $default (true)
+            return array_key_exists( $k, $options ) ? $options[ $k ] : $default;   // ratchet default-ON falls through to $default (true)
         } );
-        WP_Mock::userFunction( 'update_option' )->andReturnUsing( function ( $k, $v ) { $this->options[ $k ] = $v; return true; } );
-        WP_Mock::userFunction( 'get_transient' )->andReturnUsing( fn( $k ) => $this->transients[ $k ] ?? false );
-        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v ) { $this->transients[ $k ] = $v; return true; } );
+        WP_Mock::userFunction( 'update_option' )->andReturnUsing( function ( $k, $v ) use ( &$options ) { $options[ $k ] = $v; return true; } );
+        WP_Mock::userFunction( 'get_transient' )->andReturnUsing( fn( $k ) => $transients[ $k ] ?? false );
+        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v ) use ( &$transients ) { $transients[ $k ] = $v; return true; } );
         WP_Mock::userFunction( 'delete_transient' )->andReturn( true );
         WP_Mock::userFunction( 'wp_json_encode' )->andReturnUsing( fn( $d, $f = 0 ) => json_encode( $d, $f ) );
         WP_Mock::userFunction( 'apply_filters' )->andReturnUsing( fn( $tag, $value = null ) => $value );
@@ -96,6 +88,61 @@ class SyncScopeBuildResultTest extends TestCase {
         WP_Mock::userFunction( 'current_user_can' )->andReturn( true );
     }
 
+    /**
+     * The AC-1 ET-rescan scenario (spec §5 / task-2 brief): parent scan = home + other page;
+     * rescan = the home page only, Extra-Time charged. Returns the R_orig transient VALUE
+     * (not yet stored — the caller decides the transient key) and the rescan pages[] the
+     * worker returns. Shared by SyncScopeBuildResultTest::test_ac1_et_rescan_...() and the
+     * AC-9 helper (SyncScopeBuildResultTestFixtureAccess::et_rescan_json()) so the two can
+     * never silently diverge on what "the AC-1 scenario" means.
+     *
+     * Caller MUST have wp_parse_url live BEFORE calling: r_orig_from() runs the REAL
+     * CuJsonBuilder::build() -> UrlPattern::from_url ahead of stub_everything_impl().
+     */
+    private function et_rescan_scenario(): array {
+        $parent = [ $this->page( 'https://site.test/', [ 'home-a' ] ), $this->page( 'https://site.test/other/', [ 'other-a', 'other-b' ] ) ];
+        return [
+            'r_orig' => $this->r_orig_from( $parent ),
+            'rescan' => [ $this->page( 'https://site.test/', [ 'home-a' ], [ 'extra_time_charged' => true ] ) ],
+        ];
+    }
+}
+
+/**
+ * FU-AAS-SYNC-SCOPE-LAST-SCAN — producer side, through the REAL do_build_result():
+ *   AC-1  scanned_patterns is stored; the ratchet-carried other-page rule STAYS in rules.
+ *   AC-5  mixed-host ET rescan with no internal in-scope rules: has_internal_rules false,
+ *         apply_* 0/0, scan totals > 0 — on BOTH payload writers.
+ *   AC-10 Fixture B (plain): apply_* = scoped host-internal counts on BOTH writers; scan totals
+ *         unchanged; (v) has_internal_rules === (apply_safe + apply_agg) > 0 with NON-zero counts;
+ *         get_badge_state returns the persisted option verbatim (the W3 hop).
+ *   AC-11 the stored JSON (what download_json echoes verbatim) still satisfies CU's importer predicate.
+ * P17: only the Railway HTTP boundary is stubbed. No hand-composed merged rule list.
+ */
+class SyncScopeBuildResultTest extends TestCase {
+    use SyncScopeBuildResultFixtures;
+
+    /** @var array<string,mixed> */
+    private array $options = [];
+    /** @var array<string,mixed> */
+    private array $transients = [];
+
+    public function setUp(): void {
+        parent::setUp();
+        WP_Mock::setUp();
+        $this->options    = [];
+        $this->transients = [];
+        // wp_parse_url must be live BEFORE stub_everything() runs: AC-1's ET-rescan fixture calls
+        // r_orig_from(), which runs the REAL CuJsonBuilder::build() (-> UrlPattern::from_url) ahead
+        // of stub_everything(). Test-stub-only fix (brief Step 8 pattern); no producer line moved.
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $u, $c = -1 ) => parse_url( (string) $u, $c ) );
+    }
+    public function tearDown(): void { WP_Mock::tearDown(); parent::tearDown(); }
+
+    private function stub_everything( array $pages ): void {
+        $this->stub_everything_impl( $pages, $this->options, $this->transients );
+    }
+
     private function stored_json( string $job ): array {
         $this->assertArrayHasKey( 'cu_scanner_json_' . $job, $this->options, 'do_build_result stored the scan JSON' );
         return json_decode( (string) $this->options[ 'cu_scanner_json_' . $job ], true );
@@ -103,11 +150,9 @@ class SyncScopeBuildResultTest extends TestCase {
 
     // ---------------------------------------------------------------- AC-1
     public function test_ac1_et_rescan_stores_scanned_patterns_and_keeps_the_carried_rule(): void {
-        $parent = [ $this->page( 'https://site.test/', [ 'home-a' ] ), $this->page( 'https://site.test/other/', [ 'other-a', 'other-b' ] ) ];
-        $this->transients['cu_scanner_r_orig_1'] = $this->r_orig_from( $parent );
-        // ET rescan of the home page only; extra_time_charged makes is_et_rescan() true (no marker transient needed).
-        $rescan = [ $this->page( 'https://site.test/', [ 'home-a' ], [ 'extra_time_charged' => true ] ) ];
-        $this->stub_everything( $rescan );
+        $scenario = $this->et_rescan_scenario();
+        $this->transients['cu_scanner_r_orig_1'] = $scenario['r_orig'];
+        $this->stub_everything( $scenario['rescan'] );
 
         ( new ScannerAjax() )->do_build_result( 'job-et', 'tok' );
 
@@ -217,6 +262,7 @@ class SyncScopeBuildResultTest extends TestCase {
 /**
  * Task 2 Ruling A (2026-09-05) — AC-9 fixture-access helper. Runs the SAME AC-1 ET-rescan
  * scenario as SyncScopeBuildResultTest::test_ac1_et_rescan_stores_scanned_patterns_and_keeps_the_carried_rule()
+ * — via the SHARED SyncScopeBuildResultFixtures::et_rescan_scenario(), not a hand-copied fixture —
  * through the REAL ScannerAjax::do_build_result(), and hands back the decoded stored JSON.
  *
  * Deliberately NOT a WP_Mock\Tools\TestCase subclass: PHPUnit 9's directory test-suite loader
@@ -225,45 +271,17 @@ class SyncScopeBuildResultTest extends TestCase {
  * plain class stubbing WP_Mock directly avoids that while still driving the real producer.
  *
  * Design constraint (spec §6 / task-2 brief): do NOT hand-compose the merged rules list —
- * this class only assembles the WORKER PAGE fixture (the scan input, identical to AC-1's);
- * the merge itself runs inside the real do_build_result().
+ * this class only assembles the WORKER PAGE fixture (the scan input, identical to AC-1's,
+ * via the shared trait); the merge itself runs inside the real do_build_result().
  *
  * Reusable: Task 4 adds fixture_b_et_run($test) beside this method following the same
  * contract — register stubs, run the real handler, capture, WP_Mock::tearDown()+setUp()
  * before returning so the caller can register its OWN stubs next (WP_Mock is process-global;
- * SyncScopeHandlersTest runs @runInSeparateProcess per Ruling B, so this brackets cleanly
- * within that one process without colliding with the handler-phase stubs).
+ * SyncScopeHandlersTest runs @runTestsInSeparateProcesses per Ruling B, so this brackets
+ * cleanly within that one process without colliding with the handler-phase stubs).
  */
 class SyncScopeBuildResultTestFixtureAccess {
-    /** Mirror of SyncScopeBuildResultTest::page() (kept private/local — see class docblock). */
-    private function page( string $url, array $handles, array $extra = [] ): array {
-        $assets = [];
-        foreach ( $handles as $h ) {
-            $assets[] = [
-                'handle'  => $h,
-                'type'    => 'style',
-                'desktop' => [ 'loaded' => false, 'coverage' => 0.0 ],
-                'mobile'  => [ 'loaded' => false, 'coverage' => 0.0 ],
-            ];
-        }
-        return array_merge( [ 'url' => $url, 'status' => 'done', 'assets' => $assets ], $extra );
-    }
-
-    /** Mirror of SyncScopeBuildResultTest::r_orig_from() — runs the REAL CuJsonBuilder::build(). */
-    private function r_orig_from( array $parent_pages ): array {
-        $built = ( new CuJsonBuilder() )->build( $parent_pages, [] );
-        $keys  = [];
-        foreach ( $built['rules'] as $r ) {
-            $keys[] = [
-                'url_pattern'  => $r['url_pattern'],
-                'asset_handle' => $r['asset_handle'],
-                'asset_type'   => $r['asset_type'],
-                'device_type'  => $r['device_type'],
-                'group_id'     => $r['group_id'],
-            ];
-        }
-        return [ 'urls' => array_values( array_unique( array_column( $parent_pages, 'url' ) ) ), 'rules' => $keys ];
-    }
+    use SyncScopeBuildResultFixtures;
 
     /**
      * Runs the AC-1 ET-rescan scenario through the real do_build_result() and returns the
@@ -271,47 +289,16 @@ class SyncScopeBuildResultTestFixtureAccess {
      * assert the producer actually stored the JSON (fail loud rather than returning null).
      */
     public function et_rescan_json( TestCase $test ): array {
-        // wp_parse_url must be live BEFORE r_orig_from() runs (same ordering constraint as
-        // SyncScopeBuildResultTest::setUp() documents): r_orig_from() executes the REAL
-        // CuJsonBuilder::build() -> UrlPattern::from_url ahead of the rest of the stubs below.
+        // wp_parse_url must be live BEFORE et_rescan_scenario() runs (it calls r_orig_from(),
+        // which executes the REAL CuJsonBuilder::build() -> UrlPattern::from_url ahead of
+        // stub_everything_impl() below — same ordering constraint as SyncScopeBuildResultTest::setUp()).
         WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $u, $c = -1 ) => parse_url( (string) $u, $c ) );
 
+        $scenario = $this->et_rescan_scenario();
+
         $options    = [];
-        $transients = [];
-
-        $parent = [ $this->page( 'https://site.test/', [ 'home-a' ] ), $this->page( 'https://site.test/other/', [ 'other-a', 'other-b' ] ) ];
-        $transients['cu_scanner_r_orig_1'] = $this->r_orig_from( $parent );
-        // ET rescan of the home page only; extra_time_charged makes is_et_rescan() true.
-        $rescan = [ $this->page( 'https://site.test/', [ 'home-a' ], [ 'extra_time_charged' => true ] ) ];
-
-        WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://site.test' );
-        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
-        WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
-        WP_Mock::userFunction( 'wp_remote_get' )->andReturn( [] );
-        WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
-        WP_Mock::userFunction( 'wp_remote_retrieve_response_code' )->andReturn( 200 );
-        WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturn( json_encode( [
-            'status' => 'complete', 'total' => count( $rescan ), 'completed' => count( $rescan ), 'pages' => $rescan, 'flags' => [],
-        ] ) );
-        WP_Mock::userFunction( 'get_option' )->andReturnUsing( function ( $k, $default = false ) use ( &$options ) {
-            if ( 'cu_scanner_railway_url' === $k ) { return 'https://cu-scanner-railway-production.up.railway.app'; }
-            if ( 'cu_scanner_api_key' === $k )     { return 'api-key-123'; }
-            return array_key_exists( $k, $options ) ? $options[ $k ] : $default;
-        } );
-        WP_Mock::userFunction( 'update_option' )->andReturnUsing( function ( $k, $v ) use ( &$options ) { $options[ $k ] = $v; return true; } );
-        WP_Mock::userFunction( 'get_transient' )->andReturnUsing( fn( $k ) => $transients[ $k ] ?? false );
-        WP_Mock::userFunction( 'set_transient' )->andReturnUsing( function ( $k, $v ) use ( &$transients ) { $transients[ $k ] = $v; return true; } );
-        WP_Mock::userFunction( 'delete_transient' )->andReturn( true );
-        WP_Mock::userFunction( 'wp_json_encode' )->andReturnUsing( fn( $d, $f = 0 ) => json_encode( $d, $f ) );
-        WP_Mock::userFunction( 'apply_filters' )->andReturnUsing( fn( $tag, $value = null ) => $value );
-        WP_Mock::userFunction( 'get_current_user_id' )->andReturn( 1 );
-        WP_Mock::userFunction( 'do_action' )->andReturn( null );
-        WP_Mock::userFunction( 'is_plugin_active' )->andReturn( false );
-        WP_Mock::userFunction( 'sanitize_text_field' )->andReturnUsing( fn( $v ) => (string) $v );
-        WP_Mock::userFunction( 'wp_unslash' )->andReturnUsing( fn( $v ) => $v );
-        WP_Mock::userFunction( 'absint' )->andReturnUsing( fn( $v ) => abs( (int) $v ) );
-        WP_Mock::userFunction( 'check_ajax_referer' )->andReturn( true );
-        WP_Mock::userFunction( 'current_user_can' )->andReturn( true );
+        $transients = [ 'cu_scanner_r_orig_1' => $scenario['r_orig'] ];
+        $this->stub_everything_impl( $scenario['rescan'], $options, $transients );
 
         ( new ScannerAjax() )->do_build_result( 'job-et', 'tok' );
 

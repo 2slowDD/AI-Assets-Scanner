@@ -138,16 +138,25 @@ class SyncScopeHandlersTest extends TestCase {
     }
     public function malformed_scalar_keys(): array { return [ 'string' => [ 'https://site.test/' ], 'int' => [ 7 ] ]; }
 
-    /** @dataProvider junk_arrays */
-    public function test_ac4c_junk_array_is_fail_closed_on_sync_and_push( array $key ): void {
-        // sync
+    /**
+     * Controller Ruling F (task-2 review, 2026-09-05): split from the former combined
+     * test_ac4c_junk_array_is_fail_closed_on_sync_and_push() — the push leg guards the
+     * retire-every-scanner-rule blast radius and must report independently of the sync leg.
+     * Each leg gets its OWN fixture setup (own $this->stub() call) rather than sharing state.
+     * @dataProvider junk_arrays
+     */
+    public function test_ac4c_sync_fail_closed( array $key ): void {
         $this->stub( $this->fixture_a( $key ) );
         ( new ScannerAjax() )->sync_to_cu();
         $this->assertSame( 'No internal rules to sync', $this->error );
         $this->assertNull( $this->captured );
         $this->assertSame( [], FakeRuleRepository::$rules, 'the pusher was never entered' );
-        // push, with a pre-seeded ACTIVE scanner rule that must survive
-        $this->error = null;
+    }
+
+    /** @dataProvider junk_arrays */
+    public function test_ac4c_push_fail_closed( array $key ): void {
+        // Own fixture, with a pre-seeded ACTIVE scanner rule that must survive.
+        $this->stub( $this->fixture_a( $key ) );
         $gid = FakeRuleRepository::create_group( 'AA Scanner - Aggressive', 'agg' );
         $this->seed_home_rules( 1, $gid );
         $_POST['confirmed'] = '1';
@@ -199,6 +208,10 @@ class SyncScopeHandlersTest extends TestCase {
     public function test_ac9_json_produced_by_the_real_build_round_trips_to_the_scoped_count(): void {
         // The AC-1 producer test stores JSON via update_option; re-produce it here the same way, then Sync it unmodified.
         $produced = ( new SyncScopeBuildResultTestFixtureAccess() )->et_rescan_json( $this );
+        // Non-vacuity guard (P17 review fix): without this, both assertions below pass
+        // trivially the moment the producer stops emitting any out-of-scope rule at all —
+        // there would be nothing left for filter_scanned_rules() to prove it drops.
+        $this->assertNotEmpty( array_filter( $produced['rules'], fn( $r ) => 'https://site.test/' !== $r['url_pattern'] ), 'the produced JSON carried out-of-scope rules for the filter to drop' );
         $this->stub( $produced, 'job-et' );
         ( new ScannerAjax() )->sync_to_cu();
         $this->assertNull( $this->error );
