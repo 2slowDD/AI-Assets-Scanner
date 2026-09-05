@@ -138,7 +138,9 @@ function makeEl(id, tagName) {
     // innerHTML-derived nodes first, then appendChild'd ones — matches DOM order.
     _kids() { return this._domChildren().concat(this.children); },
     addEventListener(ev, fn) { (listeners[ev] = listeners[ev] || []).push(fn); },
-    _fire(ev, arg) { (listeners[ev] || []).slice().forEach((f) => f(arg || { preventDefault() {}, target: this })); },
+    // Real DOM semantics: a listener runs with `this` bound to the current target. scanner.js's
+    // Sync handler starts with `const btn = this;` — without the binding it throws on `btn.disabled`.
+    _fire(ev, arg) { (listeners[ev] || []).slice().forEach((f) => f.call(this, arg || { preventDefault() {}, target: this })); },
     click() { this._fire('click', { preventDefault() {}, target: this }); },
     appendChild(c) { this.children.push(c); if (c) c.parentNode = this; return c; },
     insertBefore(node, ref) {

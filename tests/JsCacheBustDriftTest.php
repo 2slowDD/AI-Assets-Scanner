@@ -87,6 +87,8 @@ final class JsCacheBustDriftTest extends TestCase {
 		'1.8.2b.1' => '80e5f36b307c976c88ae2d0809d7e351a7cca9d1e997233d7ca254697cba1e30',
 		// FU-AAS-SYNC-SCOPE-LAST-SCAN — scanner.js wire site 4 + menu-badge.js W2.
 		'1.8.3b.1' => 'fa553a3347937ed36d7e935a573047f95944d09c80cc3a0c1f532757b884596b',
+		// FU-AAS-SYNC-DEVICE-DUPLICATES / FU-AAS-SYNC-LINE-ALL-PRESENT (1.8.4) — scanner.js wire site C (the all-present Sync line).
+		'1.8.4.1' => '91e273c3a29c52ea6071ae229305ee91c74357ca5557351b68c326f554391cd9',
 	);
 
 	/**
@@ -126,6 +128,8 @@ final class JsCacheBustDriftTest extends TestCase {
 		'1.0.11.7' => '604594322a4378996054da13085f7a0202485a1147844c784cf793da681b585d',
 		// FU-AAS-SYNC-SCOPE-LAST-SCAN — scanner.js wire site 4 (card second pair, flag derivation, W1/R1/whitelist literal).
 		'1.0.11.8' => 'fdc1dd329988b83a4ffb7ae2667ec1dd9f51fed1ff85711cf7479f776e4ef296',
+		// 1.8.4 — the all-present Sync line (FU-AAS-SYNC-LINE-ALL-PRESENT, spec §3.4).
+		'1.0.11.9' => '37059e8dd2aa95881ce4a22ea5d87df2e0967d0a8a40f29af98a5d461769639e',
 	);
 
 	private function root(): string {

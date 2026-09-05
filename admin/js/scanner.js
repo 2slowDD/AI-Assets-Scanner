@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.11.8';
+    const SCANNER_JS_VERSION = '1.0.11.9';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -3747,7 +3747,16 @@
                 const errNote = d.error_count
                     ? ` (${esc(d.error_count)} errors — first: ${esc(d.error_message)})`
                     : '';
-                el.innerHTML = `<div class="notice notice-success"><p>Synced to Code Unloader — appended ${esc(d.appended_safe)} safe + ${esc(d.appended_aggressive)} aggressive rules (${esc(d.already_present)} already present).${errNote}</p></div>`;
+                // FU-AAS-SYNC-LINE-ALL-PRESENT (spec §3.4): "all N rules are already present" ONLY when
+                // nothing was appended, something was present AND there were no errors — sync()'s
+                // rollback branch zeroes appended_* on error while keeping already_present, so
+                // without the error_count condition a failed Sync would read as fully present.
+                const nothingAppended = ( Number( d.appended_safe ) || 0 ) + ( Number( d.appended_aggressive ) || 0 ) === 0;
+                const allPresent      = nothingAppended && ( Number( d.already_present ) || 0 ) > 0 && ! d.error_count;
+                const line = allPresent
+                    ? `Synced to Code Unloader — all ${esc(d.already_present)} rules are already present.`
+                    : `Synced to Code Unloader — appended ${esc(d.appended_safe)} safe + ${esc(d.appended_aggressive)} aggressive rules (${esc(d.already_present)} already present).${errNote}`;
+                el.innerHTML = `<div class="notice notice-success"><p>${line}</p></div>`;
                 activateUndoFromResponse(d);
                 cuNotifyRulesChanged();
             } else {
