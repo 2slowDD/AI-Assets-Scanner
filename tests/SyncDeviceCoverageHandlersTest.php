@@ -150,6 +150,11 @@ class SyncDeviceCoverageHandlersTest extends TestCase {
         $this->assertSame( [ 1, 2, 3 ], $this->counts(), 's1 new (safe); d2 + a2 new (aggressive); d1, a1, m1 present' );
         $this->assertSame( 1 + 5, array_sum( $this->counts() ), 'partition identity: apply_safe + apply_aggressive = appended + present' );
         $this->assertCount( 3, $this->captured['created_rule_ids'] );
+        $this->assertCount( 8, FakeRuleRepository::$rules, 'Seed E 5 rows + the 3 inserts' );
+        $inserted = array_filter( FakeRuleRepository::$rules, fn( $r ) => in_array( (int) $r['id'], $this->captured['created_rule_ids'], true ) );
+        $pairs = array_map( fn( $r ) => $r['asset_handle'] . '/' . $r['device_type'], $inserted );
+        sort( $pairs );
+        $this->assertSame( [ 'a2/all', 'd2/desktop', 's1/all' ], $pairs, 'exactly s1 (safe, All), d2 (Desktop, uncovered) and a2 (All over a lone Desktop row) were inserted' );
     }
 
     // -------------------------------------------------------------- AC-9
