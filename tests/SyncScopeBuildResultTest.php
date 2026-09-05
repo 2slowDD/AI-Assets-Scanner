@@ -16,7 +16,11 @@ use WP_Mock\Tools\TestCase;
  * the Risky count stays at 2 (verified: see task-2-report.md fix-round evidence).
  */
 trait SyncScopeBuildResultFixtures {
-    /** A worker page row: assets are (handle,type,desktop,mobile); loaded=false + coverage 0 on both devices => an unload rule (aggressive by default). */
+    /** A worker page row: assets are (handle,type,desktop,mobile); loaded=false + coverage 0 on both
+     * devices has no 'bucket' field, so classify() falls through to the legacy {loaded,coverage}
+     * derivation (class-cu-json-builder.php classify() ~L213): !loaded => 'absent' on both devices,
+     * which combine()'s 'absent,absent' cell maps to a SAFE rule (group 1) — corrected 2026-09-05,
+     * task-4 review (was inverted: "aggressive by default"). */
     private function page( string $url, array $handles, array $extra = [] ): array {
         $assets = [];
         foreach ( $handles as $h ) {
@@ -25,6 +29,27 @@ trait SyncScopeBuildResultFixtures {
                 'type'    => 'style',
                 'desktop' => [ 'loaded' => false, 'coverage' => 0.0 ],
                 'mobile'  => [ 'loaded' => false, 'coverage' => 0.0 ],
+            ];
+        }
+        return array_merge( [ 'url' => $url, 'status' => 'done', 'assets' => $assets ], $extra );
+    }
+
+    /**
+     * A worker page row driven by the AUTHORITATIVE per-device `bucket` field
+     * (class-cu-json-builder.php classify() ~L203), so the caller can request SAFE and
+     * AGGRESSIVE rules on the SAME page without relying on the legacy fallback (which only
+     * ever emits SAFE). $handles is [handle => bucket], bucket one of 'absent'/'aggressive'/
+     * 'needed', applied identically to BOTH devices (dual-device confirmation — combine()'s
+     * 'absent,absent' => Safe, 'aggressive,aggressive' => Aggressive, 'needed,needed' => no rule).
+     */
+    private function page_with_buckets( string $url, array $handles, array $extra = [] ): array {
+        $assets = [];
+        foreach ( $handles as $h => $bucket ) {
+            $assets[] = [
+                'handle'  => $h,
+                'type'    => 'style',
+                'desktop' => [ 'loaded' => false, 'coverage' => 0.0, 'bucket' => $bucket ],
+                'mobile'  => [ 'loaded' => false, 'coverage' => 0.0, 'bucket' => $bucket ],
             ];
         }
         return array_merge( [ 'url' => $url, 'status' => 'done', 'assets' => $assets ], $extra );
@@ -49,17 +74,18 @@ trait SyncScopeBuildResultFixtures {
     /**
      * Registers the full WP_Mock stub set do_build_result() needs, backed by the given
      * $options/$transients arrays BY REFERENCE — so the TestCase (its own $this->options /
-     * $this->transients properties) and the AC-9 helper (local arrays) share this ONE
+     * $this->transients properties) and the AC-9/AC-2(c) helpers (local arrays) share this ONE
      * implementation instead of two hand-copied stub sets drifting apart.
      *
-     * wp_parse_url is registered here too (mirroring the original single-class stub_everything()),
-     * but callers whose scenario building runs r_orig_from() BEFORE calling this method must
-     * register wp_parse_url live first — r_orig_from() runs the REAL CuJsonBuilder::build()
-     * (-> UrlPattern::from_url) ahead of this stub set. See et_rescan_scenario()'s docblock.
+     * wp_parse_url is NOT registered here (task-4 review fold, 2026-09-05: removed a redundant
+     * duplicate registration — every call site below already registers it live BEFORE calling
+     * this method, either in setUp() (SyncScopeBuildResultTest) or inline (the fixture-access
+     * helpers), because scenario building runs r_orig_from() BEFORE this method, which itself
+     * runs the REAL CuJsonBuilder::build() (-> UrlPattern::from_url) ahead of this stub set).
+     * Every caller of stub_everything_impl() MUST register wp_parse_url live first.
      */
     private function stub_everything_impl( array $pages, array &$options, array &$transients ): void {
         WP_Mock::userFunction( 'get_home_url' )->andReturn( 'https://site.test' );
-        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
         WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
         WP_Mock::userFunction( 'wp_remote_get' )->andReturn( [] );
         WP_Mock::userFunction( 'is_wp_error' )->andReturn( false );
@@ -169,6 +195,7 @@ class SyncScopeBuildResultTest extends TestCase {
         ( new ScannerAjax() )->do_build_result( 'job-plain', 'tok' );
         $json = $this->stored_json( 'job-plain' );
         $this->assertSame( [ 'https://site.test/', 'https://site.test/b' ], $json['scanned_patterns'] );
+        $this->assertNotEmpty( $json['rules'], 'the in-scope loop below cannot be vacuous' );
         foreach ( $json['rules'] as $r ) { $this->assertContains( $r['url_pattern'], $json['scanned_patterns'] ); }
     }
 
@@ -206,6 +233,14 @@ class SyncScopeBuildResultTest extends TestCase {
         // scan totals stay the by_page sums (external included): the option carries agg_count, the live payload aggressive_count
         $this->assertSame( $totals['aggressive'], $payload['aggressive_count'] );
         $this->assertSame( $totals['aggressive'], $this->options['aias_last_result']['agg_count'] );
+        // Task-4 review fold (2026-09-05): the aggressive leg above is 0 === 0 on this all-SAFE
+        // fixture (page() emits only Safe rules — the legacy classify() fallback never yields
+        // Aggressive), so it passes even if the safe/aggressive split were silently swapped. Add
+        // the safe_count leg, which IS non-zero on this fixture, so "scan totals unchanged" is
+        // actually exercised.
+        $this->assertGreaterThan( 0, $totals['safe'], 'this fixture must actually produce safe rules for the leg below to be meaningful' );
+        $this->assertSame( $totals['safe'], $payload['safe_count'] );
+        $this->assertSame( $totals['safe'], $this->options['aias_last_result']['safe_count'] );
 
         // W3 hop: get_badge_state returns the persisted option verbatim when green.
         // The MenuBadge mock this brief originally sketched is unreachable — get_badge_state()
@@ -310,5 +345,67 @@ class SyncScopeBuildResultTestFixtureAccess {
         WP_Mock::setUp();
 
         return $decoded;
+    }
+
+    /**
+     * Task 4 — AC-2(c) end-to-end producer. Fixture B's ET variant (spec §5): the SAME three
+     * internal pages + one external page as SyncScopeBuildResultTest::test_ac10_..., but run as
+     * an ET rescan whose R_orig parent ALSO has an internal page (https://site.test/carried/)
+     * that is NOT part of the rescan. That page's rule is therefore restored by the ratchet
+     * (RatchetMerger::merge()'s absent_restore branch, class-ratchet-merger.php ~L410-419) and
+     * lands in the stored JSON's 'rules' — a carried, out-of-scan pattern the scope filter this
+     * FU adds must drop before it reaches CU.
+     *
+     * Buckets are the AUTHORITATIVE per-device field CuJsonBuilder::classify() reads first
+     * (class-cu-json-builder.php ~L203): 'absent' on both devices -> Safe (combine()'s
+     * 'absent,absent' cell); 'aggressive' on both -> Aggressive (combine()'s
+     * 'aggressive,aggressive' cell). Parent and rescan use the IDENTICAL page arrays for
+     * p1/p2/p3/ext (only the rescan copies add extra_time_charged), so every one of their rules
+     * is 'in_r_et' in the merge walk (RatchetMerger::merge() Step 6) — re-derived by THIS rescan,
+     * never restored — and only /carried/, absent from the rescan entirely, takes the
+     * absent_restore path. That keeps the split fully attributable to CuJsonBuilder's own
+     * classify()/combine(), never hand-composed:
+     *   p1 = 1 Safe (bucket absent/absent) + 2 Aggressive (bucket aggressive/aggressive)
+     *   p2 = 3 Aggressive, p3 = 1 Aggressive         => host-internal apply_safe=1 / apply_agg=6
+     *   https://ext.test/x/ = 2 Aggressive           => dropped by the HOST filter
+     *   https://site.test/carried/ = 1 Aggressive    => dropped by the SCOPE filter (carried, ∉ scanned_patterns)
+     *
+     * Same contract as et_rescan_json() above: returns ['json' => decoded stored JSON, 'payload'
+     * => the live do_build_result() return], brackets WP_Mock so the caller (SyncScopeHandlersTest,
+     * @runTestsInSeparateProcesses) can register its OWN handler-phase stubs next.
+     */
+    public function fixture_b_et_run( TestCase $test ): array {
+        // wp_parse_url must be live BEFORE r_orig_from() runs (same ordering constraint as
+        // et_rescan_json() above — r_orig_from() runs the REAL CuJsonBuilder::build()).
+        WP_Mock::userFunction( 'wp_parse_url' )->andReturnUsing( fn( $u, $c = -1 ) => parse_url( (string) $u, $c ) );
+
+        $p1      = $this->page_with_buckets( 'https://site.test/p1/', [ 'p1-safe' => 'absent', 'p1-a' => 'aggressive', 'p1-b' => 'aggressive' ] );
+        $p2      = $this->page_with_buckets( 'https://site.test/p2/', [ 'p2-a' => 'aggressive', 'p2-b' => 'aggressive', 'p2-c' => 'aggressive' ] );
+        $p3      = $this->page_with_buckets( 'https://site.test/p3/', [ 'p3-a' => 'aggressive' ] );
+        $ext     = $this->page_with_buckets( 'https://ext.test/x/', [ 'x-a' => 'aggressive', 'x-b' => 'aggressive' ] );
+        $carried = $this->page_with_buckets( 'https://site.test/carried/', [ 'carried-a' => 'aggressive' ] );
+
+        $parent = [ $p1, $p2, $p3, $ext, $carried ];
+        $rescan = [
+            array_merge( $p1, [ 'extra_time_charged' => true ] ),
+            array_merge( $p2, [ 'extra_time_charged' => true ] ),
+            array_merge( $p3, [ 'extra_time_charged' => true ] ),
+            array_merge( $ext, [ 'extra_time_charged' => true ] ),
+        ];
+
+        $options    = [];
+        $transients = [ 'cu_scanner_r_orig_1' => $this->r_orig_from( $parent ) ];
+        $this->stub_everything_impl( $rescan, $options, $transients );
+
+        $payload = ( new ScannerAjax() )->do_build_result( 'job-b-et', 'tok' );
+
+        $test->assertArrayHasKey( 'cu_scanner_json_job-b-et', $options, 'the Fixture B ET producer stored the scan JSON' );
+        $decoded = json_decode( (string) $options['cu_scanner_json_job-b-et'], true );
+
+        // Leave WP_Mock clean for the caller to register its OWN (handler-phase) stubs next.
+        WP_Mock::tearDown();
+        WP_Mock::setUp();
+
+        return [ 'json' => $decoded, 'payload' => $payload ];
     }
 }

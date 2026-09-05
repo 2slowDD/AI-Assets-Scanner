@@ -218,4 +218,33 @@ class SyncScopeHandlersTest extends TestCase {
         $this->assertSame( [ 'https://site.test/' ], $this->cu_patterns(), 'the produced JSON scopes to the rescanned page' );
         $this->assertSame( count( array_filter( $produced['rules'], fn( $r ) => 'https://site.test/' === $r['url_pattern'] ) ), $this->captured['appended_aggressive'] + $this->captured['appended_safe'] );
     }
+
+    // -------------------------------------------------------------- AC-2(c) (multi-URL end-to-end)
+    public function test_ac2c_multi_url_scan_syncs_the_three_internal_pages_only(): void {
+        $run = ( new SyncScopeBuildResultTestFixtureAccess() )->fixture_b_et_run( $this );   // ['json' => stored JSON, 'payload' => live payload]
+        // Fixture B ET variant (spec §5 / task-4 brief direction 1): p1 = 1 Safe (bucket
+        // absent/absent) + 2 Aggressive (bucket aggressive/aggressive); p2 = 3 Aggressive;
+        // p3 = 1 Aggressive. Pin the split explicitly — not just the equalities below, which
+        // would also hold if both counts were the same wrong number.
+        $this->assertSame( 1, $run['payload']['apply_safe_count'], 'p1\'s absent,absent asset is the only host-internal Safe rule' );
+        $this->assertSame( 6, $run['payload']['apply_aggressive_count'], 'p1 (2) + p2 (3) + p3 (1) aggressive,aggressive host-internal rules' );
+        // Non-vacuity guards (P17): without an external-host rule AND a carried (out-of-scan)
+        // rule actually present in the produced JSON, the filter has nothing to prove it drops —
+        // both assertions after sync would pass trivially the moment either filter stopped
+        // dropping anything.
+        $this->assertNotEmpty( array_filter( $run['json']['rules'], fn( $r ) => str_starts_with( $r['url_pattern'], 'https://ext.test/' ) ), 'the produced JSON carries an external-host rule for the host filter to drop' );
+        $this->assertNotEmpty( array_filter( $run['json']['rules'], fn( $r ) => 'https://site.test/carried' === $r['url_pattern'] ), 'the produced JSON carries the carried (out-of-scan) rule for the scope filter to drop' );
+
+        $this->stub( $run['json'], 'job-b-et' );
+        ( new ScannerAjax() )->sync_to_cu();
+        $this->assertNull( $this->error );
+        $this->assertSame( $run['payload']['apply_safe_count'],       $this->captured['appended_safe'] );
+        $this->assertSame( $run['payload']['apply_aggressive_count'], $this->captured['appended_aggressive'] );
+        $this->assertSame( 0, $this->captured['already_present'] );
+        foreach ( $this->cu_patterns() as $p ) {
+            $this->assertStringStartsWith( 'https://site.test/', $p );
+            $this->assertContains( $p, $run['json']['scanned_patterns'], 'no carried (out-of-scan) pattern reached CU' );
+        }
+        $this->assertCount( $run['payload']['apply_safe_count'] + $run['payload']['apply_aggressive_count'], FakeRuleRepository::$rules, 'CU holds exactly the scoped rule count — no external-host, no carried rule' );
+    }
 }
