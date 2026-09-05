@@ -100,6 +100,13 @@ function testW1CarriesApplyFields() {
   return flush().then(function () {
     const blob = JSON.parse(h.sandbox.localStorage.getItem('cu_scanner_result'));
     assert.strictEqual(blob.apply_safe_count, 1); assert.strictEqual(blob.apply_aggressive_count, 6);
+    // Controller ruling G: the blob assertions above do not falsify edit 1 (the live
+    // restoreStep4({ applySafeCount, applyAggCount }) call) — restoreStep4 rendering the DOM
+    // here happened over the SAME harness `h` the live handleStatusUpdate chain just drove, so
+    // asserting on it also pins edit 1, not just the W1 write. Card = apply_safe + apply_agg
+    // (7, not 9 = FIXTURE_B's raw safe+aggressive); tiles stay at the raw scan totals.
+    assert.strictEqual(text(h, 'cu-ready-rule-total'), '7', 'live chain: card reads apply_safe + apply_aggressive, not the raw scan totals');
+    assert.strictEqual(text(h, 'cu-metric-aggressive'), '8', 'live chain: tiles still read the raw scan totals');
     console.log('OK W1 carries apply_safe_count / apply_aggressive_count');
   });
 }
