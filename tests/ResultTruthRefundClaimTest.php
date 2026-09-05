@@ -61,6 +61,35 @@ class ResultTruthRefundClaimTest extends TestCase {
 	}
 
 	/**
+	 * FU-AAS-SYNC-DEVICE-DUPLICATES (spec §5 Fixture E, hand-written twin for the build-time leg):
+	 * one internal page whose assets yield, through the real CuJsonBuilder cell map, two All
+	 * aggressive rules, two Desktop aggressive rules (aggressive,needed), one Mobile aggressive
+	 * rule (needed,aggressive) and one All safe rule (absent,absent) — S 1 / A 5.
+	 */
+	private function device_page( string $url = 'https://s.com/p' ): array {
+		$asset = static fn( string $h, string $d, string $m ) => [
+			'handle' => $h, 'type' => 'style',
+			'desktop' => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => $d ],
+			'mobile'  => [ 'loaded' => true, 'coverage' => 0.0, 'bucket' => $m ],
+		];
+		return [ 'url' => $url, 'status' => 'done', 'assets' => [
+			$asset( 'a1', 'aggressive', 'aggressive' ), $asset( 'a2', 'aggressive', 'aggressive' ),
+			$asset( 'd1', 'aggressive', 'needed' ),     $asset( 'd2', 'aggressive', 'needed' ),
+			$asset( 'm1', 'needed', 'aggressive' ),
+			$asset( 's1', 'absent', 'absent' ),
+		] ];
+	}
+
+	/** Seed E (spec §5): CU rows as [handle, device, group_id]. Group 11 = Safe, 22 = Aggressive. */
+	private function seed_e(): array {
+		return [ [ 'd1', 'all', 22 ], [ 'a1', 'desktop', 22 ], [ 'a1', 'mobile', 22 ], [ 'm1', 'mobile', 22 ], [ 'a2', 'desktop', 22 ] ];
+	}
+	/** Seed E extended so EVERY Fixture-E rule is covered. */
+	private function seed_e_all_covered(): array {
+		return array_merge( $this->seed_e(), [ [ 'd2', 'all', 22 ], [ 'a2', 'mobile', 22 ], [ 's1', 'all', 11 ] ] );
+	}
+
+	/**
 	 * Drives the real do_build_result(). $refund_response is what the SaaS returns from
 	 * POST /credits/refund-duplicates; null makes the call throw (non-2xx).
 	 *
@@ -70,8 +99,11 @@ class ResultTruthRefundClaimTest extends TestCase {
 	 * APPLIED, CU is off for the scan, the scan is a fresh full measurement, and every rule it
 	 * produces is billed. So the default here is the only mode in which this class's subject
 	 * exists. The suffix-applied case has its own explicit tests below.
+	 *
+	 * $page overrides the fixture page entirely (device-mixed fixtures); $seed_rows appends
+	 * additional CU rows, as [handle, device_type, group_id], after the $cu_holds_the_rule seed.
 	 */
-	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = true, ?array $kept_protection = null, string $page_url = 'https://s.com/p' ): array {
+	private function run_build( bool $cu_holds_the_rule, ?array $refund_response, bool $cu_active = true, bool $omit_cu_bypass = true, ?array $kept_protection = null, string $page_url = 'https://s.com/p', ?array $page = null, array $seed_rows = [] ): array {
 		WP_Mock::userFunction( 'wp_parse_url' )
 			->andReturnUsing( fn( $url, $component = -1 ) => parse_url( (string) $url, $component ) );
 		WP_Mock::userFunction( '__' )->andReturnUsing( fn( $t, $d = null ) => $t );
@@ -84,7 +116,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 			fn( $r ) => is_array( $r ) && isset( $r['__refund'] ) ? (int) $r['__code'] : 200
 		);
 		WP_Mock::userFunction( 'wp_remote_retrieve_body' )->andReturnUsing(
-			function ( $r ) use ( $refund_response, $kept_protection, $page_url ) {
+			function ( $r ) use ( $refund_response, $kept_protection, $page_url, $page ) {
 				if ( is_array( $r ) && isset( $r['__refund'] ) ) {
 					return json_encode( $refund_response ?? [ 'message' => 'Not Found' ] );
 				}
@@ -92,7 +124,7 @@ class ResultTruthRefundClaimTest extends TestCase {
 					'status'    => 'complete',
 					'total'     => 1,
 					'completed' => 1,
-					'pages'     => [ $this->page( $page_url, $kept_protection ) ],
+					'pages'     => [ $page ?? $this->page( $page_url, $kept_protection ) ],
 					'flags'     => [],
 				] );
 			}
@@ -153,8 +185,23 @@ class ResultTruthRefundClaimTest extends TestCase {
 				'asset_type'  => 'css', 'device_type' => 'all', 'group_id' => 22,
 			];
 		}
+		foreach ( $seed_rows as [ $handle, $device, $group_id ] ) {
+			FakeCuRepo::$rules[] = (object) [
+				'url_pattern' => 'https://s.com/p', 'match_type' => 'exact', 'asset_handle' => $handle,
+				'asset_type'  => 'css', 'device_type' => $device, 'group_id' => $group_id,
+			];
+		}
 
 		return ( new ScannerAjax() )->do_build_result( 'job-xyz', 'tok-abc' );
+	}
+
+	/**
+	 * run_build() for the device-mixed page (Fixture E): identical stubs (Ruling A — no
+	 * duplicated stub block), only the page and the CU seed differ. $cu_holds_the_rule is
+	 * false here; the fixture's CU state comes entirely from $seed_rows.
+	 */
+	private function run_build_device_mixed( array $seed_rows, ?array $refund_response, bool $omit_cu_bypass = true ): array {
+		return $this->run_build( false, $refund_response, true, $omit_cu_bypass, null, 'https://s.com/p', $this->device_page(), $seed_rows );
 	}
 
 	/** The history row as it stands after the last write. */
@@ -439,6 +486,41 @@ class ResultTruthRefundClaimTest extends TestCase {
 		// "Cannot know" must never render as a zero-yield row: false, not null, and never true.
 		$this->assertFalse( $out['pages'][0]['all_already'] );
 		$this->assertNull( $this->persisted_last_result()['already_present'] );
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────────
+	// AC-6 — the coverage-subset dedupe answer through the REAL do_build_result(),
+	// on a page whose rules span all three device_type values (spec §5 Fixture E).
+	// ─────────────────────────────────────────────────────────────────────────────
+
+	/** AC-6 — device-covered rules count as present on BOTH payload writers; a partially covered page is NOT refunded. */
+	public function test_ac6_device_covered_rules_count_as_present_and_partial_page_is_not_refunded(): void {
+		$payload = $this->run_build_device_mixed( $this->seed_e(), [ 'ok' => true, 'refunded' => 1 ] );
+		$this->assertSame( [ 'safe' => 0, 'aggressive' => 3 ], $payload['already_present'], 'd1 (All over Desktop), a1 (pair over All), m1 (exact)' );
+		$this->assertSame( 1, $payload['safe_count'] );
+		$this->assertSame( 5, $payload['aggressive_count'] );
+		$this->assertFalse( $payload['pages'][0]['all_already'] );
+		$option = null;
+		foreach ( $this->option_writes as $w ) { if ( 'aias_last_result' === $w[0] ) { $option = $w[1]; } }
+		$this->assertSame( [ 'safe' => 0, 'aggressive' => 3 ], $option['already_present'], 'same answer on the persisted writer' );
+		$this->assertSame( [], $this->refund_posts, 'fail-closed: not every rule of the page is present' );
+	}
+
+	/** AC-6 variant — every rule covered ⇒ the page is all_already and the credit-back is claimed once with refund_pages 1. */
+	public function test_ac6_fully_device_covered_page_is_refunded(): void {
+		$payload = $this->run_build_device_mixed( $this->seed_e_all_covered(), [ 'ok' => true, 'refunded' => 1 ] );
+		$this->assertSame( [ 'safe' => 1, 'aggressive' => 5 ], $payload['already_present'] );
+		$this->assertTrue( $payload['pages'][0]['all_already'] );
+		$this->assertCount( 1, $this->refund_posts, 'non-vacuity: the refund POST actually fired' );
+		$this->assertSame( 1, json_decode( (string) $this->refund_posts[0]['args']['body'], true )['refund_pages'] );
+		$this->assertSame( 1, $payload['credits_refunded'] );
+	}
+
+	/** AC-6 negative — with the bypass APPLIED the apparatus is off: null on both writers, no refund. */
+	public function test_ac6_bypass_applied_makes_no_device_claim(): void {
+		$payload = $this->run_build_device_mixed( $this->seed_e_all_covered(), [ 'ok' => true, 'refunded' => 1 ], false );
+		$this->assertNull( $payload['already_present'] );
+		$this->assertSame( [], $this->refund_posts );
 	}
 }
 

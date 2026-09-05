@@ -168,13 +168,13 @@ class AlreadyPresentByPatternTest extends TestCase {
     }
 
     /**
-     * AC-12, CU side: CU's device_type column is NULLABLE, which is exactly why
-     * find_duplicate applies `device_type ?? 'all'`. A stored NULL must match a scan
-     * rule whose device_type is 'all'.
+     * AC-12, CU side: CU's device_type column is ENUM NOT NULL DEFAULT 'all'; find_duplicate
+     * applies `device_type ?? 'all'` on the PAYLOAD side. A NULL row here is a fake-only guard.
      *
-     * This is the case that makes tuple_key()'s normalization load-bearing. Without it
-     * the row keys as '' and matches nothing, and the customer is told a rule they
-     * already own is a new finding — the exact defect this whole change exists to fix.
+     * This is the case that makes needed_devices()'s null-to-'all' default load-bearing in
+     * coverage_index(). Without it the row's device set would be empty and match nothing, and
+     * the customer is told a rule they already own is a new finding — the exact defect this
+     * whole change exists to fix.
      */
     public function test_cu_row_with_null_device_type_matches_all(): void {
         $this->seed_groups();
@@ -218,37 +218,49 @@ class AlreadyPresentByPatternTest extends TestCase {
         $this->assertSame( 0, FakeRuleRepo::$create_group_calls );
     }
 
-    /** AC-12: the in-memory set and find_duplicate must agree, rule for rule. */
+    /**
+     * AC-12 (restated for FU-AAS-SYNC-DEVICE-DUPLICATES): the in-memory answer is a SUPERSET of
+     * find_duplicate — every exact hit is present, PLUS rules whose device is covered by an
+     * All row (or whose All is covered by a Desktop + Mobile pair). Rule for rule.
+     */
     public function test_in_memory_set_agrees_with_find_duplicate(): void {
         $this->seed_groups();
         $this->seed_rule( 'https://s.com/p', 'h1', 'css', 'all',     22 );
         $this->seed_rule( 'https://s.com/p', 'h2', 'js',  'desktop', 22 );
+        $this->seed_rule( 'https://s.com/p', 'h4', 'css', 'all',     22 );   // covers the DESKTOP rule below — find_duplicate misses it
 
         $rules = [
             $this->rule( 'https://s.com/p', 'h1', 'style',  'all',     2 ),
             $this->rule( 'https://s.com/p', 'h2', 'script', 'desktop', 2 ),
             $this->rule( 'https://s.com/p', 'h3', 'style',  'all',     2 ),
+            $this->rule( 'https://s.com/p', 'h4', 'style',  'desktop', 2 ),
         ];
 
         $this->cu_plugin_active( true );
-        $pusher = new RulePusher( FakeRuleRepo::class );
-        $out = $pusher->already_present_by_pattern( $this->cu_json( $rules ) );
+        $out = ( new RulePusher( FakeRuleRepo::class ) )->already_present_by_pattern( $this->cu_json( $rules ) );
 
-        // Independently count via the predicate itself.
-        $expected = 0;
+        $exact = 0;
         foreach ( $rules as $r ) {
-            $payload = [
-                'url_pattern'  => $r['url_pattern'],
-                'match_type'   => 'exact',
-                'asset_handle' => $r['asset_handle'],
-                'asset_type'   => $r['asset_type'] === 'style' ? 'css' : 'js',
-                'device_type'  => $r['device_type'],
-                'group_id'     => 22,
-            ];
-            if ( FakeRuleRepo::find_duplicate( $payload ) !== null ) { $expected++; }
+            $payload = [ 'url_pattern' => $r['url_pattern'], 'match_type' => 'exact', 'asset_handle' => $r['asset_handle'], 'asset_type' => $r['asset_type'] === 'style' ? 'css' : 'js', 'device_type' => $r['device_type'], 'group_id' => 22 ];
+            if ( FakeRuleRepo::find_duplicate( $payload ) !== null ) { $exact++; }
         }
+        $this->assertSame( 2, $exact, 'sanity: exactly 2 exact matches (h1, h2)' );
+        $this->assertSame( 3, $out['https://s.com/p']['aggressive'], 'every exact hit + the device-covered h4 (⊇ find_duplicate)' );
+    }
 
-        $this->assertSame( $expected, $out['https://s.com/p']['aggressive'] );
-        $this->assertSame( 2, $expected, 'sanity: the fixture should have exactly 2 matches' );
+    public function test_desktop_rule_is_present_under_an_all_row(): void {
+        $this->seed_groups();
+        $this->seed_rule( 'https://s.com/p', 'h1', 'css', 'all', 22 );
+        $this->cu_plugin_active( true );
+        $out = ( new RulePusher( FakeRuleRepo::class ) )->already_present_by_pattern( $this->cu_json( [ $this->rule( 'https://s.com/p', 'h1', 'style', 'desktop', 2 ) ] ) );
+        $this->assertSame( 1, $out['https://s.com/p']['aggressive'] );
+    }
+
+    public function test_all_rule_is_not_present_under_a_lone_desktop_row(): void {
+        $this->seed_groups();
+        $this->seed_rule( 'https://s.com/p', 'h1', 'css', 'desktop', 22 );
+        $this->cu_plugin_active( true );
+        $out = ( new RulePusher( FakeRuleRepo::class ) )->already_present_by_pattern( $this->cu_json( [ $this->rule( 'https://s.com/p', 'h1', 'style', 'all', 2 ) ] ) );
+        $this->assertSame( 0, $out['https://s.com/p']['aggressive'], 'F-MISS guard on the advisory path' );
     }
 }

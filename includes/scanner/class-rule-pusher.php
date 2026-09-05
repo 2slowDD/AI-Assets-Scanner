@@ -91,27 +91,10 @@ class RulePusher {
         $safe_group_id       = $group_ids[1] ?? null;
         $aggressive_group_id = $group_ids[2] ?? null;
 
-        // Index CU's existing rules by the 6-tuple find_duplicate matches on.
+        // Index CU's existing rules by the 5-key identity and the devices they unload
+        // (spec §3.1 coverage-subset).
         $resolved = array_filter( [ $safe_group_id, $aggressive_group_id ], static fn( $v ) => null !== $v );
-        $existing = [];
-        foreach ( $repo::get_all_rules() as $r ) {
-            $gid = (int) ( $r->group_id ?? 0 );
-            if ( ! in_array( $gid, $resolved, true ) ) {
-                continue;
-            }
-            $existing[ self::tuple_key( [
-                'url_pattern'  => (string) $r->url_pattern,
-                'match_type'   => (string) $r->match_type,
-                'asset_handle' => (string) $r->asset_handle,
-                'asset_type'   => (string) $r->asset_type,
-                // Passed through UNnormalized on purpose: CU's device_type column is
-                // nullable, and tuple_key() is the single place that applies
-                // find_duplicate's `device_type ?? 'all'`. Normalizing here too would
-                // make that the only copy that can never fire, i.e. untestable.
-                'device_type'  => $r->device_type ?? null,
-                'group_id'     => $gid,
-            ] ) ] = true;
-        }
+        $index    = $this->coverage_index( $repo, array_values( $resolved ) );
 
         $by_pattern = [];
         foreach ( $cu_json['rules'] as $rule ) {
@@ -135,33 +118,13 @@ class RulePusher {
             // match_type/handle/source defaults cannot drift between the two paths.
             $payload = $this->build_rule_payload( $rule, $target_group_id );
 
-            if ( isset( $existing[ self::tuple_key( $payload ) ] ) ) {
+            if ( self::covers( self::present_devices_from_index( $index, $payload ), self::needed_devices( $payload['device_type'] ?? 'all' ) ) ) {
                 $bucket = $rule['group_id'] === 1 ? 'safe' : 'aggressive';
                 $by_pattern[ $pattern ][ $bucket ]++;
             }
         }
 
         return $by_pattern;
-    }
-
-    /**
-     * The 6-column identity find_duplicate matches on, with ITS normalizations applied.
-     *
-     * ⚠️ build_rule_payload() returns SEVEN keys; source_label is an attribute, not part
-     * of identity, and must not be keyed on. device_type and group_id are normalized
-     * here exactly as RuleRepository::find_duplicate does (`device_type ?? 'all'`,
-     * `IFNULL(group_id, 0)`) — sharing build_rule_payload() alone does NOT reproduce them.
-     */
-    private static function tuple_key( array $payload ): string {
-        return implode( '|', [
-            (string) $payload['url_pattern'],
-            (string) $payload['match_type'],
-            (string) $payload['asset_handle'],
-            (string) $payload['asset_type'],
-            (string) ( $payload['device_type'] ?? 'all' ),
-            (string) ( isset( $payload['group_id'] ) && '' !== $payload['group_id'] && null !== $payload['group_id']
-                ? (int) $payload['group_id'] : 0 ),
-        ] );
     }
 
     /**
@@ -486,6 +449,43 @@ class RulePusher {
             }
         }
         return array_values( array_unique( $present ) );
+    }
+
+    /**
+     * ADVISORY-PATH provider (result-build): ONE get_all_rules() read, rows of the resolved
+     * scanner groups keyed by coverage_key() with the union of the devices they unload.
+     * ⚠️ May lag on a persistent-object-cache site (RuleRepository::create_rule never
+     * wp_cache_delete()s 'cdunloader_all_rules'); the exposure is one-directional —
+     * UNDER-reporting "already present" (fewer card notices / credit-backs), never over —
+     * and pre-existing, and this path is advisory + read-only. The write path never uses it.
+     *
+     * @param  int[] $group_ids Resolved current scanner group ids.
+     * @return array<string, string[]> coverage_key => subset of ['desktop','mobile'].
+     */
+    private function coverage_index( string $repo, array $group_ids ): array {
+        $index = [];
+        foreach ( $repo::get_all_rules() as $r ) {
+            $gid = (int) ( $r->group_id ?? 0 );
+            if ( ! in_array( $gid, $group_ids, true ) ) {
+                continue;
+            }
+            $key = self::coverage_key( [
+                'url_pattern'  => (string) $r->url_pattern,
+                'match_type'   => (string) $r->match_type,
+                'asset_handle' => (string) $r->asset_handle,
+                'asset_type'   => (string) $r->asset_type,
+                'group_id'     => $gid,
+            ] );
+            // CU's device_type column is ENUM NOT NULL DEFAULT 'all'; ?? 'all' mirrors
+            // find_duplicate's payload-side default, not a column state.
+            $index[ $key ] = array_values( array_unique( array_merge( $index[ $key ] ?? [], self::needed_devices( $r->device_type ?? 'all' ) ) ) );
+        }
+        return $index;
+    }
+
+    /** @return string[] The index entry for this payload's 5-key, or [] when CU holds nothing for it. */
+    private static function present_devices_from_index( array $index, array $payload ): array {
+        return $index[ self::coverage_key( $payload ) ] ?? [];
     }
 
     /**
