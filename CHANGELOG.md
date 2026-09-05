@@ -4,6 +4,19 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.5 — 2026-09-05
+
+### Added
+- Scans carry the plugin version to the worker (`plugin_version` on the job create request), so a scan in the worker's log can be attributed to the exact plugin build that ran it. Older workers ignore the field.
+
+### Changed
+- **Discover / Re-discover** lists the homepage first within its group (Pages when a static front page is set; otherwise Other). When the home URL is not in the discovered set, the shortest URL is listed first instead. Restore-from-session shows the same order; manual include lists and Extra-Time carry-over are unchanged.
+- The admin header byline now reads "Powered by WPservice.pro" (link unchanged).
+
+### Internal
+- `PageDiscovery::normalise_url` is the single URL normaliser for both post-type grouping and homepage matching; `PageDiscovery::home_first` is pure and unit-tested. A `WP_Query` test stub joins the bootstrap.
+- Admin asset cache key (`1.8.4.1`) and scanner.js banner (`1.0.11.9`) unchanged — no admin JS/CSS bytes moved.
+
 ## 1.8.4 — 2026-09-05
 
 First non-beta release.
