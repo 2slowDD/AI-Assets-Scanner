@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.8.5",
+    "requires_wp": "6.2",
+    "tested_wp": "7.1",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.5/ai-assets-scanner.zip",
+    "sha256": "e0bf89296e17f232856cef804cd0dec4c52a7c8b15979543522a78e58cc4a4f2",
+    "signature": "",
+    "released_at": "2026-09-05T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.5/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.8.5.</p><p><strong>Added</strong></p><ul><li>Scans carry the plugin version to the worker (<code>plugin_version</code> on the job create request), so a scan in the worker's log can be attributed to the exact plugin build that ran it. Older workers ignore the field.</li></ul><p><strong>Changed</strong></p><ul><li><strong>Discover / Re-discover</strong> lists the homepage first within its group (Pages when a static front page is set; otherwise Other). When the home URL is not in the discovered set, the shortest URL is listed first instead. Manual include lists and Extra-Time carry-over are unchanged.</li><li>The admin header byline now reads \"Powered by WPservice.pro\" (link unchanged).</li></ul><p><strong>Internal</strong></p><ul><li><code>PageDiscovery::normalise_url</code> is the single URL normaliser for both post-type grouping and homepage matching; <code>PageDiscovery::home_first</code> is pure and unit-tested. A <code>WP_Query</code> test stub joins the bootstrap.</li><li>Admin asset cache key (<code>1.8.4.1</code>) and scanner.js banner (<code>1.0.11.9</code>) unchanged &mdash; no admin JS/CSS bytes moved.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
