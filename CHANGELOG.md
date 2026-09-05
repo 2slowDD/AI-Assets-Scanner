@@ -4,6 +4,17 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.3b — 2026-09-05
+
+### Changed
+- **Sync** and **Push to Code Unloader** now send — and report — only the rules of the scan shown. After an Extra-Time rescan that is the rescanned pages' rules; the earlier scan's other pages are no longer re-sent (they are already in Code Unloader from the earlier Sync, or, on Push, kept in the snapshot group).
+- A scan whose own pages produced no rules for this site now shows Push and Sync as unavailable — on the live screen and after returning to the page — instead of sending rules from an earlier scan.
+- The **Ready to apply** count now excludes external-site pages and matches what Sync will add. The summary tiles still show the whole scan.
+
+### Internal
+- The stored and exported scan JSON gains an additive `scanned_patterns` key (the scan's own page patterns). Scans stored by earlier versions keep the previous Sync/Push behaviour.
+- Advanced the public plugin version to `1.8.3b` and the admin-asset cache key to `1.8.3b.1`.
+
 ## 1.8.2b — 2026-08-23
 
 ### Added

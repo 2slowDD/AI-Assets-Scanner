@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.8.2b-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.8.3b-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
@@ -22,6 +22,7 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **Safe + aggressive rules** — two tiers: safe (assets unused on the page) and aggressive (assets that may be needed conditionally)
 - **Push to Code Unloader** — one-click rule push with snapshot backup and versioned group history
 - **Sync with Code Unloader (1.6.0)** — appends a scan's internal rules to Code Unloader's existing active rules instead of overwriting (find-or-creates the "AA Scanner — Safe/Aggressive" groups, both enabled); duplicates are skipped and reported separately, never double-counted. Push gained an overwrite-confirm shown only when Code Unloader already has active rules, and both Push and Sync now leave Safe + Aggressive enabled
+- **Sync/Push scoped to the scan shown (1.8.3b)** — Sync and Push send only the rules of the scan on screen; after an Extra-Time rescan that is the rescanned pages' rules, never the earlier scan's other pages. The **Ready to apply** count is that same set (external-site pages excluded), so it matches what Sync will add
 - **Undo last Push/Sync (1.7.57b)** — Step 4 now keeps a server-side undo manifest for the last successful Code Unloader Push or Sync. The red **Undo last Push/Sync** button removes the recorded rules, deactivates groups created by that operation, leaves existing groups alone, and stays available after closing/reopening WordPress until used or replaced by a newer push/sync
 - **Credit system** — pay per scan via wpservice.pro credits
 - **Optimization plugin auto-bypass** — automatically bypasses WP Rocket, Autoptimize, and Code Unloader caches during scanning

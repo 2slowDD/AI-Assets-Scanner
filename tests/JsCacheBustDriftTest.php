@@ -85,6 +85,8 @@ final class JsCacheBustDriftTest extends TestCase {
 		// option-row text aligned to its card heading, history table headings 800 -> 600, header
 		// title 600 / .03em on every AAS screen, and the hover-tagged S: / A: tokens.
 		'1.8.2b.1' => '80e5f36b307c976c88ae2d0809d7e351a7cca9d1e997233d7ca254697cba1e30',
+		// FU-AAS-SYNC-SCOPE-LAST-SCAN — scanner.js wire site 4 + menu-badge.js W2.
+		'1.8.3b.1' => 'fa553a3347937ed36d7e935a573047f95944d09c80cc3a0c1f532757b884596b',
 	);
 
 	/**
@@ -122,6 +124,8 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.2b S:/A: hover breakdown: shared buildAssetListTitle(), data-cu-san tagging gated on
 		// the DISPLAYED count, and the post-render title pass beside the kept chip's.
 		'1.0.11.7' => '604594322a4378996054da13085f7a0202485a1147844c784cf793da681b585d',
+		// FU-AAS-SYNC-SCOPE-LAST-SCAN — scanner.js wire site 4 + menu-badge.js W2.
+		'1.0.11.8' => 'fdc1dd329988b83a4ffb7ae2667ec1dd9f51fed1ff85711cf7479f776e4ef296',
 	);
 
 	private function root(): string {
