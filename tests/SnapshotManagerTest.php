@@ -48,6 +48,12 @@ class FakeRuleRepository {
     }
 
     public static function create_rule( array $data ): int|\WP_Error {
+        // Mirror of RuleRepository::create_rule(): an exact 6-column duplicate is NOT inserted —
+        // the EXISTING id is returned (silent dedup). sync()'s exact gate exists because of this.
+        $existing = static::find_duplicate( $data );
+        if ( null !== $existing ) {
+            return (int) $existing->id;
+        }
         $id = count( self::$rules ) + 200;
         self::$rules[] = array_merge( $data, [ 'id' => $id ] );
         return $id;
@@ -92,7 +98,7 @@ class FakeRuleRepository {
               && ( $r['match_type']   ?? null ) === ( $data['match_type']   ?? null )
               && ( $r['asset_handle'] ?? null ) === ( $data['asset_handle'] ?? null )
               && ( $r['asset_type']   ?? null ) === ( $data['asset_type']   ?? null )
-              && ( $r['device_type']  ?? null ) === ( $data['device_type']  ?? null )
+              && ( $r['device_type']  ?? 'all' )  === ( $data['device_type']  ?? 'all' )
               && $r_gid === $gid ) {
                 return (object) $r;
             }
@@ -491,5 +497,36 @@ class SnapshotManagerTest extends TestCase {
             fn( $r ) => ( $r['source_label'] ?? '' ) === 'AA Scanner Snapshot'
         );
         $this->assertCount( 1, $snapshot_rules, 'Exactly one copy of the rule should be in the snapshot — second copy from the other active group is a duplicate within the snapshot group and is skipped' );
+    }
+
+    /**
+     * AC-10 (i) — the double mirrors RuleRepository::find_duplicate's `device_type ?? 'all'`:
+     * a payload WITHOUT device_type must match an All row (CU's column is ENUM NOT NULL
+     * DEFAULT 'all'; find_duplicate applies the default on the PAYLOAD side).
+     */
+    public function test_fake_find_duplicate_defaults_a_missing_device_type_to_all(): void {
+        FakeRuleRepository::$rules = [
+            [ 'id' => 300, 'group_id' => 7, 'url_pattern' => 'https://site.test/', 'match_type' => 'exact', 'asset_handle' => 'h', 'asset_type' => 'css', 'device_type' => 'all' ],
+        ];
+        $hit = FakeRuleRepository::find_duplicate( [ 'url_pattern' => 'https://site.test/', 'match_type' => 'exact', 'asset_handle' => 'h', 'asset_type' => 'css', 'group_id' => 7 ] );
+        $this->assertNotNull( $hit, 'a payload without device_type is an All payload, as in RuleRepository::find_duplicate' );
+        $this->assertSame( 300, (int) $hit->id );
+    }
+
+    /**
+     * AC-10 (ii) — the double mirrors RuleRepository::create_rule's silent dedup: creating an
+     * exact duplicate returns the FIRST row's id and inserts nothing. Without this, sync()'s
+     * exact gate cannot be shown to be load-bearing (spec §3.2 step 2 / AC-3 mutation 4).
+     */
+    public function test_fake_create_rule_returns_the_existing_id_on_an_exact_duplicate(): void {
+        $data  = [ 'url_pattern' => 'https://site.test/', 'match_type' => 'exact', 'asset_handle' => 'h', 'asset_type' => 'css', 'device_type' => 'desktop', 'group_id' => 7, 'source_label' => 'AA Scanner' ];
+        $first = FakeRuleRepository::create_rule( $data );
+        $again = FakeRuleRepository::create_rule( $data );
+        $this->assertSame( $first, $again, 'the second create returns the existing id' );
+        $this->assertCount( 1, FakeRuleRepository::$rules, 'and inserts nothing' );
+        // A different device is a different identity — it DOES insert.
+        $other = FakeRuleRepository::create_rule( array_merge( $data, [ 'device_type' => 'mobile' ] ) );
+        $this->assertNotSame( $first, $other );
+        $this->assertCount( 2, FakeRuleRepository::$rules );
     }
 }
