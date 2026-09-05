@@ -2072,6 +2072,7 @@
                     urlsScanned: d.total_pages, pages: d.pages, scanId: d.scan_id,
                     hasActiveCuRules: d.has_active_cu_rules,
                     hasInternalRules: d.has_internal_rules,
+                    applySafeCount: d.apply_safe_count, applyAggCount: d.apply_aggressive_count,
                     alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
                     creditsRefunded: d.credits_refunded,
                     cuRulesActive: d.cu_rules_active,
@@ -2100,6 +2101,11 @@
                     // this the kept-protection note shows after a live scan and vanishes on the
                     // next page load.
                     kept_protection_summary: d.kept_protection_summary,
+                    // FU-AAS-SYNC-SCOPE-LAST-SCAN \u2014 UNRENAMED, same as the payload, the PHP
+                    // option and menu-badge.js's writer. Host-internal, scoped counts (Task 1);
+                    // restoreStep4's derived Push/Sync flag reads these back on restore.
+                    apply_safe_count: d.apply_safe_count,
+                    apply_aggressive_count: d.apply_aggressive_count,
                     // banner data not persisted \u2014 shown once per live build_result call only.
                 }) );
                 // Task 5 \u2014 charged terminal-incomplete partial: after Step 4 renders,
@@ -2732,6 +2738,14 @@
         var urlCount = ( typeof o.urlsScanned === 'number' ) ? o.urlsScanned : resultPages.length;
         var safe = Number( o.safeCount ) || 0;
         var aggressive = Number( o.aggCount ) || 0;
+        // FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.3 wire site 4) — a SECOND pair for the Ready-to-apply
+        // card: the host-internal, scoped counts do_build_result emits as apply_*. The pair above
+        // stays on the metric tiles (scan totals, external pages included). Known only when BOTH are
+        // finite numbers — no Number() coercion, so null/''/strings are NOT "known 0/0"; a blob
+        // persisted before 1.8.3b has neither field and falls back to the scan totals.
+        var applyKnown = Number.isFinite( o.applySafeCount ) && Number.isFinite( o.applyAggCount );
+        var applySafe = applyKnown ? o.applySafeCount : safe;
+        var applyAgg  = applyKnown ? o.applyAggCount  : aggressive;
         var kept = o.keptProtectionSummary && Number( o.keptProtectionSummary.count ) > 0
             ? Number( o.keptProtectionSummary.count )
             : resultPages.reduce( function ( total, page ) {
@@ -2757,10 +2771,10 @@
                 ? Math.max( 0, balanceBeforeScan - credits )
                 : '\u2014'
         );
-        setResultText( 'cu-apply-safe', safe );
-        setResultText( 'cu-apply-aggressive', aggressive );
+        setResultText( 'cu-apply-safe', applySafe );
+        setResultText( 'cu-apply-aggressive', applyAgg );
         setResultText( 'cu-apply-kept', kept );
-        setResultText( 'cu-ready-rule-total', safe + aggressive );
+        setResultText( 'cu-ready-rule-total', applySafe + applyAgg );
         setResultText( 'cu-ready-credits', credits + ' credit' + ( credits === 1 ? ' was' : 's were' ) + ' used' );
         var successful = resultPages.reduce( function ( total, page ) {
             return total + ( page && page.status_class === 'ok' ? 1 : 0 );
@@ -2914,7 +2928,18 @@
         var scanId           = o.scanId;
         var hasActiveCuRules = o.hasActiveCuRules;
         var totalRules       = ( Number( safeCount ) || 0 ) + ( Number( aggCount ) || 0 );
-        var hasInternalRules = o.hasInternalRules === undefined ? totalRules > 0 : !! o.hasInternalRules;
+        // FU-AAS-SYNC-SCOPE-LAST-SCAN (spec §3.3 wire site 4) — the Push/Sync flag is DERIVED from the
+        // two persisted apply_* counts, so flag ≡ card on every path (live, localStorage restore,
+        // background writer). The counts ARE the build-time predicate (rule_counts_from_rules is total
+        // over the same list has_internal_rules is computed from), so they win over a payload flag.
+        // Neither hand-built localStorage writer ever carried has_internal_rules, so a restored screen
+        // used to derive it from the SCAN totals — external pages included — and could show live
+        // buttons beside a card that reads 0. No Number() coercion: Number( null ) === 0 would make
+        // explicit nulls "known 0/0" and dormant the buttons.
+        var applyKnown = Number.isFinite( o.applySafeCount ) && Number.isFinite( o.applyAggCount );
+        var hasInternalRules = applyKnown
+            ? ( o.applySafeCount + o.applyAggCount ) > 0
+            : ( o.hasInternalRules === undefined ? totalRules > 0 : !! o.hasInternalRules );
         var alreadyPresent   = ( o.alreadyPresent === undefined ) ? null : o.alreadyPresent;
         var creditsRefunded  = o.creditsRefunded;
         // Defaults FALSE on every path that does not carry it (legacy rows restored from
@@ -2933,6 +2958,8 @@
             scanId: scanId,
             keptProtectionSummary: keptProtection,
             availableBalance: o.availableBalance,
+            applySafeCount: o.applySafeCount,
+            applyAggCount: o.applyAggCount,
         } );
 
         const urls = (typeof urlsScanned === 'number') ? urlsScanned : '?';
@@ -3844,6 +3871,7 @@
                 urlsScanned: d.total_pages, pages: d.pages, scanId: d.scan_id,
                 hasActiveCuRules: d.has_active_cu_rules,
                 hasInternalRules: d.has_internal_rules,
+                applySafeCount: d.apply_safe_count, applyAggCount: d.apply_aggressive_count,
                 alreadyPresent: ( 'already_present' in d ) ? d.already_present : null,
                 creditsRefunded: d.credits_refunded,
                 cuRulesActive: d.cu_rules_active,

@@ -148,7 +148,13 @@
                         cu_rules_active:  res.data.cu_rules_active,
                         // Same reason, same UNRENAMED name as scanner.js's writer and the
                         // aias_last_result option. Absent (not zero) when nothing was kept.
-                        kept_protection_summary: res.data.kept_protection_summary
+                        kept_protection_summary: res.data.kept_protection_summary,
+                        // FU-AAS-SYNC-SCOPE-LAST-SCAN — UNRENAMED, same as scanner.js's writer,
+                        // the live payload and the PHP option. Without these, a background-completed
+                        // scan restores with the Push/Sync flag falling back to the SCAN totals
+                        // (external pages included) instead of the host-internal scoped counts.
+                        apply_safe_count: res.data.apply_safe_count,
+                        apply_aggressive_count: res.data.apply_aggressive_count
                     }));
                 } catch (_storageErr) {
                     // localStorage quota or disabled — non-fatal; the badge
