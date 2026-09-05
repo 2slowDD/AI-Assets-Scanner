@@ -20,7 +20,7 @@
             <circle cx="10" cy="10" r="1"    fill="#72aee6"/>
             <line x1="10" y1="10" x2="16.5" y2="3.5" stroke="#72aee6" stroke-width="1.2" stroke-linecap="round"/>
         </svg>
-        <span class="cu-header-by">by <a href="https://wpservice.pro/" target="_blank" rel="noopener">WPservice.pro</a></span>
+        <span class="cu-header-by">Powered by <a href="https://wpservice.pro/" target="_blank" rel="noopener">WPservice.pro</a></span>
         <div class="cu-step-pips" id="cu-step-pips">
             <div class="cu-pip is-active" id="cu-pip-1" aria-label="Discover pages" title="Discover pages"></div>
             <div class="cu-pip" id="cu-pip-2" aria-label="Reserve credits" title="Reserve credits"></div>

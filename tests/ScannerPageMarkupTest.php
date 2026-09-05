@@ -130,4 +130,18 @@ class ScannerPageMarkupTest extends TestCase {
 		$this->assertLessThan( $push_pos, $sync_pos );
 		$this->assertLessThan( $download_pos, $push_pos );
 	}
+
+	/** FU 1.8.5 — the shared header byline reads "Powered by WPservice.pro" (renders all-caps via CSS); the link is unchanged. */
+	public function test_the_three_admin_views_carry_the_powered_by_byline_with_the_unchanged_link(): void {
+		foreach ( [ 'scanner-page.php', 'history-page.php', 'settings-page.php' ] as $view ) {
+			$markup = file_get_contents( dirname( __DIR__ ) . '/admin/views/' . $view );
+			$this->assertIsString( $markup, $view );
+			$this->assertStringContainsString(
+				'<span class="cu-header-by">Powered by <a href="https://wpservice.pro/" target="_blank" rel="noopener">WPservice.pro</a></span>',
+				$markup,
+				$view
+			);
+			$this->assertStringNotContainsString( 'class="cu-header-by">by <a', $markup, $view );
+		}
+	}
 }
