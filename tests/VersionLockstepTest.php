@@ -80,7 +80,7 @@ class VersionLockstepTest extends TestCase {
         $define = $this->capture_one( self::DEFINE_RE, $plugin, "ai-assets-scanner.php define( 'CU_SCANNER_VERSION', … )" );
         $badge  = $this->capture_one( self::BADGE_RE, $readme, 'README.md shields.io VERSION badge' );
 
-		$this->assertSame( '1.8.5', $header, 'the scan-log plugin-version + homepage-first release is AAS 1.8.5' );
+		$this->assertSame( '1.8.6', $header, 'the Step-3 live-table pagination release is AAS 1.8.6' );
 
         // Shape first: without it, three empty captures would "agree" and pass.
         foreach ( [ 'plugin header' => $header, 'CU_SCANNER_VERSION define' => $define, 'README badge' => $badge ] as $where => $v ) {

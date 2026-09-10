@@ -231,6 +231,11 @@
                         <thead><tr><th>URL</th><th>Status</th></tr></thead>
                         <tbody id="cu-pages-tbody"></tbody>
                     </table>
+                    <div class="cu-url-pager cu-live-pager" id="cu-live-pager" hidden>
+                        <button type="button" class="button" id="cu-live-prev">&laquo; Prev</button>
+                        <span id="cu-live-page-label"></span>
+                        <button type="button" class="button" id="cu-live-next">Next &raquo;</button>
+                    </div>
                 </div>
                 <div class="cu-scan-footer-actions">
                     <button id="cu-btn-cancel" class="button button-secondary">Cancel Scan</button>

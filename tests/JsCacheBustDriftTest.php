@@ -89,6 +89,9 @@ final class JsCacheBustDriftTest extends TestCase {
 		'1.8.3b.1' => 'fa553a3347937ed36d7e935a573047f95944d09c80cc3a0c1f532757b884596b',
 		// FU-AAS-SYNC-DEVICE-DUPLICATES / FU-AAS-SYNC-LINE-ALL-PRESENT (1.8.4) — scanner.js wire site C (the all-present Sync line).
 		'1.8.4.1' => '91e273c3a29c52ea6071ae229305ee91c74357ca5557351b68c326f554391cd9',
+		// 1.8.6 — Step-3 live URL table paginated at 15 per page (scanner.js pager + outbox-dispatch
+		// reset, admin.css `.cu-live-pager[hidden]`). Added, not rewritten.
+		'1.8.6.1' => '38efe68261cb0105e523cde91bf1b330b4b79fdccca897a60619a7778df090f0',
 	);
 
 	/**
@@ -130,6 +133,9 @@ final class JsCacheBustDriftTest extends TestCase {
 		'1.0.11.8' => 'fdc1dd329988b83a4ffb7ae2667ec1dd9f51fed1ff85711cf7479f776e4ef296',
 		// 1.8.4 — the all-present Sync line (FU-AAS-SYNC-LINE-ALL-PRESENT, spec §3.4).
 		'1.0.11.9' => '37059e8dd2aa95881ce4a22ea5d87df2e0967d0a8a40f29af98a5d461769639e',
+		// 1.8.6 — the Step-3 live-table pager (applyLiveTablePage, handlers bound once, the new-scan
+		// reset in beginScanPolling) and the outbox 'dispatched' branch now starting a new scan.
+		'1.0.11.10' => '74b32e82e78974f94763484b02e5ce175a5ffc540af114f8eda722f3f812c462',
 	);
 
 	private function root(): string {

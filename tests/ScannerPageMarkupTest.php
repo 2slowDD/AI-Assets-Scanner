@@ -144,4 +144,47 @@ class ScannerPageMarkupTest extends TestCase {
 			$this->assertStringNotContainsString( 'class="cu-header-by">by <a', $markup, $view );
 		}
 	}
+
+	/**
+	 * 1.8.6 — the Step-3 live URL table's pager is STATIC markup: JS only toggles it, so a 2 s poll
+	 * can never rebuild the buttons out from under keyboard focus. It starts hidden (one page needs
+	 * no pager) and carries its OWN ids — Step 4 renders cu-url-prev / cu-url-next from JS into the
+	 * same document, so reusing them would hand getElementById the wrong buttons.
+	 */
+	public function test_live_url_table_has_a_static_hidden_pager_with_its_own_ids(): void {
+		$markup = file_get_contents( dirname( __DIR__ ) . '/admin/views/scanner-page.php' );
+
+		$this->assertIsString( $markup );
+		$this->assertStringContainsString( '<div class="cu-url-pager cu-live-pager" id="cu-live-pager" hidden>', $markup );
+		$this->assertStringContainsString( '<button type="button" class="button" id="cu-live-prev">', $markup );
+		$this->assertStringContainsString( '<span id="cu-live-page-label"></span>', $markup );
+		$this->assertStringContainsString( '<button type="button" class="button" id="cu-live-next">', $markup );
+		$this->assertStringNotContainsString( 'cu-url-prev', $markup );
+		$this->assertStringNotContainsString( 'cu-url-next', $markup );
+
+		$tbody_pos = strpos( $markup, 'id="cu-pages-tbody"' );
+		$pager_pos = strpos( $markup, 'id="cu-live-pager"' );
+		$this->assertNotFalse( $tbody_pos );
+		$this->assertNotFalse( $pager_pos );
+		$this->assertLessThan( $pager_pos, $tbody_pos );
+	}
+
+	/**
+	 * 1.8.6 — the JS/view lockstep for the live pager. The Node harness pre-creates these ids by
+	 * NAME, so the JS suite stays green whatever the view carries; only this test notices a rename
+	 * on one side. Read from the script itself so a new lookup is covered without editing this list.
+	 */
+	public function test_every_live_pager_id_the_script_looks_up_exists_in_the_view(): void {
+		$markup = file_get_contents( dirname( __DIR__ ) . '/admin/views/scanner-page.php' );
+		$script = file_get_contents( dirname( __DIR__ ) . '/admin/js/scanner.js' );
+
+		$this->assertIsString( $markup );
+		$this->assertIsString( $script );
+		preg_match_all( "/getElementById\(\s*'(cu-live-[\w-]+)'\s*\)/", $script, $m );
+		$ids = array_values( array_unique( $m[1] ) );
+		$this->assertGreaterThanOrEqual( 4, count( $ids ), 'the lookup regex went blind: ' . implode( ', ', $ids ) );
+		foreach ( $ids as $id ) {
+			$this->assertStringContainsString( 'id="' . $id . '"', $markup, "scanner.js looks up #{$id}, so the view must carry it" );
+		}
+	}
 }

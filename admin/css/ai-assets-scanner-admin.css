@@ -2344,3 +2344,11 @@
    that count is > 0 (the title is assigned in JS and omitted otherwise). Key the affordance off
    the title's PRESENCE so the cursor can never promise a tooltip that isn't there. */
 #cu-scanner-app .cu-san-token[title] { cursor: help; }
+
+/* ---------------------------------------------------------------------------
+   v1.8.6 — Step-3 live URL table pagination (15 per page).
+   --------------------------------------------------------------------------- */
+
+/* The live pager reuses .cu-url-pager, whose `display: flex` outranks the browser's own
+   `[hidden] { display: none }` — without this it would show on a one-page scan. */
+#cu-scanner-app .cu-live-pager[hidden] { display: none; }

@@ -1,3 +1,139 @@
+# 1.8.6 (proposed) — Step-3 "Live URL status" pagination, 15 URLs per page (2026-09-10)
+
+Base: `9ad43ff` (1.8.5) = `origin/main`, in the `codex` worktree on `feat/live-table-pagination`.
+Brief: `product-docs/04-development/2026-09-10-aas-live-table-pagination-handoff.md`. Ledger: off
+(`-no ledger` handover). Brainstorm path: **bounded** (existing flow, no spec file).
+
+## Operator decisions (2026-09-10)
+
+- Page size **15** — closed (handoff §5.1).
+- Which page shows during a live scan: **manual only**. Opens on page 1 and moves only when the user
+  clicks Prev / Next. No auto-follow.
+- Pager copy: **"Page N of M"** between `« Prev` and `Next »` — word-for-word the Step-4 pager.
+- "Errors on other pages" hint: **declined**. Not built, not filed.
+- Render strategy: **Option A** (hide rows outside the page) — agent recommendation, approved with this plan.
+
+## Phase-1 findings (each check run by this session)
+
+- 🟢 **CONFIRMED** — every poll carries the FULL `pages[]` for all `total` indices; missing entries are
+  filled `{status:'pending'}` (worker `job-store.js` `getAllPageResults`, L322–325; `routes/status.js`
+  L126 passes `pages` through unmapped).
+- 🟢 **CONFIRMED** — a normal scan starts pages in index order, `page_concurrency` at a time
+  (`worker.js` L928–931, `pLimit` over `workPages`); a resume runs retry ∪ remaining indices first.
+- 🟢 **CONFIRMED** — `skipped` is written only on kill (`worker.js` L939, L1148), and `killed` is terminal
+  in `handleStatusUpdate` (`stopPolling()` before the row loop). The live table shows it as `…`, but
+  never mid-scan.
+- 🟢 **CONFIRMED** — rows are created in index order on the first in-progress poll and updated in place by
+  `cu-row-<idx>` afterwards, so `tbody.children[i]` IS row `i` in the real DOM (`scanner.js`
+  `handleStatusUpdate` row loop; the queued branch returns before it with `pages: []`).
+- 🟢 **CONFIRMED** — `updateBypassStatus(pages)` and the global-`idx` URL fallback live in that same loop;
+  Option A leaves both byte-identical.
+- 🟢 **CONFIRMED** — the Step-4 pager rebuilds its buttons via `innerHTML` on every render. Copied into a
+  2 s poll it would destroy keyboard focus on "Next" every poll → the Step-3 pager is STATIC markup.
+- 🟢 **CONFIRMED** — `.cu-url-pager { display: flex }` (css L919) beats the UA `[hidden]` rule, so the pager
+  needs its own `[hidden] { display: none }` — the stylesheet's house pattern (5 such rules, L678–2312).
+- 🟢 **CONFIRMED** — harness: rows made by `createElement` are not in its `els` map, so
+  `getElementById('cu-row-N')` returns `null` under test and each poll APPENDS rows instead of updating
+  them. Multi-poll pager tests need the harness to model the real in-place update.
+- 🟢 **CONFIRMED** — `ScannerPageMarkupTest` pins only `id="cu-pages-tbody"` for Step 3 (L73); no other test
+  reads the live-table markup (plain `grep -rln` over `tests/` — ripgrep skips it, it is gitignored).
+- ⚠️ **Assumption (accepted, cosmetic)** — WP `.striped` keys off `:nth-child`, which counts hidden rows;
+  with 15 (odd) per page, even pages start on the other stripe shade. Checked in a real browser at
+  task 6; fixed only if it looks wrong.
+
+## Design
+
+- `var LIVE_TABLE_PER_PAGE = 15;` and `var liveTablePage = 0;` (IIFE scope, beside `bypassStatusLatched`).
+- `applyLiveTablePage()` — walks `#cu-pages-tbody` rows (the DOM is the source of truth), sets
+  `tr.hidden` on every row outside the current page, then updates the pager: hidden when
+  `pageCount <= 1`; label `'Page ' + (page + 1) + ' of ' + pageCount` via `textContent` (numbers only,
+  R19); Prev / Next `disabled` at the edges.
+- Called once right after the row loop in `handleStatusUpdate` (before `updateBypassStatus(pages)`,
+  which keeps receiving the FULL array), and from the two click handlers.
+- `beginScanPolling()` resets `liveTablePage = 0`. Nothing else resets it — never `handleStatusUpdate`
+  (it runs every 2 s); the resume paths start fresh from the page reload.
+- Markup — static, in `scanner-page.php` right after `table#cu-pages-table`:
+  `div#cu-live-pager.cu-url-pager.cu-live-pager[hidden]` › `button#cu-live-prev` (« Prev),
+  `span#cu-live-page-label`, `button#cu-live-next` (Next »). New ids — NOT the Step-4 `cu-url-prev` /
+  `cu-url-next`, which are in the page at the same time.
+- Handlers bound ONCE at load with `addEventListener`, each guarded (`if (el)`), and bounds-checked
+  like Step 4's.
+- CSS: `#cu-scanner-app .cu-live-pager[hidden] { display: none; }` in a new block at the END of the
+  stylesheet. Reuse `.cu-url-pager` for the look.
+
+## Tasks
+
+- [x] **1. Harness.** Registered the four pager ids in `createHarness`. `cu-pages-tbody` now models the real
+      DOM: an appended row becomes findable by its `cu-row-<idx>` id, and `innerHTML = ''` drops the rows
+      and their ids (so `beginScanPolling`'s clear is modelled too). The 24 existing suites stayed green.
+- [x] **2. Tests first (red).** New `tests/js/step3-live-pager.test.js` (`git add -f`) — 9 tests, all through
+      `handleStatusUpdate`, clicks on the real pager, `beginScanPolling`, or the real outbox tick. Watched
+      red before the code: `row 0 must have hidden set explicitly, got undefined`.
+- [x] **3. Markup.** Static pager in `scanner-page.php`; `ScannerPageMarkupTest` pins the markup, the
+      `hidden` default, its position after `cu-pages-tbody`, the absence of the Step-4 ids, and (review #2)
+      that every `cu-live-*` id `scanner.js` looks up exists in the view.
+- [x] **4. JS.** `LIVE_TABLE_PER_PAGE` / `liveTablePage`, `applyLiveTablePage()` (fails OPEN when the pager
+      markup is missing — review #1), the call after the row loop, the reset + immediate apply in
+      `beginScanPolling`, handlers bound once. **15 / 15 mutants killed** in a scratchpad mirror (working
+      tree untouched), each by its intended assertion; the PHP lockstep guard proven by a rename mutant
+      with a sha256-verified restore.
+- [x] **5. CSS.** `#cu-scanner-app .cu-live-pager[hidden] { display: none; }` in a new end-of-file block.
+- [x] **6. Real-browser check** — the real rendered view + real stylesheet + real `scanner.js` under WP core
+      `common` / `list-tables` / `buttons` CSS (cache-busted; 662 plugin rules loaded): 15 URLs → pager
+      `display: none`; 40 URLs → rows 0–14 then 15–29, "Page 1 of 3" → "Page 2 of 3"; focus on Next survives
+      a poll; deleting the `[hidden]` rule flips a hidden pager to `display: flex` (the rule is load-bearing).
+      Stripes: even pages start on the other shade, still alternating within the page — left as is.
+- [x] **7. Version bump — operator chose 1.8.6.** Header, `CU_SCANNER_VERSION`, README badge and the
+      `VersionLockstepTest` pin → `1.8.6`; `CU_SCANNER_ASSET_VERSION` `1.8.6.1`; `SCANNER_JS_VERSION`
+      `1.0.11.10`; fingerprint rows ADDED (`1.8.6.1` → `38efe682…`, `1.0.11.10` → `74b32e82…`) with the
+      test's own algorithm after the banner bump; CHANGELOG `## 1.8.6`.
+- [x] **8. Verify + commit.** `php -l` ×5, `node --check`, JS 25/25, PHP 1017 tests / 2700 assertions /
+      0 failures (5 skipped, 2 risky `MenuBadgeTest` — pre-existing), CRLF byte-check on all 12 touched
+      files, committed locally. **HOLD** — nothing pushed (P9; the repo is public).
+
+## Independent review (Opus reviewer, 2026-09-10) — adjudication
+
+- #1 rows hidden before the pager guard → **fixed** (guard first; test 8 + M14).
+- #2 no JS/view id lockstep → **fixed** (`ScannerPageMarkupTest`; rename mutant proven).
+- #3 the outbox `dispatched` branch skipped the new-scan reset (stale rows + stale page) → **fixed**
+  (`beginScanPolling()`; test 9 through the real tick + M15).
+- #4 label rewritten each poll inside `aria-live` → **declined**: every row's `innerHTML` is already
+  rewritten each poll in the same region; filed below.
+- #5 focus drops to `<body>` when Next / Prev disables at an edge → **deferred** (Step-4 parity; outside the
+  approved design) — filed below.
+- #6 clamp `liveTablePage` → **declined**: unreachable once #3 is fixed; a guard no test can reach is
+  decorative (P17).
+
+## Follow-ups discovered during this task
+
+- The Step-3 console is one `aria-live="polite"` region, and `handleStatusUpdate` rewrites every row's
+  `innerHTML` inside it on every 2 s poll. Screen-reader chatter is untested; scoping the live region
+  (e.g. to the progress text only) would quiet it.
+- Keyboard focus drops to `<body>` when a pager button disables under it (last / first page) — both the
+  Step-3 and Step-4 pagers; Step 4 also loses focus on every click because it re-renders.
+- The live table renders `skipped` as `…` (the status map knows only `done` / `error`). Unreachable mid-scan
+  today (kill-only, and kill is terminal), so it is a note, not a defect.
+- Harness: `makeEl`'s `innerHTML = ''` still does not clear `appendChild`'d children for any element other
+  than `cu-pages-tbody` (fixed for that one container in this task).
+
+## Review
+
+**Built.** The Step-3 "Live URL status" table paginates at 15 URLs per page with a static
+"« Prev · Page N of M · Next »" pager; paging is manual only; the page persists across polls; a new scan —
+including an outbox dispatch — opens on page 1. Versioned 1.8.6 and committed locally; not pushed.
+
+**Two design choices that earned their keep.**
+- Hiding rows instead of rendering a slice left the row ids, the global-idx URL fallback and the bypass
+  verdict byte-identical — tests 6–7 and M4 pin that.
+- A static pager instead of Step 4's re-rendered one — the browser proved focus on Next survives a poll.
+
+**Traps caught.** The harness appended a duplicate row set on every poll (rows were never findable by id),
+which would have made every multi-poll pager test count wrong; an outbox-dispatched scan inherited the
+previous scan's rows and page (found by review, pinned by test 9); `.cu-url-pager { display: flex }` defeats
+`[hidden]` (browser-proven).
+
+---
+
 # 1.8.2b — settings/history polish + S:/A: hover breakdown (2026-08-23)
 
 Base: `374ad93` (1.8.1b) on `main`, working in the `codex` worktree.

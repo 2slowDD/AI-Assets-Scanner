@@ -4,6 +4,18 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.6 — 2026-09-10
+
+### Changed
+- The Step-3 **Live URL status** table shows 15 URLs per page, with **« Prev · Page N of M · Next »** below it — the same pager as the results table. Scans of 15 URLs or fewer show no pager. The page moves only when you click it: it stays put while the scan updates, and a new scan opens on page 1.
+
+### Fixed
+- A scan that started from the outage queue (a submit that hit a network error and was dispatched later) now opens on a clean Step-3 table; rows from an earlier scan in the same tab no longer linger under it.
+
+### Internal
+- The pager is static markup that JS only toggles, so keyboard focus survives the 2-second status polls. If its markup is ever missing, no row is hidden.
+- Admin asset cache key `1.8.6.1`; scanner.js banner `1.0.11.10`.
+
 ## 1.8.5 — 2026-09-05
 
 ### Added

@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.11.9';
+    const SCANNER_JS_VERSION = '1.0.11.10';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -1338,8 +1338,11 @@
                         job_token:   scanJobToken,
                         railway_url: railwayUrl,
                     }));
-                    showStep(3);
-                    startPolling();
+                    // 1.8.6 — a dispatched outbox entry is a NEW scan (a submit that hit a network
+                    // error), so start it like one: the previous scan's rows, live-table page and
+                    // latched bypass status must not carry over. On the page-load outbox path the
+                    // table is still empty, so the clear is a no-op there.
+                    beginScanPolling();
                 } else if (state === 'failed') {
                     hideOutboxBanner();
                     showStep(1);
@@ -1681,13 +1684,19 @@
         pollProgress(); // poll immediately, then self-schedule via scheduleNextPoll
     }
 
-    // beginScanPolling() — called on new-scan-start submit paths ONLY (main submit + reQueueRemainder).
+    // beginScanPolling() — called on new-scan-start paths ONLY: main submit, reQueueRemainder, and (1.8.6)
+    // the outbox tick's 'dispatched' branch — a queued submit that starts late is still a new scan.
     // Clears the Step-3 URL table so rows from a previous (longer) scan don't linger, then starts polling.
     // Do NOT call from the resume-after-reload path (cu_scanner_check_job / restoreOutboxState) —
     // those paths legitimately repopulate the table from the worker's pages[] array.
     function beginScanPolling() {
         document.getElementById('cu-pages-tbody').innerHTML = '';
         resetBypassStatus(); // 1.8.1b — clear a previous scan's latched "Applied".
+        // 1.8.6 — a new scan opens the live table on page 1. Applied NOW, not on the next poll: a
+        // queued scan returns before the row loop, so the old pager would otherwise sit over the
+        // empty table for the whole queue wait.
+        liveTablePage = 0;
+        applyLiveTablePage();
         showStep(3);
         startPolling();
     }
@@ -1870,7 +1879,8 @@
             }
         });
 
-        updateBypassStatus(pages);
+        applyLiveTablePage(); // 1.8.6 — hide the rows off the current page. Never resets the page.
+        updateBypassStatus(pages); // the FULL array, never the page on screen
 
         if (data.status === 'paused') {
             renderPausedBanner(data);
@@ -2024,6 +2034,53 @@
         }
         applyBypassStatus( allResolved ? 'none' : 'pending' );
     }
+
+    // 1.8.6 — the Step-3 live table shows LIVE_TABLE_PER_PAGE rows at a time. Every row stays in
+    // the DOM and keeps updating in place by id; rows off the current page are only HIDDEN, so the
+    // row ids, the global-idx URL fallback and updateBypassStatus(pages) (whose verdict needs EVERY
+    // page) are untouched. The page moves only when the user clicks (operator: no auto-follow),
+    // survives every poll, and is reset only by beginScanPolling() — a new scan.
+    //
+    // The pager is static markup in scanner-page.php, NOT re-rendered per poll the way Step 4's is:
+    // rebuilding the buttons every 2 s would knock keyboard focus off "Next" on every tick. Its ids
+    // are its own because Step 4's cu-url-prev / cu-url-next live in the same document.
+    var LIVE_TABLE_PER_PAGE = 15;
+    var liveTablePage = 0;
+
+    function liveTablePageCount() {
+        return Math.ceil( document.getElementById( 'cu-pages-tbody' ).children.length / LIVE_TABLE_PER_PAGE );
+    }
+
+    function applyLiveTablePage() {
+        var pager = document.getElementById( 'cu-live-pager' );
+        var label = document.getElementById( 'cu-live-page-label' );
+        var prev  = document.getElementById( 'cu-live-prev' );
+        var next  = document.getElementById( 'cu-live-next' );
+        // Fail OPEN: without the pager (a partial deploy, an id drift) hide nothing — rows past the
+        // first page would otherwise be unreachable, which is worse than no pagination at all.
+        if ( ! pager || ! label || ! prev || ! next ) return;
+        var rows  = document.getElementById( 'cu-pages-tbody' ).children;
+        var first = liveTablePage * LIVE_TABLE_PER_PAGE;
+        for ( var i = 0; i < rows.length; i++ ) {
+            rows[ i ].hidden = i < first || i >= first + LIVE_TABLE_PER_PAGE;
+        }
+        var pageCount = liveTablePageCount();
+        pager.hidden      = pageCount <= 1;
+        label.textContent = 'Page ' + ( liveTablePage + 1 ) + ' of ' + pageCount;
+        prev.disabled     = liveTablePage === 0;
+        next.disabled     = liveTablePage >= pageCount - 1;
+    }
+
+    ( function bindLiveTablePager() {
+        var prev = document.getElementById( 'cu-live-prev' );
+        var next = document.getElementById( 'cu-live-next' );
+        if ( prev ) prev.addEventListener( 'click', function () {
+            if ( liveTablePage > 0 ) { liveTablePage--; applyLiveTablePage(); }
+        } );
+        if ( next ) next.addEventListener( 'click', function () {
+            if ( liveTablePage < liveTablePageCount() - 1 ) { liveTablePage++; applyLiveTablePage(); }
+        } );
+    }() );
 
     // buildResult([terminalInfo]) — delivers the X-page rules and renders Step 4.
     // When terminalInfo is supplied (a charged terminal-incomplete: failed/user_cancel
@@ -4154,6 +4211,7 @@
 
     // Test-only seam (Node harness). Harmless in the browser; never read by UI code.
     window.__cuTest = { formatCountdown: formatCountdown, handleStatusUpdate: handleStatusUpdate,
+                        beginScanPolling: beginScanPolling,
                         positionHelpBox: positionHelpBox,
                         renderPartialBanner: renderPartialBanner, restoreStep4: restoreStep4,
                         showProbeOutcomeDialog: showProbeOutcomeDialog,

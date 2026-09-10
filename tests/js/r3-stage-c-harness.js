@@ -227,7 +227,31 @@ function createHarness(opts = {}) {
    'cu-result-url-list', 'cu-scanner-app', 'cu-sonar-anim', 'cu-step-label',
    'cu-target-stack-notice', 'cu-url-list', 'cu-url-list-area', 'cu-url-next',
    'cu-url-prev', 'cu-paused-banner', 'cu-paused-countdown', 'cu-paused-stopkeep',
+   'cu-live-pager', 'cu-live-prev', 'cu-live-next', 'cu-live-page-label',
    'step-1'].forEach(ensure);
+
+  // 1.8.6 — the Step-3 live table updates each row IN PLACE: handleStatusUpdate looks a row up
+  // by its `cu-row-<idx>` id and appends only when it is missing. Rows are createElement'd, so
+  // they were never in `els`, and every poll APPENDED a duplicate set here — invisible to the
+  // single-poll suites, fatal to a pager that counts rows. Model the real DOM for this one
+  // container: an appended row becomes findable by id, and `innerHTML = ''` (beginScanPolling's
+  // new-scan clear) drops the rows and their ids, as the real setter does.
+  const liveTbody = els['cu-pages-tbody'];
+  const liveTbodyAppend = liveTbody.appendChild;
+  liveTbody.appendChild = function (c) {
+    liveTbodyAppend.call(this, c);
+    if (c && c.id) els[c.id] = c;
+    return c;
+  };
+  Object.defineProperty(liveTbody, 'innerHTML', {
+    configurable: true,
+    get() { return this._html; },
+    set(v) {
+      this.children.forEach((c) => { if (c && c.id && els[c.id] === c) delete els[c.id]; });
+      this.children.length = 0;
+      this._html = v; this._dom = null;
+    },
+  });
 
   // #cu-result-summary sits inside a container in admin/views/scanner-page.php, so code that
   // inserts a SIBLING next to it (restoreStep4's kept-protection note) needs a real parentNode.
