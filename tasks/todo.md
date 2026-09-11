@@ -128,6 +128,10 @@ Brainstorm path: **bounded** (existing Sync / Push flow, no spec file). F-*: N/A
       0 failures (5 skipped, 2 risky `MenuBadgeTest` — pre-existing), CRLF byte-check on all 12 touched
       files, no shipped fingerprint row touched; committed locally. **HOLD** — nothing pushed (P9; the
       repo is public).
+- [x] **9. Release (operator go, 2026-09-11).** README 1.8.7 bullet + the Extra Time line (P9 doc-debt);
+      `releases/1.8.7/` built by `build-release.py` (ZIP sha256 in its `checksum.txt`; `tested_wp` 7.1,
+      re-derived from api.wordpress.org 2026-09-11); pushed to public `main` in the same push as this
+      line (code + docs + artifacts). Hostinger upload + Cloudflare purge: operator.
 
 ## Independent review (Opus reviewer, 2026-09-11) — adjudication
 
