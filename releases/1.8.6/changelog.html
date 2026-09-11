@@ -1,0 +1,14 @@
+<p>Version 1.8.6.</p>
+<p><strong>Changed</strong></p>
+<ul>
+<li>The Step-3 <strong>Live URL status</strong> table shows 15 URLs per page, with <strong>« Prev · Page N of M · Next »</strong> below it &mdash; the same pager as the results table. Scans of 15 URLs or fewer show no pager. The page moves only when you click it: it stays put while the scan updates, and a new scan opens on page 1.</li>
+</ul>
+<p><strong>Fixed</strong></p>
+<ul>
+<li>A scan that started from the outage queue (a submit that hit a network error and was dispatched later) now opens on a clean Step-3 table; rows from an earlier scan in the same tab no longer linger under it.</li>
+</ul>
+<p><strong>Internal</strong></p>
+<ul>
+<li>The pager is static markup that JS only toggles, so keyboard focus survives the 2-second status polls. If its markup is ever missing, no row is hidden.</li>
+<li>Admin asset cache key <code>1.8.6.1</code>; scanner.js banner <code>1.0.11.10</code>.</li>
+</ul>

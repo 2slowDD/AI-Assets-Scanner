@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.8.6",
+    "requires_wp": "6.2",
+    "tested_wp": "7.1",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.6/ai-assets-scanner.zip",
+    "sha256": "b4395b918e28a4cf68b6876dbc0ea7aa961a107b478cca23604359a325b6a539",
+    "signature": "",
+    "released_at": "2026-09-11T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.6/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.8.6.</p><p><strong>Changed</strong></p><ul><li>The Step-3 <strong>Live URL status</strong> table shows 15 URLs per page, with <strong>« Prev · Page N of M · Next »</strong> below it &mdash; the same pager as the results table. Scans of 15 URLs or fewer show no pager. The page moves only when you click it: it stays put while the scan updates, and a new scan opens on page 1.</li></ul><p><strong>Fixed</strong></p><ul><li>A scan that started from the outage queue (a submit that hit a network error and was dispatched later) now opens on a clean Step-3 table; rows from an earlier scan in the same tab no longer linger under it.</li></ul><p><strong>Internal</strong></p><ul><li>The pager is static markup that JS only toggles, so keyboard focus survives the 2-second status polls. If its markup is ever missing, no row is hidden.</li><li>Admin asset cache key <code>1.8.6.1</code>; scanner.js banner <code>1.0.11.10</code>.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
