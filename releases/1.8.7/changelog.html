@@ -1,0 +1,15 @@
+<p>Version 1.8.7.</p>
+<p><strong>Added</strong></p>
+<ul>
+<li>While a <strong>Sync with Code Unloader</strong> or <strong>Push to Code Unloader</strong> is running, a line under the buttons shows a spinner and "Syncing with Code Unloader… This can take a while for large rule sets." (or "Pushing to Code Unloader…"). It clears as soon as the request finishes, fails, or Push asks for confirmation. Screen readers announce it; with reduced motion the spinner pulses instead of spinning.</li>
+</ul>
+<p><strong>Changed</strong></p>
+<ul>
+<li>Sync and Push are both disabled while either one is running; before, the other button stayed clickable mid-request. Once the request ends, both buttons behave exactly as before.</li>
+<li>The results table's <strong>Extra Time</strong> tooltip now reads "+1 credit only if Extra Time actually runs".</li>
+</ul>
+<p><strong>Internal</strong></p>
+<ul>
+<li>The busy line is an always-present <code>role="status"</code> region in the page markup, so its text is announced when it appears. Each Sync / Push request clears it through one <code>finally()</code>, so every way a request can end clears it.</li>
+<li>Admin asset cache key <code>1.8.7.1</code>; scanner.js banner <code>1.0.11.11</code>.</li>
+</ul>
