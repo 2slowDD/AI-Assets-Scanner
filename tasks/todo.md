@@ -1,7 +1,7 @@
 # 1.8.6 (proposed) — Step-3 "Live URL status" pagination, 15 URLs per page (2026-09-10)
 
 Base: `9ad43ff` (1.8.5) = `origin/main`, in the `codex` worktree on `feat/live-table-pagination`.
-Brief: `product-docs/04-development/2026-09-10-aas-live-table-pagination-handoff.md`. Ledger: off
+Brief: the operator's internal handoff doc. Ledger: off
 (`-no ledger` handover). Brainstorm path: **bounded** (existing flow, no spec file).
 
 ## Operator decisions (2026-09-10)
@@ -16,11 +16,10 @@ Brief: `product-docs/04-development/2026-09-10-aas-live-table-pagination-handoff
 ## Phase-1 findings (each check run by this session)
 
 - 🟢 **CONFIRMED** — every poll carries the FULL `pages[]` for all `total` indices; missing entries are
-  filled `{status:'pending'}` (worker `job-store.js` `getAllPageResults`, L322–325; `routes/status.js`
-  L126 passes `pages` through unmapped).
+  filled `{status:'pending'}`, and the worker's status endpoint passes `pages` through unmapped (worker code-read).
 - 🟢 **CONFIRMED** — a normal scan starts pages in index order, `page_concurrency` at a time
-  (`worker.js` L928–931, `pLimit` over `workPages`); a resume runs retry ∪ remaining indices first.
-- 🟢 **CONFIRMED** — `skipped` is written only on kill (`worker.js` L939, L1148), and `killed` is terminal
+  (worker code-read: a concurrency-limited map over the pages, in order); a resume runs retry ∪ remaining first.
+- 🟢 **CONFIRMED** — `skipped` is written only on kill (worker code-read), and `killed` is terminal
   in `handleStatusUpdate` (`stopPolling()` before the row loop). The live table shows it as `…`, but
   never mid-scan.
 - 🟢 **CONFIRMED** — rows are created in index order on the first in-progress poll and updated in place by

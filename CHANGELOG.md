@@ -4,7 +4,7 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
-## 1.8.6 — 2026-09-10
+## 1.8.6 — 2026-09-11
 
 ### Changed
 - The Step-3 **Live URL status** table shows 15 URLs per page, with **« Prev · Page N of M · Next »** below it — the same pager as the results table. Scans of 15 URLs or fewer show no pager. The page moves only when you click it: it stays put while the scan updates, and a new scan opens on page 1.
