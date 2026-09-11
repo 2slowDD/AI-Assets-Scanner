@@ -228,6 +228,7 @@ function createHarness(opts = {}) {
    'cu-target-stack-notice', 'cu-url-list', 'cu-url-list-area', 'cu-url-next',
    'cu-url-prev', 'cu-paused-banner', 'cu-paused-countdown', 'cu-paused-stopkeep',
    'cu-live-pager', 'cu-live-prev', 'cu-live-next', 'cu-live-page-label',
+   'cu-sync-push-busy',
    'step-1'].forEach(ensure);
 
   // 1.8.6 — the Step-3 live table updates each row IN PLACE: handleStatusUpdate looks a row up

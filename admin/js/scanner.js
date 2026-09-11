@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.11.10';
+    const SCANNER_JS_VERSION = '1.0.11.11';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -30,6 +30,7 @@
     let availableBalance = null; // credit balance fetched from detect_plugins response
     let outboxTickTimer  = null; // interval id for outbox polling (null = not ticking)
     let undoLastPushSyncState = initialUndoLastPushSyncState;
+    let step4RenderEpoch = 0;     // bumped by every restoreStep4 render — see lockSyncPush()
 
     const STEP_LABELS = {
         1: 'Step 1 \u2014 Discover Pages',
@@ -3041,6 +3042,13 @@
         const syncBtn    = document.getElementById('cu-btn-sync');
         const pushResult = document.getElementById('cu-push-result');
 
+        // 1.8.7 — a Sync / Push still in flight belongs to the PREVIOUS render (a re-queued scan can
+        // finish while it is out). New epoch: its release() becomes a no-op, so it cannot undo the
+        // button state set below (G6's sync-only Push lock included); its busy line goes with it.
+        step4RenderEpoch++;
+        const busyLine = document.getElementById('cu-sync-push-busy');
+        if ( busyLine ) { busyLine.textContent = ''; }
+
         // G6: re-queue partial scans must not clobber already-pushed rules.
         const isRequeue = !!localStorage.getItem('cu_scanner_requeue_' + jobId);
         const syncOnly  = isRequeue && !!hasActiveCuRules;
@@ -3456,7 +3464,7 @@
             : '';
         host.innerHTML =
             '<p class="cu-url-summary">' + c.ok + ' OK · ' + c.partial + ' partial · ' + c.blocked + ' blocked · ' + c.error + ' error · ' + c.cancelled + ' cancelled (' + total + ' URLs)</p>'
-          + '<table class="cu-url-table widefat"><thead><tr><th><span class="cu-th-inner">#</span></th><th><span class="cu-th-inner">URL</span></th><th><span class="cu-th-inner">Status</span></th><th><span class="cu-th-inner">Credits</span></th><th><span class="cu-th-inner">Recommendations S / A / N<span class="cu-help" tabindex="0" aria-label="Safe: high-confidence unload recommendation, tested and confirmed safe to remove. Aggressive: loaded but tested safe to remove, with lower confidence than Safe. Needed: required or not proven safe to remove, so it remains loaded."><span class="cu-help-box"><strong>Safe:</strong> High-confidence unload recommendation. Tested and confirmed safe to remove.<br><strong>Aggressive:</strong> Loaded but tested safe to remove. Lower confidence than Safe.<br><strong>Needed:</strong> Required or not proven safe to remove. Remains loaded.</span></span></span></th><th><span class="cu-th-inner">ET candidate<span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></span></th><th><span class="cu-th-inner">Extra Time<span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit).</span></span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
+          + '<table class="cu-url-table widefat"><thead><tr><th><span class="cu-th-inner">#</span></th><th><span class="cu-th-inner">URL</span></th><th><span class="cu-th-inner">Status</span></th><th><span class="cu-th-inner">Credits</span></th><th><span class="cu-th-inner">Recommendations S / A / N<span class="cu-help" tabindex="0" aria-label="Safe: high-confidence unload recommendation, tested and confirmed safe to remove. Aggressive: loaded but tested safe to remove, with lower confidence than Safe. Needed: required or not proven safe to remove, so it remains loaded."><span class="cu-help-box"><strong>Safe:</strong> High-confidence unload recommendation. Tested and confirmed safe to remove.<br><strong>Aggressive:</strong> Loaded but tested safe to remove. Lower confidence than Safe.<br><strong>Needed:</strong> Required or not proven safe to remove. Remains loaded.</span></span></span></th><th><span class="cu-th-inner">ET candidate<span class="cu-help" tabindex="0" aria-label="ET candidate: URLs that would benefit from the worker spending extra time on them — likely more unloads."><span class="cu-help-box">ET candidates are URLs that would benefit from the worker spending extra time on them — likely yielding more unloads.</span></span></span></th><th><span class="cu-th-inner">Extra Time<span class="cu-help" tabindex="0" aria-label="Re-run this URL with Extra Time — more probe budget, plus one credit only if Extra Time actually runs."><span class="cu-help-box">Re-run this URL with Extra Time (more probe budget, +1 credit only if Extra Time actually runs).</span></span></span></th></tr></thead><tbody>' + rows + '</tbody></table>'
           + '<p class="cu-et-result-all-row"><label><input type="checkbox" id="cu-et-result-all"> Extra Time: all ET candidates</label></p>'
           + pager;
         var prev = document.getElementById('cu-url-prev'); if ( prev ) { prev.onclick = function () { if ( st.page > 0 ) { st.page--; renderResultUrlListPage(); } }; }
@@ -3756,17 +3764,52 @@
 
     // --- Push to CU ---
 
+    // 1.8.7 — Sync / Push busy state. A large rule set keeps either request running for a long time
+    // and the server reports no progress, so the status line under the buttons (#cu-sync-push-busy,
+    // an always-present role="status" region in scanner-page.php) says what is happening: an
+    // indeterminate spinner, never a percentage. BOTH action buttons lock while a request is in
+    // flight (the other one used to stay clickable). release() empties the line and puts the OTHER
+    // button back exactly as it was; the CLICKED button stays with the handlers, whose rules are
+    // unchanged (success keeps it disabled, error / Cancel re-enable it). Callers run it as
+    // post(...).finally(release), so every exit clears the line by construction — Push's
+    // needs_confirm answer included: it releases BEFORE the confirm dialog (nothing is in flight while
+    // the dialog is up) and the confirmed request locks again. No Cancel control: aborting the fetch
+    // cannot stop the server-side write. A missing line fails open — the lock and the request happen.
+    // A release() from before the latest restoreStep4 render does nothing: that render owns the
+    // buttons and the line now (step4RenderEpoch).
+    function lockSyncPush( clickedBtn, message ) {
+        const epoch = step4RenderEpoch;
+        const other = document.getElementById( clickedBtn.id === 'cu-btn-push' ? 'cu-btn-sync' : 'cu-btn-push' );
+        const otherWasDisabled = other ? other.disabled : false;
+        clickedBtn.disabled = true;
+        if ( other ) { other.disabled = true; }
+        const line = document.getElementById( 'cu-sync-push-busy' );
+        if ( line ) {
+            const spin = document.createElement( 'span' );
+            spin.className = 'cu-sync-push-busy-spinner';
+            spin.setAttribute( 'aria-hidden', 'true' );
+            const text = document.createElement( 'span' );
+            text.textContent = message;
+            line.appendChild( spin );
+            line.appendChild( text );
+        }
+        return function release() {
+            if ( epoch !== step4RenderEpoch ) { return; }
+            if ( line ) { line.textContent = ''; }
+            if ( other ) { other.disabled = otherWasDisabled; }
+        };
+    }
+
     document.getElementById('cu-btn-push').addEventListener('click', function () {
-        const btn = this;
-        btn.disabled = true;
-        cuDoPush( btn, false );
+        cuDoPush( this, false );
     });
 
     // Two-phase push: the first call (confirmed=false) lets the server decide whether a
     // confirm is needed. It returns { needs_confirm: true } WITHOUT pushing only when CU
     // has active rules to overwrite; an empty CU pushes immediately (no dialog).
     function cuDoPush( btn, confirmed ) {
-        post('cu_scanner_push_to_cu', { job_id: scanJobId, confirmed: confirmed ? 1 : 0 }).then(res => {
+        const release = lockSyncPush( btn, 'Pushing to Code Unloader… This can take a while for large rule sets.' );
+        post('cu_scanner_push_to_cu', { job_id: scanJobId, confirmed: confirmed ? 1 : 0 }).finally( release ).then(res => {
             const el = document.getElementById('cu-push-result');
             if (res.success && res.data && res.data.needs_confirm) {
                 if (window.confirm('This will save and overwrite your existing Code Unloader rules. Continue?')) {
@@ -3796,8 +3839,8 @@
 
     document.getElementById('cu-btn-sync').addEventListener('click', function () {
         const btn = this;
-        btn.disabled = true;
-        post('cu_scanner_sync_to_cu', { job_id: scanJobId }).then(res => {
+        const release = lockSyncPush( btn, 'Syncing with Code Unloader… This can take a while for large rule sets.' );
+        post('cu_scanner_sync_to_cu', { job_id: scanJobId }).finally( release ).then(res => {
             const el = document.getElementById('cu-push-result');
             if (res.success) {
                 const d = res.data;

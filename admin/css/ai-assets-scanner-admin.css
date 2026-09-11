@@ -2352,3 +2352,48 @@
 /* The live pager reuses .cu-url-pager, whose `display: flex` outranks the browser's own
    `[hidden] { display: none }` — without this it would show on a one-page scan. */
 #cu-scanner-app .cu-live-pager[hidden] { display: none; }
+
+/* ---------------------------------------------------------------------------
+   v1.8.7 — Step-4 Sync / Push busy line (#cu-sync-push-busy).
+   --------------------------------------------------------------------------- */
+
+/* `-2 / -1` is the LAST grid column: under the buttons in the two-column recommendations card, the
+   only column once the card collapses to one — no media query needed. */
+#cu-scanner-app .cu-sync-push-busy {
+    grid-column: -2 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin: 0;
+    color: #33465c;
+    font-size: 12px;
+}
+/* Idle = empty. The line is a live region that must stay in the accessibility tree, so NOT
+   `display: none` (#cu-push-result's :empty rule) — out of the grid flow instead, where an empty item
+   would still add the card's 14px row gap, and visually hidden the WP screen-reader-text way. */
+#cu-scanner-app .cu-sync-push-busy:empty {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+#cu-scanner-app .cu-sync-push-busy-spinner {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    box-sizing: border-box;
+    border: 2px solid #c3c4c7;
+    border-top-color: #2271b1;
+    border-radius: 50%;
+    animation: cu-probe-spin 0.8s linear infinite;
+}
+/* 1.8.1b precedent (.cu-state-orbit): with reduced motion the ring pulses instead of spinning, and its
+   border goes even so it never reads as a spinner frozen mid-turn. */
+@media (prefers-reduced-motion: reduce) {
+    #cu-scanner-app .cu-sync-push-busy-spinner {
+        border-color: #2271b1;
+        animation: cuOrbitPulse 1.6s ease-in-out infinite;
+    }
+}

@@ -1,3 +1,204 @@
+# 1.8.7 (proposed) — Step-4 Sync / Push busy indicator + ET-column tooltip credit wording (2026-09-11)
+
+Base: `e1eb03f` (1.8.6) = `origin/main`, in the `codex` worktree on `feat/sync-push-busy-indicator`.
+Brief: the operator's internal handoff doc (2026-09-11). Ledger: off (`-no ledger` handover).
+Brainstorm path: **bounded** (existing Sync / Push flow, no spec file). F-*: N/A (admin rendering).
+
+## Operator decisions (2026-09-11)
+
+- Placement: **(D) a dedicated status line under the Step-4 action buttons.** Agent-proposed after the
+  Phase-1 contrast check refuted the handoff's (A); operator chose D.
+- Busy copy (customer-visible, confirmed, no rule count):
+  **"Syncing with Code Unloader… This can take a while for large rule sets."** /
+  **"Pushing to Code Unloader… This can take a while for large rule sets."**
+- Lock **both** Sync and Push while either call is in flight. **Not** in scope: an Undo spinner,
+  keyboard-focus handling, the Step-1 ET tooltip (all filed below).
+- Shown immediately (no delay); reduced motion → opacity pulse instead of spin (1.8.1b precedent) —
+  agent defaults, stated to the operator before the questions.
+- ET-column tooltip (operator request): **"Re-run this URL with Extra Time (more probe budget, +1 credit
+  only if Extra Time actually runs)."** The `aria-label` twin changes to match.
+- Design approved; version **1.8.7** (asset key `1.8.7.1`, banner `1.0.11.11`) — operator, 2026-09-11.
+
+## Phase-1 findings (each check run by this session)
+
+- 🔴 **REFUTED (the handoff's placement A)** — WP core `wp-includes/css/buttons.css` (master, L315–324)
+  forces a disabled `.button-primary` to `#8a8a8a` on `#e2e2e2` with `!important`: ≈ 2.7:1 contrast
+  (computed). "Syncing…" inside the disabled button would read as today's greyed-out state → D.
+- 🟢 **CONFIRMED** — no id / function collisions:
+  `grep -rnE "cu-sync-push-busy|SyncPushBusy|cu-busy-" admin includes tests` → empty.
+- 🟢 **CONFIRMED** — nothing re-enables Push / Sync mid-call: their `.disabled` is written only in
+  `restoreStep4` (scanner.js L3071–3090) and the click handlers; `restoreStep4`'s two callers (L2126
+  buildResult, L3934 load-time restore) are not reachable from a Sync / Push click.
+  ⚠️ **Corrected by the review (#1):** right about cause and effect, but not about concurrency — a
+  re-queued scan (the Step-4 partial banner's Re-queue button) can finish and re-render Step 4 WHILE a
+  Sync / Push is still out. Handled by the render epoch below; reproduced red first, then fixed.
+- 🟢 **CONFIRMED** — `ScannerPageMarkupTest` pins the button order, `cu-push-result` before
+  `cu-result-summary`, and 7 `<th><span class="cu-th-inner">` in scanner.js; a new div and a tooltip text
+  edit move none of them.
+- 🟢 **CONFIRMED** — the existing suites assert settled states only; `sync-line-all-present.test.js` pins
+  the Sync button **disabled after success** (the clicked button is never re-enabled on success — kept).
+- 🟢 **CONFIRMED** — harness `removeAttribute()` is a no-op (`r3-stage-c-harness.js` › makeEl); the design
+  clears the line with `textContent = ''`, which the harness models (the setter drops children).
+- 🟢 **CONFIRMED** — `.cu-recommendations-card` is a grid with `gap: 14px 20px` (css L2092–2098); an empty
+  extra child adds a row gap (the reason for `#cu-push-result:empty { display: none }`, L2116). A live
+  region must not be `display: none` (that drops it from the accessibility tree) → an out-of-flow,
+  visually-hidden `:empty` rule instead.
+- 🟢 **CONFIRMED** — the ET wording matches the plugin's billing model: Step 1 reserves
+  `selected + etCount` credits (scanner.js L1239–1240) and `et_charged` stays false for "selected-but-refunded
+  ET … no ET actually ran" (`class-scan-status.php` L178–180). ⚠️ The refund itself is SaaS-side — not read.
+- ⚠️ **Assumption (accepted)** — `Promise.prototype.finally` (ES2018) is safe: no precedent in scanner.js,
+  but the file already relies on ES2017 (`Object.entries` in `post()`).
+- ⚠️ **Assumption (accepted-as-risk)** — screen readers announce the busy text. Task 6 checks that the
+  accessibility tree exposes a `status` holding it; no NVDA / VoiceOver run is possible here.
+
+## Design
+
+- **Markup** (`scanner-page.php`, static): `<div id="cu-sync-push-busy" class="cu-sync-push-busy"
+  role="status" aria-live="polite"></div>` between `#cu-step4-action-row` and `#cu-push-result`. Always
+  present, empty when idle, so the live region is registered before any text lands.
+- **JS** (`scanner.js`, beside the Push / Sync handlers):
+  - `lockSyncPush( clickedBtn, message )` — disables BOTH action buttons (snapshotting the other button's
+    prior `disabled`) and fills the line with `span.cu-sync-push-busy-spinner[aria-hidden="true"]` + a text
+    span (`textContent`, static copy — R19). Returns `release()`.
+  - `release()` — empties the line (`textContent = ''`) and restores the OTHER button's prior `disabled`.
+    The CLICKED button stays with the handlers: success keeps it disabled, error / catch / Cancel re-enable
+    it — all as today.
+  - Every Sync / Push request runs as `post(...).finally(release)`: the indicator spans exactly one in-flight
+    request, and every exit (success, server error, network reject, a throw in a handler) clears it by
+    construction.
+  - Push `needs_confirm`: the first request's release runs BEFORE `window.confirm` (nothing is in flight
+    while the dialog is up); OK → the confirmed call locks again; Cancel → today's `btn.disabled = false`.
+  - **Render epoch (review #1):** `restoreStep4` bumps `step4RenderEpoch` and empties the line; a
+    `release()` captured under an older epoch does nothing, so a request that outlives a re-render cannot
+    undo the new render's buttons (G6's sync-only Push lock included). Only `restoreStep4` bumps it — two
+    locks cannot overlap without a render between them, because both buttons are locked.
+  - Success / error / all-present copy: byte-identical.
+- **CSS** (new `v1.8.7` block at the END): `.cu-sync-push-busy` flex row with readable muted text and
+  `grid-column: -2 / -1` (under the buttons in the two-column card, the only column in the one-column
+  layout — no media query); `:empty` → visually hidden and `position: absolute` (out of the grid flow, still
+  in the accessibility tree); `.cu-sync-push-busy-spinner` reuses the `.cu-probe-spinner-icon` look
+  (`cu-probe-spin`); `prefers-reduced-motion` → the `cuOrbitPulse` opacity pulse with an even border.
+- **ET tooltip** (`scanner.js`, results-table header): the visible `.cu-help-box` and the `aria-label` both
+  gain "…only if Extra Time actually runs".
+
+## Tasks
+
+- [x] **1. Harness.** Registered `cu-sync-push-busy` in `createHarness`; the 25 existing suites stayed green.
+- [x] **2. Tests first (red).** New `tests/js/sync-push-busy.test.js` (`git add -f`), through the REAL click
+      handlers with a HELD `fetch` (a promise resolved by hand). Mid-flight: the exact busy copy
+      (`strictEqual`), spinner `aria-hidden`, BOTH buttons `disabled === true`. After settling: line
+      `textContent === ''`, the other button back to its prior state, the clicked one per today's rule.
+      Paths: Sync success / server error / network reject; Push direct success / server error / network
+      reject / `needs_confirm` → Cancel / `needs_confirm` → OK → second held request (busy again) →
+      success. A prior-disabled other button (syncOnly: Push dormant) stays disabled after a Sync. ET-tooltip
+      pin (visible + `aria-label`; old strings absent) on a rendered Step-4 table. A missing status line
+      fails OPEN (buttons still lock, the request still goes). *(The planned CSS-text pin is dropped: a
+      grep of the stylesheet proves only that the source is the source — reduced motion is verified in
+      the real browser, task 6.)* Watched **11 / 11 red** before any code, each on the missing feature
+      (`sync in flight: the status line carries the busy copy` — `''` vs the copy).
+- [x] **3. Markup + PHP pin.** The static status div; `ScannerPageMarkupTest` pins the exact always-present
+      markup (no `hidden`), that scanner.js looks the id up, and its position between `cu-step4-action-row`
+      and `cu-push-result`. Watched red first.
+- [x] **4. JS.** `lockSyncPush` / `release`, both handlers through `.finally(release)` (the handlers' own
+      `btn.disabled = true` moved into the lock), the ET strings. **19 / 19 mutants killed** in a scratchpad
+      mirror, each by its intended test (15 JS: each finally dropped, other-button lock / restore /
+      prior-state, line not cleared, release moved after the handler, confirmed call not relocking,
+      spinner not aria-hidden, both missing-line guards, clicked button not locked, copy swapped, both ET
+      strings reverted; 4 view/JS lockstep: id renamed on either side, `hidden` added, order swapped).
+      Baseline green first; mirror restored byte-for-byte; working tree sha256-unchanged.
+- [x] **5. CSS.** The `v1.8.7` block at the END of the stylesheet (4 rules; the sheet loads 666 = 662 + 4).
+- [x] **6. Real-browser check** — real view + WP core `common` / `buttons` / `list-tables` CSS + plugin CSS +
+      real `scanner.js`, cache-busted, `window.fetch` held by hand. Idle: the card is 119 px with and without
+      the empty line (no gap); the line is `position: absolute`, 1×1, `role="status"`. Sync in flight: the
+      exact copy, `#33465c` 12 px, exactly the button column (x 360.8→1002), `cu-probe-spin` spinner, both
+      buttons disabled, `#cu-push-result` untouched; the accessibility snapshot shows `status: "Syncing with
+      Code Unloader… …"` with the spinner pruned. Reduced motion → `cuOrbitPulse` 1.6 s, even `#2271b1`
+      border. Settled: line empty, Push released, Sync disabled, notice verbatim, Undo enabled. Push via
+      the REAL confirm dialog: in flight → busy; Cancel → line empty, both enabled, one request; OK → the
+      confirmed request busy again → success. 600 px (one-column card): the line fills the only column, no
+      horizontal overflow; server error clears it. The ET tooltip popover reads the new wording.
+      Screenshots in the session scratchpad (not in the repo).
+- [x] **7. Version bump — operator chose 1.8.7.** Header, `CU_SCANNER_VERSION`, README badge and the
+      `VersionLockstepTest` pin → `1.8.7`; `CU_SCANNER_ASSET_VERSION` `1.8.7.1`; `SCANNER_JS_VERSION`
+      `1.0.11.11`; fingerprint rows ADDED (`1.8.7.1` → `f8f15a40…`, `1.0.11.11` → `37bc73a1…`, recomputed
+      after the review fix) by a script that first reproduced the shipped 1.8.6 rows on the primary
+      checkout; CHANGELOG `## 1.8.7`. The CHANGELOG is public, so it states the tooltip wording only — not
+      the refund mechanism, which is SaaS-side and was not read.
+- [x] **8. Verify + commit.** `php -l` ×5, `node --check`, JS 26 / 26, PHP 1019 tests / 2717 assertions /
+      0 failures (5 skipped, 2 risky `MenuBadgeTest` — pre-existing), CRLF byte-check on all 12 touched
+      files, no shipped fingerprint row touched; committed locally. **HOLD** — nothing pushed (P9; the
+      repo is public).
+
+## Independent review (Opus reviewer, 2026-09-11) — adjudication
+
+- #1 a late `release()` undoes a Step-4 re-render (re-queued scan finishing mid-Sync → G6 sync-only Push
+  lock re-enabled; a second Sync's copy doubled and then wiped) → **fixed**: the render epoch (design
+  above). Reproduced by two new tests (red first); proven in Chromium (Push stays disabled + dormant after
+  the stale answer, no page errors); E1–E3 mutants killed. The reviewer's version bumped on every lock too
+  — dropped as redundant (both buttons are locked, so locks never overlap without a render).
+- #2 the fail-open test did not check the request's outcome (a throwing `release()` would turn a
+  successful Sync into "Sync failed") → **fixed**: it asserts Sync stays disabled and the success notice
+  renders; the reviewer's surviving mutant (E4) is now killed.
+- #3 nothing tested the CSS half of the live-region rule → **fixed**: a negative `ScannerPageMarkupTest`
+  scan — no rule targeting `.cu-sync-push-busy*` may `display: none` / `visibility: hidden` (C1–C2
+  mutants killed). Kept narrow on purpose: it catches the one tempting mistake (copying
+  `#cu-push-result:empty { display: none; }`), not the style.
+- #4 hygiene → the new test is `git add -f`'d; adds stay scoped (`artifacts/` is untracked and not
+  ignored); task 7 ticked; README feature bullet + README L40 "+1 credit" → P9 Step-2 doc-debt at push time.
+- Mutation total after the review: **25 / 25 killed** (fresh mirror; baseline green; working tree
+  sha256-unchanged).
+
+## Follow-ups discovered during this task
+
+- **Undo** keeps its text-only "Undoing the last Push/Sync..." notice and is not locked while a Sync / Push
+  runs (operator scoped it out, 2026-09-11). The same line + lock would be cheap later.
+- **Stale handlers after a Step-4 re-render (pre-existing, found in review):** a Sync / Push that answers
+  after a re-queued scan re-rendered Step 4 still runs its handler against the new card — its outcome
+  notice replaces the new `#cu-push-result` (browser-seen: "Synced…" replaced G6's re-scan notice), and a
+  stale Push **error** re-enables Push on a G6 result. 1.8.6 had the same handlers; 1.8.7 fixed only the
+  busy line and the other-button restore. The fix (skip a stale handler's UI writes, keyed on the same
+  epoch) drops a customer-visible notice — the operator's call. Rare: a re-queued scan must finish while
+  the request is still out.
+- `artifacts/` (1.8.0b Playwright screenshots) is untracked and NOT ignored in `codex` — a `git add -A`
+  would publish it to the public repo. Adds stay scoped; ignoring or removing it is the operator's call.
+- **Keyboard focus** drops to `<body>` when the clicked Sync / Push button disables under it — the same class
+  as the 1.8.6 pager follow-up below (operator scoped it out).
+- **Step-1 ET tooltip** (per-URL checkbox, scanner.js ~L1012) still says Extra Time "costs an additional
+  credit" with no condition (operator scoped it out of this release).
+- **README L40** says Extra Time is "for +1 credit" with no qualifier — revisit at P9 doc-debt time.
+- The Sync / Push **outcome notice** in `#cu-push-result` is not announced to screen readers (the card has no
+  live region; only the new busy line is one).
+- `.cu-probe-spinner-icon` (the Step-1 target-stack probe spinner) has **no `prefers-reduced-motion`** variant.
+- ⚠️ Assumption, unmeasured — a Sync / Push that outlives a proxy timeout returns non-JSON, lands in `.catch`
+  and reads "Sync failed — check server error logs." while the server may still finish the write. Belongs
+  with the server-speed follow-up (handoff §5.2 item 6), not this task.
+
+## Review
+
+**Built.** While a Step-4 Sync or Push is in flight, a line under the buttons shows a spinner and
+"Syncing with Code Unloader… This can take a while for large rule sets." (or "Pushing to…"); both action
+buttons lock for the duration; every exit clears it; screen readers get it through an always-present
+`role="status"` region; reduced motion pulses instead of spinning. The ET-column tooltip now says
+"+1 credit only if Extra Time actually runs". Versioned 1.8.7 and committed locally; not pushed.
+
+**Design choices that earned their keep.**
+- A separate status line, not the button label: WP core forces disabled buttons to ≈ 2.7:1 grey — the
+  exact washed-out look the operator was complaining about.
+- `post(...).finally(release)` — one release per request by construction; the browser proved the
+  confirm-dialog paths (Cancel and OK) with a real dialog.
+- An always-present live region kept out of the grid flow by `:empty { position: absolute }` rather than
+  `display: none` — the card measured 119 px with and without it; the accessibility tree keeps the
+  `status`.
+
+**Traps caught.** The handoff's recommended placement failed a contrast check; the Phase-1 "nothing
+re-renders mid-call" claim missed a re-queued scan finishing mid-Sync (review #1, fixed); the fail-open
+test could not see a throwing `release()` (review #2); nothing guarded the CSS half of the live region
+(review #3); the Write tool saved the new test as LF among CRLF siblings (normalized, byte-checked); and a
+first CHANGELOG draft claimed a SaaS refund mechanism no one in this session had read (cut to the tooltip
+wording).
+
+---
+
 # 1.8.6 (proposed) — Step-3 "Live URL status" pagination, 15 URLs per page (2026-09-10)
 
 Base: `9ad43ff` (1.8.5) = `origin/main`, in the `codex` worktree on `feat/live-table-pagination`.

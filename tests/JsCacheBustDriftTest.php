@@ -92,6 +92,10 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.6 — Step-3 live URL table paginated at 15 per page (scanner.js pager + outbox-dispatch
 		// reset, admin.css `.cu-live-pager[hidden]`). Added, not rewritten.
 		'1.8.6.1' => '38efe68261cb0105e523cde91bf1b330b4b79fdccca897a60619a7778df090f0',
+		// 1.8.7 — Step-4 Sync / Push busy line (scanner.js lockSyncPush + both handlers, admin.css
+		// `.cu-sync-push-busy*` block) and the ET-column tooltip's conditional-credit wording. Added,
+		// not rewritten.
+		'1.8.7.1' => 'f8f15a40ae1100da8bb20f8d6b52930f3ed75671d9f1e5575cc2c7beec2697e3',
 	);
 
 	/**
@@ -136,6 +140,10 @@ final class JsCacheBustDriftTest extends TestCase {
 		// 1.8.6 — the Step-3 live-table pager (applyLiveTablePage, handlers bound once, the new-scan
 		// reset in beginScanPolling) and the outbox 'dispatched' branch now starting a new scan.
 		'1.0.11.10' => '74b32e82e78974f94763484b02e5ce175a5ffc540af114f8eda722f3f812c462',
+		// 1.8.7 — lockSyncPush() and the busy line on every Sync / Push request (post().finally), the
+		// restoreStep4 render epoch that makes a stale release() a no-op, and the ET-column tooltip's
+		// "+1 credit only if Extra Time actually runs".
+		'1.0.11.11' => '37bc73a100e07550886b88bbda5505358b04e5d74da2240b3829476b0dc2c0f2',
 	);
 
 	private function root(): string {

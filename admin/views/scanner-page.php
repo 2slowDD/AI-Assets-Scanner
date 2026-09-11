@@ -287,6 +287,10 @@
                         <button id="cu-btn-push" class="button button-secondary" style="display:none">Push to Code Unloader</button>
                         <a id="cu-btn-download" class="button button-secondary" href="#">Download JSON</a>
                     </div>
+                    <?php // 1.8.7 — Sync / Push busy line. ALWAYS present and empty: a live region added or
+                          // un-hidden together with its text is often not announced. scanner.js fills it
+                          // while a Sync / Push request is in flight and empties it on every exit. ?>
+                    <div id="cu-sync-push-busy" class="cu-sync-push-busy" role="status" aria-live="polite"></div>
                     <div id="cu-push-result"></div>
                 </section>
 

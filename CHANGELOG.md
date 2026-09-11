@@ -4,6 +4,19 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.7 — 2026-09-11
+
+### Added
+- While a **Sync with Code Unloader** or **Push to Code Unloader** is running, a line under the buttons shows a spinner and "Syncing with Code Unloader… This can take a while for large rule sets." (or "Pushing to Code Unloader…"). It clears as soon as the request finishes, fails, or Push asks for confirmation. Screen readers announce it; with reduced motion the spinner pulses instead of spinning.
+
+### Changed
+- Sync and Push are both disabled while either one is running; before, the other button stayed clickable mid-request. Once the request ends, both buttons behave exactly as before.
+- The results table's **Extra Time** tooltip now reads "+1 credit only if Extra Time actually runs".
+
+### Internal
+- The busy line is an always-present `role="status"` region in the page markup, so its text is announced when it appears. Each Sync / Push request clears it through one `finally()`, so every way a request can end clears it.
+- Admin asset cache key `1.8.7.1`; scanner.js banner `1.0.11.11`.
+
 ## 1.8.6 — 2026-09-11
 
 ### Changed

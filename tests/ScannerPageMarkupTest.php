@@ -187,4 +187,54 @@ class ScannerPageMarkupTest extends TestCase {
 			$this->assertStringContainsString( 'id="' . $id . '"', $markup, "scanner.js looks up #{$id}, so the view must carry it" );
 		}
 	}
+
+	/**
+	 * 1.8.7 — the Sync / Push busy line. It is a live region that is ALWAYS in the page (role="status",
+	 * empty, never `hidden`): a region added or un-hidden in the same moment as its text is often not
+	 * announced, so the JS only ever fills and empties it. It sits under the action buttons and is NOT
+	 * #cu-push-result, whose content other branches own. The Node harness pre-creates the id by NAME,
+	 * so this is the only test that notices the view and scanner.js drifting apart.
+	 */
+	public function test_sync_push_busy_line_is_an_always_present_status_region_under_the_action_buttons(): void {
+		$markup = file_get_contents( dirname( __DIR__ ) . '/admin/views/scanner-page.php' );
+		$script = file_get_contents( dirname( __DIR__ ) . '/admin/js/scanner.js' );
+
+		$this->assertIsString( $markup );
+		$this->assertIsString( $script );
+		$this->assertStringContainsString( '<div id="cu-sync-push-busy" class="cu-sync-push-busy" role="status" aria-live="polite"></div>', $markup );
+		$this->assertGreaterThanOrEqual( 1, preg_match_all( "/getElementById\(\s*'cu-sync-push-busy'\s*\)/", $script ), 'scanner.js must look the busy line up by the id the view carries' );
+
+		$row_pos    = strpos( $markup, 'id="cu-step4-action-row"' );
+		$busy_pos   = strpos( $markup, 'id="cu-sync-push-busy"' );
+		$result_pos = strpos( $markup, 'id="cu-push-result"' );
+		$this->assertNotFalse( $row_pos );
+		$this->assertNotFalse( $busy_pos );
+		$this->assertNotFalse( $result_pos );
+		$this->assertLessThan( $busy_pos, $row_pos );
+		$this->assertLessThan( $result_pos, $busy_pos );
+	}
+
+	/**
+	 * 1.8.7 — the CSS half of the live-region rule. The tempting mistake is copying the house pattern
+	 * a few rules up (`#cu-push-result:empty { display: none; }`) onto the busy line: that drops the
+	 * region from the accessibility tree, the next "Syncing…" may go unannounced, and the markup test
+	 * above stays green. No rule targeting the busy line may hide it that way — its idle state is
+	 * `position: absolute` + clipped instead.
+	 */
+	public function test_no_css_rule_hides_the_sync_push_busy_live_region(): void {
+		$css = file_get_contents( dirname( __DIR__ ) . '/admin/css/ai-assets-scanner-admin.css' );
+
+		$this->assertIsString( $css );
+		$css = (string) preg_replace( '#/\*.*?\*/#s', '', $css ); // comments may quote `display: none`
+		preg_match_all( '/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER );
+		$hits = 0;
+		foreach ( $rules as $rule ) {
+			if ( false === strpos( $rule[1], 'cu-sync-push-busy' ) ) {
+				continue;
+			}
+			$hits++;
+			$this->assertDoesNotMatchRegularExpression( '/display\s*:\s*none|visibility\s*:\s*hidden/i', $rule[2], 'the rule for "' . trim( $rule[1] ) . '" hides the busy live region' );
+		}
+		$this->assertGreaterThanOrEqual( 3, $hits, 'the rule scan went blind — no .cu-sync-push-busy rules found' );
+	}
 }
