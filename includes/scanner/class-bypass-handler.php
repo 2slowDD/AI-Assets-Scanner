@@ -47,6 +47,11 @@ class BypassHandler {
 		],
 	];
 
+	// Misuse logging is throttled site-wide: without this, every junk token
+	// rewrites the entire aias_pending_events option via EventEmitter::emit().
+	private const MISUSE_THROTTLE_KEY = 'aias_bypass_misuse_throttle';
+	private const MISUSE_THROTTLE_TTL = 600;
+
 	/** @var callable|null Injected token validator for testing. */
 	private static $token_validator = null;
 
@@ -174,6 +179,13 @@ class BypassHandler {
 	 * Emit a security event for token misuse. Fields are hashed (never raw).
 	 */
 	private static function log_misuse(): void {
+		// Throttled: an unthrottled path here means every junk token rewrites
+		// the whole aias_pending_events option on every request.
+		if ( false !== get_transient( self::MISUSE_THROTTLE_KEY ) ) {
+			return;
+		}
+		set_transient( self::MISUSE_THROTTLE_KEY, 1, self::MISUSE_THROTTLE_TTL );
+
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated -- guarded by isset before sanitize.
 		$remote = isset( $_SERVER['REMOTE_ADDR'] )
 			? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) )

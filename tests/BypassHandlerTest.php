@@ -42,6 +42,13 @@ class BypassHandlerTest extends TestCase {
 
 		BypassHandler::for_testing_set_token_validator( fn( $t ) => false );
 
+		// Misuse throttle: window not active, so log_misuse() proceeds and opens it.
+		WP_Mock::userFunction( 'get_transient' )
+			->with( 'aias_bypass_misuse_throttle' )
+			->andReturn( false );
+		WP_Mock::userFunction( 'set_transient' )
+			->with( 'aias_bypass_misuse_throttle', 1, 600 );
+
 		// EventEmitter::emit will read+update aias_pending_events
 		WP_Mock::userFunction( 'get_option' )
 			->with( 'aias_pending_events', [] )
@@ -76,6 +83,59 @@ class BypassHandlerTest extends TestCase {
 			$event['fields']['user_agent'] );
 		$this->assertSame( substr( hash( 'sha256', '/some/path' ), 0, 16 ),
 			$event['fields']['path'] );
+	}
+
+	public function test_invalid_token_not_logged_while_throttle_window_active(): void {
+		$_GET['cu_scan_token'] = 'tok-bad';
+
+		BypassHandler::for_testing_set_token_validator( fn( $t ) => false );
+
+		WP_Mock::userFunction( 'sanitize_text_field' )
+			->andReturnUsing( fn( $v ) => $v );
+		WP_Mock::userFunction( 'wp_unslash' )
+			->andReturnUsing( fn( $v ) => $v );
+
+		// Throttle window already open — log_misuse() must bail before touching
+		// the event queue (no update_option) or resetting the window (no set_transient).
+		WP_Mock::userFunction( 'get_transient' )
+			->with( 'aias_bypass_misuse_throttle' )
+			->andReturn( 1 );
+		WP_Mock::userFunction( 'set_transient' )->never();
+		WP_Mock::userFunction( 'update_option' )->never();
+
+		BypassHandler::handle_wp_loaded();
+		$this->assertConditionsMet();
+	}
+
+	public function test_first_misuse_opens_throttle_window(): void {
+		$_GET['cu_scan_token'] = 'tok-bad';
+		$_SERVER['REMOTE_ADDR']     = '1.2.3.4';
+		$_SERVER['HTTP_USER_AGENT'] = 'TestUA/1.0';
+		$_SERVER['REQUEST_URI']     = '/some/path';
+
+		BypassHandler::for_testing_set_token_validator( fn( $t ) => false );
+
+		WP_Mock::userFunction( 'sanitize_text_field' )
+			->andReturnUsing( fn( $v ) => $v );
+		WP_Mock::userFunction( 'wp_unslash' )
+			->andReturnUsing( fn( $v ) => $v );
+
+		WP_Mock::userFunction( 'get_transient' )
+			->with( 'aias_bypass_misuse_throttle' )
+			->andReturn( false );
+		WP_Mock::userFunction( 'set_transient' )
+			->once()
+			->with( 'aias_bypass_misuse_throttle', 1, 600 );
+
+		WP_Mock::userFunction( 'get_option' )
+			->with( 'aias_pending_events', [] )
+			->andReturn( [] );
+		WP_Mock::userFunction( 'update_option' )->andReturn( true );
+		WP_Mock::userFunction( 'wp_next_scheduled' )->andReturn( false );
+		WP_Mock::userFunction( 'wp_schedule_single_event' );
+
+		BypassHandler::handle_wp_loaded();
+		$this->assertConditionsMet();
 	}
 
 	public function test_valid_token_no_misuse_event(): void {
