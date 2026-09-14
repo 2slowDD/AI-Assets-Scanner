@@ -1910,7 +1910,7 @@
 .cu-settings-field input[type="password"] { width: 100%; max-width: none; min-height: 38px; border-color: #c8d3df; border-radius: 6px; }
 .cu-settings-field .description { color: var(--cu-muted); }
 .cu-input-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.cu-secret-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.cu-secret-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
 .cu-mono-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .cu-balance-widget { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: stretch; }
 .cu-balance-card { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px; border: 1px solid #d8e3ee; border-radius: 7px; background: #f7fafd; color: #31516f; }
