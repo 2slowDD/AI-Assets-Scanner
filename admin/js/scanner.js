@@ -3330,7 +3330,7 @@
                     if ( ! p.et_requested ) {
                         nooptNote = ' <span class="cu-noopt-note cu-noopt-et">⏳ Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>';
                     }
-                    // Extra Time already ran for this page in this scan (et_requested, a server
+                    // Extra Time was requested for this page in this scan (et_requested, a server
                     // boolean stamped from the submit-time ET URL set) — don't recommend another
                     // ET pass; no note in its place. Operator 2026-09-14.
                 } else if ( p.et_candidate ) {

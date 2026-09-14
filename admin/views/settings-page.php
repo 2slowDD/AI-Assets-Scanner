@@ -94,8 +94,8 @@
                         <button type="button" id="cu-copy-secret" class="button">Copy</button>
                         <button type="button" id="cu-regenerate-secret" class="button">Regenerate</button>
                     </div>
-                    <p class="description">Regenerating creates a new secret and the old one stops working. Update your CDN / firewall rule with the new value afterwards.</p>
                     <p class="description">Used to create a CDN or WAF exemption. Keep this value private.</p>
+                    <p class="description">Regenerating creates a new secret. Your CDN / firewall rule keeps accepting the old value until you replace it there, and scans may be blocked until the rule has the new value.</p>
                 </div>
             </section>
 

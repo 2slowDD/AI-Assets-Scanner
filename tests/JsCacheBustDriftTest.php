@@ -98,7 +98,7 @@ final class JsCacheBustDriftTest extends TestCase {
 		'1.8.7.1' => 'f8f15a40ae1100da8bb20f8d6b52930f3ed75671d9f1e5575cc2c7beec2697e3',
 		// Settings Regenerate-secret button (settings.js + admin.css) and the Step-4 row map dropping
 		// the Needs Extra Time note on et_requested rows (scanner.js). Added, not rewritten.
-		'1.8.7.2' => '075d49ac443e58bb1f70f7854b89d961f21b4ad2c6d4029345b453c458ea7f5f',
+		'1.8.7.2' => '56751e7b54dbe018e8497552939e7b962e9a44a24fb9f6c053fec78bf3feb682',
 	);
 
 	/**
@@ -148,8 +148,8 @@ final class JsCacheBustDriftTest extends TestCase {
 		// "+1 credit only if Extra Time actually runs".
 		'1.0.11.11' => '37bc73a100e07550886b88bbda5505358b04e5d74da2240b3829476b0dc2c0f2',
 		// The noopt note chain drops "Needs Extra Time" on rows the server stamped et_requested
-		// (Extra Time already ran for that page in this scan).
-		'1.0.11.12' => '5e729355c7bf5696be22c4072ed46199a24e4bfe528a14633cba73df220ae2b7',
+		// (Extra Time was requested for that page in this scan).
+		'1.0.11.12' => 'd149099aa416d95eb650bfda39bcd068daf846fb889237e6db0fbde940e14ad2',
 	);
 
 	private function root(): string {

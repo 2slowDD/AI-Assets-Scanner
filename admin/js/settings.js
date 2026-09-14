@@ -107,7 +107,7 @@
         const regenerateBtn = document.getElementById('cu-regenerate-secret');
         if (regenerateBtn) {
             regenerateBtn.addEventListener('click', function () {
-                if (!window.confirm('Generate a new scanner secret?\n\nThe current secret stops working immediately. Update your CDN / firewall rule with the new value, or scans may be blocked.')) {
+                if (!window.confirm('Generate a new scanner secret?\n\nYour CDN / firewall rule keeps accepting the old value until you replace it there. Until the rule has the new value, scans may be blocked.')) {
                     return;
                 }
                 regenerateBtn.disabled = true;
