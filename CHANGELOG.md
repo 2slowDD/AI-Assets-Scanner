@@ -4,6 +4,21 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.8 — 2026-09-14
+
+### Security
+- A request carrying an invalid scan token no longer writes to the database on every hit. The security event for invalid tokens is now recorded at most once every 10 minutes.
+
+### Added
+- **Regenerate** button next to the scanner secret in Settings (administrators only). It creates a new secret. Your CDN / firewall rule keeps accepting the old value until you replace it there, and scans may be blocked until the rule has the new value.
+
+### Changed
+- After an Extra Time scan, pages that were sent with Extra Time no longer show the "Needs Extra Time — rescan with Rescan ET Candidates" note. The ET candidate column, the Extra Time checkbox and the **Rescan ET Candidates** button are unchanged.
+
+### Internal
+- Result rows carry `et_requested`, taken from the URLs submitted with Extra Time (stored per job for 2 hours).
+- Admin asset cache key `1.8.8.1`; scanner.js banner `1.0.11.12`.
+
 ## 1.8.7 — 2026-09-11
 
 ### Added

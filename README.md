@@ -2,7 +2,7 @@
 
 ![CI](https://img.shields.io/badge/CI-PASSING-brightgreen?style=for-the-badge)
 ![License](https://img.shields.io/badge/LICENSE-PROPRIETARY%20SOURCE--AVAILABLE-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/VERSION-1.8.7-007cba?style=for-the-badge)
+![Version](https://img.shields.io/badge/VERSION-1.8.8-007cba?style=for-the-badge)
 
 AI-powered CSS/JS asset scanner for WordPress, by [WPservice.pro](https://wpservice.pro).
 
@@ -27,6 +27,7 @@ AI Assets Scanner discovers all public URLs on your WordPress site, submits them
 - **Scan attribution + Discover order (1.8.5)** — every scan now tells the worker which plugin version created it, so a scan in the worker's log can be traced to the exact plugin build. Discover / Re-discover lists the homepage first within its group (falling back to the shortest URL when the home URL is not in the discovered set). The admin header byline reads "Powered by WPservice.pro"
 - **Live URL status pages (1.8.6)** — during a scan, the Step-3 **Live URL status** table shows 15 URLs per page with **« Prev · Page N of M · Next »** below it (no pager at 15 URLs or fewer). The page moves only when you click: it stays put while the scan updates, and a new scan opens on page 1. A scan dispatched late from the outage queue now also opens on a clean table
 - **Sync / Push busy indicator (1.8.7)** — while a **Sync with Code Unloader** or **Push to Code Unloader** runs, a line under the buttons shows a spinner and "Syncing with Code Unloader… This can take a while for large rule sets." (or "Pushing to…"), announced to screen readers; with reduced motion the spinner pulses. Sync and Push are both disabled until the request ends. The results table's **Extra Time** tooltip now reads "+1 credit only if Extra Time actually runs"
+- **Scanner secret Regenerate + quieter token logging (1.8.8)** — Settings has a **Regenerate** button next to the scanner secret (administrators only); your CDN / firewall rule keeps accepting the old value until you replace it there. After an Extra Time scan, pages sent with Extra Time no longer show the "Needs Extra Time" note (ET candidate, Extra Time checkbox and **Rescan ET Candidates** unchanged). Requests with an invalid scan token no longer write to the database on every hit — the security event is recorded at most once every 10 minutes
 - **Undo last Push/Sync (1.7.57b)** — Step 4 now keeps a server-side undo manifest for the last successful Code Unloader Push or Sync. The red **Undo last Push/Sync** button removes the recorded rules, deactivates groups created by that operation, leaves existing groups alone, and stays available after closing/reopening WordPress until used or replaced by a newer push/sync
 - **Credit system** — pay per scan via wpservice.pro credits
 - **Optimization plugin auto-bypass** — automatically bypasses WP Rocket, Autoptimize, and Code Unloader caches during scanning
