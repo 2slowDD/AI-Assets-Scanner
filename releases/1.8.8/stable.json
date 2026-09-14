@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.8.8",
+    "requires_wp": "6.2",
+    "tested_wp": "7.1",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.8/ai-assets-scanner.zip",
+    "sha256": "a66cdf42331ed5c62eac437c8d63c7210f51f3d975731a6e98e4a57ff133e02b",
+    "signature": "",
+    "released_at": "2026-09-14T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.8/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.8.8.</p><p><strong>Security</strong></p><ul><li>A request carrying an invalid scan token no longer writes to the database on every hit. The security event for invalid tokens is now recorded at most once every 10 minutes.</li></ul><p><strong>Added</strong></p><ul><li><strong>Regenerate</strong> button next to the scanner secret in Settings (administrators only). It creates a new secret. Your CDN / firewall rule keeps accepting the old value until you replace it there, and scans may be blocked until the rule has the new value.</li></ul><p><strong>Changed</strong></p><ul><li>After an Extra Time scan, pages that were sent with Extra Time no longer show the \"Needs Extra Time &mdash; rescan with Rescan ET Candidates\" note. The ET candidate column, the Extra Time checkbox and the <strong>Rescan ET Candidates</strong> button are unchanged.</li></ul><p><strong>Internal</strong></p><ul><li>Result rows carry <code>et_requested</code>, taken from the URLs submitted with Extra Time (stored per job for 2 hours).</li><li>Admin asset cache key <code>1.8.8.1</code>; scanner.js banner <code>1.0.11.12</code>.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}

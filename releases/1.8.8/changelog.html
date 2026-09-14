@@ -1,0 +1,18 @@
+<p>Version 1.8.8.</p>
+<p><strong>Security</strong></p>
+<ul>
+<li>A request carrying an invalid scan token no longer writes to the database on every hit. The security event for invalid tokens is now recorded at most once every 10 minutes.</li>
+</ul>
+<p><strong>Added</strong></p>
+<ul>
+<li><strong>Regenerate</strong> button next to the scanner secret in Settings (administrators only). It creates a new secret. Your CDN / firewall rule keeps accepting the old value until you replace it there, and scans may be blocked until the rule has the new value.</li>
+</ul>
+<p><strong>Changed</strong></p>
+<ul>
+<li>After an Extra Time scan, pages that were sent with Extra Time no longer show the "Needs Extra Time &mdash; rescan with Rescan ET Candidates" note. The ET candidate column, the Extra Time checkbox and the <strong>Rescan ET Candidates</strong> button are unchanged.</li>
+</ul>
+<p><strong>Internal</strong></p>
+<ul>
+<li>Result rows carry <code>et_requested</code>, taken from the URLs submitted with Extra Time (stored per job for 2 hours).</li>
+<li>Admin asset cache key <code>1.8.8.1</code>; scanner.js banner <code>1.0.11.12</code>.</li>
+</ul>
