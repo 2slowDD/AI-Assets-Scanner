@@ -291,12 +291,19 @@ class Settings {
     public function get_scanner_secret(): string {
         $secret = (string) get_option( 'cu_scanner_secret', '' );
         if ( ! $secret ) {
-            // 128 bits from CSPRNG (random_bytes) — stronger than wp_generate_uuid4()
-            // which is mt_rand-derived. Stored values from the previous UUID4
-            // generator continue to work; only first-run generation changes.
-            $secret = bin2hex( random_bytes( 16 ) );
-            update_option( 'cu_scanner_secret', $secret, false );
+            $secret = $this->regenerate_scanner_secret();
         }
+        return $secret;
+    }
+
+    /**
+     * 128 bits from CSPRNG (random_bytes) — stronger than wp_generate_uuid4()
+     * which is mt_rand-derived. Stored values from the previous UUID4
+     * generator continue to work; only first-run generation changes.
+     */
+    public function regenerate_scanner_secret(): string {
+        $secret = bin2hex( random_bytes( 16 ) );
+        update_option( 'cu_scanner_secret', $secret, false );
         return $secret;
     }
 }

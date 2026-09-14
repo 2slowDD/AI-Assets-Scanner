@@ -104,6 +104,33 @@
             });
         }
 
+        const regenerateBtn = document.getElementById('cu-regenerate-secret');
+        if (regenerateBtn) {
+            regenerateBtn.addEventListener('click', function () {
+                if (!window.confirm('Generate a new scanner secret?\n\nThe current secret stops working immediately. Update your CDN / firewall rule with the new value, or scans may be blocked.')) {
+                    return;
+                }
+                regenerateBtn.disabled = true;
+                const data = new FormData();
+                data.append('action', 'cu_scanner_regenerate_secret');
+                data.append('nonce', cuScannerSettings.nonce);
+                fetch(cuScannerSettings.ajaxUrl, { method: 'POST', body: data })
+                    .then(r => r.json())
+                    .then(res => {
+                        if (res.success) {
+                            window.location.reload();
+                        } else {
+                            regenerateBtn.disabled = false;
+                            window.alert('Could not regenerate the secret. Please reload the page and try again.');
+                        }
+                    })
+                    .catch(function () {
+                        regenerateBtn.disabled = false;
+                        window.alert('Could not regenerate the secret. Please reload the page and try again.');
+                    });
+            });
+        }
+
         // CF expression copy button (rendered by CloudflareAdapter::instructionsHtml).
         const copyExprBtn = document.getElementById('cu-copy-cf-expression');
         if (copyExprBtn) {

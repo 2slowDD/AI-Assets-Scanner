@@ -92,7 +92,9 @@
                     <div class="cu-secret-row">
                         <input type="text" id="cu-scanner-secret" value="<?php echo esc_attr( $scanner_secret ); ?>" readonly class="regular-text cu-mono-input" />
                         <button type="button" id="cu-copy-secret" class="button">Copy</button>
+                        <button type="button" id="cu-regenerate-secret" class="button">Regenerate</button>
                     </div>
+                    <p class="description">Regenerating creates a new secret and the old one stops working. Update your CDN / firewall rule with the new value afterwards.</p>
                     <p class="description">Used to create a CDN or WAF exemption. Keep this value private.</p>
                 </div>
             </section>

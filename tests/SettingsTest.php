@@ -86,4 +86,32 @@ class SettingsTest extends TestCase {
         $this->assertMatchesRegularExpression( '/^[a-f0-9]{32}$/', $secret );
         $this->assertConditionsMet();
     }
+
+    public function test_regenerate_scanner_secret_stores_new_32_hex_value_with_autoload_false(): void {
+        $captured = null;
+        WP_Mock::userFunction( 'update_option' )
+            ->with(
+                'cu_scanner_secret',
+                \Mockery::on( function ( $val ) use ( &$captured ) {
+                    $captured = $val;
+                    return is_string( $val ) && 1 === preg_match( '/^[a-f0-9]{32}$/', $val );
+                } ),
+                false
+            )
+            ->once();
+        $secret = ( new Settings() )->regenerate_scanner_secret();
+        $this->assertSame( $captured, $secret );
+        $this->assertMatchesRegularExpression( '/^[a-f0-9]{32}$/', $secret );
+        $this->assertConditionsMet();
+    }
+
+    public function test_regenerate_scanner_secret_produces_different_values_on_each_call(): void {
+        WP_Mock::userFunction( 'update_option' )->andReturn( true );
+        $settings = new Settings();
+        $first    = $settings->regenerate_scanner_secret();
+        $second   = $settings->regenerate_scanner_secret();
+        $this->assertNotSame( $first, $second, 'two calls to regenerate_scanner_secret() produced the same value' );
+        $this->assertMatchesRegularExpression( '/^[a-f0-9]{32}$/', $first );
+        $this->assertMatchesRegularExpression( '/^[a-f0-9]{32}$/', $second );
+    }
 }

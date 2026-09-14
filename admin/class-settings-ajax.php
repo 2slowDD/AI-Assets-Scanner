@@ -11,6 +11,14 @@ class SettingsAjax {
         add_action( 'wp_ajax_cu_scanner_save_settings', [ $this, 'save_settings' ] );
         add_action( 'wp_ajax_cu_scanner_fetch_balance', [ $this, 'fetch_balance' ] );
         add_action( 'wp_ajax_cu_scanner_ack_cdn', [ $this, 'ack_cdn' ] );
+        add_action( 'wp_ajax_cu_scanner_regenerate_secret', [ $this, 'regenerate_secret' ] );
+    }
+
+    public function regenerate_secret(): void {
+        check_ajax_referer( 'cu_scanner_settings_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Forbidden', 403 );
+        $secret = ( new Settings() )->regenerate_scanner_secret();
+        wp_send_json_success( [ 'secret' => $secret ] );
     }
 
     public function ack_cdn(): void {
