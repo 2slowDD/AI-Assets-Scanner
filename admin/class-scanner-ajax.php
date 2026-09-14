@@ -588,6 +588,17 @@ class ScannerAjax {
             set_transient( 'cu_scanner_bypass_map_' . $job_id, $bypass_map, 7200 );
         }
 
+        // Persist the set of final scan URLs sent WITH Extra Time (operator 2026-09-14), so
+        // do_build_result() can stamp each result row with et_requested and the Step-4
+        // "Needs Extra Time" note stays off on a page that just had Extra Time. The worker's
+        // extra_time_charged stamp cannot carry this: a zero-yield ET continuation legitimately
+        // omits it. Same job-keying + verbatim-URL rationale as bypass_map above. Fail-closed:
+        // nothing stored when no page requested Extra Time.
+        $et_urls = self::build_et_url_set( $pages_sent );
+        if ( ! empty( $et_urls ) ) {
+            set_transient( 'cu_scanner_et_urls_' . $job_id, $et_urls, 7200 );
+        }
+
         // FU-ET-STAMP-SEVERS-RATCHET — persist a job-keyed ET-rescan marker so
         // do_build_result()'s ratchet gate detects an ET rescan independently of the
         // worker billing stamp (extra_time_charged), which a zero-yield continuation
@@ -1569,6 +1580,24 @@ class ScannerAjax {
         // Leading backslash: AIAS_Scan_Status is in the global namespace; this file is in CUScanner\Admin.
         $pages_payload = \AIAS_Scan_Status::build_pages( $pages_raw, $cu_json['by_page'] ?? [], $is_partial, $terminal_source );
 
+        // Stamp every row with et_requested (operator 2026-09-14): TRUE when this row's URL was
+        // sent to Railway WITH Extra Time in THIS scan, read back from the submit-time set
+        // perform_submit_side_effects() persisted under the job_id — the same verbatim
+        // pages[].url key argument as the bypass map above. The Step-4 row map drops the
+        // "Needs Extra Time" note on such a row. Index alignment: filter_real_pages()
+        // array_values() $pages_raw and build_pages() appends exactly one row per raw page in
+        // order, so $pages_payload[$idx] is $pages_raw[$idx] (ratchet_recovered below relies on
+        // the same). Absent / expired / non-array transient → every row false → note as before.
+        // Rows flow unchanged into BOTH writers below (aias_last_result + the live return).
+        $et_urls = get_transient( 'cu_scanner_et_urls_' . $job_id );
+        if ( ! is_array( $et_urls ) ) {
+            $et_urls = [];
+        }
+        foreach ( $pages_payload as $idx => &$row ) {
+            $row['et_requested'] = isset( $et_urls[ (string) ( $pages_raw[ $idx ]['url'] ?? '' ) ] );
+        }
+        unset( $row );
+
         // Challenge-script keeplist (Train 2, A1) — fold the worker's per-page
         // kept_protection[] into one { count, vendors } summary for the Step-4 note.
         // Read off $pages_raw (the worker rows) rather than $pages_payload: build_pages()
@@ -2367,6 +2396,31 @@ class ScannerAjax {
             }
         }
         return $map;
+    }
+
+    /**
+     * The set of FINAL scan URLs (pages[].url) sent to Railway WITH Extra Time, persisted at
+     * submit time (perform_submit_side_effects) and read back in do_build_result() to stamp
+     * each result row's et_requested flag (operator 2026-09-14). Keyed exactly like
+     * build_bypass_map() — the worker echoes pages[].url back verbatim. Pure function — no WP
+     * calls. Only pages whose extra_time is truthy are stored (fail-closed: a URL absent from
+     * the set yields et_requested false, i.e. the note renders as before).
+     *
+     * @param array<int,mixed> $pages_sent Reshaped payload pages ($payload['pages']).
+     * @return array<string,bool> url => true for every page sent with Extra Time.
+     */
+    private static function build_et_url_set( array $pages_sent ): array {
+        $set = [];
+        foreach ( $pages_sent as $page ) {
+            if ( ! is_array( $page ) || empty( $page['extra_time'] ) ) {
+                continue;
+            }
+            $url = (string) ( $page['url'] ?? '' );
+            if ( '' !== $url ) {
+                $set[ $url ] = true;
+            }
+        }
+        return $set;
     }
 
     /**

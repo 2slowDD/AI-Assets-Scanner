@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    const SCANNER_JS_VERSION = '1.0.11.11';
+    const SCANNER_JS_VERSION = '1.0.11.12';
     console.log( '[AI Assets Scanner] scanner.js v' + SCANNER_JS_VERSION + ' loaded' );
 
     const ajax    = cuScanner.ajaxUrl;
@@ -3327,7 +3327,12 @@
                     // and reported a phantom "lost rescan candidate" — the two notes were
                     // near-identical at a glance. Static text only: this region is an
                     // innerHTML sink (ruling R19) and nothing here comes from the payload.
-                    nooptNote = ' <span class="cu-noopt-note cu-noopt-et">⏳ Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>';
+                    if ( ! p.et_requested ) {
+                        nooptNote = ' <span class="cu-noopt-note cu-noopt-et">⏳ Needs Extra Time —<br>rescan with “Rescan ET Candidates”</span>';
+                    }
+                    // Extra Time already ran for this page in this scan (et_requested, a server
+                    // boolean stamped from the submit-time ET URL set) — don't recommend another
+                    // ET pass; no note in its place. Operator 2026-09-14.
                 } else if ( p.et_candidate ) {
                     nooptNote = ' <span class="cu-noopt-note">Please scan again</span>';
                 } else if ( st.cuRulesActive ) {
