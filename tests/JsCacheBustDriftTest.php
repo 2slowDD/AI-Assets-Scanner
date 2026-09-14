@@ -96,9 +96,11 @@ final class JsCacheBustDriftTest extends TestCase {
 		// `.cu-sync-push-busy*` block) and the ET-column tooltip's conditional-credit wording. Added,
 		// not rewritten.
 		'1.8.7.1' => 'f8f15a40ae1100da8bb20f8d6b52930f3ed75671d9f1e5575cc2c7beec2697e3',
-		// Settings Regenerate-secret button (settings.js + admin.css) and the Step-4 row map dropping
-		// the Needs Extra Time note on et_requested rows (scanner.js). Added, not rewritten.
-		'1.8.7.2' => '56751e7b54dbe018e8497552939e7b962e9a44a24fb9f6c053fec78bf3feb682',
+		// 1.8.8 — Settings Regenerate-secret button (settings.js + admin.css) and the Step-4 row map
+		// dropping the Needs Extra Time note on et_requested rows (scanner.js). Added, not rewritten.
+		// (Pinned as 1.8.7.2 on the unreleased branch; renamed to the release's 1.8.8.1 key before
+		// shipping — same bytes, same fingerprint; 1.8.7.2 was never served.)
+		'1.8.8.1' => '56751e7b54dbe018e8497552939e7b962e9a44a24fb9f6c053fec78bf3feb682',
 	);
 
 	/**
