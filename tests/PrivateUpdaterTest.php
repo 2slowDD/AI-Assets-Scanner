@@ -110,7 +110,7 @@ class PrivateUpdaterTest extends TestCase {
 
         $this->assertStringContainsString( 'View details', implode( ' ', $meta ) );
         $this->assertStringContainsString( 'https://wpservice.pro/our-products/ai-assets-scanner/', implode( ' ', $meta ) );
-        $this->assertContains( 'Tested upto: <strong>v7.1</strong>', $meta );
+        $this->assertContains( 'Tested upto: <strong>v7.1.2</strong>', $meta );
         $this->assertContains( 'Status: <span style="color:#2271b1">Available</span>', $meta );
         $this->assertStringNotContainsString( 'Ratings:', implode( ' ', $meta ) );
         $this->assertStringNotContainsString( 'Reviews:', implode( ' ', $meta ) );
@@ -193,7 +193,7 @@ class PrivateUpdaterTest extends TestCase {
         $meta = ( new PrivateUpdater( self::PLUGIN_FILE, '1.7.92b' ) )
             ->filter_plugin_row_meta( [], self::PLUGIN_FILE );
 
-        $this->assertContains( 'Tested upto: <strong>v7.1</strong>', $meta );
+        $this->assertContains( 'Tested upto: <strong>v7.1.2</strong>', $meta );
         $this->assertStringNotContainsString( 'script', implode( ' ', $meta ) );
     }
 
@@ -299,5 +299,59 @@ class PrivateUpdaterTest extends TestCase {
         $this->assertFileExists( $tmp );
 
         unlink( $tmp );
+    }
+
+    /**
+     * 1.8.9 regression — a package-less update entry must not fatal.
+     *
+     * `upgrader_pre_download` fires for every package WordPress downloads. When some other
+     * plugin's updater writes an `update_plugins` entry with no `package` key,
+     * Plugin_Upgrader::upgrade() reads `$upgrade_data->package` as null and core passes that
+     * null straight into this filter. Until 1.8.9 the parameter was typed `string`, so the
+     * null became an uncaught TypeError inside the wp-cron auto-update run — thrown after
+     * WP_Automatic_Updater had enabled maintenance mode and before it could disable it, which
+     * left `.maintenance` on disk and took whole customer sites offline.
+     *
+     * The values below are exactly what core passes, NOT a convenient stand-in: `false` for
+     * $reply (core's literal default), the null/'' package, and the $hook_extra core builds.
+     * `hook_extra['plugin']` deliberately names OUR plugin file — that is the branch
+     * `is_aas_package()` short-circuits on, so without the empty-package guard this case would
+     * reach the checksum branch and answer with a misleading `aias_checksum_missing` instead of
+     * letting core raise its own accurate `no_package` error.
+     *
+     * @dataProvider provide_empty_packages
+     */
+    public function test_pre_download_passes_through_a_package_wordpress_could_not_supply( mixed $package ): void {
+        PrivateUpdater::set_manifest_for_testing( [
+            'published'    => true,
+            'version'      => '1.9.0',
+            'download_url' => 'https://updates.wpservice.pro/ai-assets-scanner/releases/1.9.0/ai-assets-scanner.zip',
+            'sha256'       => str_repeat( 'd', 64 ),
+        ] );
+
+        $updater = new PrivateUpdater( self::PLUGIN_FILE, '1.8.9' );
+
+        $result = $updater->filter_pre_download(
+            false,
+            $package,
+            null,
+            [ 'plugin' => self::PLUGIN_FILE, 'type' => 'plugin', 'action' => 'update' ]
+        );
+
+        // Returning $reply unchanged is what hands control back to core's own no_package error.
+        $this->assertFalse( $result );
+    }
+
+    /**
+     * @return array<string, array{0: mixed}>
+     */
+    public static function provide_empty_packages(): array {
+        return [
+            // What core actually passes when the update object has no `package` property.
+            'null package' => [ null ],
+            // The sibling shape: a property present but empty. Core's own `empty()` guard
+            // treats both identically, so this filter must too.
+            'empty string package' => [ '' ],
+        ];
     }
 }

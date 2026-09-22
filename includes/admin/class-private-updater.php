@@ -14,7 +14,7 @@ class PrivateUpdater {
     // release ships (build-release.py never rewrote it) and silently goes stale.
     private const MANIFEST_CACHE_KEY = 'cu_scanner_updater_manifest_v1';
     private const REQUIRES_WP    = '6.2';
-    private const TESTED_WP      = '7.1';
+    private const TESTED_WP      = '7.1.2';
     private const REQUIRES_PHP   = '8.0';
 
     private static ?array $manifest_for_testing = null;
@@ -119,8 +119,26 @@ class PrivateUpdater {
         return $links;
     }
 
-    public function filter_pre_download( mixed $reply, string $package, mixed $upgrader, array $hook_extra ): mixed {
-        if ( false !== $reply || ! $this->is_aas_package( $package, $hook_extra ) ) {
+    /**
+     * `upgrader_pre_download` fires for EVERY package WordPress downloads, not just ours.
+     *
+     * $package must therefore be `mixed`. Plugin_Upgrader::upgrade() passes
+     * `$upgrade_data->package` straight off the `update_plugins` transient, and an entry
+     * written by some other plugin's updater without a `package` key yields null. Until
+     * 1.8.9 this parameter was typed `string`, so that null became an uncaught TypeError
+     * inside the wp-cron auto-update run — thrown AFTER WP_Automatic_Updater enabled
+     * maintenance mode and BEFORE it could disable it, leaving `.maintenance` on disk and
+     * the whole site showing "Briefly unavailable for scheduled maintenance". Core itself
+     * tolerates the null (`if ( empty( $package ) ) return new WP_Error( 'no_package' )`),
+     * so the fatal was ours alone.
+     *
+     * An empty package hands control straight back to core rather than to our checksum
+     * branch: core's `no_package` error is the accurate one, and `is_aas_package()` would
+     * otherwise claim a package-less download purely on the `$hook_extra['plugin']` match.
+     */
+    public function filter_pre_download( mixed $reply, mixed $package, mixed $upgrader, array $hook_extra ): mixed {
+        $package = is_string( $package ) ? $package : '';
+        if ( false !== $reply || '' === $package || ! $this->is_aas_package( $package, $hook_extra ) ) {
             return $reply;
         }
 

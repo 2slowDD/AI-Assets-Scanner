@@ -4,6 +4,15 @@ All notable changes to AI Assets Scanner are documented here.
 
 ---
 
+## 1.8.9 — 2026-09-22
+
+### Fixed
+- A WordPress automatic-update run no longer fails with a fatal error when another plugin's update entry carries no download link. The plugin's update handler runs on every package WordPress downloads, and an entry without a link stopped the whole automatic-update run — which could leave a site showing "Briefly unavailable for scheduled maintenance". The handler now hands such an entry back to WordPress untouched. Affected every release from 1.7.8 on.
+
+### Changed
+- Tested up to WordPress 7.1.2.
+- **Run Another Scan** on the results screen is now the primary (blue) button.
+
 ## 1.8.8 — 2026-09-14
 
 ### Security

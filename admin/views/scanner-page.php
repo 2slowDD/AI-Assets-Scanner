@@ -319,7 +319,7 @@
                     <div id="cu-result-url-list"></div>
                     <div class="cu-results-footer-actions">
                         <div class="cu-rescan-row">
-                            <button type="button" class="button button-secondary cu-btn-run-another">Run Another Scan</button>
+                            <button type="button" class="button button-primary cu-btn-run-another">Run Another Scan</button>
                             <button type="button" class="button button-secondary cu-btn-rescan-et" style="display:none">Rescan ET Candidates</button>
                             <button type="button" class="button button-secondary cu-btn-rescan-noopt-all" style="display:none">Rescan 0-Results URLs</button>
                         </div>
