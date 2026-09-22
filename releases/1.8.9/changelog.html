@@ -1,0 +1,10 @@
+<p>Version 1.8.9.</p>
+<p><strong>Fixed</strong></p>
+<ul>
+<li>A WordPress automatic-update run no longer fails with a fatal error when another plugin's update entry carries no download link. The plugin's update handler runs on every package WordPress downloads, and an entry without a link stopped the whole automatic-update run &mdash; which could leave a site showing "Briefly unavailable for scheduled maintenance". The handler now hands such an entry back to WordPress untouched. Affected every release from 1.7.8 on.</li>
+</ul>
+<p><strong>Changed</strong></p>
+<ul>
+<li>Tested up to WordPress 7.1.2.</li>
+<li><strong>Run Another Scan</strong> on the results screen is now the primary (blue) button.</li>
+</ul>

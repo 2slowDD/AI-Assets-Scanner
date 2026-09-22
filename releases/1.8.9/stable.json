@@ -1,0 +1,24 @@
+{
+    "schema": 1,
+    "plugin": "ai-assets-scanner",
+    "slug": "ai-assets-scanner",
+    "name": "AI Assets Scanner",
+    "channel": "stable",
+    "published": true,
+    "version": "1.8.9",
+    "requires_wp": "6.2",
+    "tested_wp": "7.1.2",
+    "requires_php": "8.0",
+    "requires_code_unloader": "1.4.4",
+    "download_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.9/ai-assets-scanner.zip",
+    "sha256": "2870944048a4743e2ea6549a6dea2fd4b21533bdedb1c2c8ac72481d75227157",
+    "signature": "",
+    "released_at": "2026-09-22T00:00:00Z",
+    "changelog_url": "https://updates.wpservice.pro/ai-assets-scanner/releases/1.8.9/changelog.html",
+    "sections": {
+        "description": "AI-powered CSS/JS asset scanner for WordPress.",
+        "changelog": "<p>Version 1.8.9.</p><p><strong>Fixed</strong></p><ul><li>A WordPress automatic-update run no longer fails with a fatal error when another plugin's update entry carries no download link. The plugin's update handler runs on every package WordPress downloads, and an entry without a link stopped the whole automatic-update run &mdash; which could leave a site showing \"Briefly unavailable for scheduled maintenance\". The handler now hands such an entry back to WordPress untouched. Affected every release from 1.7.8 on.</li></ul><p><strong>Changed</strong></p><ul><li>Tested up to WordPress 7.1.2.</li><li><strong>Run Another Scan</strong> on the results screen is now the primary (blue) button.</li></ul>"
+    },
+    "homepage": "https://wpservice.pro/our-products/ai-assets-scanner/",
+    "details_url": "https://wpservice.pro/our-products/ai-assets-scanner/"
+}
