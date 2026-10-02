@@ -114,7 +114,7 @@ class CuJsonBuilder {
             'exported_at' => gmdate( 'c' ),
             'groups'      => [
                 [ 'id' => self::GROUP_SAFE,       'name' => 'AA Scanner — Safe',       'description' => 'Assets confirmed not loaded on these pages' ],
-                [ 'id' => self::GROUP_AGGRESSIVE, 'name' => 'AA Scanner — Aggressive', 'description' => 'Assets loaded but zero passive coverage. Verify before enabling.' ],
+                [ 'id' => self::GROUP_AGGRESSIVE, 'name' => 'AA Scanner — Aggressive', 'description' => 'Assets loaded on these pages but tested safe to remove. A wider net than Safe; review after applying.' ],
             ],
             'rules' => $rules,
             // Per-page S/A/N tallies, keyed by input page index (error pages absent).
@@ -170,8 +170,10 @@ class CuJsonBuilder {
     }
 
     /**
-     * Returns 'absent' (loaded=false), 'aggressive' (loaded with zero coverage),
-     * or 'needed' (loaded with positive coverage).
+     * Returns 'absent' (loaded=false), 'aggressive' (loaded, but the worker's
+     * removal checks passed — since the Phase 2B elastic gate this includes
+     * assets with positive coverage), or 'needed' (loaded and the checks failed).
+     * Only the legacy fallback below still equates aggressive with zero coverage.
      *
      * AUTHORITATIVE source is `$device_data['bucket']` — emitted by Railway
      * scanner's rebuildFinalAsset() using the raw-coverage classifier
@@ -220,8 +222,9 @@ class CuJsonBuilder {
      *
      * 'absent'     = loaded=false on this device. Playwright didn't see it —
      *                may be genuinely off the page OR a coverage-tracking miss.
-     * 'aggressive' = loaded with zero coverage (verifier confirms safe to unload).
-     * 'needed'     = loaded with positive coverage (in active use).
+     * 'aggressive' = loaded, but the worker's removal checks passed (safe to unload;
+     *                may have positive coverage since the Phase 2B elastic gate).
+     * 'needed'     = loaded and the removal checks failed (in active use).
      *
      * Safe rules are only emitted when BOTH devices confirm 'absent' — single-
      * device 'absent' is treated as unreliable and dropped, since Playwright's
