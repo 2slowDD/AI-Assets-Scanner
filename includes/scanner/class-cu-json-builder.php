@@ -222,8 +222,9 @@ class CuJsonBuilder {
      *
      * 'absent'     = loaded=false on this device. Playwright didn't see it —
      *                may be genuinely off the page OR a coverage-tracking miss.
-     * 'aggressive' = loaded with zero coverage (verifier confirms safe to unload).
-     * 'needed'     = loaded with positive coverage (in active use).
+     * 'aggressive' = loaded, but the worker's removal checks passed (safe to unload;
+     *                may have positive coverage since the Phase 2B elastic gate).
+     * 'needed'     = loaded and the removal checks failed (in active use).
      *
      * Safe rules are only emitted when BOTH devices confirm 'absent' — single-
      * device 'absent' is treated as unreliable and dropped, since Playwright's
